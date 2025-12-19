@@ -1,6 +1,6 @@
 package vct.col.ast.expr.op.map
 
-import vct.col.ast.{MapGet, TMap, Type}
+import vct.col.ast.{Constant, Local, MapGet, TMap, Type}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.MapGetOps
 
@@ -12,7 +12,14 @@ trait MapGetImpl[G] extends MapGetOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar => Group(Text("lookup") <+> assoc(map) <+> Doc.arg(k))
+      case Ctx.Isar =>
+        k match {
+          case Local(_) | _: Constant[G] =>
+            Group(Text("the (") <+> assoc(map) <+> Doc.arg(k) <> ")")
+          case _ =>
+            Group(Text("the (") <+> assoc(map) <+> "(" <> Doc.arg(k) <> "))")
+        }
+
       case _ => Group(assoc(map) <> "[" <> Doc.arg(k) <> "]")
     }
   }
