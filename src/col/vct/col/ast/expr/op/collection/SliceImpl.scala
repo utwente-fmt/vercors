@@ -11,7 +11,8 @@ trait SliceImpl[G] extends SliceOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar => Text("nths") <+> assoc(xs) <+> "{" <> from <> ".." <> to <> "}"
+      case Ctx.Isar =>
+        Text("nths") <+> assoc(xs) <+> "{" <> from <> "..<" <> to <> "}"
       case _ => assoc(xs) <> "[" <> from <> ".." <> to <> "]"
     }
   }
