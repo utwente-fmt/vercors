@@ -2,95 +2,7 @@ package vct.rewrite
 
 import hre.util.ScopedStack
 import vct.col.ast.util.ExpressionEqualityCheck
-import vct.col.ast.{
-  ADTAxiom,
-  ADTFunction,
-  AccountedPredicate,
-  AddrOf,
-  AnyFunctionInvocation,
-  AnyMethodInvocation,
-  ApplyCoercion,
-  AssignExpression,
-  AssignStmt,
-  AxiomaticDataType,
-  ByValueClassLocation,
-  CoerceConstPointerArrayPointer,
-  CoerceNonNullPointerArray,
-  CoerceNullPointerArray,
-  CoercePointerArrayPointer,
-  CoercePointerNonNullPointerArray,
-  CoercePointerPointerArray,
-  Coercion,
-  ConstructorInvocation,
-  ContractApplicable,
-  Declaration,
-  DerefPointer,
-  Expr,
-  FramedProof,
-  FunctionInvocation,
-  InlinePattern,
-  InstanceFunctionInvocation,
-  IntegerPointerCast,
-  Invocation,
-  InvocationStatement,
-  InvokeConstructor,
-  InvokeMethod,
-  InvokeProcedure,
-  InvokingNode,
-  IterationContract,
-  LLVMLoopContract,
-  Label,
-  LabelDecl,
-  Local,
-  Loop,
-  LoopInvariant,
-  MethodInvocation,
-  Mult,
-  NewConstPointerArray,
-  NewPointerArray,
-  Node,
-  Null,
-  Old,
-  OptEmpty,
-  OptGet,
-  OptNoneTyped,
-  OptSome,
-  ParBarrier,
-  ParBlock,
-  ParParallel,
-  ParRegion,
-  ParSequential,
-  Perm,
-  PointerAdd,
-  PointerArraySubscript,
-  PointerArrayType,
-  PointerBlockLength,
-  PointerBlockOffset,
-  PointerEq,
-  PointerLocation,
-  PointerNeq,
-  PointerSubscript,
-  PointerType,
-  Predicate,
-  Procedure,
-  ProcedureInvocation,
-  Program,
-  Result,
-  Scope,
-  Select,
-  SplitAccountedPredicate,
-  Statement,
-  TAxiomatic,
-  TInt,
-  TNonNullConstPointer,
-  TNonNullPointer,
-  TOption,
-  ToNonNull,
-  Type,
-  UnitAccountedPredicate,
-  Variable,
-  WritePerm,
-}
+import vct.col.ast._
 import vct.col.origin.{
   AbstractApplicable,
   Blame,
@@ -205,8 +117,9 @@ case class EncodePointerArrays[Pre <: Generation]()
     ADTFunction[Post],
   ] = SuccessionMap()
 
-  private val currentVariableContext: mutable.HashSet[Variable[Pre]] = mutable
-    .HashSet()
+  private val currentVariableContext
+      : ScopedStack[mutable.HashSet[Variable[Pre]]] = ScopedStack()
+  currentVariableContext.push(mutable.HashSet())
 
   private val variableHeapLabel: SuccessionMap[Variable[Pre], LabelDecl[Post]] =
     SuccessionMap()
@@ -215,6 +128,10 @@ case class EncodePointerArrays[Pre <: Generation]()
       : ScopedStack[mutable.ArrayBuffer[LabelDecl[Post]]] = ScopedStack()
 
   private val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
+
+  private def removeVarsFromStack(variables: Seq[Variable[Pre]]): Unit = {
+    currentVariableContext.foreach(c => c --= variables)
+  }
 
   override def postCoerce(program: Program[Pre]): Program[Post] = {
     globalBlame.having(program.blame) {
@@ -516,7 +433,7 @@ case class EncodePointerArrays[Pre <: Generation]()
         e.target match {
           case Local(Ref(v))
               if v.t.asPointerArray.isDefined &&
-                currentVariableContext.add(v) =>
+                currentVariableContext.top.add(v) =>
             variableHeapLabel(v) =
               if (currentStatementLabel.top.isEmpty) {
                 val l = new LabelDecl[Post]()
@@ -549,14 +466,17 @@ case class EncodePointerArrays[Pre <: Generation]()
     val (labels, newS) = currentStatementLabel.collect(s match {
       case Scope(variables, _) =>
         // Not adding variables until they're assigned since VerCors scopes don't match normal programming scopes since you can refer to a variable before its declaration
-        val res = s.rewriteDefault()
-        currentVariableContext --= variables
+        val res =
+          currentVariableContext.having(mutable.HashSet[Variable[Pre]]()) {
+            s.rewriteDefault()
+          }
+        removeVarsFromStack(variables)
         res
       case s: AssignStmt[Pre] =>
         s.target match {
           case Local(Ref(v))
               if v.t.asPointerArray.isDefined &&
-                currentVariableContext.add(v) =>
+                currentVariableContext.top.add(v) =>
             val l = new LabelDecl[Post]()
             variableHeapLabel(v) = l
             Label(
@@ -578,11 +498,15 @@ case class EncodePointerArrays[Pre <: Generation]()
       case loop: Loop[Pre] =>
         loop.contract match {
           case inv @ LoopInvariant(invariant, _) =>
-            loop.rewrite(contract =
-              inv.rewrite(invariant =
-                getDimensionExpr() &* super.dispatch(invariant)
+            // Scope the body of a loop, vars which only gets assigned in the loop
+            // should not overflow to other contracts
+            currentVariableContext.having(mutable.HashSet[Variable[Pre]]()) {
+              loop.rewrite(contract =
+                inv.rewrite(invariant =
+                  getDimensionExpr() &* super.dispatch(invariant)
+                )
               )
-            )
+            }
           case _: IterationContract[Pre] => throw ExtraNode
           case _: LLVMLoopContract[Pre] => throw ExtraNode
         }
@@ -592,10 +516,12 @@ case class EncodePointerArrays[Pre <: Generation]()
           ensures = getDimensionExpr() &* dispatch(bar.ensures),
         )
       case frame: FramedProof[Pre] =>
-        frame.rewrite(
-          pre = getDimensionExpr() &* dispatch(frame.pre),
-          post = getDimensionExpr() &* dispatch(frame.post),
-        )
+        currentVariableContext.having(mutable.HashSet[Variable[Pre]]()) {
+          frame.rewrite(
+            pre = getDimensionExpr() &* dispatch(frame.pre),
+            post = getDimensionExpr() &* dispatch(frame.post),
+          )
+        }
       case _ => super.postCoerce(s)
     })
     if (labels.isEmpty) { newS }
@@ -619,8 +545,10 @@ case class EncodePointerArrays[Pre <: Generation]()
   private def getDimensionExpr(
       useOld: Boolean = true
   )(implicit o: Origin): Expr[Post] = {
+    val vars: Set[Variable[Pre]] =
+      currentVariableContext.toSeq.flatMap(_.toSet).toSet
     foldAnd(
-      currentVariableContext.flatMap(v =>
+      vars.flatMap(v =>
         v.t.asPointerArray.map((v, _, variableHeapLabel.get(v).map(_.ref)))
       ).flatMap { case (v, t, l) =>
         implicit val o: Origin = v.o.where(context = "Dimension invariant")
@@ -692,7 +620,6 @@ case class EncodePointerArrays[Pre <: Generation]()
                       ) === dispatch(d.get)
                     }
                   }
-
                 (if (t.isNonNull) { calcDim(Local(succ(v))) }
                  else {
                    calcDim(OptGet[Post](Local(succ(v)))(PanicBlame(
@@ -702,9 +629,9 @@ case class EncodePointerArrays[Pre <: Generation]()
               }).foldLeft(oldRequires) { case (r, l) =>
                 SplitAccountedPredicate(l, r)
               }
-        currentVariableContext ++= app.args
-        currentVariableContext ++= app.contract.givenArgs
-        currentVariableContext ++= app.contract.yieldsArgs
+        currentVariableContext.top ++= app.args
+        currentVariableContext.top ++= app.contract.givenArgs
+        currentVariableContext.top ++= app.contract.yieldsArgs
         allScopes.anySucceed(
           app,
           app.rewrite(contract =
@@ -713,18 +640,18 @@ case class EncodePointerArrays[Pre <: Generation]()
             )
           ),
         )
-        currentVariableContext --= app.args
-        currentVariableContext --= app.contract.givenArgs
-        currentVariableContext --= app.contract.yieldsArgs
+        currentVariableContext.top --= app.args
+        currentVariableContext.top --= app.contract.givenArgs
+        currentVariableContext.top --= app.contract.yieldsArgs
       case p: Predicate[Pre] if p.body.isDefined =>
-        currentVariableContext ++= p.args
+        currentVariableContext.top ++= p.args
         globalDeclarations.succeed(
           p,
           p.rewrite(body =
             Some(getDimensionExpr(useOld = false) &* dispatch(p.body.get))
           ),
         )
-        currentVariableContext --= p.args
+        currentVariableContext.top --= p.args
       case _ => super.postCoerce(decl)
     }
   }
@@ -939,6 +866,7 @@ case class EncodePointerArrays[Pre <: Generation]()
             } else { basePerms }
           UnitAccountedPredicate(fullPerms)
         },
+        decreases = Some(DecreasesClauseNoRecursion[Post]()),
       )(o.where(name =
         s"create_${if (isConst)
             "const_"
