@@ -96,13 +96,16 @@ class PallasFunctionContractDeclarerPass
      * true otherwise. In case of an error, an error is added to the
      * ErrorReporter.
      * parentFunc is the function to which the contract is attached.
+     * The flag 'implicitArgs' indicates if the arguments of the 
+     * parent function are implicitly encoded in the contract (i.e. in external
+     * or ghost contracts).
      */
     bool addClauseToContract(col::ApplicableContract &contract,
                              Metadata *clauseOperand,
                              FunctionAnalysisManager &fam, Function &parentFunc,
                              unsigned int clauseNum,
                              const MDNode &contractSrcLoc,
-                             const bool isExternal);
+                             const bool implicitArgs);
 
     /**
      * Tries to extract the wrapper-function from the given metadata-node that

@@ -61,6 +61,7 @@ translate_c_file examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAss
 translate_c_file examples/concepts/llvm/pointer_casts.c examples/concepts/llvm/pointer_casts.ll
 translate_c_file examples/concepts/c/pointer_relations.c examples/concepts/llvm/pointer_relations.ll
 translate_c_file examples/concepts/llvm/structs.c examples/concepts/llvm/structs.ll
+translate_c_file examples/concepts/llvm/pallas/ghost/pallas_ghost_func.c examples/concepts/llvm/pallas/ghost/pallas_ghost_func.ll ""
 
 # C++ Tests
 echo "=============================================="

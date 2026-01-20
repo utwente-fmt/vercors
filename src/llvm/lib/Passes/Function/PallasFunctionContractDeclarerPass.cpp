@@ -69,9 +69,10 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
     // If it does not have a contract, we need an empty VCLLVM contract instead
     // of an empty Pallas contract. Otherwise the mechanism for loading
     // contracts from a PVL-file does not get invoked.
-    if (utils::hasVcllvmContract(f) ||
-        !(utils::hasPallasContract(f) || utils::hasExternalPallasContract(f)))
+    if (utils::hasVcllvmContract(f) || utils::getPallasContract(f) == nullptr)
         return;
+
+    bool isGhost = utils::hasPallasGhostContract(f);
 
     // Setup a fresh Pallas-contract
     FDCResult cResult = fam.getResult<FunctionContractDeclarer>(f);
@@ -85,8 +86,6 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
 
     // Get COL function
     FDResult fResult = fam.getResult<FunctionDeclarer>(f);
-    // col::LlvmFunctionDefinition &colFunction =
-    //     fResult.getAssociatedColFuncDef();
 
     col::ApplicableContract *colContract = colPallasContract->mutable_content();
     colContract->set_allocated_blame(new col::Blame());
@@ -124,10 +123,11 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
 
     // Handle contract clauses
     unsigned int clauseIdx = 3;
+    bool implicitArgs = isExternal || isGhost;
     while (clauseIdx < contractNode->getNumOperands()) {
         auto addClauseSuccess = addClauseToContract(
             *colContract, contractNode->getOperand(clauseIdx).get(), fam, f,
-            clauseIdx - 2, *mdSrcLoc, isExternal);
+            clauseIdx - 2, *mdSrcLoc, implicitArgs);
         if (!addClauseSuccess)
             return;
         ++clauseIdx;
@@ -218,7 +218,7 @@ PallasFunctionContractDeclarerPass::getContractArgs(
 bool PallasFunctionContractDeclarerPass::addClauseToContract(
     col::ApplicableContract &contract, Metadata *clauseOperand,
     FunctionAnalysisManager &fam, Function &parentFunc, unsigned int clauseNum,
-    const MDNode &contractSrcLoc, const bool isExternal) {
+    const MDNode &contractSrcLoc, const bool implicitArgs) {
 
     // Try to extract MDNode
     auto *clause = dyn_cast_if_present<MDNode>(clauseOperand);
@@ -231,8 +231,8 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     }
 
     // Check number of operands
-    if ((!isExternal && clause->getNumOperands() < 3) ||
-        (isExternal && clause->getNumOperands() != 3)) {
+    if ((!implicitArgs && clause->getNumOperands() < 3) ||
+        (implicitArgs && clause->getNumOperands() != 3)) {
         pallas::ErrorReporter::addError(
             SOURCE_LOC,
             "Ill-formed contract clause. Incorrect number of operands",
@@ -273,8 +273,8 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
         wrapperFResult.getAssociatedColFuncDef();
 
     // Get arguments for the wrapper-call
-    auto wrapperArgs = isExternal ? getExternalContractArgs(parentFunc, fam)
-                                  : getContractArgs(*clause, parentFunc, fam);
+    auto wrapperArgs = implicitArgs ? getExternalContractArgs(parentFunc, fam)
+                                    : getContractArgs(*clause, parentFunc, fam);
     if (!wrapperArgs.has_value()) {
         return false;
     }
@@ -528,6 +528,7 @@ void PallasFunctionContractDeclarerPass::extendPredicate(
 bool PallasFunctionContractDeclarerPass::hasConflictingContract(Function &f) {
     int contrCount = 0;
     contrCount += utils::hasExternalPallasContract(f) ? 1 : 0;
+    contrCount += utils::hasPallasGhostContract(f) ? 1 : 0;
     contrCount += utils::hasPallasContract(f) ? 1 : 0;
     contrCount += utils::hasVcllvmContract(f) ? 1 : 0;
 
