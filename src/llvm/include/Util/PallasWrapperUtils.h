@@ -11,6 +11,7 @@
 #pragma GCC diagnostic pop
 #endif // __GNUC__
 
+#include "IRSpec/PallasIRSpec.h"
 #include "Passes/Function/FunctionBodyTransformer.h"
 
 #include <llvm/IR/Function.h>
@@ -34,7 +35,8 @@ bool hasDiExpression(llvm::DbgVariableIntrinsic &intr);
  */
 void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
                             unsigned int argIdx, llvm::AllocaInst &llvmAlloca,
-                            llvm::Function &llvmWFunc, llvm::MDNode &srcLoc,
+                            llvm::Function &llvmWFunc,
+                            const pallas::irspec::SrcLoc &srcLoc,
                             pallas::FunctionCursor &functionCursor);
 
 /**
@@ -45,7 +47,8 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
  */
 bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
                               unsigned int argIdx, llvm::DbgValueInst &dbgVal,
-                              llvm::Function &llvmWFunc, llvm::MDNode &srcLoc,
+                              llvm::Function &llvmWFunc,
+                              const pallas::irspec::SrcLoc &srcLoc,
                               pallas::FunctionCursor &functionCursor,
                               llvm::Function &llvmParentFunc);
 

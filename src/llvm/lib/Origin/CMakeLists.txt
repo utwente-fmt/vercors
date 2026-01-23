@@ -4,7 +4,7 @@ add_library(Origin STATIC
     ContextDeriver.cpp
     PreferredNameDeriver.cpp)
 
-target_link_libraries(Origin COL)
+target_link_libraries(Origin COL IRSpec)
 target_include_directories(Origin PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
 )

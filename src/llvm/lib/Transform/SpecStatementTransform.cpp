@@ -1,4 +1,5 @@
 #include "Transform/SpecStatementTransform.h"
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Origin/OriginProvider.h"
 #include "Util/BlockUtils.h"
 #include "Util/Constants.h"
@@ -64,7 +65,7 @@ void printSpecStmntError(llvm::Instruction &inst, std::string msg) {
 bool buildArgForDIVar(llvm::DIVariable &diVar, llvm::Instruction &llvmInstr,
                       col::LlvmFunctionInvocation &wrapperCall,
                       llvm::Function &llvmWrapperFunc, unsigned int argIdx,
-                      llvm::MDNode &srcLoc,
+                      const pallas::irspec::SrcLoc &srcLoc,
                       pallas::FunctionCursor &functionCursor) {
     llvm::DILocalVariable *diLocVar =
         llvm::dyn_cast<llvm::DILocalVariable>(&diVar);
@@ -135,8 +136,8 @@ void llvm2col::transformSpecStmnt(llvm::MDNode &specStmnt,
                                   col::LlvmBasicBlock &colBlock,
                                   pallas::FunctionCursor &functionCursor) {
     // Deconstruct the MD-Node
-    if (specStmnt.getNumOperands() < 3) {
-        printSpecStmntError(llvmInstr, "Expected at least three operands");
+    if (specStmnt.getNumOperands() < 5) {
+        printSpecStmntError(llvmInstr, "Expected at least five operands");
         return;
     }
     // Statement-type
@@ -146,10 +147,11 @@ void llvm2col::transformSpecStmnt(llvm::MDNode &specStmnt,
         return;
     }
     // Src-location
-    auto *srcLoc = llvm::dyn_cast<llvm::MDNode>(specStmnt.getOperand(1).get());
-    if (!pallas::utils::isWellformedPallasLocation(srcLoc)) {
-        printSpecStmntError(llvmInstr,
-                            "Expected src-location as second operand");
+    auto srcLoc = pallas::irspec::getSrcLoc(
+        llvm::dyn_cast<llvm::MDNode>(specStmnt.getOperand(1).get()));
+    if (!srcLoc.has_value()) {
+        printSpecStmntError(llvmInstr, "Expected src-location as second "
+                                       "operand of specification statement");
         return;
     }
     // Wrapper-function
@@ -163,9 +165,12 @@ void llvm2col::transformSpecStmnt(llvm::MDNode &specStmnt,
     col::LlvmFunctionDefinition &colWFunc =
         fam.getResult<pallas::FunctionDeclarer>(*llvmWFunc)
             .getAssociatedColFuncDef();
+
+    // TODO: Add ghost args
+
     // DI-Variables
     llvm::SmallVector<llvm::DIVariable *> diVars;
-    for (auto idx = 3; idx < specStmnt.getNumOperands(); ++idx) {
+    for (auto idx = 5; idx < specStmnt.getNumOperands(); ++idx) {
         auto *diVar = llvm::dyn_cast_if_present<llvm::DIVariable>(
             specStmnt.getOperand(idx).get());
         if (diVar == nullptr) {

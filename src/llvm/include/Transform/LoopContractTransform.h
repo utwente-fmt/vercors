@@ -12,6 +12,7 @@
 #endif // __GNUC__
 
 #include "Passes/Function/FunctionBodyTransformer.h"
+#include "IRSpec/PallasIRSpec.h"
 
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/PassManager.h>
@@ -29,7 +30,7 @@ void initializeEmptyLoopContract(col::LoopContract &colContract);
 
 bool addInvariantToContract(llvm::MDNode &invMD, llvm::Loop &llvmLoop,
                             col::LlvmLoopContract &colContract,
-                            llvm::MDNode &contractLoc,
+                            const pallas::irspec::SrcLoc &contractLoc,
                             pallas::FunctionCursor &functionCursor);
 
 } // namespace llvm2col

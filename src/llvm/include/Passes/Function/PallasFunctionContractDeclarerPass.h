@@ -11,6 +11,8 @@
 #pragma GCC diagnostic pop
 #endif // __GNUC__
 
+#include "IRSpec/PallasIRSpec.h"
+
 #include <memory>
 
 #include <llvm/IR/Function.h>
@@ -96,34 +98,24 @@ class PallasFunctionContractDeclarerPass
      * true otherwise. In case of an error, an error is added to the
      * ErrorReporter.
      * parentFunc is the function to which the contract is attached.
-     * The flag 'implicitArgs' indicates if the arguments of the 
+     * The flag 'implicitArgs' indicates if the arguments of the
      * parent function are implicitly encoded in the contract (i.e. in external
      * or ghost contracts).
      */
     bool addClauseToContract(col::ApplicableContract &contract,
-                             Metadata *clauseOperand,
+                             const pallas::irspec::ContractClause &clause,
                              FunctionAnalysisManager &fam, Function &parentFunc,
                              unsigned int clauseNum,
-                             const MDNode &contractSrcLoc,
+                             const pallas::irspec::SrcLoc &contractSrcLoc,
                              const bool implicitArgs);
-
-    /**
-     * Tries to extract the wrapper-function from the given metadata-node that
-     * represents a clause of a Pallas contract (i.e. the operand at index 2
-     * is expected to point to a function).
-     * Also checks, if the function is marked as a wrapper-function.
-     * Returns a nullptr id the function could not be extracted.
-     * ctxFunc is used to build error messages.
-     */
-    Function *getWrapperFuncFromClause(MDNode &clause, Function &ctxFunc);
 
     /**
      * Resolve the DIVariables from a given MD-nodes that encodes a contract-
      * clause into col-variables.
      */
     std::optional<SmallVector<col::Variable *, 8>>
-    getContractArgs(const MDNode &clause, Function &parentFunc,
-                    FunctionAnalysisManager &fam);
+    getContractArgs(const pallas::irspec::ContractClause &clause,
+                    Function &parentFunc, FunctionAnalysisManager &fam);
 
     /**
      * Get the arguments for a call to a wrapper-function that is part of the
@@ -158,6 +150,15 @@ class PallasFunctionContractDeclarerPass
      * and true is returned. Otherwise, false is returned.
      */
     bool hasConflictingContract(Function &f);
+
+    /**
+     * Collects all used ghost arguments (given / yields) from the
+     * specifications in the used function.
+     * Performs a consistency check to ensure that the ghost arguments have
+     * the same types in all specifications.
+     */
+
+    // TODO
 };
 } // namespace pallas
 #endif // PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H

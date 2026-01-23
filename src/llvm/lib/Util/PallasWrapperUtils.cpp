@@ -22,7 +22,8 @@ bool hasDiExpression(llvm::DbgVariableIntrinsic &intr) {
 
 void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
                             unsigned int argIdx, llvm::AllocaInst &llvmAlloca,
-                            llvm::Function &llvmWFunc, llvm::MDNode &srcLoc,
+                            llvm::Function &llvmWFunc,
+                            const pallas::irspec::SrcLoc &srcLoc,
                             pallas::FunctionCursor &functionCursor) {
     col::Variable &colVar =
         functionCursor.getVariableMapEntry(llvmAlloca, false);
@@ -72,7 +73,8 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
 
 bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
                               unsigned int argIdx, llvm::DbgValueInst &dbgVal,
-                              llvm::Function &llvmWFunc, llvm::MDNode &srcLoc,
+                              llvm::Function &llvmWFunc,
+                              const pallas::irspec::SrcLoc &srcLoc,
                               pallas::FunctionCursor &functionCursor,
                               llvm::Function &llvmParentFunc) {
     if (hasDiExpression(dbgVal)) {
@@ -96,17 +98,14 @@ bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
         }
     }
 
-    // Handle the case where the debug-info references a constant value. 
+    // Handle the case where the debug-info references a constant value.
     if (auto *constVal = llvm::dyn_cast<llvm::Constant>(llvmValue)) {
         auto *argExpr = wrapperCall.add_args();
         llvm2col::transformAndSetConstExpr(
-            functionCursor.getFunctionAnalysisManager(), 
+            functionCursor.getFunctionAnalysisManager(),
             // TODO: Put a more precise origin here!
-            llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc), 
-            *constVal, 
-            *argExpr, 
-            llvmParentFunc.getParent()->getDataLayout()
-        );
+            llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc),
+            *constVal, *argExpr, llvmParentFunc.getParent()->getDataLayout());
         return true;
     }
 

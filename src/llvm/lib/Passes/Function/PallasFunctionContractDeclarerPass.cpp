@@ -1,5 +1,6 @@
 #include "Passes/Function/PallasFunctionContractDeclarerPass.h"
 
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Origin/OriginProvider.h"
 #include "Passes/Function/FunctionContractDeclarer.h"
 #include "Passes/Function/FunctionDeclarer.h"
@@ -9,6 +10,7 @@
 #include "Util/PallasMD.h"
 #include "Util/PallasWrapperUtils.h"
 
+#include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Argument.h>
@@ -73,6 +75,14 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
         return;
 
     bool isGhost = utils::hasPallasGhostContract(f);
+    bool isExternal = utils::hasExternalPallasContract(f);
+    bool implicitArgs = isGhost || isExternal;
+
+    // Decode the MD-encoding
+    auto *contractNode = utils::getPallasContract(f);
+    auto irContract = irspec::getContract(contractNode, implicitArgs);
+    if (!irContract.has_value())
+        return;
 
     // Setup a fresh Pallas-contract
     FDCResult cResult = fam.getResult<FunctionContractDeclarer>(f);
@@ -81,8 +91,9 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
     colPallasContract->set_allocated_blame(new col::Blame());
 
     // external-flag
-    bool isExternal = utils::hasExternalPallasContract(f);
     colPallasContract->set_external(isExternal);
+    // Set assumed-flag
+    colPallasContract->set_assumed(irContract->assumed);
 
     // Get COL function
     FDResult fResult = fam.getResult<FunctionDeclarer>(f);
@@ -90,47 +101,63 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
     col::ApplicableContract *colContract = colPallasContract->mutable_content();
     colContract->set_allocated_blame(new col::Blame());
 
-    // Check wellformedness of the contract-metadata
-    auto *contractNode = utils::getPallasContract(f);
-    if (contractNode->getNumOperands() < 3) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC, "Ill-formed contract. Expected at least 3 operands", f);
-        return;
-    }
-
-    auto *mdSrcLoc = dyn_cast<MDNode>(contractNode->getOperand(0).get());
-    if (!pallas::utils::isWellformedPallasLocation(mdSrcLoc)) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Ill-formed contract. First operand should encode source-location.",
-            f);
-        return;
-    }
-
     // Build origin based on the source-location
     colPallasContract->set_allocated_origin(
-        llvm2col::generatePallasFunctionContractOrigin(f, *mdSrcLoc));
+        llvm2col::generatePallasFunctionContractOrigin(f, irContract->loc));
     colContract->set_allocated_origin(
-        llvm2col::generatePallasFunctionContractOrigin(f, *mdSrcLoc));
+        llvm2col::generatePallasFunctionContractOrigin(f, irContract->loc));
 
-    // Set assumed-flag
-    auto assumedFlag = getAssumedFlag(*contractNode);
-    if (!assumedFlag.has_value()) {
-        addError(f, "Malformed function contract (assumed-flag)");
+    /*
+    // TODO: Collect the ghost arguments used in the function
+    // Add given-args:
+    auto *givenNode =
+        llvm::dyn_cast<llvm::MDNode>(contractNode->getOperand(3).get());
+    if (givenNode == nullptr) {
+        addError(f, "Malformed function contract (given-args)");
         return;
     }
-    colPallasContract->set_assumed(assumedFlag.value());
+    for (auto &g : givenNode->operands()) {
+        auto *givenNode = llvm::dyn_cast<llvm::MDNode>(g);
+        if (givenNode == nullptr) {
+            addError(f, "Malformed function contract (given-arg)");
+            return;
+        }
+        auto *locNode =
+            llvm::dyn_cast<llvm::MDNode>(givenNode->getOperand(0).get());
+        auto *mdSrcLoc = dyn_cast<MDNode>(contractNode->getOperand(0).get());
+        if (!pallas::utils::isWellformedPallasLocation(locNode)) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC,
+                "Ill-formed ghost argument. First operand should encode "
+                "source-location.",
+                f);
+            return;
+        }
+        auto *nameNode =
+            llvm::dyn_cast<llvm::MDString>(givenNode->getOperand(1).get());
+        if (nameNode == nullptr) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC,
+                "Ill-formed ghost argument. Second operand should encode "
+                "argument name.",
+                f);
+            return;
+        }
+        auto *gVar = colContract->add_given_args();
+        gVar->set_allocated_origin(llvm2col::generatePallasSpecOrigin(
+            *locNode, nameNode->getString().str()));
+        // TODO: Determine & set type
+    }
+    // TODO: Define variable for the ghost arguments and keep mapping
+    */
 
     // Handle contract clauses
-    unsigned int clauseIdx = 3;
-    bool implicitArgs = isExternal || isGhost;
-    while (clauseIdx < contractNode->getNumOperands()) {
-        auto addClauseSuccess = addClauseToContract(
-            *colContract, contractNode->getOperand(clauseIdx).get(), fam, f,
-            clauseIdx - 2, *mdSrcLoc, implicitArgs);
+    for (const auto [idx, clause] : llvm::enumerate(irContract->clauses)) {
+        auto addClauseSuccess =
+            addClauseToContract(*colContract, clause, fam, f, idx + 1,
+                                irContract->loc, implicitArgs);
         if (!addClauseSuccess)
             return;
-        ++clauseIdx;
     }
 
     // Ensure, that the required fields of the contract are set.
@@ -157,40 +184,13 @@ PallasFunctionContractDeclarerPass::getExternalContractArgs(
 
 std::optional<SmallVector<col::Variable *, 8>>
 PallasFunctionContractDeclarerPass::getContractArgs(
-    const MDNode &clause, Function &parentFunc, FunctionAnalysisManager &fam) {
-    // Get DIVariables from the MD-Node of the clause
-    SmallVector<DIVariable *, 8> diVars;
-    unsigned int vIdx = 3;
-    while (vIdx < clause.getNumOperands()) {
-        if (auto *diVar = dyn_cast<DIVariable>(clause.getOperand(vIdx).get())) {
-            diVars.push_back(diVar);
-        } else {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC,
-                "Ill-formed contract clause. Expected DIVariable as operand.",
-                parentFunc);
-            return std::nullopt;
-        }
-        vIdx++;
-    }
-
+    const pallas::irspec::ContractClause &clause, Function &parentFunc,
+    FunctionAnalysisManager &fam) {
     FDResult colFResult = fam.getResult<FunctionDeclarer>(parentFunc);
 
     // Resolve the DIVariables to col-variables
     SmallVector<col::Variable *, 8> colArgs;
-    for (auto *diVar : diVars) {
-
-        // Global values are not yet supported
-        auto *localVar = dyn_cast<DILocalVariable>(diVar);
-        if (localVar == nullptr || !localVar->isParameter()) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC,
-                "Ill-formed contract clause. Only arguments are currently "
-                "supported ",
-                parentFunc);
-            return std::nullopt;
-        }
-
+    for (auto *localVar : clause.wrapperArgs) {
         // Check that the DIVariable belongs to the function to which the
         // contract is attached
         if (localVar->getScope() != parentFunc.getSubprogram()) {
@@ -216,65 +216,20 @@ PallasFunctionContractDeclarerPass::getContractArgs(
 }
 
 bool PallasFunctionContractDeclarerPass::addClauseToContract(
-    col::ApplicableContract &contract, Metadata *clauseOperand,
-    FunctionAnalysisManager &fam, Function &parentFunc, unsigned int clauseNum,
-    const MDNode &contractSrcLoc, const bool implicitArgs) {
-
-    // Try to extract MDNode
-    auto *clause = dyn_cast_if_present<MDNode>(clauseOperand);
-    if (clause == nullptr) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Ill-formed contract clause. Expected MDNode as operand.",
-            parentFunc);
-        return false;
-    }
-
-    // Check number of operands
-    if ((!implicitArgs && clause->getNumOperands() < 3) ||
-        (implicitArgs && clause->getNumOperands() != 3)) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Ill-formed contract clause. Incorrect number of operands",
-            parentFunc);
-        return false;
-    }
-
-    // Check clause type (i.e. requires or ensures)
-    auto *clauseTypeMD = dyn_cast<MDString>(clause->getOperand(0).get());
-    if (clauseTypeMD == nullptr) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Ill-formed contract clause. First operand should be a string.",
-            parentFunc);
-        return false;
-    }
-    auto clauseTypeStr = clauseTypeMD->getString().str();
-
-    // Check source location
-    auto *clauseSrcLoc = dyn_cast<MDNode>(clause->getOperand(1).get());
-    if (clauseSrcLoc == nullptr) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Ill-formed contract clause. Second operand should contain "
-            "source location.",
-            parentFunc);
-        return false;
-    }
-
-    // Get pointer to the LLVM wrapper-function
-    auto *wrapperF = getWrapperFuncFromClause(*clause, parentFunc);
-    if (wrapperF == nullptr)
-        return false;
+    col::ApplicableContract &contract,
+    const pallas::irspec::ContractClause &clause, FunctionAnalysisManager &fam,
+    Function &parentFunc, unsigned int clauseNum,
+    const pallas::irspec::SrcLoc &contractSrcLoc, const bool implicitArgs) {
 
     // Get COL representation of wrapper function
-    auto wrapperFResult = fam.getResult<FunctionDeclarer>(*wrapperF);
+    auto wrapperFResult =
+        fam.getResult<FunctionDeclarer>(*clause.wrapperFunction);
     col::LlvmFunctionDefinition &colWrapperF =
         wrapperFResult.getAssociatedColFuncDef();
 
     // Get arguments for the wrapper-call
     auto wrapperArgs = implicitArgs ? getExternalContractArgs(parentFunc, fam)
-                                    : getContractArgs(*clause, parentFunc, fam);
+                                    : getContractArgs(clause, parentFunc, fam);
     if (!wrapperArgs.has_value()) {
         return false;
     }
@@ -282,8 +237,8 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     // Build a call to the wrapper-function with the gathered arguments
     col::LlvmFunctionInvocation *wrapperCall =
         new col::LlvmFunctionInvocation();
-    wrapperCall->set_allocated_origin(
-        llvm2col::generatePallasWrapperCallOrigin(*wrapperF, *clauseSrcLoc));
+    wrapperCall->set_allocated_origin(llvm2col::generatePallasWrapperCallOrigin(
+        *clause.wrapperFunction, clause.loc));
     wrapperCall->set_allocated_blame(new col::Blame());
 
     // Build ref to parent function
@@ -298,7 +253,7 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
         // TODO: Currently this just points to the full clause.
         //       Could be extended to point to the specific variable instead.
         argExpr->set_allocated_origin(llvm2col::generatePallasWrapperCallOrigin(
-            *wrapperF, *clauseSrcLoc));
+            *clause.wrapperFunction, clause.loc));
         auto *varRef = argExpr->mutable_ref();
         varRef->set_id(v->id());
     }
@@ -307,11 +262,11 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     // wrapper-function
     col::UnitAccountedPredicate *newPred = new col::UnitAccountedPredicate();
     newPred->set_allocated_origin(llvm2col::generatePallasFContractClauseOrigin(
-        parentFunc, *clauseSrcLoc, clauseNum));
+        parentFunc, clause.loc, clauseNum));
     newPred->mutable_pred()->set_allocated_llvm_function_invocation(
         wrapperCall);
 
-    if (clauseTypeStr == pallas::constants::PALLAS_REQUIRES) {
+    if (clause.type == pallas::irspec::ContractClauseType::REQUIRES) {
         // Add to requires clauses
         if (!contract.has_requires_()) {
             contract.mutable_requires_()
@@ -324,7 +279,7 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
                                 parentFunc, contractSrcLoc),
                             oldPred, newPred);
         }
-    } else if (clauseTypeStr == pallas::constants::PALLAS_ENSURES) {
+    } else if (clause.type == pallas::irspec::ContractClauseType::ENSURES) {
         // Add to ensures clauses
         if (!contract.has_ensures()) {
             contract.mutable_ensures()->set_allocated_unit_accounted_predicate(
@@ -337,12 +292,6 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
                                 parentFunc, contractSrcLoc),
                             oldPred, newPred);
         }
-    } else {
-        // Raise error
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC, "Ill-formed contract clause. Unknown clause type.",
-            parentFunc);
-        return false;
     }
 
     return true;
@@ -424,33 +373,6 @@ Argument *PallasFunctionContractDeclarerPass::mapDIVarToArg(Function &f,
     }
 
     return nullptr;
-}
-
-Function *PallasFunctionContractDeclarerPass::getWrapperFuncFromClause(
-    MDNode &clause, Function &ctxFunc) {
-    auto *wrapperFuncMD = dyn_cast<ValueAsMetadata>(clause.getOperand(2).get());
-    if (wrapperFuncMD == nullptr || wrapperFuncMD->getValue() == nullptr ||
-        !isa<Function>(wrapperFuncMD->getValue())) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Ill-formed contract clause. Second operand should be a "
-            "pointer to a function.",
-            ctxFunc);
-        return nullptr;
-    }
-
-    // Check that the function is marked as a pallas wrapper function.
-    auto *wrapperF = cast<Function>(wrapperFuncMD->getValue());
-    if (!utils::isPallasExprWrapper(*wrapperF)) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Ill-formed contract clause. Second operand does not point to "
-            "wrapper-function.",
-            ctxFunc);
-        return nullptr;
-    }
-
-    return wrapperF;
 }
 
 void PallasFunctionContractDeclarerPass::addEmptyRequires(

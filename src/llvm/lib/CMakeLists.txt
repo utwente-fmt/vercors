@@ -1,3 +1,4 @@
+add_subdirectory(IRSpec)
 add_subdirectory(Origin)
 add_subdirectory(Util)
 add_subdirectory(Transform)

@@ -1,4 +1,5 @@
 #include "Transform/LoopContractTransform.h"
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Origin/OriginProvider.h"
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Transform/Transform.h"
@@ -36,10 +37,9 @@ void llvm2col::transformLoopContract(llvm::Loop &llvmLoop,
     }
 
     // Get the source-location from the contract
-    llvm::MDNode *contractSrcLoc =
-        llvm::dyn_cast<llvm::MDNode>(contractMD->getOperand(1).get());
-    if (contractSrcLoc == nullptr ||
-        !pallas::utils::isWellformedPallasLocation(contractSrcLoc)) {
+    auto contractSrcLoc = pallas::irspec::getSrcLoc(
+        llvm::dyn_cast<llvm::MDNode>(contractMD->getOperand(1).get()));
+    if (!contractSrcLoc.has_value()) {
         pallas::ErrorReporter::addError(
             SOURCE_LOC,
             "Malformed loop contract. Expected src-location as second operand.",
@@ -145,7 +145,7 @@ llvm::DbgValueInst *selectDbgValue(
 
 bool llvm2col::addInvariantToContract(llvm::MDNode &invMD, llvm::Loop &llvmLoop,
                                       col::LlvmLoopContract &colContract,
-                                      llvm::MDNode &contractLoc,
+                                      const pallas::irspec::SrcLoc &contractLoc,
                                       pallas::FunctionCursor &functionCursor) {
     pallas::FunctionAnalysisManager &fam =
         functionCursor.getFunctionAnalysisManager();
@@ -161,10 +161,8 @@ bool llvm2col::addInvariantToContract(llvm::MDNode &invMD, llvm::Loop &llvmLoop,
     }
 
     // Extract src-location
-    llvm::MDNode *srcLoc =
-        llvm::dyn_cast_if_present<llvm::MDNode>(invMD.getOperand(0).get());
-    if (srcLoc == nullptr ||
-        !pallas::utils::isWellformedPallasLocation(srcLoc)) {
+    auto srcLoc = pallas::irspec::getSrcLoc(llvm::dyn_cast_if_present<llvm::MDNode>(invMD.getOperand(0).get()));
+    if (!srcLoc.has_value()) {
         pallas::ErrorReporter::addError(
             SOURCE_LOC,
             "Malformed loop-invariant. Expected src-location as first operand.",
@@ -185,9 +183,11 @@ bool llvm2col::addInvariantToContract(llvm::MDNode &invMD, llvm::Loop &llvmLoop,
         fam.getResult<pallas::FunctionDeclarer>(*llvmWFunc)
             .getAssociatedColFuncDef();
 
+    // TODO: Handle ghost argments
+
     // Get DIVariables from MD
     llvm::SmallVector<llvm::DILocalVariable *, 8> diVars;
-    unsigned int idx = 2;
+    unsigned int idx = 4;
     while (idx < invMD.getNumOperands()) {
         // Check that operand is a DILocalVariable
         auto *diVar = llvm::dyn_cast_if_present<llvm::DILocalVariable>(
