@@ -430,7 +430,8 @@ valModifier
  ;
 
 valTypeQualifier
-  : 'unique' '<' langConstInt '>' # valUnique
+  : 'immutable' # valImmutable
+  | 'unique' '<' langConstInt '>' # valUnique
   | 'unique_pointer_field' '<' langId ',' langConstInt '>' # valUniquePointerField
   ;
 

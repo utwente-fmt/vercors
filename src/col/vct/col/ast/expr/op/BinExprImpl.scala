@@ -13,6 +13,7 @@ import vct.col.ast.{
   TBool,
   TCInt,
   TConst,
+  TImmutable,
   TInt,
   TProcess,
   TRational,
@@ -111,6 +112,7 @@ object BinOperatorTypes {
   def stripTypeAnnotations[G](t: Type[G]): Type[G] =
     t match {
       case TConst(it) => stripTypeAnnotations(it)
+      case TImmutable(it) => stripTypeAnnotations(it)
       case TUnique(it, _) => stripTypeAnnotations(it)
       case _ => t
     }

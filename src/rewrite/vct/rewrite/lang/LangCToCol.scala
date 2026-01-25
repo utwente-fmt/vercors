@@ -467,6 +467,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case CPrimitiveType(specs) =>
         getBaseType(C.getPrimitiveType(specs, None, Some(t)))
       case TUnique(it, _) => getBaseType(it)
+      case TImmutable(it) => getBaseType(it)
       case TConst(it) => getBaseType(it)
       case t @ TClassUnique(cls, _) => t.inner
       case CTStructUnique(it, _, _) => getBaseType(it)
@@ -474,11 +475,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
 
   @tailrec
-  private def isConst[G](t: Type[G]): Boolean =
+  private def isImmutable[G](t: Type[G]): Boolean =
     t match {
       case CPrimitiveType(specs) =>
-        isConst(C.getPrimitiveType(specs, None, Some(t)))
-      case TConst(it) => true
+        isImmutable(C.getPrimitiveType(specs, None, Some(t)))
+      case TImmutable(it) => true
+      case TConst(it) => isImmutable(it)
       case _ => false
     }
 
@@ -709,6 +711,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     t match {
       case TUnique(_, _) => true
       case TConst(inner) => isUniquePointerElement(inner)
+      case TImmutable(inner) => isUniquePointerElement(inner)
       case CTStructUnique(inner, _, _) => isUniquePointerElement(inner)
       case _ => false
     }
@@ -1673,13 +1676,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           )
         case None =>
           val newT =
-            if (isConst(t)) { t }
+            if (isImmutable(t)) { t }
             else { TNonNullPointer(t, getUnique(t)) }
           cGlobalNameSuccessor(RefCGlobalDeclaration(decl, idx)) = rw
             .globalDeclarations.declare(
               new HeapVariable(
                 newT,
-                if (isConst(t)) { init.init.map(rw.dispatch) }
+                if (isImmutable(t)) { init.init.map(rw.dispatch) }
                 else
                   None,
               )(init.o.sourceName(info.name))
@@ -2097,7 +2100,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               DerefHeapVariable[Post](cGlobalNameSuccessor.ref(ref))(
                 local.blame
               )
-            if (isConst(t)) { derefHeap }
+            if (isImmutable(t)) { derefHeap }
             else { DerefPointer(derefHeap)(local.blame) }
           case Some(_) =>
             // Is this ever possible? I.e. would it not be a RefCFunctionDefinition?

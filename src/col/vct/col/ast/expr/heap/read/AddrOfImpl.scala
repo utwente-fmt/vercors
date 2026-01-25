@@ -2,13 +2,13 @@ package vct.col.ast.expr.heap.read
 
 import vct.col.ast.{
   AddrOf,
-  AddrOfConstCast,
+  AddrOfImmutableCast,
   AddrOfUniqueCast,
   AmbiguousSubscript,
   Deref,
   DerefPointer,
   PointerSubscript,
-  TConstPointer,
+  TImmutablePointer,
   TNonNullPointer,
   TPointer,
   Type,
@@ -25,7 +25,7 @@ trait AddrOfImpl[G] extends AddrOfOps[G] {
       case DerefPointer(p) => p.t
       // commented out because if p is a CTArray this gives the wrong type case AmbiguousSubscript(p, _) => p.t
       case PointerSubscript(p, _) => p.t
-      case AddrOfConstCast(e) => TConstPointer(e.t)
+      case AddrOfImmutableCast(e) => TImmutablePointer(e.t)
       case AddrOfUniqueCast(e, unique) => TPointer(e.t, Some(unique))
       case d @ Deref(_, Ref(f)) =>
         TNonNullPointer(

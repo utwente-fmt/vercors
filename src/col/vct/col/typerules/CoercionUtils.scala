@@ -130,6 +130,34 @@ case object CoercionUtils {
           val inner = getAnyCoercion(source, target).getOrElse(return None)
           CoercionSequence(Seq(CoerceFromConst(source), inner))
         }
+      case (TImmutable(source), TImmutable(target)) =>
+        getAnyCoercion(source, target).getOrElse(return None)
+      case (source, TImmutable(target)) =>
+        if (source == target) {
+          source match {
+            case _: TRef[G] => return None
+            case _: PrimitiveType[G] =>
+            case _: CompositeType[G] =>
+            case _ => return None
+          }
+          CoerceToImmutable(target)
+        } else {
+          val inner = getAnyCoercion(source, target).getOrElse(return None)
+          CoercionSequence(Seq(inner, CoerceToImmutable(target)))
+        }
+      case (TImmutable(source), target) =>
+        if (source == target) {
+          source match {
+            case _: TRef[G] => return None
+            case _: PrimitiveType[G] =>
+            case _: CompositeType[G] =>
+            case _ => return None
+          }
+          CoerceFromImmutable(source)
+        } else {
+          val inner = getAnyCoercion(source, target).getOrElse(return None)
+          CoercionSequence(Seq(CoerceFromImmutable(source), inner))
+        }
       case (TResource(), TAnyValue()) =>
         CoercionSequence(Seq(
           CoerceResourceResourceVal(),
@@ -259,7 +287,7 @@ case object CoercionUtils {
       case (TNonNullPointer(innerType, uniqueL), TPointer(element, uniqueR))
           if uniqueL == uniqueR && innerType == element =>
         CoerceNonNullPointer(target)
-      case (TNonNullConstPointer(innerType), TConstPointer(element))
+      case (TNonNullImmutablePointer(innerType), TImmutablePointer(element))
           if innerType == element =>
         CoerceNonNullPointer(target)
       case (TNonNullPointer(a, uniqueL), TNonNullPointer(b, uniqueR))
@@ -270,7 +298,7 @@ case object CoercionUtils {
       case (TNonNullPointer(TVoid(), _), TNonNullPointer(_, _)) =>
         CoerceIdentity(target)
       case (l: PointerArrayType[G], r: PointerArrayType[G])
-          if (l.isNonNull && !r.isNonNull) && l.isConst == r.isConst &&
+          if (l.isNonNull && !r.isNonNull) && l.isImmutable == r.isImmutable &&
             l.unique == r.unique &&
             l.dimensions.length == r.dimensions.length =>
         CoercionSequence(Seq(
@@ -279,7 +307,7 @@ case object CoercionUtils {
           CoerceNonNullPointerArray(target),
         ))
       case (l: PointerArrayType[G], r: PointerArrayType[G])
-          if (l.isNonNull && r.isNonNull) && l.isConst == r.isConst &&
+          if (l.isNonNull && r.isNonNull) && l.isImmutable == r.isImmutable &&
             l.unique == r.unique &&
             l.dimensions.length == r.dimensions.length =>
         getPointerCoercion(source, target, l.element, r.element)
@@ -319,36 +347,36 @@ case object CoercionUtils {
           CoercePointerPointerArray(elementL, dimensions, uniqueL),
         ))
       case (l: PointerType[G], r: PointerArrayType[G])
-          if l.isConst == r.isConst && !r.isNonNull && l.unique == r.unique &&
-            r.dimensions.length == 1 =>
+          if l.isImmutable == r.isImmutable && !r.isNonNull &&
+            l.unique == r.unique && r.dimensions.length == 1 =>
         CoercionSequence(Seq(
           getPointerCoercion(source, target, l.element, r.element)
             .getOrElse(return None),
           CoercePointerPointerArray(r.element, r.dimensions, r.unique),
         ))
       case (l: PointerType[G], r: PointerArrayType[G])
-          if l.isConst == r.isConst && r.isNonNull && l.unique == r.unique &&
-            r.dimensions.length == 1 =>
+          if l.isImmutable == r.isImmutable && r.isNonNull &&
+            l.unique == r.unique && r.dimensions.length == 1 =>
         CoercionSequence(Seq(
           getPointerCoercion(source, target, l.element, r.element)
             .getOrElse(return None),
           CoercePointerNonNullPointerArray(r.element, r.dimensions, r.unique),
         ))
       case (
-            TConstPointerArray(elementL, dimensions),
-            TConstPointer(elementR),
+            TImmutablePointerArray(elementL, dimensions),
+            TImmutablePointer(elementR),
           ) =>
         CoercionSequence(Seq(
-          CoerceConstPointerArrayPointer(elementL, dimensions.length),
+          CoerceImmutablePointerArrayPointer(elementL, dimensions.length),
           getPointerCoercion(source, target, elementL, elementR)
             .getOrElse(return None),
         ))
       case (
-            TNonNullConstPointerArray(elementL, dimensions),
-            TConstPointer(elementR),
+            TNonNullImmutablePointerArray(elementL, dimensions),
+            TImmutablePointer(elementR),
           ) =>
         CoercionSequence(Seq(
-          CoerceConstPointerArrayPointer(elementL, dimensions.length),
+          CoerceImmutablePointerArrayPointer(elementL, dimensions.length),
           getPointerCoercion(source, target, elementL, elementR)
             .getOrElse(return None),
         ))
@@ -630,6 +658,10 @@ case object CoercionUtils {
         getAnySeqCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
         }
+      case t: TImmutable[G] =>
+        getAnySeqCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
+        }
       case t: TSeq[G] => Some((CoerceIdentity(source), t))
       case _ => None
     }
@@ -641,6 +673,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnySetCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnySetCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: TSet[G] => Some((CoerceIdentity(source), t))
       case _ => None
@@ -655,6 +691,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnyVectorCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnyVectorCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: CTVector[G] =>
         Some((
@@ -678,6 +718,10 @@ case object CoercionUtils {
         getAnyBagCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
         }
+      case t: TImmutable[G] =>
+        getAnyBagCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
+        }
       case t: TBag[G] => Some((CoerceIdentity(source), t))
       case _ => None
     }
@@ -691,6 +735,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnySizedCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnySizedCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: TSeq[G] => Some((CoerceIdentity(source), t))
       case t: TSet[G] => Some((CoerceIdentity(source), t))
@@ -706,6 +754,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnyPointerCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnyPointerCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: TUnique[G] =>
         getAnyPointerCoercion(t.inner).map { case (c, res) =>
@@ -734,20 +786,20 @@ case object CoercionUtils {
           CoercePointerArrayPointer(element, dimensions.length, unique),
           TPointer(element, unique),
         ))
-      case TConstPointerArray(element, dimensions) =>
+      case TImmutablePointerArray(element, dimensions) =>
         Some((
-          CoerceConstPointerArrayPointer(element, dimensions.length),
-          TConstPointer(element),
+          CoerceImmutablePointerArrayPointer(element, dimensions.length),
+          TImmutablePointer(element),
         ))
       case TNonNullPointerArray(element, dimensions, unique) =>
         Some((
           CoercePointerArrayPointer(element, dimensions.length, unique),
           TPointer(element, unique),
         ))
-      case TNonNullConstPointerArray(element, dimensions) =>
+      case TNonNullImmutablePointerArray(element, dimensions) =>
         Some((
-          CoerceConstPointerArrayPointer(element, dimensions.length),
-          TConstPointer(element),
+          CoerceImmutablePointerArrayPointer(element, dimensions.length),
+          TImmutablePointer(element),
         ))
       case _: TNull[G] =>
         val t = TPointer[G](TAnyValue(), None)
@@ -780,6 +832,10 @@ case object CoercionUtils {
         getAnyCArrayCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
         }
+      case t: TImmutable[G] =>
+        getAnyCArrayCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
+        }
       case t: CTArray[G] => Some((CoerceIdentity(source), t))
       case _ => None
     }
@@ -792,6 +848,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnyCPPArrayCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnyCPPArrayCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: CPPTArray[G] => Some((CoerceIdentity(source), t))
       case _ => None
@@ -806,6 +866,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnyArrayCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnyArrayCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case acc: SYCLTAccessor[G] =>
         Some((
@@ -834,6 +898,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnyMatrixArrayCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnyMatrixArrayCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: CPPPrimitiveType[G] =>
         chainCPPCoercion(t, getAnyMatrixArrayCoercion)
@@ -867,6 +935,10 @@ case object CoercionUtils {
         getAnyOptionCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
         }
+      case t: TImmutable[G] =>
+        getAnyOptionCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
+        }
       case t: TOption[G] => Some((CoerceIdentity(source), t))
       case _ => None
     }
@@ -878,6 +950,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnyMapCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnyMapCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: TMap[G] => Some((CoerceIdentity(source), t))
       case _ => None
@@ -893,6 +969,10 @@ case object CoercionUtils {
         getAnyTupleCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
         }
+      case t: TImmutable[G] =>
+        getAnyTupleCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
+        }
       case t: TTuple[G] => Some((CoerceIdentity(source), t))
       case _ => None
     }
@@ -906,6 +986,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnyMatrixCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnyMatrixCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: TMatrix[G] => Some((CoerceIdentity(source), t))
       case _ => None
@@ -921,6 +1005,10 @@ case object CoercionUtils {
         getAnyModelCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
         }
+      case t: TImmutable[G] =>
+        getAnyModelCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
+        }
       case t: TModel[G] => Some((CoerceIdentity(source), t))
       case _ => None
     }
@@ -934,6 +1022,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnyClassCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnyClassCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: TClass[G] => Some((CoerceIdentity(source), t))
       case t: TClassUnique[G] => Some((CoerceIdentity(source), t.innerT))
@@ -966,6 +1058,10 @@ case object CoercionUtils {
         getAnyEitherCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
         }
+      case t: TImmutable[G] =>
+        getAnyEitherCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
+        }
       case t: TEither[G] => Some((CoerceIdentity(source), t))
       case _ => None
     }
@@ -979,6 +1075,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnyBitvecCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnyBitvecCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: TSmtlibBitVector[G] => Some((CoerceIdentity(source), t))
       case _ => None
@@ -995,6 +1095,10 @@ case object CoercionUtils {
         getAnySmtlibFloatCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
         }
+      case t: TImmutable[G] =>
+        getAnySmtlibFloatCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
+        }
       case t: TSmtlibFloatingPoint[G] => Some((CoerceIdentity(source), t))
       case _ => None
     }
@@ -1010,6 +1114,10 @@ case object CoercionUtils {
         getAnySmtlibArrayCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
         }
+      case t: TImmutable[G] =>
+        getAnySmtlibArrayCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
+        }
       case t: TSmtlibArray[G] => Some((CoerceIdentity(source), t))
       case _ => None
     }
@@ -1024,6 +1132,10 @@ case object CoercionUtils {
       case t: TConst[G] =>
         getAnySmtlibSeqCoercion(t.inner).map { case (c, res) =>
           (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TImmutable[G] =>
+        getAnySmtlibSeqCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromImmutable(t.inner), c)), res)
         }
       case t: TSmtlibSeq[G] => Some((CoerceIdentity(source), t))
       case _ => None

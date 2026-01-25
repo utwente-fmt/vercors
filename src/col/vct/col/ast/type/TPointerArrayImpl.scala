@@ -14,7 +14,7 @@ trait TPointerArrayImpl[G] extends TPointerArrayOps[G] {
       case (l, None) => l <> "[]"
     }
 
-  override val isConst: Boolean = false
+  override val isImmutable: Boolean = false
   override val isNonNull: Boolean = false
 
   override def descend: TPointerArray[G] =

@@ -1264,6 +1264,7 @@ case class CToCol[G](
 
   def convert(implicit mod: ValTypeQualifierContext): CTypeQualifier[G] =
     mod match {
+      case ValImmutable(_) => CImmutable[G]()
       case ValUnique(_, _, uniqueId, _) => CUnique[G](convert(uniqueId))
       case ValUniquePointerField(_, _, name, _, uniqueId, _) =>
         CUniquePointerField[G](convert(name), convert(uniqueId))

@@ -143,16 +143,16 @@ final case class TNonNullPointerArray[G](
     unique: Option[BigInt],
 )(implicit val o: Origin = DiagnosticOrigin)
     extends PointerArrayType[G] with TNonNullPointerArrayImpl[G]
-final case class TConstPointerArray[G](
+final case class TImmutablePointerArray[G](
     element: Type[G],
     dimensions: Seq[Option[Expr[G]]],
 )(implicit val o: Origin = DiagnosticOrigin)
-    extends PointerArrayType[G] with TConstPointerArrayImpl[G]
-final case class TNonNullConstPointerArray[G](
+    extends PointerArrayType[G] with TImmutablePointerArrayImpl[G]
+final case class TNonNullImmutablePointerArray[G](
     element: Type[G],
     dimensions: Seq[Option[Expr[G]]],
 )(implicit val o: Origin = DiagnosticOrigin)
-    extends PointerArrayType[G] with TNonNullConstPointerArrayImpl[G]
+    extends PointerArrayType[G] with TNonNullImmutablePointerArrayImpl[G]
 
 final case class TPointerBlock[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with TPointerBlockImpl[G]
@@ -164,6 +164,9 @@ final case class TVar[G](ref: Ref[G, Variable[G]])(
 final case class TConst[G](inner: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends Type[G] with TConstImpl[G]
+final case class TImmutable[G](inner: Type[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Type[G] with TImmutableImpl[G]
 final case class TUnique[G](inner: Type[G], unique: BigInt)(
     implicit val o: Origin = DiagnosticOrigin
 ) extends Type[G] with TUniqueImpl[G]
@@ -181,12 +184,12 @@ final case class TPointer[G](element: Type[G], unique: Option[BigInt])(
 final case class TNonNullPointer[G](element: Type[G], unique: Option[BigInt])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends PointerType[G] with TNonNullPointerImpl[G]
-final case class TConstPointer[G](element: Type[G])(
+final case class TImmutablePointer[G](element: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
-) extends PointerType[G] with TConstPointerImpl[G]
-final case class TNonNullConstPointer[G](element: Type[G])(
+) extends PointerType[G] with TImmutablePointerImpl[G]
+final case class TNonNullImmutablePointer[G](element: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
-) extends PointerType[G] with TNonNullConstPointerImpl[G]
+) extends PointerType[G] with TNonNullImmutablePointerImpl[G]
 
 sealed trait CompositeType[G] extends Type[G] with CompositeTypeImpl[G]
 sealed trait SizedType[G] extends CompositeType[G] with SizedTypeImpl[G]
@@ -1086,6 +1089,12 @@ final case class CoerceToConst[G](source: Type[G])(implicit val o: Origin)
 final case class CoerceFromConst[G](target: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceFromConstImpl[G]
 
+final case class CoerceToImmutable[G](source: Type[G])(implicit val o: Origin)
+    extends Coercion[G] with CoerceToImmutableImpl[G]
+
+final case class CoerceFromImmutable[G](target: Type[G])(implicit val o: Origin)
+    extends Coercion[G] with CoerceFromImmutableImpl[G]
+
 final case class CoerceNothingSomething[G](target: Type[G])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceNothingSomethingImpl[G]
@@ -1168,11 +1177,11 @@ final case class CoercePointerArrayPointer[G](
     unique: Option[BigInt],
 )(implicit val o: Origin)
     extends Coercion[G] with CoercePointerArrayPointerImpl[G]
-final case class CoerceConstPointerArrayPointer[G](
+final case class CoerceImmutablePointerArrayPointer[G](
     elementType: Type[G],
     dimensions: Int,
 )(implicit val o: Origin)
-    extends Coercion[G] with CoerceConstPointerArrayPointerImpl[G]
+    extends Coercion[G] with CoerceImmutablePointerArrayPointerImpl[G]
 final case class CoercePointerPointerArray[G](
     elementType: Type[G],
     dimensions: Seq[Option[Expr[G]]],
@@ -1591,8 +1600,8 @@ final case class PointerToAdt[G](pointer: Expr[G], t: Type[G])(
     extends Expr[G] with PointerToAdtImpl[G] with PossibleTrigger[G]
 final case class AddrOf[G](e: Expr[G])(implicit val o: Origin)
     extends Expr[G] with AddrOfImpl[G]
-final case class AddrOfConstCast[G](e: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with AddrOfConstCastImpl[G]
+final case class AddrOfImmutableCast[G](e: Expr[G])(implicit val o: Origin)
+    extends Expr[G] with AddrOfImmutableCastImpl[G]
 final case class AddrOfUniqueCast[G](e: Expr[G], unique: BigInt)(
     implicit val o: Origin
 ) extends Expr[G] with AddrOfUniqueCastImpl[G]
@@ -2184,20 +2193,20 @@ final case class NewPointer[G](
     unique: Option[BigInt],
 )(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends PointerConstructor[G] with NewPointerImpl[G]
-final case class NewConstPointer[G](element: Type[G], size: Expr[G])(
+final case class NewImmutablePointer[G](element: Type[G], size: Expr[G])(
     val blame: Blame[ArraySizeError]
 )(implicit val o: Origin)
-    extends PointerConstructor[G] with NewConstPointerImpl[G]
+    extends PointerConstructor[G] with NewImmutablePointerImpl[G]
 final case class NewNonNullPointer[G](
     element: Type[G],
     size: Expr[G],
     unique: Option[BigInt],
 )(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends PointerConstructor[G] with NewNonNullPointerImpl[G]
-final case class NewNonNullConstPointer[G](element: Type[G], size: Expr[G])(
+final case class NewNonNullImmutablePointer[G](element: Type[G], size: Expr[G])(
     val blame: Blame[ArraySizeError]
 )(implicit val o: Origin)
-    extends PointerConstructor[G] with NewNonNullConstPointerImpl[G]
+    extends PointerConstructor[G] with NewNonNullImmutablePointerImpl[G]
 
 final case class NewPointerArray[G](
     element: Type[G],
@@ -2205,11 +2214,11 @@ final case class NewPointerArray[G](
     unique: Option[BigInt],
 )(val blame: Blame[ArraySizeError])(implicit val o: Origin)
     extends Expr[G] with NewPointerArrayImpl[G]
-final case class NewConstPointerArray[G](
+final case class NewImmutablePointerArray[G](
     element: Type[G],
     dimensions: Seq[Expr[G]],
 )(val blame: Blame[ArraySizeError])(implicit val o: Origin)
-    extends Expr[G] with NewConstPointerArrayImpl[G]
+    extends Expr[G] with NewImmutablePointerArrayImpl[G]
 
 final case class UniquePointerCoercion[G](e: Expr[G], t: Type[G])(
     implicit val o: Origin
@@ -2993,6 +3002,8 @@ final case class CTypeQualifierDeclarationSpecifier[G](
 sealed trait CTypeQualifier[G] extends NodeFamily[G] with CTypeQualifierImpl[G]
 final case class CConst[G]()(implicit val o: Origin)
     extends CTypeQualifier[G] with CConstImpl[G]
+final case class CImmutable[G]()(implicit val o: Origin)
+    extends CTypeQualifier[G] with CImmutableImpl[G]
 final case class CRestrict[G]()(implicit val o: Origin)
     extends CTypeQualifier[G] with CRestrictImpl[G]
 final case class CVolatile[G]()(implicit val o: Origin)

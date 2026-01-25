@@ -61,7 +61,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
   def makePointer(innerType: Type[Post], pt: PointerSort): PointerType[Post] =
     pt match {
       case Normal(unique) => TNonNullPointer[Post](innerType, unique)
-      case Const() => TNonNullConstPointer[Post](innerType)
+      case Const() => TNonNullImmutablePointer[Post](innerType)
     }
 
   def isConstPointer(pt: PointerSort) =
@@ -78,8 +78,8 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
         NewNonNullPointer[Post](innerType, const(1), unique)(PanicBlame(
           "Size is > 0"
         ))
-      case TNonNullConstPointer(innerType) =>
-        NewNonNullConstPointer[Post](innerType, const(1))(PanicBlame(
+      case TNonNullImmutablePointer(innerType) =>
+        NewNonNullImmutablePointer[Post](innerType, const(1))(PanicBlame(
           "Size is > 0"
         ))
     }
@@ -94,7 +94,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
           if v.t.asByReferenceClass.isEmpty &&
             (v.t.asPointerArray.isEmpty || !v.t.asPointerArray.get.isNonNull) =>
         Some(v, getPointerSort(isConst, None))
-      case AddrOfConstCast(e) => getAddresses(e, isConst = true)
+      case AddrOfImmutableCast(e) => getAddresses(e, isConst = true)
       case AddrOfUniqueCast(Local(Ref(v)), unique) =>
         Some(v, getPointerSort(isConst, Some(unique)))
       case AddrOfUniqueCast(_, _) => ???
@@ -254,7 +254,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
             obj.get,
           ),
         )
-      case a @ AddrOf(AddrOfConstCast(e)) => a.rewrite(e = dispatch(e))
+      case a @ AddrOf(AddrOfImmutableCast(e)) => a.rewrite(e = dispatch(e))
       case a @ AddrOf(AddrOfUniqueCast(e, _)) => a.rewrite(e = dispatch(e))
       case other => other.rewriteDefault()
     }

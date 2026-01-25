@@ -1,0 +1,27 @@
+adt `immutable_pointer`<A> {
+  pure `immutable_pointer`<A> immutable_pointer_of(seq<A> b, int offset);
+  pure seq<A> immutable_pointer_block(`immutable_pointer`<A> p);
+  pure int immutable_pointer_offset(`immutable_pointer`<A> p);
+
+  // the block offset is valid wrt the length of the block
+  axiom (∀ `immutable_pointer`<A> p;
+    immutable_pointer_offset(p) >= 0 &&
+      immutable_pointer_offset(p) < |immutable_pointer_block(p)|);
+
+  // immutable_pointer_of is injective: a (block, offset) pair indicates a unique immutable_pointer value
+  axiom (∀seq<A> b, int offset;
+    {:immutable_pointer_block(immutable_pointer_of(b, offset)):} == b &&
+      {:immutable_pointer_offset(immutable_pointer_of(b, offset)):} == offset);
+}
+
+decreases;
+pure A immutable_ptr_deref<A>(`immutable_pointer`<A> p) =
+  `immutable_pointer`<A>.immutable_pointer_block(p)[`immutable_pointer`<A>.immutable_pointer_offset(p)];
+
+decreases;
+requires 0 <= `immutable_pointer`<A>.immutable_pointer_offset(p) + offset;
+requires `immutable_pointer`<A>.immutable_pointer_offset(p) + offset < |`immutable_pointer`<A>.immutable_pointer_block(p)|;
+pure `immutable_pointer`<A> immutable_ptr_add<A>(`immutable_pointer`<A> p, int offset) =
+  `immutable_pointer`<A>.immutable_pointer_of(
+     `immutable_pointer`<A>.immutable_pointer_block(p),
+     `immutable_pointer`<A>.immutable_pointer_offset(p) + offset);

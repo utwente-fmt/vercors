@@ -30,7 +30,7 @@ case class NoPermissionForConstPointer(location: Node[_]) extends UserError {
 case class DisallowedConstAssignment(target: Node[_]) extends UserError {
   override def code: String = "disallowedConstAssignment"
   override def text: String =
-    target.o.messageInContext("Cannot assign to constant target.")
+    target.o.messageInContext("Cannot assign to constant or immutable target.")
 }
 
 case class DisallowedQualifiedType(target: Node[_]) extends UserError {
@@ -84,7 +84,7 @@ case object TypeQualifierCoercion extends RewriterBuilder {
   }
 }
 
-/* This rewrite step removes type qualifiers TUnique, TConst and TClassUnique.
+/* This rewrite step removes type qualifiers TUnique, TConst, TImmutable and TClassUnique.
  * Some of them were okay to coerce, thus we the node `UniquePointerCoercion` which the pass
  * MakeUniqueMethodCopies removes again to make the coercion correct by adding method/function copies
  */
@@ -125,7 +125,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
                         case _ => ??? // Not allowed
                       }
                     val (info, innerResType) = getUnqualified(it)
-                    if (info.const)
+                    if (info.immutable)
                       ??? // Not allowed
                     val resType =
                       field.t match {
@@ -171,13 +171,13 @@ case class TypeQualifierCoercion[Pre <: Generation]()
   override def coerce(decl: Declaration[Pre]): Declaration[Pre] =
     decl match {
       // Turn of coercions for a sec, otherwise we cannot use our constGlobalHeapsSucc successfully
-      case h: HeapVariable[Pre] if isConstElement(h.t) => h
+      case h: HeapVariable[Pre] if isImmutableElement(h.t) => h
       case other => super.coerce(other)
     }
 
   override def postCoerce(d: Declaration[Pre]): Unit =
     d match {
-      case h: HeapVariable[Pre] if isConstElement(h.t) =>
+      case h: HeapVariable[Pre] if isImmutableElement(h.t) =>
         val f = globalDeclarations.declare({
           function(
             blame = AbstractApplicable,
@@ -196,6 +196,8 @@ case class TypeQualifierCoercion[Pre <: Generation]()
     coercion match {
       case CoerceFromConst(_) =>
       case CoerceToConst(_) =>
+      case CoerceFromImmutable(_) =>
+      case CoerceToImmutable(_) =>
       case CoerceToUnique(_, _) =>
       case CoerceFromUnique(_, _) =>
       case CoerceBetweenUnique(_, _, _) =>
@@ -211,16 +213,16 @@ case class TypeQualifierCoercion[Pre <: Generation]()
     }
     e
   }
-  def isConstElement(t: Type[Pre]): Boolean =
+  def isImmutableElement(t: Type[Pre]): Boolean =
     t match {
-      case TConst(_) => true
-      case TUnique(t, _) => isConstElement(t)
+      case TImmutable(_) => true
+      case TUnique(t, _) => isImmutableElement(t)
       case _ => false
     }
 
   override def postCoerce(loc: Location[Pre]): Location[Post] =
     loc match {
-      case AmbiguousLocation(pointer) if isConstElement(pointer.t) =>
+      case AmbiguousLocation(pointer) if isImmutableElement(pointer.t) =>
         throw NoPermissionForConstPointer(loc)
       case other => other.rewriteDefault()
     }
@@ -228,6 +230,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
   override def postCoerce(t: Type[Pre]): Type[Post] =
     t match {
       case TConst(t) => dispatch(t)
+      case TImmutable(t) => dispatch(t)
       case TUnique(t, _) => dispatch(t)
       case TPointer(it, None) => makePointer(it, nonNull = false)
       case TNonNullPointer(it, None) => makePointer(it, nonNull = true)
@@ -248,29 +251,31 @@ case class TypeQualifierCoercion[Pre <: Generation]()
     implicit val o: Origin = e.o
     e match {
       case PreAssignExpression(target, _)
-          if target.t.isInstanceOf[TConst[Pre]] =>
+          if target.t.isInstanceOf[TConst[Pre]] ||
+            target.t.isInstanceOf[TImmutable[Pre]] =>
         throw DisallowedConstAssignment(target)
       case PostAssignExpression(target, _)
-          if target.t.isInstanceOf[TConst[Pre]] =>
+          if target.t.isInstanceOf[TConst[Pre]] ||
+            target.t.isInstanceOf[TImmutable[Pre]] =>
         throw DisallowedConstAssignment(target)
       case npa @ NewPointer(t, size, _) =>
         val (info, newT) = getUnqualified(t)
-        if (info.const)
-          NewConstPointer(newT, dispatch(size))(npa.blame)
+        if (info.immutable)
+          NewImmutablePointer(newT, dispatch(size))(npa.blame)
         else
           NewPointer(newT, dispatch(size), info.unique)(npa.blame)
       case npa @ NewPointerArray(t, dimensions, _) =>
         val (info, newT) = getUnqualified(t)
-        if (info.const)
-          NewConstPointerArray(newT, dimensions.map(dispatch))(npa.blame)
+        if (info.immutable)
+          NewImmutablePointerArray(newT, dimensions.map(dispatch))(npa.blame)
         else
           NewPointerArray(newT, dimensions.map(dispatch), info.unique)(
             npa.blame
           )
       case npa @ NewNonNullPointer(t, size, _) =>
         val (info, newT) = getUnqualified(t)
-        if (info.const)
-          NewNonNullConstPointer(newT, dispatch(size))(npa.blame)
+        if (info.immutable)
+          NewNonNullImmutablePointer(newT, dispatch(size))(npa.blame)
         else
           NewNonNullPointer(newT, dispatch(size), info.unique)(npa.blame)
       case newO @ NewObjectUnique(cls, _) =>
@@ -291,16 +296,16 @@ case class TypeQualifierCoercion[Pre <: Generation]()
             d.rewrite(ref = uniqueField(ref.decl, map).ref)
           case _ => d.rewriteDefault()
         }
-      case DerefHeapVariable(ref) if isConstElement(ref.decl.t) =>
+      case DerefHeapVariable(ref) if isImmutableElement(ref.decl.t) =>
         functionInvocation(TrueSatisfiable, constGlobalHeapsSucc.ref(ref.decl))
       case a @ AddrOf(deref @ DerefHeapVariable(ref))
-          if isConstElement(ref.decl.t) =>
+          if isImmutableElement(ref.decl.t) =>
         implicit val o: Origin = a.o
         val t = dispatch(ref.decl.t)
-        val v = new Variable[Post](TNonNullConstPointer(t))
+        val v = new Variable[Post](TNonNullImmutablePointer(t))
         val l = Local[Post](v.ref)
         val newP =
-          NewNonNullConstPointer(dispatch(ref.decl.t), const(1))(PanicBlame(
+          NewNonNullImmutablePointer(dispatch(ref.decl.t), const(1))(PanicBlame(
             "Size >0"
           ))(a.o)
         ScopedExpr(
@@ -316,10 +321,10 @@ case class TypeQualifierCoercion[Pre <: Generation]()
             l,
           ),
         )
-      case a @ AddrOf(e) if isConstElement(e.t) =>
+      case a @ AddrOf(e) if isImmutableElement(e.t) =>
         if (e.collectFirst { case Deref(_, _) => () }.isDefined)
           throw DisallowedQualifiedType(e)
-        AddrOf(AddrOfConstCast(postCoerce(e)))
+        AddrOf(AddrOfImmutableCast(postCoerce(e)))
       case a @ AddrOf(e @ Local(_)) =>
         e.t match {
           case TUnique(_, unique) =>
@@ -334,7 +339,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
 
   override def postCoerce(s: Statement[Pre]): Statement[Post] =
     s match {
-      case Assign(target, _) if getUnqualified(target.t)._1.const =>
+      case Assign(target, _) if getUnqualified(target.t)._1.immutable =>
         throw DisallowedConstAssignment(target)
       case a @ AssignInitial(target, value) =>
         Assign(dispatch(target), dispatch(value))(a.blame)(a.o)
@@ -343,7 +348,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
 
   case class InnerInfo() {
     var unique: Option[BigInt] = None
-    var const: Boolean = false
+    var immutable: Boolean = false
   }
 
   def getUnqualified(
@@ -351,10 +356,13 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       info: InnerInfo = InnerInfo(),
   ): (InnerInfo, Type[Post]) =
     t match {
-      case TConst(_) | TUnique(_, _) if info.const || info.unique.isDefined =>
+      case TImmutable(_) if info.immutable || info.unique.isDefined =>
         throw DisallowedQualifiedType(t)
-      case TConst(it) =>
-        info.const = true
+      case TUnique(_, _) if info.unique.isDefined || info.immutable =>
+        throw DisallowedQualifiedType(t)
+      case TConst(it) => getUnqualified(it, info)
+      case TImmutable(it) =>
+        info.immutable = true
         getUnqualified(it, info)
       case TUnique(it, id) =>
         info.unique = Some(id)
@@ -365,9 +373,9 @@ case class TypeQualifierCoercion[Pre <: Generation]()
   def makePointer(t: Type[Pre], nonNull: Boolean): Type[Post] = {
     implicit val o: Origin = t.o
     val (info, resType) = getUnqualified(t)
-    (info.const, nonNull) match {
-      case (true, false) => TConstPointer(resType)
-      case (true, true) => TNonNullConstPointer(resType)
+    (info.immutable, nonNull) match {
+      case (true, false) => TImmutablePointer(resType)
+      case (true, true) => TNonNullImmutablePointer(resType)
       case (false, false) => TPointer(resType, info.unique)
       case (false, true) => TNonNullPointer(resType, info.unique)
     }
@@ -380,11 +388,11 @@ case class TypeQualifierCoercion[Pre <: Generation]()
   ): Type[Post] = {
     implicit val o: Origin = t.o
     val (info, resType) = getUnqualified(t)
-    (info.const, nonNull) match {
+    (info.immutable, nonNull) match {
       case (true, false) =>
-        TConstPointerArray(resType, dimensions.map(_.map(dispatch)))
+        TImmutablePointerArray(resType, dimensions.map(_.map(dispatch)))
       case (true, true) =>
-        TNonNullConstPointerArray(resType, dimensions.map(_.map(dispatch)))
+        TNonNullImmutablePointerArray(resType, dimensions.map(_.map(dispatch)))
       case (false, false) =>
         TPointerArray(resType, dimensions.map(_.map(dispatch)), info.unique)
       case (false, true) =>
@@ -897,7 +905,7 @@ case class MakeUniqueMethodCopies[Pre <: Generation]() extends Rewriter[Pre] {
         (targetType, value.t) match {
           case (target: PointerType[Pre], value: PointerType[Pre])
               if target.unique != value.unique ||
-                target.isConst != value.isConst =>
+                target.isImmutable != value.isImmutable =>
             throw DisallowedQualifiedCoercion(c.o, value, target)
           case _ => c.rewriteDefault()
         }
