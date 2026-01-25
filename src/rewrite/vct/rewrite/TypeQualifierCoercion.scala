@@ -171,13 +171,14 @@ case class TypeQualifierCoercion[Pre <: Generation]()
   override def coerce(decl: Declaration[Pre]): Declaration[Pre] =
     decl match {
       // Turn of coercions for a sec, otherwise we cannot use our constGlobalHeapsSucc successfully
-      case h: HeapVariable[Pre] if isImmutableElement(h.t) => h
+      case h: HeapVariable[Pre] if isImmutableElement(h.t, checkConst = true) =>
+        h
       case other => super.coerce(other)
     }
 
   override def postCoerce(d: Declaration[Pre]): Unit =
     d match {
-      case h: HeapVariable[Pre] if isImmutableElement(h.t) =>
+      case h: HeapVariable[Pre] if isImmutableElement(h.t, checkConst = true) =>
         val f = globalDeclarations.declare({
           function(
             blame = AbstractApplicable,
@@ -213,9 +214,11 @@ case class TypeQualifierCoercion[Pre <: Generation]()
     }
     e
   }
-  def isImmutableElement(t: Type[Pre]): Boolean =
+  def isImmutableElement(t: Type[Pre], checkConst: Boolean = false): Boolean =
     t match {
       case TImmutable(_) => true
+      case TConst(_) if checkConst => true
+      case TConst(t) => isImmutableElement(t)
       case TUnique(t, _) => isImmutableElement(t)
       case _ => false
     }
@@ -296,10 +299,11 @@ case class TypeQualifierCoercion[Pre <: Generation]()
             d.rewrite(ref = uniqueField(ref.decl, map).ref)
           case _ => d.rewriteDefault()
         }
-      case DerefHeapVariable(ref) if isImmutableElement(ref.decl.t) =>
+      case DerefHeapVariable(ref)
+          if isImmutableElement(ref.decl.t, checkConst = true) =>
         functionInvocation(TrueSatisfiable, constGlobalHeapsSucc.ref(ref.decl))
       case a @ AddrOf(deref @ DerefHeapVariable(ref))
-          if isImmutableElement(ref.decl.t) =>
+          if isImmutableElement(ref.decl.t, checkConst = true) =>
         implicit val o: Origin = a.o
         val t = dispatch(ref.decl.t)
         val v = new Variable[Post](TNonNullImmutablePointer(t))

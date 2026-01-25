@@ -480,7 +480,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case CPrimitiveType(specs) =>
         isImmutable(C.getPrimitiveType(specs, None, Some(t)))
       case TImmutable(it) => true
-      case TConst(it) => isImmutable(it)
+      case TConst(it) => true
       case _ => false
     }
 

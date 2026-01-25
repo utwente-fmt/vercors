@@ -43,7 +43,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
 
   trait PointerSort
   case class Normal(unique: Option[BigInt]) extends PointerSort
-  case class Const() extends PointerSort
+  case class Immutable() extends PointerSort
 
   val addressedSet: mutable.Map[Node[Pre], PointerSort] =
     new mutable.HashMap[Node[Pre], PointerSort]()
@@ -52,21 +52,24 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
   val noTransform: ScopedStack[scala.collection.Set[Variable[Pre]]] =
     ScopedStack()
 
-  def getPointerSort(isConst: Boolean, unique: Option[BigInt]): PointerSort =
-    if (!isConst)
+  def getPointerSort(
+      isImmutable: Boolean,
+      unique: Option[BigInt],
+  ): PointerSort =
+    if (!isImmutable)
       Normal(unique)
     else
-      Const()
+      Immutable()
 
   def makePointer(innerType: Type[Post], pt: PointerSort): PointerType[Post] =
     pt match {
       case Normal(unique) => TNonNullPointer[Post](innerType, unique)
-      case Const() => TNonNullImmutablePointer[Post](innerType)
+      case Immutable() => TNonNullImmutablePointer[Post](innerType)
     }
 
-  def isConstPointer(pt: PointerSort) =
+  def isImmutablePointer(pt: PointerSort) =
     pt match {
-      case Const() => true
+      case Immutable() => true
       case _ => false
     }
 
@@ -86,17 +89,17 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
 
   def getAddresses(
       e: Node[Pre],
-      isConst: Boolean = false,
+      isImmutable: Boolean = false,
   ): Option[(Node[Pre], PointerSort)] =
     e match {
       // Nullable PointerArrays (i.e. those in parameters) are not special cased in EncodePointerArrays
       case Local(Ref(v))
           if v.t.asByReferenceClass.isEmpty &&
             (v.t.asPointerArray.isEmpty || !v.t.asPointerArray.get.isNonNull) =>
-        Some(v, getPointerSort(isConst, None))
-      case AddrOfImmutableCast(e) => getAddresses(e, isConst = true)
+        Some(v, getPointerSort(isImmutable, None))
+      case AddrOfImmutableCast(e) => getAddresses(e, isImmutable = true)
       case AddrOfUniqueCast(Local(Ref(v)), unique) =>
-        Some(v, getPointerSort(isConst, Some(unique)))
+        Some(v, getPointerSort(isImmutable, Some(unique)))
       case AddrOfUniqueCast(_, _) => ???
       case _ => None
     }
@@ -158,9 +161,9 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
                             ))(normal.o),
                             normal.get(normal.o),
                           )(AssignLocalOk)(proc.o)
-                        case (normal, pointer, Const()) =>
+                        case (normal, pointer, Immutable()) =>
                           implicit val o: Origin = normal.o
-                          // Const pointers are sequences, so we need to assume their values
+                          // Immutable pointers are sequences, so we need to assume their values
                           Assume(
                             DerefPointer(pointer.get)(PanicBlame(
                               "Non-null pointer should always be initialized successfully"
@@ -186,15 +189,15 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
       case other => allScopes.anySucceed(other, other.rewriteDefault())
     }
 
-  def assignToConst(target: Expr[Pre]): Boolean =
+  def assignToImmutable(target: Expr[Pre]): Boolean =
     target match {
       case Local(v)
           if addressedSet.contains(v.decl) &&
-            isConstPointer(addressedSet(v.decl)) =>
+            isImmutablePointer(addressedSet(v.decl)) =>
         true
       case HeapLocal(v)
           if addressedSet.contains(v.decl) &&
-            isConstPointer(addressedSet(v.decl)) =>
+            isImmutablePointer(addressedSet(v.decl)) =>
         true
       case _ => false
     }
@@ -202,8 +205,8 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(stat: Statement[Pre]): Statement[Post] = {
     implicit val o: Origin = stat.o
     stat match {
-      case assign @ Assign(target, value) if assignToConst(target) =>
-        // We cannot assign towards a const pointer, since it is modelled as sequence. So we have to assume its value
+      case assign @ Assign(target, value) if assignToImmutable(target) =>
+        // We cannot assign towards an immutable pointer, since it is modelled as sequence. So we have to assume its value
         Assume[Post](dispatch(target) === dispatch(value))
       case s: Scope[Pre] =>
         s.rewrite(
