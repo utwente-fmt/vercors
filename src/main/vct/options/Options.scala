@@ -438,8 +438,9 @@ case object Options {
           opt[Path]("isar-output").valueName("<path>")
             .action((path, c) => c.copy(isarOutput = Some(path)))
             .text("Output Isar file"),
-          opt[Unit]("triggers").action((_, c) => c.copy(isarTriggers = true))
-            .text("Include trigger syntax."),
+          opt[Unit]("isar-triggers")
+            .action((_, c) => c.copy(isarTriggers = true))
+            .text("Include trigger syntax in Isar output."),
         ),
       note(""),
       note("Patcher mode"),
