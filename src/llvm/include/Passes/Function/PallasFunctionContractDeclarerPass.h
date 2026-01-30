@@ -103,10 +103,9 @@ class PallasFunctionContractDeclarerPass
      * or ghost contracts).
      */
     bool addClauseToContract(col::ApplicableContract &contract,
-                             const pallas::irspec::ContractClause &clause,
+                             irspec::FunctionContract &irContract,
+                             unsigned int clauseIdx,
                              FunctionAnalysisManager &fam, Function &parentFunc,
-                             unsigned int clauseNum,
-                             const pallas::irspec::SrcLoc &contractSrcLoc,
                              const bool implicitArgs);
 
     /**

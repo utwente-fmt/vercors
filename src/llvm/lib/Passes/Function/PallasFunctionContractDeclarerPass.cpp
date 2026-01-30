@@ -68,11 +68,12 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
     bool isGivenArg) {
 
     llvm::Type *currentType = nullptr;
-    for (const auto &clause : contract.clauses) {
+    for (auto &clause : contract.clauses) {
         // Map debug variable to LLVM-value and get type
         auto *diVar =
             isGivenArg ? clause.givenArgs[argIdx] : clause.yieldsArgs[argIdx];
-        auto *mappedArg = mapDIVarToArg(f, *diVar);
+
+        auto *mappedArg = mapDIVarToArg(*clause.wrapperFunction, *diVar);
         if (mappedArg == nullptr) {
             std::string err = "Failed to get type for ghost-arg at index " +
                               std::to_string(argIdx);
@@ -140,7 +141,7 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
         return;
 
     // Setup a fresh Pallas-contract
-    FDCResult cResult = fam.getResult<FunctionContractDeclarer>(f);
+    FDCResult &cResult = fam.getResult<FunctionContractDeclarer>(f);
     auto colPallasContract = cResult.getAssociatedColFuncContract()
                                  .mutable_pallas_function_contract();
     colPallasContract->set_allocated_blame(new col::Blame());
@@ -179,10 +180,9 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
     }
 
     // Handle contract clauses
-    for (const auto [idx, clause] : llvm::enumerate(irContract->clauses)) {
-        auto addClauseSuccess =
-            addClauseToContract(*colContract, clause, fam, f, idx + 1,
-                                irContract->loc, implicitArgs);
+    for (size_t idx = 0; idx < irContract->clauses.size(); ++idx) {
+        bool addClauseSuccess = addClauseToContract(*colContract, *irContract,
+                                                    idx, fam, f, implicitArgs);
         if (!addClauseSuccess)
             return;
     }
@@ -206,6 +206,7 @@ PallasFunctionContractDeclarerPass::getExternalContractArgs(
         auto colArgVar = &colFResult.getFuncArgMapEntry(arg);
         colArgs.push_back(colArgVar);
     }
+
     return colArgs;
 }
 
@@ -243,14 +244,16 @@ PallasFunctionContractDeclarerPass::getContractArgs(
 }
 
 bool PallasFunctionContractDeclarerPass::addClauseToContract(
-    col::ApplicableContract &contract,
-    const pallas::irspec::ContractClause &clause, FunctionAnalysisManager &fam,
-    Function &parentFunc, unsigned int clauseNum,
-    const pallas::irspec::SrcLoc &contractSrcLoc, const bool implicitArgs) {
+    col::ApplicableContract &contract, irspec::FunctionContract &irContract,
+    unsigned int clauseIdx, FunctionAnalysisManager &fam, Function &parentFunc,
+    const bool implicitArgs) {
+
+    auto clause = irContract.clauses[clauseIdx];
 
     // Get COL representation of wrapper function
     auto wrapperFResult =
         fam.getResult<FunctionDeclarer>(*clause.wrapperFunction);
+    auto &contrResult = fam.getResult<FunctionContractDeclarer>(parentFunc);
     col::LlvmFunctionDefinition &colWrapperF =
         wrapperFResult.getAssociatedColFuncDef();
 
@@ -261,7 +264,19 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
         return false;
     }
 
-    // TODO: Add the ghost args to the wrapper call
+    // Add ghost args
+    for (auto &gArg : irContract.givenArgs) {
+        auto *v = contrResult.getGhostArgMapEntry(gArg);
+        if (v == nullptr)
+            return false;
+        wrapperArgs->push_back(v);
+    }
+    for (auto &yArg : irContract.yieldsArgs) {
+        auto *v = contrResult.getGhostArgMapEntry(yArg);
+        if (v == nullptr)
+            return false;
+        wrapperArgs->push_back(v);
+    }
 
     // Build a call to the wrapper-function with the gathered arguments
     col::LlvmFunctionInvocation *wrapperCall =
@@ -291,7 +306,7 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     // wrapper-function
     col::UnitAccountedPredicate *newPred = new col::UnitAccountedPredicate();
     newPred->set_allocated_origin(llvm2col::generatePallasFContractClauseOrigin(
-        parentFunc, clause.loc, clauseNum));
+        parentFunc, clause.loc, clauseIdx + 1));
     newPred->mutable_pred()->set_allocated_llvm_function_invocation(
         wrapperCall);
 
@@ -305,7 +320,7 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
             auto *reqPred = contract.mutable_requires_();
             extendPredicate(reqPred,
                             llvm2col::generatePallasFunctionContractOrigin(
-                                parentFunc, contractSrcLoc),
+                                parentFunc, irContract.loc),
                             oldPred, newPred);
         }
     } else if (clause.type == pallas::irspec::ContractClauseType::ENSURES) {
@@ -318,7 +333,7 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
             auto *ensPred = contract.mutable_ensures();
             extendPredicate(ensPred,
                             llvm2col::generatePallasFunctionContractOrigin(
-                                parentFunc, contractSrcLoc),
+                                parentFunc, irContract.loc),
                             oldPred, newPred);
         }
     }

@@ -280,7 +280,7 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md,
             externalOrGhost);
         if (!clause.has_value())
             return std::nullopt;
-        // Check that number of ghost arguments is consistent between 
+        // Check that number of ghost arguments is consistent between
         // contract and clause
         if (clause->givenArgs.size() != contract.givenArgs.size()) {
             addError("Number of given-args does not match between clause and "
