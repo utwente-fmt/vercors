@@ -11,8 +11,8 @@
 #pragma GCC diagnostic pop
 #endif // __GNUC__
 
-#include "Passes/Function/FunctionBodyTransformer.h"
 #include "IRSpec/PallasIRSpec.h"
+#include "Passes/Function/FunctionBodyTransformer.h"
 
 #include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/PassManager.h>

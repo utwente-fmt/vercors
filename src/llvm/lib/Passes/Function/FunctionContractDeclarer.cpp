@@ -21,6 +21,23 @@ col::LlvmFunctionContract &FDCResult::getAssociatedColFuncContract() {
     return associatedColFuncContract;
 }
 
+void FDCResult::addGhostArgMapEntry(irspec::GhostArgDef &arg,
+                                    col::Variable &colVar) {
+    ghostArgMap.insert({&arg, &colVar});
+}
+
+col::Variable *FDCResult::getGhostArgMapEntry(irspec::GhostArgDef &arg) {
+    return ghostArgMap.at(&arg);
+}
+
+llvm::SmallVector<col::Variable *> FDCResult::getGhostVars() {
+    llvm::SmallVector<col::Variable *> gArgs;
+    for (auto [k, v] : ghostArgMap) {
+        gArgs.push_back(v);
+    }
+    return gArgs;
+}
+
 /*
  * Function Contract Declarer (Analysis)
  */

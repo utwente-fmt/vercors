@@ -44,7 +44,7 @@ class ErrorReporter {
                          llvm::Instruction &llvmInstruction);
 
     static void addError(const std::string &source, const std::string &message,
-                  const llvm::Metadata *md);
+                         const llvm::Metadata *md);
 
     static void addWarning(const std::string &source,
                            const std::string &message);

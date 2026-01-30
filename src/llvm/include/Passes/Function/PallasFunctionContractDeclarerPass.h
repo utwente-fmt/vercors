@@ -152,13 +152,22 @@ class PallasFunctionContractDeclarerPass
     bool hasConflictingContract(Function &f);
 
     /**
-     * Collects all used ghost arguments (given / yields) from the
-     * specifications in the used function.
-     * Performs a consistency check to ensure that the ghost arguments have
-     * the same types in all specifications.
+     * Determine the type of a ghost argument's definition.
+     * isGivenArg = true  --> Assumed to be given-arg
+     * isGivenArg = false --> Assumed to be yields-arg
+     * If the type cannot be determined, returns nullptr and adds error.
      */
+    llvm::Type *getGhostArgType(const irspec::FunctionContract &contract,
+                                size_t argIdx, llvm::Function &f,
+                                bool isGivenArg);
 
-    // TODO
+    /**
+     * Initializes the given col-variable (colVar) based on theg given
+     * ghost argument definition (gArgDef).
+     */
+    void transformGhostArg(const irspec::GhostArgDef &gArgDef,
+                           col::Variable *colVar, llvm::Type &type, size_t idx,
+                           llvm::Function &parentFunc);
 };
 } // namespace pallas
 #endif // PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H

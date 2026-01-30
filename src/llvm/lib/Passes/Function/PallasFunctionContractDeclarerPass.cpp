@@ -4,6 +4,7 @@
 #include "Origin/OriginProvider.h"
 #include "Passes/Function/FunctionContractDeclarer.h"
 #include "Passes/Function/FunctionDeclarer.h"
+#include "Transform/Transform.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
 #include "Util/PallasDIMapping.h"
@@ -62,6 +63,60 @@ PallasFunctionContractDeclarerPass::run(Module &m, ModuleAnalysisManager &mam) {
     return PreservedAnalyses::all();
 }
 
+llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
+    const irspec::FunctionContract &contract, size_t argIdx, llvm::Function &f,
+    bool isGivenArg) {
+
+    llvm::Type *currentType = nullptr;
+    for (const auto &clause : contract.clauses) {
+        // Map debug variable to LLVM-value and get type
+        auto *diVar =
+            isGivenArg ? clause.givenArgs[argIdx] : clause.yieldsArgs[argIdx];
+        auto *mappedArg = mapDIVarToArg(f, *diVar);
+        if (mappedArg == nullptr) {
+            std::string err = "Failed to get type for ghost-arg at index " +
+                              std::to_string(argIdx);
+            ErrorReporter::addError(SOURCE_LOC, err, f);
+            return nullptr;
+        }
+        auto newType = mappedArg->getType();
+
+        // Compare type to previously determined type to check consistency
+        if (currentType != nullptr && newType != currentType) {
+            std::string err =
+                "Found conflicting types for ghost-arg at index " +
+                std::to_string(argIdx);
+            ErrorReporter::addError(SOURCE_LOC, err, f);
+            return nullptr;
+        }
+        currentType = newType;
+    }
+
+    if (currentType == nullptr) {
+        std::string err = "Failed to determine type for ghost-arg at index " +
+                          std::to_string(argIdx);
+        ErrorReporter::addError(SOURCE_LOC, err, f);
+    }
+    return currentType;
+}
+
+void PallasFunctionContractDeclarerPass::transformGhostArg(
+    const irspec::GhostArgDef &gArgDef, col::Variable *colVar, llvm::Type &type,
+    size_t idx, llvm::Function &parentFunc) {
+    const auto &dataLayout = parentFunc.getParent()->getDataLayout();
+    colVar->set_allocated_origin(
+        llvm2col::generatePallasSpecOrigin(gArgDef.loc, gArgDef.name));
+    llvm2col::setColNodeId(colVar);
+    try {
+        llvm2col::transformAndSetType(type, *colVar->mutable_t(), dataLayout);
+    } catch (pallas::UnsupportedTypeException &e) {
+        std::stringstream errorStream;
+        errorStream << e.what() << " in ghost argument #" << idx;
+        pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(),
+                                        parentFunc);
+    }
+}
+
 void PallasFunctionContractDeclarerPass::runOnFunction(
     Function &f, FunctionAnalysisManager &fam) {
     // Check that f does not have a VCLLVM AND a Pallas contract
@@ -107,49 +162,21 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
     colContract->set_allocated_origin(
         llvm2col::generatePallasFunctionContractOrigin(f, irContract->loc));
 
-    /*
-    // TODO: Collect the ghost arguments used in the function
-    // Add given-args:
-    auto *givenNode =
-        llvm::dyn_cast<llvm::MDNode>(contractNode->getOperand(3).get());
-    if (givenNode == nullptr) {
-        addError(f, "Malformed function contract (given-args)");
-        return;
+    // Add given-args
+    for (const auto [idx, g] : llvm::enumerate(irContract->givenArgs)) {
+        llvm::Type *gType = getGhostArgType(*irContract, idx, f, true);
+        auto *colVar = colContract->add_given_args();
+        transformGhostArg(g, colVar, *gType, idx, f);
+        cResult.addGhostArgMapEntry(g, *colVar);
     }
-    for (auto &g : givenNode->operands()) {
-        auto *givenNode = llvm::dyn_cast<llvm::MDNode>(g);
-        if (givenNode == nullptr) {
-            addError(f, "Malformed function contract (given-arg)");
-            return;
-        }
-        auto *locNode =
-            llvm::dyn_cast<llvm::MDNode>(givenNode->getOperand(0).get());
-        auto *mdSrcLoc = dyn_cast<MDNode>(contractNode->getOperand(0).get());
-        if (!pallas::utils::isWellformedPallasLocation(locNode)) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC,
-                "Ill-formed ghost argument. First operand should encode "
-                "source-location.",
-                f);
-            return;
-        }
-        auto *nameNode =
-            llvm::dyn_cast<llvm::MDString>(givenNode->getOperand(1).get());
-        if (nameNode == nullptr) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC,
-                "Ill-formed ghost argument. Second operand should encode "
-                "argument name.",
-                f);
-            return;
-        }
-        auto *gVar = colContract->add_given_args();
-        gVar->set_allocated_origin(llvm2col::generatePallasSpecOrigin(
-            *locNode, nameNode->getString().str()));
-        // TODO: Determine & set type
+
+    // Add yields-args
+    for (const auto [idx, y] : llvm::enumerate(irContract->yieldsArgs)) {
+        llvm::Type *gType = getGhostArgType(*irContract, idx, f, false);
+        auto *colVar = colContract->add_yields_args();
+        transformGhostArg(y, colVar, *gType, idx, f);
+        cResult.addGhostArgMapEntry(y, *colVar);
     }
-    // TODO: Define variable for the ghost arguments and keep mapping
-    */
 
     // Handle contract clauses
     for (const auto [idx, clause] : llvm::enumerate(irContract->clauses)) {
@@ -233,6 +260,8 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     if (!wrapperArgs.has_value()) {
         return false;
     }
+
+    // TODO: Add the ghost args to the wrapper call
 
     // Build a call to the wrapper-function with the gathered arguments
     col::LlvmFunctionInvocation *wrapperCall =

@@ -161,7 +161,8 @@ bool llvm2col::addInvariantToContract(llvm::MDNode &invMD, llvm::Loop &llvmLoop,
     }
 
     // Extract src-location
-    auto srcLoc = pallas::irspec::getSrcLoc(llvm::dyn_cast_if_present<llvm::MDNode>(invMD.getOperand(0).get()));
+    auto srcLoc = pallas::irspec::getSrcLoc(
+        llvm::dyn_cast_if_present<llvm::MDNode>(invMD.getOperand(0).get()));
     if (!srcLoc.has_value()) {
         pallas::ErrorReporter::addError(
             SOURCE_LOC,

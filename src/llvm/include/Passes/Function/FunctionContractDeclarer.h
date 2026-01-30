@@ -12,6 +12,8 @@
 #endif // __GNUC__
 #include <llvm/IR/PassManager.h>
 
+#include "IRSpec/PallasIRSpec.h"
+
 /**
  * Pass that adds an LlvmfunctionContract to its corresponding
  * LlvmfunctionDefinition in the presence of a contract metadata node. The
@@ -38,8 +40,16 @@ class FDCResult {
   private:
     col::LlvmFunctionContract &associatedColFuncContract;
 
+    std::unordered_map<irspec::GhostArgDef *, col::Variable *> ghostArgMap;
+
   public:
     explicit FDCResult(col::LlvmFunctionContract &colFuncContract);
+
+    void addGhostArgMapEntry(irspec::GhostArgDef &arg, col::Variable &colVar);
+
+    col::Variable *getGhostArgMapEntry(irspec::GhostArgDef &arg);
+
+    llvm::SmallVector<col::Variable *> getGhostVars();
 
     col::LlvmFunctionContract &getAssociatedColFuncContract();
 };

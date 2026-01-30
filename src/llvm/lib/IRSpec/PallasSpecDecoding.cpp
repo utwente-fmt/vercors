@@ -280,6 +280,20 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md,
             externalOrGhost);
         if (!clause.has_value())
             return std::nullopt;
+        // Check that number of ghost arguments is consistent between 
+        // contract and clause
+        if (clause->givenArgs.size() != contract.givenArgs.size()) {
+            addError("Number of given-args does not match between clause and "
+                     "contract.",
+                     md);
+            return std::nullopt;
+        }
+        if (clause->yieldsArgs.size() != contract.yieldsArgs.size()) {
+            addError("Number of yields-args does not match between clause and "
+                     "contract.",
+                     md);
+            return std::nullopt;
+        }
 
         contract.addClause(clause.value());
         cIdx++;
