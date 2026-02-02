@@ -288,9 +288,16 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md,
                      md);
             return std::nullopt;
         }
-        if (clause->yieldsArgs.size() != contract.yieldsArgs.size()) {
+        if (clause->type != REQUIRES &&
+            clause->yieldsArgs.size() != contract.yieldsArgs.size()) {
             addError("Number of yields-args does not match between clause and "
                      "contract.",
+                     md);
+            return std::nullopt;
+        }
+
+        if (clause->type == REQUIRES && clause->yieldsArgs.size() != 0) {
+            addError("Number of yields-args in requires-clause must be zero",
                      md);
             return std::nullopt;
         }

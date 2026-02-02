@@ -69,6 +69,10 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
 
     llvm::Type *currentType = nullptr;
     for (auto &clause : contract.clauses) {
+        // Skip requires-clauses for yields args:
+        if (!isGivenArg && clause.type == irspec::ContractClauseType::REQUIRES)
+            continue;
+
         // Map debug variable to LLVM-value and get type
         auto *diVar =
             isGivenArg ? clause.givenArgs[argIdx] : clause.yieldsArgs[argIdx];
@@ -271,11 +275,14 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
             return false;
         wrapperArgs->push_back(v);
     }
-    for (auto &yArg : irContract.yieldsArgs) {
-        auto *v = contrResult.getGhostArgMapEntry(yArg);
-        if (v == nullptr)
-            return false;
-        wrapperArgs->push_back(v);
+
+    if (clause.type != irspec::ContractClauseType::REQUIRES) {
+        for (auto &yArg : irContract.yieldsArgs) {
+            auto *v = contrResult.getGhostArgMapEntry(yArg);
+            if (v == nullptr)
+                return false;
+            wrapperArgs->push_back(v);
+        }
     }
 
     // Build a call to the wrapper-function with the gathered arguments
