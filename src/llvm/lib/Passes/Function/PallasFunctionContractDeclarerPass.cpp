@@ -140,12 +140,16 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
 
     // Decode the MD-encoding
     auto *contractNode = utils::getPallasContract(f);
-    auto irContract = irspec::getContract(contractNode, implicitArgs);
-    if (!irContract.has_value())
+    auto decodedContract = irspec::getContract(contractNode, implicitArgs);
+    if (!decodedContract.has_value())
         return;
 
-    // Setup a fresh Pallas-contract
+    // Move ownership of the decoded contract into the FDCResult
     FDCResult &cResult = fam.getResult<FunctionContractDeclarer>(f);
+    cResult.setIRContract(decodedContract.value());
+    auto *irContract = cResult.getIRContract();
+
+    // Setup a fresh Pallas-contract
     auto colPallasContract = cResult.getAssociatedColFuncContract()
                                  .mutable_pallas_function_contract();
     colPallasContract->set_allocated_blame(new col::Blame());
@@ -248,11 +252,11 @@ PallasFunctionContractDeclarerPass::getContractArgs(
 }
 
 bool PallasFunctionContractDeclarerPass::addClauseToContract(
-    col::ApplicableContract &contract, irspec::FunctionContract &irContract,
+    col::ApplicableContract &contract, const irspec::FunctionContract &irContract,
     unsigned int clauseIdx, FunctionAnalysisManager &fam, Function &parentFunc,
     const bool implicitArgs) {
 
-    auto clause = irContract.clauses[clauseIdx];
+    auto &clause = irContract.clauses[clauseIdx];
 
     // Get COL representation of wrapper function
     auto wrapperFResult =

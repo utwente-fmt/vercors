@@ -1,6 +1,7 @@
 #include "Transform/LoopContractTransform.h"
 #include "IRSpec/PallasSpecDecoding.h"
 #include "Origin/OriginProvider.h"
+#include "Passes/Function/FunctionContractDeclarer.h"
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Transform/Transform.h"
 #include "Util/Constants.h"
@@ -30,56 +31,24 @@ void addError(llvm::Function &parentFunc, const std::string &msg) {
 void llvm2col::transformLoopContract(llvm::Loop &llvmLoop,
                                      col::LoopContract &colContract,
                                      pallas::FunctionCursor &functionCursor) {
-    llvm::MDNode *contractMD = pallas::utils::getPallasLoopContract(llvmLoop);
-    if (contractMD == nullptr) {
+    auto irContract = pallas::irspec::getLoopContract(
+        pallas::utils::getPallasLoopContract(llvmLoop));
+    if (!irContract.has_value()) {
         initializeEmptyLoopContract(colContract);
-        return;
-    }
-
-    // Get the source-location from the contract
-    auto contractSrcLoc = pallas::irspec::getSrcLoc(
-        llvm::dyn_cast<llvm::MDNode>(contractMD->getOperand(1).get()));
-    if (!contractSrcLoc.has_value()) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Malformed loop contract. Expected src-location as second operand.",
-            *llvmLoop.getHeader()->getParent());
         return;
     }
 
     col::LlvmLoopContract *colInvariant =
         colContract.mutable_llvm_loop_contract();
     colInvariant->set_allocated_origin(
-        generatePallasLoopContractOrigin(llvmLoop, *contractSrcLoc));
+        generatePallasLoopContractOrigin(llvmLoop, irContract->loc));
     colInvariant->mutable_blame();
 
-    // Check that the loop-contract contains invariants.
-    if (contractMD->getNumOperands() < 3) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC, "Malformed loop contract. No invariants were provided.",
-            *llvmLoop.getHeader()->getParent());
-        return;
-    }
-
-    // Extract invariants and add them to the contract
-    unsigned int opIdx = 2;
-    while (opIdx < contractMD->getNumOperands()) {
-        // Cast operand into MDNode
-        llvm::MDNode *invMD = llvm::dyn_cast_if_present<llvm::MDNode>(
-            contractMD->getOperand(opIdx).get());
-        if (invMD == nullptr) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC,
-                "Malformed loop-contract. Expected MDNode as operand.",
-                *llvmLoop.getHeader()->getParent());
+    for (const auto &inv : irContract->clauses) {
+        if (!addInvariantToContract(inv, llvmLoop, *colInvariant,
+                                    irContract->loc, functionCursor)) {
             return;
         }
-        // Add invariant to contract
-        if (!addInvariantToContract(*invMD, llvmLoop, *colInvariant,
-                                    *contractSrcLoc, functionCursor)) {
-            return;
-        }
-        ++opIdx;
     }
     return;
 }
@@ -143,81 +112,34 @@ llvm::DbgValueInst *selectDbgValue(
 
 } // namespace
 
-bool llvm2col::addInvariantToContract(llvm::MDNode &invMD, llvm::Loop &llvmLoop,
-                                      col::LlvmLoopContract &colContract,
-                                      const pallas::irspec::SrcLoc &contractLoc,
-                                      pallas::FunctionCursor &functionCursor) {
+bool llvm2col::addInvariantToContract(
+    const pallas::irspec::LoopInvariantClause &inv, llvm::Loop &llvmLoop,
+    col::LlvmLoopContract &colContract,
+    const pallas::irspec::SrcLoc &contractLoc,
+    pallas::FunctionCursor &functionCursor) {
+
     pallas::FunctionAnalysisManager &fam =
         functionCursor.getFunctionAnalysisManager();
     llvm::Function *llvmParentFunc = llvmLoop.getHeader()->getParent();
 
-    // Check wellformedness of MD-Node
-    if (invMD.getNumOperands() < 2) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Malformed loop-invariant. Expected at least two operands.",
-            *llvmParentFunc);
-        return false;
-    }
-
-    // Extract src-location
-    auto srcLoc = pallas::irspec::getSrcLoc(
-        llvm::dyn_cast_if_present<llvm::MDNode>(invMD.getOperand(0).get()));
-    if (!srcLoc.has_value()) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Malformed loop-invariant. Expected src-location as first operand.",
-            *llvmParentFunc);
-        return false;
-    }
-
-    // Get wrapper-function
-    auto *llvmWFunc = pallas::utils::getWrapperFromLoopInv(invMD);
-    if (llvmWFunc == nullptr) {
-        pallas::ErrorReporter::addError(SOURCE_LOC,
-                                        "Malformed loop-invariant. Expected "
-                                        "wrapper-function as second operand.",
-                                        *llvmParentFunc);
-        return false;
-    }
     col::LlvmFunctionDefinition &colWFunc =
-        fam.getResult<pallas::FunctionDeclarer>(*llvmWFunc)
+        fam.getResult<pallas::FunctionDeclarer>(*inv.wrapperFunction)
             .getAssociatedColFuncDef();
-
-    // TODO: Handle ghost argments
-
-    // Get DIVariables from MD
-    llvm::SmallVector<llvm::DILocalVariable *, 8> diVars;
-    unsigned int idx = 4;
-    while (idx < invMD.getNumOperands()) {
-        // Check that operand is a DILocalVariable
-        auto *diVar = llvm::dyn_cast_if_present<llvm::DILocalVariable>(
-            invMD.getOperand(idx).get());
-        if (diVar == nullptr) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC,
-                "Malformed loop invariant. Expected DILocalVariable.",
-                *llvmParentFunc);
-            return false;
-        }
-        diVars.push_back(diVar);
-        idx++;
-    }
 
     pallas::FDResult &colFResult =
         fam.getResult<pallas::FunctionDeclarer>(*llvmParentFunc);
-    col::LlvmFunctionDefinition &colParentFunc =
-        colFResult.getAssociatedColFuncDef();
+    // col::LlvmFunctionDefinition &colParentFunc =
+    //    colFResult.getAssociatedColFuncDef();
 
     // Build call to wrapper-function
     auto *wrapperCall = new col::LlvmFunctionInvocation();
-    wrapperCall->set_allocated_origin(
-        llvm2col::generatePallasWrapperCallOrigin(*llvmWFunc, *srcLoc));
+    wrapperCall->set_allocated_origin(llvm2col::generatePallasWrapperCallOrigin(
+        *inv.wrapperFunction, inv.loc));
     wrapperCall->set_allocated_blame(new col::Blame());
     wrapperCall->mutable_ref()->set_id(colWFunc.id());
 
     // Add arguments to wrapper-call
-    for (auto [argIdx, diVar] : llvm::enumerate(diVars)) {
+    for (auto [argIdx, diVar] : llvm::enumerate(inv.wrapperArgs)) {
         llvm::SmallVector<llvm::DbgVariableIntrinsic *> intrinsics =
             pallas::utils::getIntrinsicsForDIVar(*llvmParentFunc, *diVar);
 
@@ -237,7 +159,7 @@ bool llvm2col::addInvariantToContract(llvm::MDNode &invMD, llvm::Loop &llvmLoop,
                 return false;
             }
             pallas::utils::buildArgExprFromAlloca(*wrapperCall, argIdx, *alloca,
-                                                  *llvmWFunc, *srcLoc,
+                                                  *inv.wrapperFunction, inv.loc,
                                                   functionCursor);
         } else {
             // Try to map to dbg.value in loop-header
@@ -249,7 +171,7 @@ bool llvm2col::addInvariantToContract(llvm::MDNode &invMD, llvm::Loop &llvmLoop,
                 return false;
             }
             bool ok = pallas::utils::buildArgExprFromDbgValue(
-                *wrapperCall, argIdx, *dbgVal, *llvmWFunc, *srcLoc,
+                *wrapperCall, argIdx, *dbgVal, *inv.wrapperFunction, inv.loc,
                 functionCursor, *llvmParentFunc);
             if (!ok) {
                 addError(*llvmParentFunc,
@@ -257,6 +179,31 @@ bool llvm2col::addInvariantToContract(llvm::MDNode &invMD, llvm::Loop &llvmLoop,
                 return false;
             }
         }
+    }
+
+    // Get contract from parent function
+    auto &parentContrRes =
+        fam.getResult<pallas::FunctionContractDeclarer>(*llvmParentFunc);
+    if (parentContrRes.getIRContract() == nullptr &&
+        (inv.givenArgs.size() > 0 || inv.yieldsArgs.size() > 0)) {
+        addError(*llvmParentFunc,
+                 "Unable to get ghost args from contract of parent function");
+        return false;
+    }
+
+    // Get col-variables for ghost-args from contract of parent function
+    llvm::SmallVector<col::Variable *> ghostArgVars;
+    for (auto &gArg : parentContrRes.getIRContract()->givenArgs)
+        ghostArgVars.push_back(parentContrRes.getGhostArgMapEntry(gArg));
+    for (auto &yArg : parentContrRes.getIRContract()->yieldsArgs)
+        ghostArgVars.push_back(parentContrRes.getGhostArgMapEntry(yArg));
+
+    // Extend call with ghost-args
+    for (auto *v : ghostArgVars) {
+        auto *argExpr = wrapperCall->add_args()->mutable_local();
+        argExpr->set_allocated_origin(llvm2col::generatePallasWrapperCallOrigin(
+            *inv.wrapperFunction, inv.loc));
+        argExpr->mutable_ref()->set_id(v->id());
     }
 
     // Append wrapper-call to loop-contract

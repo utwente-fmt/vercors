@@ -40,14 +40,20 @@ class FDCResult {
   private:
     col::LlvmFunctionContract &associatedColFuncContract;
 
-    std::unordered_map<irspec::GhostArgDef *, col::Variable *> ghostArgMap;
+    std::optional<irspec::FunctionContract> associatedIRContract = std::nullopt;
+
+    std::unordered_map<const irspec::GhostArgDef *, col::Variable *> ghostArgMap;
 
   public:
     explicit FDCResult(col::LlvmFunctionContract &colFuncContract);
 
-    void addGhostArgMapEntry(irspec::GhostArgDef &arg, col::Variable &colVar);
+    void setIRContract(irspec::FunctionContract irContract);
 
-    col::Variable *getGhostArgMapEntry(irspec::GhostArgDef &arg);
+    const irspec::FunctionContract *getIRContract();
+
+    void addGhostArgMapEntry(const irspec::GhostArgDef &arg, col::Variable &colVar);
+
+    col::Variable *getGhostArgMapEntry(const irspec::GhostArgDef &arg);
 
     llvm::SmallVector<col::Variable *> getGhostVars();
 

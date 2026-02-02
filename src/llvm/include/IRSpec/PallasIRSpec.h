@@ -88,7 +88,40 @@ struct FunctionContract {
     void addYieldsArg(GhostArgDef arg) { yieldsArgs.push_back(arg); }
 };
 
-// TODO: Add spec statements and invariants
+/**
+ * Representation of a clause that is part of a block of loop invariants.
+ */
+struct LoopInvariantClause {
+    SrcLoc loc;
+    llvm::Function *wrapperFunction;
+    llvm::SmallVector<llvm::DILocalVariable *> givenArgs;
+    llvm::SmallVector<llvm::DILocalVariable *> yieldsArgs;
+    llvm::SmallVector<llvm::DILocalVariable *> wrapperArgs;
+
+    LoopInvariantClause(const SrcLoc &loc, llvm::Function *wrapperFunction)
+        : loc(loc), wrapperFunction(wrapperFunction) {}
+
+    void addWrapperArg(llvm::DILocalVariable *v) { wrapperArgs.push_back(v); }
+
+    void addGivenArg(llvm::DILocalVariable *v) { givenArgs.push_back(v); }
+
+    void addYieldsArg(llvm::DILocalVariable *v) { yieldsArgs.push_back(v); }
+};
+
+/**
+ * Representation of a block of loop invariants in the specification format of
+ * Pallas.
+ */
+struct LoopContract {
+    SrcLoc loc;
+    llvm::SmallVector<LoopInvariantClause> clauses;
+
+    LoopContract(const SrcLoc &loc) : loc(loc) {}
+
+    void addClause(LoopInvariantClause clause) { clauses.push_back(clause); }
+};
+
+// TODO: Add spec statements
 
 } // namespace pallas::irspec
 

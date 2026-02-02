@@ -33,8 +33,8 @@ std::optional<irspec::SrcLoc> getSrcLoc(const llvm::MDNode *md);
 
 /**
  * If the given metadata node encodes a contract clause in the specification
- * format of Pallas, returns it as a SrcLoc.
- * Otherwise, an empty optinal is returned and errors are added.
+ * format of Pallas, return it.
+ * Otherwise, an empty optional is returned and errors are added.
  */
 std::optional<ContractClause> getContractClause(const llvm::MDNode *md,
                                                 bool hasImplicitArgs);
@@ -42,17 +42,32 @@ std::optional<ContractClause> getContractClause(const llvm::MDNode *md,
 /**
  * If the given metadata node encodes a definition of a ghost argument
  * in the specification format of Pallas, returns it as a GhostArgDef.
- * Otherwise, an empty optinal is returned and errors are added.
+ * Otherwise, an empty optional is returned and errors are added.
  */
 std::optional<GhostArgDef> getGhostArgDef(const llvm::MDNode *md);
 
 /**
  * If the given metadata node encodes a contract in the specification
  * format of Pallas, returns it as a SrcLoc.
- * Otherwise, an empty optinal is returned and errors are added.
+ * Otherwise, an empty optional is returned and errors are added.
  */
 std::optional<FunctionContract> getContract(const llvm::MDNode *md,
                                             bool externalOrGhost);
+
+/**
+ * Decode a loop invariant clause from the specification format of Pallas.
+ * If the given metadata-node is not a valid encoding, an empty optional is
+ * returned and errors are added.
+ */
+std::optional<LoopInvariantClause>
+getLoopInvariantClause(const llvm::MDNode *md);
+
+/**
+ * Decode the loop-invariant block in the specification fromat of Pallas.
+ * If the given metadata node is not a valid encoding, an empty optional is
+ * returned and errors are added.
+ */
+std::optional<LoopContract> getLoopContract(const llvm::MDNode *md);
 
 } // namespace pallas::irspec
 

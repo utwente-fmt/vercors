@@ -21,12 +21,12 @@ col::LlvmFunctionContract &FDCResult::getAssociatedColFuncContract() {
     return associatedColFuncContract;
 }
 
-void FDCResult::addGhostArgMapEntry(irspec::GhostArgDef &arg,
+void FDCResult::addGhostArgMapEntry(const irspec::GhostArgDef &arg,
                                     col::Variable &colVar) {
     ghostArgMap.insert({&arg, &colVar});
 }
 
-col::Variable *FDCResult::getGhostArgMapEntry(irspec::GhostArgDef &arg) {
+col::Variable *FDCResult::getGhostArgMapEntry(const irspec::GhostArgDef &arg) {
     return ghostArgMap.at(&arg);
 }
 
@@ -36,6 +36,18 @@ llvm::SmallVector<col::Variable *> FDCResult::getGhostVars() {
         gArgs.push_back(v);
     }
     return gArgs;
+}
+
+void FDCResult::setIRContract(irspec::FunctionContract irContract) {
+    associatedIRContract = std::make_optional(std::move(irContract));
+}
+
+const irspec::FunctionContract *FDCResult::getIRContract() {
+    if (associatedIRContract.has_value()) {
+        return &associatedIRContract.value();
+    } else {
+        return nullptr;
+    }
 }
 
 /*

@@ -309,4 +309,142 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md,
     return std::make_optional(contract);
 }
 
+std::optional<LoopInvariantClause>
+getLoopInvariantClause(const llvm::MDNode *md) {
+    // TODO: De-duplicate his with the decoding of the contract clauses
+    if (md == nullptr) {
+        addError("Loop invariant clause may not be null", md);
+        return std::nullopt;
+    }
+
+    if (md->getNumOperands() < 4) {
+        addError("Ill-formed loop invariant  clause. Too few operands", md);
+        return std::nullopt;
+    }
+
+    // Location
+    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(0).get()));
+    if (!loc.has_value()) {
+        addError("First operand of loop invariant clause must be location.",
+                 md);
+        return std::nullopt;
+    }
+
+    // Wrapper function
+    auto *wFuncMD =
+        llvm::dyn_cast<llvm::ValueAsMetadata>(md->getOperand(1).get());
+    if (wFuncMD == nullptr) {
+        addError("Second operand of contract clause must point to function.",
+                 md);
+        return std::nullopt;
+    }
+    auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
+    if (wFunc == nullptr || !utils::isPallasExprWrapper(*wFunc)) {
+        addError("Second operand of loop invariant clause must point to "
+                 "wrapper function.",
+                 md);
+        return std::nullopt;
+    }
+
+    LoopInvariantClause clause(loc.value(), wFunc);
+
+    // Given
+    auto *givenList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(2).get());
+    if (givenList == nullptr) {
+        addError("Third operand of loop invariant clause must point to list of "
+                 "DIVariables.",
+                 md);
+        return std::nullopt;
+    }
+    for (const auto &g : givenList->operands()) {
+        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(g.get());
+        if (var == nullptr) {
+            addError("Expected DILocalVariable in list of given-args.",
+                     givenList);
+            return std::nullopt;
+        }
+        clause.addGivenArg(var);
+    }
+
+    // Yields
+    auto *yieldsList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(3).get());
+    if (yieldsList == nullptr) {
+        addError(
+            "Fourth operand of loop invariant clause must point to list of "
+            "DIVariables.",
+            md);
+        return std::nullopt;
+    }
+    for (const auto &y : yieldsList->operands()) {
+        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(y.get());
+        if (var == nullptr) {
+            addError("Expected DILocalVariable in list of yields-args.",
+                     yieldsList);
+            return std::nullopt;
+        }
+        clause.addYieldsArg(var);
+    }
+
+    // DIVariables
+    unsigned int vIdx = 4;
+    while (vIdx < md->getNumOperands()) {
+        auto *diVar =
+            llvm::dyn_cast<llvm::DILocalVariable>(md->getOperand(vIdx).get());
+        if (diVar == nullptr) {
+            addError("Expected DIVariable at index " + std::to_string(vIdx) +
+                         " of loop invariant clause.",
+                     md);
+            return std::nullopt;
+        }
+        clause.addWrapperArg(diVar);
+        vIdx++;
+    }
+
+    return std::make_optional(clause);
+}
+
+std::optional<LoopContract> getLoopContract(const llvm::MDNode *md) {
+    // TODO: De-duplicate this with the function contracts
+    if (md == nullptr) {
+        addError("Loop invariant may not be null", md);
+        return std::nullopt;
+    }
+
+    if (md->getNumOperands() < 3) {
+        addError("Ill-formed loop invariant. Too few operands", md);
+        return std::nullopt;
+    }
+
+    // Identifier
+    auto *idStr = llvm::dyn_cast<llvm::MDString>(md->getOperand(0).get());
+    if (idStr == nullptr ||
+        idStr->getString().str() != pallas::constants::PALLAS_LOOP_CONTR_ID) {
+        addError("First operand of loop contract must be identifier string.",
+                 md);
+        return std::nullopt;
+    }
+
+    // location
+    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(1).get()));
+    if (!loc.has_value()) {
+        addError("Second operand of loop contract must be location.", md);
+        return std::nullopt;
+    }
+
+    LoopContract loopInv(loc.value());
+
+    // Clauses
+    unsigned int cIdx = 2;
+    while (cIdx < md->getNumOperands()) {
+        auto clause = getLoopInvariantClause(
+            llvm::dyn_cast_or_null<llvm::MDNode>(md->getOperand(cIdx).get()));
+        if (!clause.has_value())
+            return std::nullopt;
+        loopInv.addClause(clause.value());
+        cIdx++;
+    }
+
+    return std::make_optional(loopInv);
+}
+
 } // namespace pallas::irspec
