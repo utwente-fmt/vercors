@@ -1,68 +1,65 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-//:: cases RosterFixed
-//:: tools silicon
-//:: verdict Pass
-
-/* See pg 42, phd Hurlin. */
+// From page 42 of Hurlin's PhD thesis: <https://theses.hal.science/tel-00424979v1>
 
 final class Roster {
   int id;
   int grade;
   Roster next;
 
-/*@
-  resource ids_and_links()=Perm(id,1) ** Perm(next,1\2) ** next->ids_and_links();
- 
-  resource grades_and_links()=Perm(grade,1) ** Perm(next,1\2) ** next->grades_and_links() ;
+  /*@
+    resource ids_and_links() = Perm(id,1) ** Perm(next,1\2) ** next->ids_and_links();
 
-  resource state()= ids_and_links() ** grades_and_links();
- */
- 
+    resource grades_and_links() = Perm(grade,1) ** Perm(next,1\2) ** next->grades_and_links() ;
+
+    resource state() = ids_and_links() ** grades_and_links();
+  */
+
   //@ requires n->state();
   //@ ensures this.state();
   Roster(int i, int g, Roster n) {
     id = i;
     grade = g;
     next = n;
-    /*@ ghost
-      if (n!=null) { unfold n.state(); }
-    */
+    /*@ ghost {
+      if (n!=null) {
+        unfold n.state(); 
+      }
+    } */
     //@ fold ids_and_links();
     //@ fold grades_and_links();
     //@ fold state();
   }
 
-  //@ requires state();
-  //@ ensures state();
+  //@ given frac q;
+  //@ requires 0 < q && q < 1;
+  //@ requires grades_and_links() ** Perm(ids_and_links(), q);
+  //@ ensures grades_and_links() ** Perm(ids_and_links(), q);
   void updateGrade(int id, int grade) {
     /*@
-      unfold state();
-      unfold ids_and_links();
+      unfold Perm(ids_and_links(), q);
       unfold grades_and_links();
     @*/
     if (this.id == id) {
       this.grade = grade;
     } else if (next != null) {
-      //@ fold next.state();
-      next.updateGrade(id,grade);
-      //@ unfold next.state();
+      next.updateGrade(id,grade) /*@ given { q = q\2 } */;
     }
     /*@
-      fold ids_and_links();
+      fold Perm(ids_and_links(), q);
       fold grades_and_links();
-      fold state();
     @*/
   }
 
-  //@ requires ids_and_links();
-  //@ ensures ids_and_links();
+  //@ given frac q;
+  //@ requires 0 < q && q < 1;
+  //@ requires Perm(ids_and_links(), q);
+  //@ ensures Perm(ids_and_links(), q);
   boolean contains(int id) {
-    //@ unfold ids_and_links();
+    //@ unfold Perm(ids_and_links(), q);
     boolean b = this.id==id;
     if(!b && next!=null){
-      b=next.contains(id);
+      b=next.contains(id) /*@ given { q = q \ 2 } */;
     }
-    //@ fold ids_and_links();
+    //@ fold Perm(ids_and_links(), q);
     return b;
   }
 }
