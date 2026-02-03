@@ -18,6 +18,8 @@ class GpgpuSpec extends VercorsSpec {
 
   vercors should verify using silicon example "concepts/gpgpu/global_fence_opencl.cl"
 
+  vercors should verify using silicon flags("--prover-config:smt.arith.solver=6") example "concepts/gpgpu/prefixsum-drf.pvl"
+
   vercors should fail withCode "preFailed:perm" using silicon example "concepts/gpgpu/atomic_fail-1.cu"
   vercors should fail withCode "ptrPerm" using silicon example "concepts/gpgpu/atomic_fail-2.cu"
   
