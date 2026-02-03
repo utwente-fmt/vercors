@@ -20,7 +20,7 @@ final class Roster {
     grade = g;
     next = n;
     /*@ ghost {
-      if (n!=null) {
+      if (n != null) {
         unfold n.state(); 
       }
     } */
@@ -57,7 +57,7 @@ final class Roster {
     //@ unfold Perm(ids_and_links(), q);
     boolean b = this.id==id;
     if(!b && next!=null){
-      b=next.contains(id) /*@ given { q = q \ 2 } */;
+      b = next.contains(id) /*@ given { q = q \ 2 } */;
     }
     //@ fold Perm(ids_and_links(), q);
     return b;
