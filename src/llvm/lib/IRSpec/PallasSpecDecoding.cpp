@@ -12,7 +12,11 @@ const std::string SOURCE_LOC = "IRSpec::PallasSpecDecoding";
 namespace {
 
 void addError(std::string msg, const llvm::Metadata *md) {
-    pallas::ErrorReporter::addError(SOURCE_LOC, msg, md);
+    if (md == nullptr) {
+        pallas::ErrorReporter::addError(SOURCE_LOC, msg);
+    } else {
+        pallas::ErrorReporter::addError(SOURCE_LOC, msg, md);
+    }
 }
 
 } // namespace
@@ -445,6 +449,169 @@ std::optional<LoopContract> getLoopContract(const llvm::MDNode *md) {
     }
 
     return std::make_optional(loopInv);
+}
+
+std::optional<SpecStatementType>
+getSpecStatementType(const llvm::Metadata *md) {
+    auto mdStr = llvm::dyn_cast_if_present<llvm::MDString>(md);
+    if (mdStr == nullptr) {
+        addError("Type of specification statement must be MDString", md);
+        return std::nullopt;
+    }
+
+    auto typeStr = mdStr->getString().str();
+    if (typeStr == pallas::constants::PALLAS_ASSERT) {
+        return ASSERT;
+    } else if (typeStr == pallas::constants::PALLAS_ASSUME) {
+        return ASSUME;
+    } else if (typeStr == pallas::constants::PALLAS_FOLD) {
+        return FOLD;
+    } else if (typeStr == pallas::constants::PALLAS_UNFOLD) {
+        return UNFOLD;
+    }
+    addError("Unknown specification-statement type.", md);
+    return std::nullopt;
+}
+
+std::optional<SpecStatement> getSpecStatement(const llvm::MDNode *md) {
+    // TODO: De-duplicate this with the other specification constructs
+    // Check number of operands
+    if (md == nullptr) {
+        addError("Specification statement may not be null", md);
+        return std::nullopt;
+    }
+
+    if (md->getNumOperands() < 5) {
+        addError("Ill-formed specification statement. Too few operands", md);
+        return std::nullopt;
+    }
+
+    // Type
+    auto type = getSpecStatementType(md->getOperand(0).get());
+    if (!type.has_value()) {
+        addError("Ill-formed specification statement type.", md);
+        return std::nullopt;
+    }
+
+    // Loc
+    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(1).get()));
+    if (!loc.has_value()) {
+        addError("Second operand of specification statement must be location.",
+                 md);
+        return std::nullopt;
+    }
+
+    // Wrapper function
+    auto *wFuncMD =
+        llvm::dyn_cast<llvm::ValueAsMetadata>(md->getOperand(2).get());
+    if (wFuncMD == nullptr) {
+        addError(
+            "Third operand of specification statement must point to function.",
+            md);
+        return std::nullopt;
+    }
+    auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
+    if (wFunc == nullptr || !utils::isPallasExprWrapper(*wFunc)) {
+        addError("Third operand of specification statement must point to "
+                 "wrapper function.",
+                 md);
+        return std::nullopt;
+    }
+
+    SpecStatement stmnt(*type, *loc, wFunc);
+
+    // Given-args
+    auto *givenList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(3).get());
+    if (givenList == nullptr) {
+        addError(
+            "Fourth operand of specification statement must point to list of "
+            "DIVariables.",
+            md);
+        return std::nullopt;
+    }
+    for (const auto &g : givenList->operands()) {
+        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(g.get());
+        if (var == nullptr) {
+            addError("Expected DILocalVariable in list of given-args.",
+                     givenList);
+            return std::nullopt;
+        }
+        stmnt.addGivenArg(var);
+    }
+
+    // Yields-args
+    auto *yieldsList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(4).get());
+    if (yieldsList == nullptr) {
+        addError("Fifth operand of specification statement clause must point "
+                 "to list of DIVariables.",
+                 md);
+        return std::nullopt;
+    }
+    for (const auto &y : yieldsList->operands()) {
+        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(y.get());
+        if (var == nullptr) {
+            addError("Expected DILocalVariable in list of yields-args.",
+                     yieldsList);
+            return std::nullopt;
+        }
+        stmnt.addYieldsArg(var);
+    }
+
+    // Wrapper args
+    unsigned int vIdx = 5;
+    while (vIdx < md->getNumOperands()) {
+        auto *diVar =
+            llvm::dyn_cast<llvm::DILocalVariable>(md->getOperand(vIdx).get());
+        if (diVar == nullptr) {
+            addError("Expected DIVariable at index " + std::to_string(vIdx) +
+                         " of specification statement.",
+                     md);
+            return std::nullopt;
+        }
+        stmnt.addWrapperArg(diVar);
+        vIdx++;
+    }
+
+    return std::make_optional(stmnt);
+}
+
+std::optional<SpecStatementBlock>
+getSpecStatementBlock(const llvm::MDNode *md) {
+
+    if (md == nullptr) {
+        addError("Specification statement-block may not be null", md);
+        return std::nullopt;
+    }
+
+    if (md->getNumOperands() < 2) {
+        addError("Ill-formed specification statement block. Too few operands",
+                 md);
+        return std::nullopt;
+    }
+
+    // Location
+    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(0).get()));
+    if (!loc.has_value()) {
+        addError(
+            "First operand of specification statement block must be location.",
+            md);
+        return std::nullopt;
+    }
+
+    SpecStatementBlock stmntBlock(loc.value());
+
+    // Statements
+    unsigned int cIdx = 1;
+    while (cIdx < md->getNumOperands()) {
+        auto stmnt = getSpecStatement(
+            llvm::dyn_cast_or_null<llvm::MDNode>(md->getOperand(cIdx).get()));
+        if (!stmnt.has_value())
+            return std::nullopt;
+        stmntBlock.addStatement(stmnt.value());
+        cIdx++;
+    }
+
+    return std::make_optional(stmntBlock);
 }
 
 } // namespace pallas::irspec

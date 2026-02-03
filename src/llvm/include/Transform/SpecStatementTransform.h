@@ -1,6 +1,7 @@
 #ifndef PALLAS_SPECSTATEMENTTRANSFORM_H
 #define PALLAS_SPECSTATEMENTTRANSFORM_H
 
+#include "IRSpec/PallasIRSpec.h"
 #include "Passes/Function/FunctionBodyTransformer.h"
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -25,7 +26,8 @@ void transformSpecStmntBlock(llvm::MDNode &llvmSpecBlock,
                              col::LlvmBasicBlock &colBlock,
                              pallas::FunctionCursor &functionCursor);
 
-void transformSpecStmnt(llvm::MDNode &specStmnt, llvm::Instruction &llvmInstr,
+void transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
+                        llvm::Instruction &llvmInstr,
                         col::LlvmBasicBlock &colBlock,
                         pallas::FunctionCursor &functionCursor);
 

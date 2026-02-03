@@ -27,7 +27,7 @@ struct SrcLoc {
 };
 
 /**
- * Types of contract clauses in the specification fromat of Pallas.
+ * Types of contract clauses in the specification format of Pallas.
  */
 enum ContractClauseType { REQUIRES, ENSURES };
 
@@ -121,7 +121,48 @@ struct LoopContract {
     void addClause(LoopInvariantClause clause) { clauses.push_back(clause); }
 };
 
-// TODO: Add spec statements
+/**
+ * Types of specification statements in the specification format of Pallas.
+ */
+enum SpecStatementType { ASSERT, ASSUME, FOLD, UNFOLD };
+
+/**
+ * Representation of a specification statement in the specification-format
+ * of Pallas.
+ */
+// TODO: De-duplicate this with the other specification constructs.
+// (I.e. make base-class for specification clauses and blocks)
+struct SpecStatement {
+    SpecStatementType type;
+    SrcLoc loc;
+    llvm::Function *wrapperFunction;
+    llvm::SmallVector<llvm::DILocalVariable *> givenArgs;
+    llvm::SmallVector<llvm::DILocalVariable *> yieldsArgs;
+    llvm::SmallVector<llvm::DILocalVariable *> wrapperArgs;
+
+    SpecStatement(const SpecStatementType &type, const SrcLoc &loc,
+                  llvm::Function *wrapperFunction)
+        : type(type), loc(loc), wrapperFunction(wrapperFunction) {}
+
+    void addWrapperArg(llvm::DILocalVariable *v) { wrapperArgs.push_back(v); }
+
+    void addGivenArg(llvm::DILocalVariable *v) { givenArgs.push_back(v); }
+
+    void addYieldsArg(llvm::DILocalVariable *v) { yieldsArgs.push_back(v); }
+};
+
+/**
+ * Representation of a block of specification statements in the specification
+ * format of Pallas.
+ */
+struct SpecStatementBlock {
+    SrcLoc loc;
+    llvm::SmallVector<SpecStatement> statements;
+
+    SpecStatementBlock(const SrcLoc &loc) : loc(loc) {}
+
+    void addStatement(SpecStatement stmnt) { statements.push_back(stmnt); }
+};
 
 } // namespace pallas::irspec
 

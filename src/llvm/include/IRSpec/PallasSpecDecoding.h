@@ -69,6 +69,27 @@ getLoopInvariantClause(const llvm::MDNode *md);
  */
 std::optional<LoopContract> getLoopContract(const llvm::MDNode *md);
 
+/**
+ * Decode the identifier of a specification statement in the encoding used by
+ * Pallas. 
+ * If the encoding is invalid, a nullopt is returned and errors are added.
+ */
+std::optional<SpecStatementType> getSpecStatementType(const llvm::MDNode *md);
+
+/**
+ * Decode a specification statement from the specification format of Pallas.
+ * If the given metadata-node is not a valid encoding, an empty optional is
+ * returned and errors are added.
+ */
+std::optional<SpecStatement> getSpecStatement(const llvm::MDNode *md);
+
+/**
+ * Decode a block of specification statements from the specification format of
+ * Pallas. If the given metadata-node is not a valid encoding, an empty optional
+ * is returned and errors are added.
+ */
+std::optional<SpecStatementBlock> getSpecStatementBlock(const llvm::MDNode *md);
+
 } // namespace pallas::irspec
 
 #endif // PALLAS_SPEC_DECODING_H

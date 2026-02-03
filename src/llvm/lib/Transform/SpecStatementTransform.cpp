@@ -1,6 +1,7 @@
 #include "Transform/SpecStatementTransform.h"
 #include "IRSpec/PallasSpecDecoding.h"
 #include "Origin/OriginProvider.h"
+#include "Passes/Function/FunctionContractDeclarer.h"
 #include "Util/BlockUtils.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
@@ -22,36 +23,14 @@ void llvm2col::transformSpecStmntBlock(llvm::MDNode &llvmSpecBlock,
                                        llvm::Instruction &llvmInstr,
                                        col::LlvmBasicBlock &colBlock,
                                        pallas::FunctionCursor &functionCursor) {
-    // Deconstruct the MD-Node
-    if (llvmSpecBlock.getNumOperands() < 2) {
-        pallas::ErrorReporter::addError(
-            SOURCE_LOC,
-            "Malformed specification block. (Expected at least two operands)",
-            llvmInstr);
-        return;
-    }
-    // Src-Location
-    auto *srcLoc =
-        llvm::dyn_cast<llvm::MDNode>(llvmSpecBlock.getOperand(0).get());
-    if (!pallas::utils::isWellformedPallasLocation(srcLoc)) {
-        pallas::ErrorReporter::addError(SOURCE_LOC,
-                                        "Malformed specification block. "
-                                        "(Expected location as first operand)",
-                                        llvmInstr);
-        return;
-    }
 
-    // Statements
-    for (auto idx = 1; idx < llvmSpecBlock.getNumOperands(); ++idx) {
-        const llvm::MDOperand &op = llvmSpecBlock.getOperand(idx);
-        if (auto *stmnt = llvm::dyn_cast_if_present<llvm::MDNode>(op.get())) {
-            transformSpecStmnt(*stmnt, llvmInstr, colBlock, functionCursor);
-        } else {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC, "Malformed specification block.", llvmInstr);
-            return;
-        }
-    }
+    // Decode the MD-node
+    auto irStmntBlock = pallas::irspec::getSpecStatementBlock(&llvmSpecBlock);
+    if (!irStmntBlock.has_value())
+        return;
+
+    for (auto &stmnt : irStmntBlock->statements)
+        transformSpecStmnt(stmnt, llvmInstr, colBlock, functionCursor);
 }
 
 namespace {
@@ -131,110 +110,96 @@ bool buildArgForDIVar(llvm::DIVariable &diVar, llvm::Instruction &llvmInstr,
 
 } // namespace
 
-void llvm2col::transformSpecStmnt(llvm::MDNode &specStmnt,
+void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
                                   llvm::Instruction &llvmInstr,
                                   col::LlvmBasicBlock &colBlock,
                                   pallas::FunctionCursor &functionCursor) {
-    // Deconstruct the MD-Node
-    if (specStmnt.getNumOperands() < 5) {
-        printSpecStmntError(llvmInstr, "Expected at least five operands");
-        return;
-    }
-    // Statement-type
-    auto *typeStrMD = dyn_cast<llvm::MDString>(specStmnt.getOperand(0).get());
-    if (typeStrMD == nullptr) {
-        printSpecStmntError(llvmInstr, "First operand should be a MDString");
-        return;
-    }
-    // Src-location
-    auto srcLoc = pallas::irspec::getSrcLoc(
-        llvm::dyn_cast<llvm::MDNode>(specStmnt.getOperand(1).get()));
-    if (!srcLoc.has_value()) {
-        printSpecStmntError(llvmInstr, "Expected src-location as second "
-                                       "operand of specification statement");
-        return;
-    }
-    // Wrapper-function
-    auto *llvmWFunc = pallas::utils::getWrapperFunc(specStmnt.getOperand(2));
-    if (llvmWFunc == nullptr) {
-        printSpecStmntError(llvmInstr,
-                            "Expected wrapper-function as third operand");
-        return;
-    }
+
     auto &fam = functionCursor.getFunctionAnalysisManager();
     col::LlvmFunctionDefinition &colWFunc =
-        fam.getResult<pallas::FunctionDeclarer>(*llvmWFunc)
+        fam.getResult<pallas::FunctionDeclarer>(*stmnt.wrapperFunction)
             .getAssociatedColFuncDef();
-
-    // TODO: Add ghost args
-
-    // DI-Variables
-    llvm::SmallVector<llvm::DIVariable *> diVars;
-    for (auto idx = 5; idx < specStmnt.getNumOperands(); ++idx) {
-        auto *diVar = llvm::dyn_cast_if_present<llvm::DIVariable>(
-            specStmnt.getOperand(idx).get());
-        if (diVar == nullptr) {
-            printSpecStmntError(llvmInstr, "Expected DIVariable as operand");
-            return;
-        }
-        diVars.push_back(diVar);
-    }
 
     // Build call to wrapper-function
     auto *wCall = new col::LlvmFunctionInvocation();
-    wCall->set_allocated_origin(
-        llvm2col::generatePallasWrapperCallOrigin(*llvmWFunc, *srcLoc));
+    wCall->set_allocated_origin(llvm2col::generatePallasWrapperCallOrigin(
+        *stmnt.wrapperFunction, stmnt.loc));
     wCall->set_allocated_blame(new col::Blame());
     wCall->mutable_ref()->set_id(colWFunc.id());
 
     // Add arguments to wrapper-call
-    for (auto [argIdx, diVar] : llvm::enumerate(diVars)) {
-        bool ok = buildArgForDIVar(*diVar, llvmInstr, *wCall, *llvmWFunc,
-                                   argIdx, *srcLoc, functionCursor);
-        if (!ok) {
+    for (auto [argIdx, diVar] : llvm::enumerate(stmnt.wrapperArgs)) {
+        bool ok =
+            buildArgForDIVar(*diVar, llvmInstr, *wCall, *stmnt.wrapperFunction,
+                             argIdx, stmnt.loc, functionCursor);
+        if (!ok)
             return;
-        }
     }
 
-    // Node for the statement
+    // Get contract from parent function
+    auto *llvmParentFunc = llvmInstr.getParent()->getParent();
+    auto &parentContrRes =
+        fam.getResult<pallas::FunctionContractDeclarer>(*llvmParentFunc);
+    if (parentContrRes.getIRContract() == nullptr &&
+        (stmnt.givenArgs.size() > 0 || stmnt.yieldsArgs.size() > 0)) {
+        printSpecStmntError(
+            llvmInstr,
+            "Unable to get ghost args from contract of parent function");
+        return;
+    }
+
+    // Add ghost args to wrapper-call
+    // TODO: De-duplicate this with LoopContractTransform
+    llvm::SmallVector<col::Variable *> ghostArgVars;
+    for (auto &gArg : parentContrRes.getIRContract()->givenArgs)
+        ghostArgVars.push_back(parentContrRes.getGhostArgMapEntry(gArg));
+    for (auto &yArg : parentContrRes.getIRContract()->yieldsArgs)
+        ghostArgVars.push_back(parentContrRes.getGhostArgMapEntry(yArg));
+
+    for (auto *v : ghostArgVars) {
+        auto *argExpr = wCall->add_args()->mutable_local();
+        argExpr->set_allocated_origin(llvm2col::generatePallasWrapperCallOrigin(
+            *stmnt.wrapperFunction, stmnt.loc));
+        argExpr->mutable_ref()->set_id(v->id());
+    }
+
+    // COL-node for the statement
     col::Block &body = pallas::bodyAsBlock(colBlock);
-    if (typeStrMD->getString().str() == pallas::constants::PALLAS_ASSERT) {
+    if (stmnt.type == pallas::irspec::SpecStatementType::ASSERT) {
         // Build Assert
         col::VctAssert *assert = body.add_statements()->mutable_vct_assert();
         assert->set_allocated_blame(new col::Blame());
         // TODO: Fix the origin
         assert->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, *srcLoc, "assert"));
+            llvmInstr, stmnt.loc, "assert"));
         assert->mutable_res()->set_allocated_llvm_function_invocation(wCall);
-    } else if (typeStrMD->getString().str() ==
-               pallas::constants::PALLAS_ASSUME) {
+    } else if (stmnt.type == pallas::irspec::SpecStatementType::ASSUME) {
         // Build Assume
         col::Assume *assume = body.add_statements()->mutable_assume();
         assume->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, *srcLoc, "assume"));
+            llvmInstr, stmnt.loc, "assume"));
         assume->mutable_assn()->set_allocated_llvm_function_invocation(wCall);
-    } else if (typeStrMD->getString().str() == pallas::constants::PALLAS_FOLD) {
+    } else if (stmnt.type == pallas::irspec::SpecStatementType::FOLD) {
         // Build Fold
         col::Fold *fold = body.add_statements()->mutable_fold();
         fold->set_allocated_blame(new col::Blame());
         fold->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, *srcLoc, "fold"));
+            llvmInstr, stmnt.loc, "fold"));
         col::AmbiguousFoldTarget *target =
             fold->mutable_res()->mutable_ambiguous_fold_target();
         target->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, *srcLoc, "fold"));
+            llvmInstr, stmnt.loc, "fold"));
         target->mutable_target()->set_allocated_llvm_function_invocation(wCall);
-    } else if (typeStrMD->getString().str() ==
-               pallas::constants::PALLAS_UNFOLD) {
+    } else if (stmnt.type == pallas::irspec::SpecStatementType::UNFOLD) {
         // Build Unfold
         col::Unfold *unfold = body.add_statements()->mutable_unfold();
         unfold->set_allocated_blame(new col::Blame());
         unfold->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, *srcLoc, "unfold"));
+            llvmInstr, stmnt.loc, "unfold"));
         col::AmbiguousFoldTarget *target =
             unfold->mutable_res()->mutable_ambiguous_fold_target();
         target->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, *srcLoc, "unfold"));
+            llvmInstr, stmnt.loc, "unfold"));
         target->mutable_target()->set_allocated_llvm_function_invocation(wCall);
     } else {
         printSpecStmntError(llvmInstr, "Unknown statement-type");

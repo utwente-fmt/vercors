@@ -252,8 +252,9 @@ PallasFunctionContractDeclarerPass::getContractArgs(
 }
 
 bool PallasFunctionContractDeclarerPass::addClauseToContract(
-    col::ApplicableContract &contract, const irspec::FunctionContract &irContract,
-    unsigned int clauseIdx, FunctionAnalysisManager &fam, Function &parentFunc,
+    col::ApplicableContract &contract,
+    const irspec::FunctionContract &irContract, unsigned int clauseIdx,
+    FunctionAnalysisManager &fam, Function &parentFunc,
     const bool implicitArgs) {
 
     auto &clause = irContract.clauses[clauseIdx];
