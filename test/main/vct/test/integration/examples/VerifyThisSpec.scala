@@ -15,8 +15,7 @@ class VerifyThisSpec extends VercorsSpec {
   // vercors should verify using silicon example "verifythis/2017/submission/challenge1.pvl"
   vercors should verify using silicon example "verifythis/2018/challenge1.pvl"
   vercors should verify using silicon example "verifythis/2018/challenge2.pvl"
-  // Due to be fixed by https://github.com/viperproject/silicon/pull/642
-  // vercors should verify using silicon example "verifythis/2019/challenge1.pvl"
+  vercors should verify using silicon example "verifythis/2019/challenge1.pvl"
   vercors should verify using silicon example "verifythis/2019/challenge2b.pvl"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "/verifythis/2019/challenge3_complete.pvl"
   vercors should verify using silicon example "verifythis/2021/TeamBlue/Challenge1.pvl"
