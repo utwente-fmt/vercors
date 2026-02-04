@@ -225,6 +225,7 @@ case class LangSpecificToCol[Pre <: Generation](
     llvm.gatherWrappersInAssume(program)
     llvm.gatherTypeHints(program)
     llvm.gatherPallasTypeSubst(program)
+    llvm.gatherHeapVariables(program)
     super.dispatch(program)
   }
 
@@ -343,6 +344,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case store: LLVMStore[Pre] => llvm.rewriteStore(store)
       case alloc: LLVMAllocA[Pre] => llvm.rewriteAllocA(alloc)
       case memset: LLVMMemset[Pre] => llvm.rewriteMemset(memset)
+      case memcpy: LLVMMemcpy[Pre] => llvm.rewriteMemcpy(memcpy)
       case block: LLVMBasicBlock[Pre] => llvm.rewriteBasicBlock(block)
       case unreachable: LLVMBranchUnreachable[Pre] =>
         llvm.rewriteUnreachable(unreachable)
@@ -457,7 +459,9 @@ case class LangSpecificToCol[Pre <: Generation](
         llvm.rewriteAmbiguousFunctionInvocation(inv)
       case inv: LLVMFunctionInvocation[Pre] =>
         llvm.rewriteFunctionInvocation(inv)
-      case local: LLVMLocal[Pre] => llvm.rewriteLocal(local)
+      case local: LLVMLocal[Pre] => llvm.rewriteNamedLocal(local)
+      // TODO: This is not great, we will run this even if we're using a language that is not LLVM-IR
+      case local: Local[Pre] => llvm.rewriteLocal(local)
       case pointer: LLVMFunctionPointerValue[Pre] =>
         llvm.rewriteFunctionPointer(pointer)
       case pointer: LLVMPointerValue[Pre] => llvm.rewritePointerValue(pointer)

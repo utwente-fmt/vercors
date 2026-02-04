@@ -27,6 +27,10 @@ getIntrinsicsForDIVar(llvm::Function &f, llvm::DILocalVariable &diVar);
 llvm::DbgDeclareInst *
 getUniqueDbgDeclare(llvm::ArrayRef<llvm::DbgVariableIntrinsic *> intrinsics);
 
+llvm::DIType *stripIgnored(llvm::DIType *type);
+
+llvm::DIType *getDITypeForValue(llvm::Value &value);
+
 } // namespace pallas::utils
 
 #endif // PALLAS_DIMAPPING_H

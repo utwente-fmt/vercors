@@ -5,7 +5,12 @@
 #include "Passes/Module/RootContainer.h"
 #include "Transform/Transform.h"
 #include "Util/Exceptions.h"
+#include "Util/PallasDIMapping.h"
 #include "Util/PallasMD.h"
+#include <llvm/IR/Attributes.h>
+#include <llvm/IR/Metadata.h>
+#include <llvm/IR/Type.h>
+#include <llvm/Support/Casting.h>
 
 namespace pallas {
 const std::string SOURCE_LOC = "Passes::Function::FunctionDeclarer";
@@ -82,6 +87,14 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
             llvm2col::generateFuncDefOrigin(F));
     }
     FDResult result = FDResult(*llvmFuncDef, funcScopedBody, functionId);
+    llvm::DITypeRefArray typeArray = nullptr;
+    if (const auto *subProgram = F.getSubprogram()) {
+        if (const auto *subProgramType =
+                llvm::dyn_cast_or_null<DISubroutineType>(
+                    subProgram->getType())) {
+            typeArray = subProgramType->getTypeArray();
+        }
+    }
     const auto &dataLayout = F.getParent()->getDataLayout();
     // set args (if present)
     for (llvm::Argument &llvmArg : F.args()) {
@@ -90,9 +103,20 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         // set origin
         colArg->set_allocated_origin(llvm2col::generateArgumentOrigin(llvmArg));
         llvm2col::setColNodeId(colArg);
+        llvm::Type *pointerType = llvmArg.getParamStructRetType();
+        if (pointerType == nullptr)
+            pointerType = llvmArg.getParamByRefType();
+        if (pointerType == nullptr)
+            pointerType = llvmArg.getParamByValType();
+        if (pointerType == nullptr)
+            pointerType = llvmArg.getParamInAllocaType();
+        if (pointerType == nullptr &&
+            llvmArg.hasAttribute(llvm::Attribute::ElementType))
+            pointerType = llvmArg.getAttribute(llvm::Attribute::ElementType)
+                              .getValueAsType();
         try {
-            llvm2col::transformAndSetType(*llvmArg.getType(),
-                                          *colArg->mutable_t(), dataLayout);
+            llvm2col::transformAndSetValueType(
+                llvmArg, pointerType, *colArg->mutable_t(), dataLayout);
         } catch (pallas::UnsupportedTypeException &e) {
             std::stringstream errorStream;
             errorStream << e.what() << " in argument #" << llvmArg.getArgNo();
@@ -105,9 +129,15 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
     // complete the function declaration in proto buffer
     // set return type in protobuf of function
     try {
-        llvm2col::transformAndSetType(*F.getReturnType(),
-                                      *llvmFuncDef->mutable_return_type(),
-                                      dataLayout);
+        if (typeArray.size() > 0) {
+            llvm2col::transformAndSetTypeWithDebugInfo(
+                F.getReturnType(), typeArray[0],
+                *llvmFuncDef->mutable_return_type(), dataLayout);
+        } else {
+            llvm2col::transformAndSetType(*F.getReturnType(),
+                                          *llvmFuncDef->mutable_return_type(),
+                                          dataLayout);
+        }
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
         errorStream << " in return signature";

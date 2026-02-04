@@ -48,10 +48,10 @@ void llvm2col::transformSExt(llvm::SExtInst &sextInstruction,
     col::LlvmSignExtend *sext = sextExpr->mutable_llvm_sign_extend();
     sext->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(sextInstruction));
-    llvm2col::transformAndSetType(*sextInstruction.getSrcTy(),
-                                  *sext->mutable_input_type(), dataLayout);
-    llvm2col::transformAndSetType(*sextInstruction.getDestTy(),
-                                  *sext->mutable_output_type(), dataLayout);
+    llvm2col::transformAndSetValueType(*sextInstruction.getOperand(0), nullptr,
+                                       *sext->mutable_input_type(), dataLayout);
+    llvm2col::transformAndSetValueType(
+        sextInstruction, nullptr, *sext->mutable_output_type(), dataLayout);
     llvm2col::transformAndSetExpr(funcCursor, sextInstruction,
                                   *sextInstruction.getOperand(0),
                                   *sext->mutable_value());
@@ -67,10 +67,10 @@ void llvm2col::transformZExt(llvm::ZExtInst &zextInstruction,
     col::LlvmZeroExtend *zext = zextExpr->mutable_llvm_zero_extend();
     zext->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(zextInstruction));
-    llvm2col::transformAndSetType(*zextInstruction.getSrcTy(),
-                                  *zext->mutable_input_type(), dataLayout);
-    llvm2col::transformAndSetType(*zextInstruction.getDestTy(),
-                                  *zext->mutable_output_type(), dataLayout);
+    llvm2col::transformAndSetValueType(*zextInstruction.getOperand(0), nullptr,
+                                       *zext->mutable_input_type(), dataLayout);
+    llvm2col::transformAndSetValueType(
+        zextInstruction, nullptr, *zext->mutable_output_type(), dataLayout);
     llvm2col::transformAndSetExpr(funcCursor, zextInstruction,
                                   *zextInstruction.getOperand(0),
                                   *zext->mutable_value());
@@ -86,10 +86,11 @@ void llvm2col::transformTrunc(llvm::TruncInst &truncInstruction,
     col::LlvmTruncate *trunc = truncExpr->mutable_llvm_truncate();
     trunc->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(truncInstruction));
-    llvm2col::transformAndSetType(*truncInstruction.getSrcTy(),
-                                  *trunc->mutable_input_type(), dataLayout);
-    llvm2col::transformAndSetType(*truncInstruction.getDestTy(),
-                                  *trunc->mutable_output_type(), dataLayout);
+    llvm2col::transformAndSetValueType(*truncInstruction.getOperand(0), nullptr,
+                                       *trunc->mutable_input_type(),
+                                       dataLayout);
+    llvm2col::transformAndSetValueType(
+        truncInstruction, nullptr, *trunc->mutable_output_type(), dataLayout);
     llvm2col::transformAndSetExpr(funcCursor, truncInstruction,
                                   *truncInstruction.getOperand(0),
                                   *trunc->mutable_value());
@@ -105,10 +106,11 @@ void llvm2col::transformFPExt(llvm::FPExtInst &fpextInstruction,
     col::LlvmFloatExtend *fpext = fpextExpr->mutable_llvm_float_extend();
     fpext->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(fpextInstruction));
-    llvm2col::transformAndSetType(*fpextInstruction.getSrcTy(),
-                                  *fpext->mutable_input_type(), dataLayout);
-    llvm2col::transformAndSetType(*fpextInstruction.getDestTy(),
-                                  *fpext->mutable_output_type(), dataLayout);
+    llvm2col::transformAndSetValueType(*fpextInstruction.getOperand(0), nullptr,
+                                       *fpext->mutable_input_type(),
+                                       dataLayout);
+    llvm2col::transformAndSetValueType(
+        fpextInstruction, nullptr, *fpext->mutable_output_type(), dataLayout);
     llvm2col::transformAndSetExpr(funcCursor, fpextInstruction,
                                   *fpextInstruction.getOperand(0),
                                   *fpext->mutable_value());
@@ -125,13 +127,13 @@ void llvm2col::transformPtrToInt(llvm::PtrToIntInst &ptoiInstruction,
         castExpr->mutable_llvm_integer_pointer_cast();
     cast->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(ptoiInstruction));
+    llvm2col::transformAndSetValueType(*ptoiInstruction.getOperand(0), nullptr,
+                                       *cast->mutable_input_type(), dataLayout);
+    llvm2col::transformAndSetValueType(
+        ptoiInstruction, nullptr, *cast->mutable_output_type(), dataLayout);
     llvm2col::transformAndSetExpr(funcCursor, ptoiInstruction,
                                   *ptoiInstruction.getOperand(0),
                                   *cast->mutable_value());
-    llvm2col::transformAndSetType(*ptoiInstruction.getSrcTy(),
-                                  *cast->mutable_input_type(), dataLayout);
-    llvm2col::transformAndSetType(*ptoiInstruction.getDestTy(),
-                                  *cast->mutable_output_type(), dataLayout);
 }
 
 void llvm2col::transformIntToPtr(llvm::IntToPtrInst &itopInstruction,
@@ -145,11 +147,11 @@ void llvm2col::transformIntToPtr(llvm::IntToPtrInst &itopInstruction,
         castExpr->mutable_llvm_integer_pointer_cast();
     cast->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(itopInstruction));
+    llvm2col::transformAndSetValueType(*itopInstruction.getOperand(0), nullptr,
+                                       *cast->mutable_input_type(), dataLayout);
+    llvm2col::transformAndSetValueType(
+        itopInstruction, nullptr, *cast->mutable_output_type(), dataLayout);
     llvm2col::transformAndSetExpr(funcCursor, itopInstruction,
                                   *itopInstruction.getOperand(0),
                                   *cast->mutable_value());
-    llvm2col::transformAndSetType(*itopInstruction.getSrcTy(),
-                                  *cast->mutable_input_type(), dataLayout);
-    llvm2col::transformAndSetType(*itopInstruction.getDestTy(),
-                                  *cast->mutable_output_type(), dataLayout);
 }

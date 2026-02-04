@@ -1559,10 +1559,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         }.getOrElse(Nil)
       case TArray(element) => element +: getFirstTypes(element)
       case LLVMTStruct(_, _, _, elements, _) =>
-        elements.headOption.map { field => field +: getFirstTypes(field) }
+        elements.headOption.map { field => field.t +: getFirstTypes(field.t) }
           .getOrElse(Nil)
-      case LLVMTStruct(_, _, _, elements, _) =>
-        elements.head +: getFirstTypes(elements.head)
       case LLVMTArray(_, elementType) =>
         elementType +: getFirstTypes(elementType)
       case _ => Nil

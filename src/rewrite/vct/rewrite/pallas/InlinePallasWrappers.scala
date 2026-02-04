@@ -41,7 +41,7 @@ case class InlinePallasWrappers[Pre <: Generation]() extends Rewriter[Pre] {
     // Drop all definitions of wrapper functions, since they will be inlined.
     decl match {
       case proc: Procedure[Pre] if proc.pallasWrapper =>
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
   }
 
@@ -56,7 +56,7 @@ case class InlinePallasWrappers[Pre <: Generation]() extends Rewriter[Pre] {
         }
       case old: LLVMOld[Pre] =>
         implicit val o: Origin = old.o
-        Old[Post](Local(succ(old.v.decl)), None)(PanicBlame(
+        Old[Post](dispatch(old.v), None)(PanicBlame(
           "Cannot refer to invalid label."
         ))
       case inv: ProcedureInvocation[Pre] if inv.ref.decl.pallasWrapper =>
@@ -103,7 +103,7 @@ case class InlinePallasWrappers[Pre <: Generation]() extends Rewriter[Pre] {
               "Wrapper could not be converted to expression.",
             )
         }
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 
   }
