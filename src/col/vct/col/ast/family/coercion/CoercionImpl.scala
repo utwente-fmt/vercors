@@ -69,6 +69,8 @@ trait CoercionImpl[G] extends CoercionFamilyOps[G] {
       case CoerceResourceValResource() => true
       case CoerceFromConst(_) => true
       case CoerceToConst(_) => true
+      case CoerceFromImmutable(_) => true
+      case CoerceToImmutable(_) => true
       case CoerceFromUnique(_, _) => true
       case CoerceToUnique(_, _) => true
       case CoerceBetweenUnique(_, _, inner) => inner.isPromoting

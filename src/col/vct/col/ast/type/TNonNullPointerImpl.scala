@@ -7,7 +7,7 @@ import vct.col.print._
 trait TNonNullPointerImpl[G] extends TNonNullPointerOps[G] {
   this: TNonNullPointer[G] =>
 
-  val isConst = false
+  val isImmutable = false
   val isNonNull = true
 
   override def layoutSplitDeclarator(implicit ctx: Ctx): (Doc, Doc) = {

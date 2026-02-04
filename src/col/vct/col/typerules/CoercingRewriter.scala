@@ -266,6 +266,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceResourceValResource() => e
       case CoerceFromConst(_) => e
       case CoerceToConst(_) => e
+      case CoerceFromImmutable(_) => e
+      case CoerceToImmutable(_) => e
       case CoerceFromUnique(_, _) => e
       case CoerceToUnique(_, _) => e
       case CoerceBetweenUnique(_, _, _) => e
@@ -310,7 +312,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceNullLLVMPointer(_) => e
       case CoerceNonNullPointerArray(_) => e
       case CoercePointerArrayPointer(_, _, _) => e
-      case CoerceConstPointerArrayPointer(_, _) => e
+      case CoerceImmutablePointerArrayPointer(_, _) => e
       case CoercePointerPointerArray(_, _, _) => e
       case CoercePointerNonNullPointerArray(_, _, _) => e
       case CoerceNullEnum(_) => e
@@ -791,7 +793,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         ActionApply(action, coerceArgs(args, action.decl))
       case ActionPerm(loc, perm) => ActionPerm(loc, rat(perm))
       case AddrOf(e) => AddrOf(e)
-      case AddrOfConstCast(e) => AddrOfConstCast(e)
+      case AddrOfImmutableCast(e) => AddrOfImmutableCast(e)
       case AddrOfUniqueCast(e, unique) => AddrOfUniqueCast(e, unique)
       case ADTFunctionInvocation(typeArgs, ref, args) =>
         typeArgs match {
@@ -1628,16 +1630,16 @@ abstract class CoercingRewriter[Pre <: Generation]()
         NewArray(element, dims.map(int), moreDims, initialize)(na.blame)
       case na @ NewPointer(element, size, unique) =>
         NewPointer(element, size, unique)(na.blame)
-      case nca @ NewConstPointer(element, size) =>
-        NewConstPointer(element, size)(nca.blame)
+      case nca @ NewImmutablePointer(element, size) =>
+        NewImmutablePointer(element, size)(nca.blame)
       case na @ NewNonNullPointer(element, size, unique) =>
         NewNonNullPointer(element, size, unique)(na.blame)
-      case nca @ NewNonNullConstPointer(element, size) =>
-        NewNonNullConstPointer(element, size)(nca.blame)
+      case nca @ NewNonNullImmutablePointer(element, size) =>
+        NewNonNullImmutablePointer(element, size)(nca.blame)
       case npa @ NewPointerArray(element, dimensions, unique) =>
         NewPointerArray(element, dimensions, unique)(npa.blame)
-      case npa @ NewConstPointerArray(element, dimensions) =>
-        NewConstPointerArray(element, dimensions)(npa.blame)
+      case npa @ NewImmutablePointerArray(element, dimensions) =>
+        NewImmutablePointerArray(element, dimensions)(npa.blame)
       case NewObject(cls) => NewObject(cls)
       case NewObjectUnique(cls, m) => NewObjectUnique(cls, m)
       case NoPerm() => NoPerm()

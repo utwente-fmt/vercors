@@ -15,7 +15,7 @@ trait TNonNullPointerArrayImpl[G] extends TNonNullPointerArrayOps[G] {
       case (l, None) => l <> "[]"
     }
 
-  override val isConst: Boolean = false
+  override val isImmutable: Boolean = false
   override val isNonNull: Boolean = true
 
   override def descend: TNonNullPointerArray[G] =
