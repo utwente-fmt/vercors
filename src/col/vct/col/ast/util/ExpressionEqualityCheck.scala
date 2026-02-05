@@ -608,6 +608,21 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     lessThenEqRecurse(lhs, rhs)
   }
 
+  // Compare factor*lhs <= factor*rhs
+  private def compareMult(
+      lhs: Expr[G],
+      rhs: Expr[G],
+      factor: Expr[G],
+  ): Option[Boolean] = {
+    if (!isNonZeroRecurse(factor).getOrElse(false))
+      return None
+    getSignRecurse(factor) match {
+      case Some(Pos()) => lessThenEqRecurse(lhs, rhs)
+      case Some(Neg()) => lessThenEqRecurse(rhs, lhs)
+      case _ => None
+    }
+  }
+
   private def lessThenEqRecurse(lhs: Expr[G], rhs: Expr[G]): Option[Boolean] = {
     (isConstantIntRecurse(lhs), isConstantIntRecurse(rhs)) match {
       // Compare values directly
@@ -624,6 +639,26 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
           )
             return Some(true)
         }
+      case (left, Mult(r1, r2)) if equalExpressionsRecurse(left, r1) =>
+        compareMult(const(1)(left.o), r2, left).foreach(x => return Some(x))
+      case (left, Mult(r1, r2)) if equalExpressionsRecurse(left, r2) =>
+        compareMult(const(1)(left.o), r1, left).foreach(x => return Some(x))
+
+      case (Mult(l1, l2), right) if equalExpressionsRecurse(l1, right) =>
+        compareMult(l2, const(1)(right.o), right).foreach(x => return Some(x))
+      case (Mult(l1, l2), right) if equalExpressionsRecurse(l2, right) =>
+        compareMult(l1, const(1)(right.o), right).foreach(x => return Some(x))
+
+      case (Mult(l1, l2), Mult(r1, r2)) if equalExpressionsRecurse(l1, r1) =>
+        compareMult(l2, r2, l1).foreach(x => return Some(x))
+      case (Mult(l1, l2), Mult(r1, r2)) if equalExpressionsRecurse(l1, r2) =>
+        compareMult(l2, r1, l1).foreach(x => return Some(x))
+      case (Mult(l1, l2), Mult(r1, r2)) if equalExpressionsRecurse(l2, r2) =>
+        compareMult(l1, r1, l2).foreach(x => return Some(x))
+
+      case (left, Mult(r1, r2)) if equalExpressionsRecurse(left, r2) =>
+        val isPos = lessThenEqRecurse(const(0)(rhs.o), r1)
+        isPos.foreach(r => return Some(r))
       case _ =>
     }
 
@@ -679,7 +714,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
 
   private def isSameSignRecurse(e1: Expr[G], e2: Expr[G]): Option[Boolean] = {
     // Try to gets signs
-    (getSign(e1), getSign(e2)) match {
+    (getSignRecurse(e1), getSignRecurse(e2)) match {
       case (Some(s1), Some(s2)) => return Some(s1 == s2)
       case _ =>
     }
@@ -695,14 +730,14 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
 
     // Check polarity of rest terms. A negative pol changes the sign.
     val polarity1 =
-      rest_e1.map(getSign).foldLeft(true)({
+      rest_e1.map(getSignRecurse).foldLeft(true)({
         case (_, None) => return None
         case (p, Some(Pos())) => p
         case (p, Some(Neg())) => !p
       })
 
     val polarity2 =
-      rest_e2.map(getSign).foldLeft(true)({
+      rest_e2.map(getSignRecurse).foldLeft(true)({
         case (_, None) => return None
         case (p, Some(Pos())) => p
         case (p, Some(Neg())) => !p
@@ -724,17 +759,23 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     }
 
   def getSign(e: Expr[G]): Option[Sign] = {
-    isConstantInt(e).map(i => isPos(i >= 0)) orElse lowerBound(e).flatMap(i =>
-      if (i >= 0)
-        Some(Pos())
-      else
-        None
-    ) orElse upperBound(e).flatMap(i =>
+    replacerDepth = 0;
+    getSignRecurse(e)
+  }
+
+  private def getSignRecurse(e: Expr[G]): Option[Sign] = {
+    isConstantIntRecurse(e).map(i => isPos(i >= 0)) orElse lowerBoundRecurse(e)
+      .flatMap(i =>
+        if (i >= 0)
+          Some(Pos())
+        else
+          None
+      ) orElse upperBoundRecurse(e).flatMap(i =>
       if (i < 0)
         Some(Neg())
       else
         None
-    ) orElse lessThenEq(const(0)(e.o), e).map(isPos)
+    ) orElse lessThenEqRecurse(const(0)(e.o), e).map(isPos)
   }
 
   def unfoldComm[B <: BinExpr[G]](
