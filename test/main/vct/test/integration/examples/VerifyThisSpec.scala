@@ -24,4 +24,10 @@ class VerifyThisSpec extends VercorsSpec {
   vercors should verify using silicon example "verifythis/2021/TeamBlue/Challenge3.pvl"
   vercors should verify using silicon example "verifythis/2024/challenge1.pvl"
   vercors should verify using silicon example "verifythis/2024/challenge2.pvl"
+  vercors should verify using silicon example "verifythis/2025/Challenge1-v0-arr.pvl"
+  vercors should verify using silicon example "verifythis/2025/Challenge1-v0-seq.pvl"
+  vercors should verify using silicon example "verifythis/2025/Challenge1-v1.pvl"
+  vercors should verify using silicon example "verifythis/2025/Challenge1-v2.pvl"
+  vercors should verify using silicon example "verifythis/2025/Challenge1-v3.pvl"
+  vercors should verify using silicon example "verifythis/2025/Challenge2.c"
 }
