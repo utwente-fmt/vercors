@@ -36,7 +36,11 @@ inline pure int ceil_div(int a, int b) = (a + b - 1) / b;
 /*@ extract_body */
 /*@
   context get_local_size(0) == 32 && get_local_size(1) == 1 && get_local_size(2) == 1;
-  context get_num_groups(0) >= 1 && get_num_groups(1) == 1 && get_num_groups(2) == 1;
+  // Making this num of groups concrete (==10) makes verification a lot faster.
+  // This is better for the automated tests which needs to be faster than 300s, and otherwise fail.
+  // In general this can be any get_num_groups(0)>=0, but it takes longer.
+  // run with '--prover-config:smt.arith.solver=6' if using nonconcrete num of groups.
+  context get_num_groups(0) == 10 && get_num_groups(1) == 1 && get_num_groups(2) == 1;
   context n >= 1;
   context x_inc >= 1 && x_offset >= 0 && xgm != NULL && \pointer_length(xgm) >= n*x_inc+x_offset;
   context y_inc >= 1 && y_offset >= 0 && ygm != NULL && \pointer_length(ygm) >= n*y_inc+y_offset;

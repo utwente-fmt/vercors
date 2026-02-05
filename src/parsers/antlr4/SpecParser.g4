@@ -443,15 +443,14 @@ valArg
  : langType langId
  ;
 
-valEmbedContract: valEmbedContractBlock+;
+valEmbedContract
+ : valEmbedContractBlock+
+ | startSpec 'extract_body' valContractClause* endSpec valEmbedContractBlock*
+ ;
 
 valEmbedContractBlock
  : startSpec valContractClause* endSpec
  | {specLevel>0}? valContractClause+
- ;
-
-valEmbededExtractBody: startSpec 'extract_body' endSpec
- | {specLevel>0}? 'extract_body'
  ;
 
 valEmbedStatementBlock

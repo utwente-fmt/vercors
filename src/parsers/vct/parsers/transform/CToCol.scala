@@ -97,10 +97,9 @@ case class CToCol[G](
       implicit funcDef: FunctionDefinitionContext
   ): CFunctionDefinition[G] = {
     funcDef match {
-      case FunctionDefinition0(_, _, _, _, Some(declarationList), _) =>
+      case FunctionDefinition0(_, _, _, Some(declarationList), _) =>
         ??(declarationList)
       case FunctionDefinition0(
-            extractKernel,
             maybeContract,
             declSpecs,
             declarator,
@@ -112,17 +111,14 @@ case class CToCol[G](
           contract =>
             new CFunctionDefinition(
               contract.consumeApplicableContract(blame(funcDef)),
-              convert(declSpecs) ++ extractKernel.map(convert(_)),
+              convert(declSpecs) ++
+                contract.consumeOpt(contract.extract_gpu_body),
               convert(declarator),
               convert(body),
             )(blame(funcDef)),
         )
     }
   }
-
-  def convert(
-      implicit decl: ValEmbededExtractBodyContext
-  ): CDeclarationSpecifier[G] = { new CExtractGPUKernelBody[G]() }
 
   def convert(implicit decl: DeclarationContext): CDeclaration[G] =
     decl match {
@@ -225,7 +221,6 @@ case class CToCol[G](
           case "_Bool" => CBool()
           case _ => ??(typeSpec)
         }
-//    case TypeSpecifier1(_, _, _, _) => ??(typeSpec)
       case TypeSpecifier1(valType) => CSpecificationType(convert(valType))
       case TypeSpecifier2(_) => ??(typeSpec)
       case TypeSpecifier3(struct) => convert(struct)
@@ -378,7 +373,6 @@ case class CToCol[G](
   def convert(implicit list: GccAttributeContext): Option[CTypeExtensions[G]] =
     list match {
       case GccAttribute0(name, args) =>
-//      Some(CTypeAttribute(name, args.map(convert(_)).getOrElse(Seq())))
         Some(
           CTypeAttribute(convert(name), args.map(convert(_)).getOrElse(Seq()))
         )
@@ -1164,6 +1158,11 @@ case class CToCol[G](
   ): Unit =
     contract match {
       case ValEmbedContract0(blocks) => blocks.foreach(convert(_, collector))
+      case ValEmbedContract1(_, extract, clauses, _, blocks) =>
+        clauses.foreach(convert(_, collector))
+        blocks.foreach(convert(_, collector))
+        collector.extract_gpu_body +=
+          ((contract, CExtractGPUKernelBody()(OriginProvider(contract))))
     }
 
   def convert(

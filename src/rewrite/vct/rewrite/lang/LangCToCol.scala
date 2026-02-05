@@ -61,6 +61,21 @@ case object LangCToCol {
       )
   }
 
+  private case class ExtractedGPUBodyContractFail(
+      kernel: CGpgpuKernelSpecifier[_]
+  ) extends Blame[FramedProofFailure] {
+    override def blame(error: FramedProofFailure): Unit =
+      error match {
+        case preFailed @ FramedProofPreFailed(_, _) =>
+          PanicBlame(
+            "The precondition of an extracted gpu body should only fail in the complete kernel"
+          ).blame(preFailed)
+        case FramedProofPostFailed(failure, _) =>
+          kernel.blame
+            .blame(ExtractedKernelPostconditionFailed(failure, kernel))
+      }
+  }
+
   private case class WrongGPUDimension(o: Origin) extends UserError {
     override def code: String = "wrongGPUDimension"
     override def text: String =
@@ -825,6 +840,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               info,
               Some(func.body),
               k,
+              func.blame,
               extractBody = extract,
             )
           }.getOrElse({
@@ -1109,6 +1125,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       info: C.DeclaratorInfo[Pre],
       body: Option[Statement[Pre]],
       kernelSpec: CGpgpuKernelSpecifier[Pre],
+      blame: Blame[CallableFailure],
       extractBody: Boolean,
   ): Procedure[Post] = {
     dynamicSharedMemNames.clear()
@@ -1245,9 +1262,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                           )
                           val inner = rw.dispatch(implFiltered.get)
                           Extract(
-                            FramedProof(pre, inner, post)(PanicBlame("TODO")),
-                            None,
-                          )(PanicBlame("TODO: Decreases"))
+                            FramedProof(pre, inner, post)(
+                              ExtractedGPUBodyContractFail(kernelSpec)
+                            ),
+                            contract.decreases.map(rw.dispatch),
+                          )(PanicBlame(
+                            "The decrease clause should fail on the kernel, not the extracted body"
+                          ))
                         } else { rw.dispatch(implFiltered.get) }
 
                       val innerContent = ParStatement(
@@ -1376,7 +1397,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                   newYieldsArgs,
                   contract.decreases.map(rw.dispatch),
                 )(contract.blame)(contract.o),
-            )(AbstractApplicable)(o)
+            )(blame)(o)
           kernelSpecifier = None
 
           result
@@ -1654,7 +1675,15 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case Some(params) =>
           cFunctionDeclSuccessor((decl, idx)) = rw.globalDeclarations.declare(
             decl.decl.specs.collectFirst { case k: CGpgpuKernelSpecifier[Pre] =>
-              kernelProcedure(init.o, decl.decl.contract, info, None, k, false)
+              kernelProcedure(
+                init.o,
+                decl.decl.contract,
+                info,
+                None,
+                k,
+                AbstractApplicable,
+                extractBody = false,
+              )
             }.getOrElse(
               new Procedure[Post](
                 returnType = t,
