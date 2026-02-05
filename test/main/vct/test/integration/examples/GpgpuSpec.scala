@@ -24,7 +24,7 @@ class GpgpuSpec extends VercorsSpec {
   vercors should fail withCode "ptrPerm" using silicon example "concepts/gpgpu/atomic_fail-2.cu"
 
   vercors should verify using silicon flags("--prover-config:smt.arith.solver=6") example "concepts/gpgpu/xswap.cl"
-  vercors should verify using silicon example "concepts/gpgpu/xtrsv.cl"
+  vercors should verify using silicon flags("--prover-config:smt.arith.solver=6") example "concepts/gpgpu/xtrsv.cl"
   
   vercors should error withCode "wrongGPUDimension" in "Wrong gpu dimension" c """
 #include <opencl.h>

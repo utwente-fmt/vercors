@@ -40,7 +40,7 @@ import scala.annotation.nowarn
   * j; 0 <= j < 5; xs[j])
   *
   * and if a quantifier isn't in the "body" of the forall. E.g. forall(i,j: Int.
-  * 1 <= i && i< n && 0 < j; xs[j]>0) ====> n > 1 ==> Fforall(j: Int; 0 < j;
+  * 1 <= i && i< n && 0 < j; xs[j]>0) ====> n > 1 ==> forall(j: Int; 0 < j;
   * xs[j] >0)
   */
 case object SimplifyNestedQuantifiers extends RewriterBuilder {

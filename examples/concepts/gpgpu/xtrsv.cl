@@ -119,7 +119,11 @@ pure real xsolh(seq<real> b, seq<seq<real> > l, seq<real> x, int i, int j, bool 
 
   context get_num_groups(0) == 1 && get_num_groups(1) == 1 && get_num_groups(2) == 1;
   context get_local_size(0) == TRSV_BLOCK_SIZE() && get_local_size(1) == 1 && get_local_size(2) == 1;
-  context n >= 1 && n <= TRSV_BLOCK_SIZE();
+  // Making this n concrete (==32) makes verification a lot faster.
+  // This is better for the automated tests which needs to be faster than 300s, and otherwise fail.
+  // In general this can be any n <= TRSV_BLOCK_SIZE(), but it takes longer.
+  // run with '--prover-config:smt.arith.solver=6' if using nonconcrete n.
+  context_everywhere n >= 1 && n == TRSV_BLOCK_SIZE();
   context x_inc >= 1 && x_offset >= 0;
   context b_inc >= 1 && b_offset >= 0;
   context x != NULL && \pointer_length(x) >= n*x_inc+x_offset;
@@ -127,8 +131,8 @@ pure real xsolh(seq<real> b, seq<seq<real> > l, seq<real> x, int i, int j, bool 
   context A != NULL && a_offset >= 0;
   context a_ld >= n && \pointer_length(A) >= a_ld * n + a_offset;
   
-  context \ltid < n ==> Perm({:x[acc1d(\ltid, x_offset, n, x_inc)]:}, write);*/
-  /*@context |_x| == n;
+  context \ltid < n ==> Perm({:x[acc1d(\ltid, x_offset, n, x_inc)]:}, write);
+  context |_x| == n;
   context \ltid < n ==> \old(x[acc1d(\ltid, x_offset, n, x_inc)]) == {:_x[\ltid]:};
   context |_b| == n;
   context \ltid < n ==> (b[acc1d(\ltid, b_offset, n, b_inc)]) == {:_b[\ltid]:};
@@ -208,7 +212,7 @@ __kernel void trsv_forward(int n,
   if (tid == 0) {
     //@ extract
     /*@ loop_invariant 0 <= i && i <= n;
-      loop_invariant n <= TRSV_BLOCK_SIZE();
+      loop_invariant n >= 1 && n <= TRSV_BLOCK_SIZE();
       loop_invariant |_b| == n && |_x| == n && |_A| == n && (\forall int i; 0 <= i && i<n; |{:_A[i]:}| == n);
       loop_invariant (\forall* int j; 0 <= j && j<n; Perm({:xlm[j]:}, write));
       loop_invariant (\forall* int j, int k; 0 <= j && j<n && 0 <= k && k<n; Perm({:alm[j][k]:}, 1\2));
