@@ -381,6 +381,7 @@ case class CheckContext[G](
     roScopes: Int = 0,
     roScopeReason: Option[Node[G]] = None,
     currentApplicable: Option[Applicable[G]] = None,
+    inGPUKernel: Boolean = false,
     inPreCondition: Boolean = false,
     inPostCondition: Boolean = false,
     currentChoreography: Option[Choreography[G]] = None,
@@ -411,6 +412,9 @@ case class CheckContext[G](
 
   def withApplicable(applicable: Applicable[G]): CheckContext[G] =
     copy(currentApplicable = Some(applicable))
+
+  def withGPUKernel(inKernel: Boolean): CheckContext[G] =
+    copy(inGPUKernel = inKernel)
 
   def withPostcondition: CheckContext[G] = copy(inPostCondition = true)
 
