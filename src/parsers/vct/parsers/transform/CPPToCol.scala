@@ -864,6 +864,8 @@ case class CPPToCol[G](
               Seq(new CPPPure[G]())
             else if (m.consume(m.inline))
               Seq(new CPPInline[G]())
+            else if (m.consume(m.opaque))
+              Seq(new CPPOpaque[G]())
             else
               fail(
                 m.nodes.head,

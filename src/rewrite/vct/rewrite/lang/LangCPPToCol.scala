@@ -961,6 +961,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                   inline =
                     decl.decl.specs.collectFirst { case CPPInline() => () }
                       .nonEmpty,
+                  opaque =
+                    decl.decl.specs.collectFirst { case CPPOpaque() => () }
+                      .nonEmpty,
                   pure =
                     decl.decl.specs.collectFirst { case CPPPure() => () }
                       .nonEmpty,
@@ -1227,11 +1230,14 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         getGlobalWorkItemRange(inv)
       case "sycl::nd_item::get_global_linear_id" =>
         getGlobalWorkItemLinearId(inv)
+      case "sycl::sub_group::get_local_id()" => ???
+      case "sycl::sub_group::get_local_range()" => ???
+      case "sycl::sub_group::get_group_id()" => ???
+      case "sycl::sub_group::get_group_range()" => ???
+
       case "sycl::accessor::get_range" =>
         classInstance match {
-
           case Some(Local(ref)) =>
-            val a = 1 + 1
             val accessor =
               syclAccessorSuccessor.values
                 .find(acc => ref.equals(acc.local.ref)).get

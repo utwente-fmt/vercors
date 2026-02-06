@@ -3246,6 +3246,8 @@ final case class CPPPure[G]()(implicit val o: Origin)
     extends CPPSpecificationModifier[G] with CPPPureImpl[G]
 final case class CPPInline[G]()(implicit val o: Origin)
     extends CPPSpecificationModifier[G] with CPPInlineImpl[G]
+final case class CPPOpaque[G]()(implicit val o: Origin)
+    extends CPPSpecificationModifier[G] with CPPOpaqueImpl[G]
 
 sealed trait CPPTypeSpecifier[G]
     extends CPPDeclarationSpecifier[G] with CPPTypeSpecifierImpl[G]
