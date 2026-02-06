@@ -99,6 +99,7 @@ VAL_INHALE: 'inhale';
 VAL_EXHALE: 'exhale';
 VAL_LABEL: 'label';
 VAL_EXTRACT: 'extract';
+VAL_EXTRACT_BODY: 'extract_body';
 VAL_FRAME: 'frame';
 VAL_OUTLINE: 'outline';
 VAL_REFUTE: 'refute';
