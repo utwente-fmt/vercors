@@ -15,7 +15,8 @@ void vector_add(sycl::queue q, int size, int a[], int b[], int c[]) {
   q.submit([&](sycl::handler& h) {
     sycl::accessor<int, 1, sycl::access_mode::read> a_acc = sycl::accessor(a_buf, h, sycl::read_only);
     sycl::accessor<int, 1, sycl::access_mode::read> b_acc = sycl::accessor(b_buf, h, sycl::read_only);
-    sycl::accessor<int, 1, sycl::access_mode::read_write> c_acc = sycl::accessor(c_buf, h, sycl::read_write);
+    sycl::accessor<int, 1, sycl::access_mode::read_write> c_acc =
+        sycl::accessor(c_buf, h, sycl::read_write);
 
     h.parallel_for(sycl::range<1>(size),
       /*@
