@@ -4,8 +4,15 @@ namespace sycl {
     /*@
       ensures (a>0 && b>0) ==> \result > 0;
       ensures \result == a*b;
+      ensures \result == sycl::h::mul(b,a);
+      decreases assume;
       pure int mul(int a, int b) = a*b;
 
+      ensures (a>0 && b>0) ==> \result > 0;
+      ensures \result == a+b;
+      ensures \result == sycl::h::add(b,a);
+      decreases assume;
+      pure int add(int a, int b) = a+b;
     */
   }
 
@@ -36,7 +43,7 @@ namespace sycl {
     requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1;
     requires r0 > 0 && r1 > 0;
     ensures \result == sycl::linearize2formula(id0, id1, r1);
-    ensures \result >= 0 && \result < sycl::h::mul(r0,r1);
+    ensures \result >= 0 && \result < sycl::h::mul(r0,r1) && \result < r0*r1;
     ensures (\forall int ida0, int ida1;
       ida0 >= 0 && ida0 < r0 &&
       ida1 >= 0 && ida1 < r1 &&
@@ -45,7 +52,8 @@ namespace sycl {
     );
     pure int linearize2(int id0, int id1, int r0, int r1);
 
-    pure int linearize2formula(int id0, int id1, int r1) = id1 + sycl::h::mul(id0, r1);
+    ensures \result == id1+id0*r1;
+    pure int linearize2formula(int id0, int id1, int r1) = sycl::h::add(id1, sycl::h::mul(id0, r1));
 
     requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1 && id2 >= 0 && id2 < r2;
     requires r0 > 0 && r1 > 0 && r2 > 0;
@@ -91,6 +99,15 @@ namespace sycl {
 		int get_global_range(int dimension);
 
 		int get_global_linear_id();
+
+        sub_group get_sub_group();
+  }
+
+  namespace sub_group {
+    int get_local_id();   // lane within subgroup
+    int get_local_range();
+    int get_group_id();   // subgroup index within work-group
+    int get_group_range();
   }
   
   namespace accessor {

@@ -4,7 +4,9 @@ void test() {
 	sycl::queue myQueue;
 
 	sycl::event myEvent = myQueue.submit(
-  	[&](sycl::handler& cgh) {
+  	[&](sycl::handler& cgh)
+  	[[sycl::reqd_sub_group_size(32)]]
+  	{
   		cgh.parallel_for(sycl::nd_range<3>(sycl::range<3>(6,4,4), sycl::range<3>(3,2,1)),
 				[=] (sycl::nd_item<3> it) {
 					int a = it.get_global_id(0);
@@ -18,6 +20,11 @@ void test() {
 					int g = it.get_group(0);
 					int h = it.get_group_linear_id();
 					int i = it.get_group_range(0);
+
+                    sycl::sub_group sg = it.get_sub_group();
+					int j = sg.get_local_id(); // lane id
+                    int k = sg.get_group_id(); // wid = llid / 32
+                    // llid = wid * 32 + lane;
 				}
   		);
   	}

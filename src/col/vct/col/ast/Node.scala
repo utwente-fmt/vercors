@@ -3293,6 +3293,9 @@ final class CPPParam[G](
     val declarator: CPPDeclarator[G],
 )(implicit val o: Origin)
     extends Declaration[G] with CPPParamImpl[G]
+@family
+final class CPPAttribute[G](val attr: String)(implicit val o: Origin)
+    extends Declaration[G] with CPPAttributeImpl[G]
 
 @family
 sealed trait CPPDeclarator[G] extends NodeFamily[G] with CPPDeclaratorImpl[G]

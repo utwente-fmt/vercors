@@ -516,7 +516,9 @@ linkageSpecification:
 		| declaration
 	);
 
-attributeSpecifierSeq: attributeSpecifier+;
+attributeSpecifierSeq:
+    attributeSpecifier
+    | attributeSpecifierSeq attributeSpecifier;
 
 attributeSpecifier:
 	LeftBracket LeftBracket attributeList? RightBracket RightBracket
@@ -525,9 +527,15 @@ attributeSpecifier:
 alignmentspecifier:
 	Alignas LeftParen (theTypeId | constantExpression) Ellipsis? RightParen;
 
-attributeList: attribute (Comma attribute)* Ellipsis?;
+attributeList:
+    attribute
+    | attribute Ellipsis
+    | attribute Comma attributeList
+    | attribute Comma attributeList Ellipsis;
 
-attribute: (attributeNamespace Doublecolon)? clangppIdentifier attributeArgumentClause?;
+attribute:
+    clangppIdentifier attributeArgumentClause?
+    | attributeNamespace Doublecolon clangppIdentifier attributeArgumentClause?;
 
 attributeNamespace: clangppIdentifier;
 

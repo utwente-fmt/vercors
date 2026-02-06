@@ -1256,20 +1256,53 @@ case class CPPToCol[G](
     decl match {
       case LambdaDeclarator0(
             _,
-            Some(parameterClause),
+            maybeParameterClause,
             _,
             None,
             None,
+            maybeAttrSpecSeq,
             None,
-            None,
-          ) =>
-        convert(parameterClause) match {
-          case (x, false) => CPPLambdaDeclarator(x)
-          case _ => ??(decl)
-        }
-      case LambdaDeclarator0(_, None, _, None, None, None, None) =>
-        CPPLambdaDeclarator(Seq())
+          ) => {
+        val pcs =
+          maybeParameterClause.map(convert(_)) match {
+            case None => Seq()
+            case Some((x, false)) => x
+            case _ => ??(decl)
+          }
+
+        val attrs = maybeAttrSpecSeq.map(convert(_)).getOrElse(Seq())
+
+        CPPLambdaDeclarator(pcs)
+      }
       case LambdaDeclarator0(_, _, _, _, _, _, _) => ??(decl)
+    }
+
+  def convert(implicit attrSpecSeq: AttributeSpecifierSeqContext): Seq[String] =
+    attrSpecSeq match {
+      case AttributeSpecifierSeq0(attrSpec) => convert(attrSpec)
+      case AttributeSpecifierSeq1(attrSpecSeq, attrSpec) =>
+        convert(attrSpecSeq) ++ convert(attrSpec)
+    }
+
+  def convert(implicit attrSpec: AttributeSpecifierContext): Seq[String] =
+    attrSpec match {
+      case AttributeSpecifier0(_, _, Some(attrList), _, _) => convert(attrList)
+      case _ => ??(attrSpec)
+    }
+
+  def convert(implicit attrList: AttributeListContext): Seq[String] =
+    attrList match {
+      case AttributeList0(attr) => Seq(convert(attr))
+      case AttributeList2(attr, _, attrL) =>
+        Seq(convert(attr)) ++ convert(attrL)
+      case _ => ??(attrList)
+    }
+
+  def convert(implicit attr: AttributeContext): String =
+    attr match {
+      case Attribute0(cppId, None) => convert(cppId)
+      case Attribute1(attributeNamespace, _, cppId, None) => {}
+      case _ => ??(attr)
     }
 
   def convert(expr: LangExprContext): Expr[G] =
