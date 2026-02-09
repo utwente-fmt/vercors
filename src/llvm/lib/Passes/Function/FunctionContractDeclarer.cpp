@@ -30,6 +30,15 @@ col::Variable *FDCResult::getGhostArgMapEntry(const irspec::GhostArgDef &arg) {
     return ghostArgMap.at(&arg);
 }
 
+col::Variable *FDCResult::getGhostArgByName(const std::string &argName) {
+    for (auto [k, v] : ghostArgMap) {
+        if (k->name == argName)
+            return v;
+    }
+    return nullptr;
+}
+
+
 llvm::SmallVector<col::Variable *> FDCResult::getGhostVars() {
     llvm::SmallVector<col::Variable *> gArgs;
     for (auto [k, v] : ghostArgMap) {

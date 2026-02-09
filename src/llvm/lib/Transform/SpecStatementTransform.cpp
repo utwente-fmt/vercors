@@ -38,7 +38,7 @@ namespace col = vct::col::ast;
 
 void printSpecStmntError(llvm::Instruction &inst, std::string msg) {
     pallas::ErrorReporter::addError(SOURCE_LOC,
-                                    "Malformed spec-statement: " + msg, inst);
+                                    "Malformed specification: " + msg, inst);
 }
 
 bool buildArgForDIVar(llvm::DIVariable &diVar, llvm::Instruction &llvmInstr,
@@ -115,53 +115,11 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
                                   col::LlvmBasicBlock &colBlock,
                                   pallas::FunctionCursor &functionCursor) {
 
-    auto &fam = functionCursor.getFunctionAnalysisManager();
-    col::LlvmFunctionDefinition &colWFunc =
-        fam.getResult<pallas::FunctionDeclarer>(*stmnt.wrapperFunction)
-            .getAssociatedColFuncDef();
-
     // Build call to wrapper-function
     auto *wCall = new col::LlvmFunctionInvocation();
-    wCall->set_allocated_origin(llvm2col::generatePallasWrapperCallOrigin(
-        *stmnt.wrapperFunction, stmnt.loc));
-    wCall->set_allocated_blame(new col::Blame());
-    wCall->mutable_ref()->set_id(colWFunc.id());
-
-    // Add arguments to wrapper-call
-    for (auto [argIdx, diVar] : llvm::enumerate(stmnt.wrapperArgs)) {
-        bool ok =
-            buildArgForDIVar(*diVar, llvmInstr, *wCall, *stmnt.wrapperFunction,
-                             argIdx, stmnt.loc, functionCursor);
-        if (!ok)
-            return;
-    }
-
-    // Get contract from parent function
-    auto *llvmParentFunc = llvmInstr.getParent()->getParent();
-    auto &parentContrRes =
-        fam.getResult<pallas::FunctionContractDeclarer>(*llvmParentFunc);
-    if (parentContrRes.getIRContract() == nullptr &&
-        (stmnt.givenArgs.size() > 0 || stmnt.yieldsArgs.size() > 0)) {
-        printSpecStmntError(
-            llvmInstr,
-            "Unable to get ghost args from contract of parent function");
-        return;
-    }
-
-    // Add ghost args to wrapper-call
-    // TODO: De-duplicate this with LoopContractTransform
-    llvm::SmallVector<col::Variable *> ghostArgVars;
-    for (auto &gArg : parentContrRes.getIRContract()->givenArgs)
-        ghostArgVars.push_back(parentContrRes.getGhostArgMapEntry(gArg));
-    for (auto &yArg : parentContrRes.getIRContract()->yieldsArgs)
-        ghostArgVars.push_back(parentContrRes.getGhostArgMapEntry(yArg));
-
-    for (auto *v : ghostArgVars) {
-        auto *argExpr = wCall->add_args()->mutable_local();
-        argExpr->set_allocated_origin(llvm2col::generatePallasWrapperCallOrigin(
-            *stmnt.wrapperFunction, stmnt.loc));
-        argExpr->mutable_ref()->set_id(v->id());
-    }
+    buildWrapperCall(*stmnt.wrapperFunction, stmnt.wrapperArgs, stmnt.givenArgs,
+                     stmnt.yieldsArgs, llvmInstr, stmnt.loc, *wCall,
+                     functionCursor);
 
     // COL-node for the statement
     col::Block &body = pallas::bodyAsBlock(colBlock);
@@ -203,5 +161,57 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
         target->mutable_target()->set_allocated_llvm_function_invocation(wCall);
     } else {
         printSpecStmntError(llvmInstr, "Unknown statement-type");
+    }
+}
+
+void llvm2col::buildWrapperCall(
+    llvm::Function &wrapperFunction,
+    llvm::ArrayRef<llvm::DILocalVariable *> wrapperArgs,
+    llvm::ArrayRef<llvm::DILocalVariable *> givenArgs,
+    llvm::ArrayRef<llvm::DILocalVariable *> yieldsArgs,
+    llvm::Instruction &matchedInstruction, const pallas::irspec::SrcLoc &srcLoc,
+    col::LlvmFunctionInvocation &colWrapperCall,
+    pallas::FunctionCursor &functionCursor) {
+    auto &fam = functionCursor.getFunctionAnalysisManager();
+    auto &colWrapper = fam.getResult<pallas::FunctionDeclarer>(wrapperFunction)
+                           .getAssociatedColFuncDef();
+
+    // Initialize call
+    colWrapperCall.set_allocated_origin(
+        llvm2col::generatePallasWrapperCallOrigin(wrapperFunction, srcLoc));
+    colWrapperCall.set_allocated_blame(new col::Blame());
+    colWrapperCall.mutable_ref()->set_id(colWrapper.id());
+
+    // Add arguments to wrapper-call
+    for (auto [argIdx, diVar] : llvm::enumerate(wrapperArgs)) {
+        if (!buildArgForDIVar(*diVar, matchedInstruction, colWrapperCall,
+                              wrapperFunction, argIdx, srcLoc, functionCursor))
+            return;
+    }
+
+    // Get contract from parent function
+    auto *llvmParentFunc = matchedInstruction.getParent()->getParent();
+    auto &parentContrRes =
+        fam.getResult<pallas::FunctionContractDeclarer>(*llvmParentFunc);
+    if (parentContrRes.getIRContract() == nullptr &&
+        (givenArgs.size() > 0 || yieldsArgs.size() > 0)) {
+        printSpecStmntError(
+            matchedInstruction,
+            "Unable to get ghost args from contract of parent function");
+        return;
+    }
+
+    // Add ghost args to wrapper-call
+    llvm::SmallVector<col::Variable *> ghostArgVars;
+    for (auto &gArg : parentContrRes.getIRContract()->givenArgs)
+        ghostArgVars.push_back(parentContrRes.getGhostArgMapEntry(gArg));
+    for (auto &yArg : parentContrRes.getIRContract()->yieldsArgs)
+        ghostArgVars.push_back(parentContrRes.getGhostArgMapEntry(yArg));
+
+    for (auto *v : ghostArgVars) {
+        auto *argExpr = colWrapperCall.add_args()->mutable_local();
+        argExpr->set_allocated_origin(
+            llvm2col::generatePallasWrapperCallOrigin(wrapperFunction, srcLoc));
+        argExpr->mutable_ref()->set_id(v->id());
     }
 }

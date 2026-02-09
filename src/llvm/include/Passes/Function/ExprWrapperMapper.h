@@ -1,6 +1,8 @@
 #ifndef PALLAS_EXPRWRAPPERMAPPER_H
 #define PALLAS_EXPRWRAPPERMAPPER_H
 
+#include "IRSpec/PallasIRSpec.h"
+
 #include <llvm/IR/Function.h>
 #include <llvm/IR/PassManager.h>
 #include <optional>
@@ -18,7 +20,8 @@ enum PallasWrapperContext {
     AssertStmnt,
     AssumeStmnt,
     FoldStmnt,
-    UnfoldStmnt
+    UnfoldStmnt, 
+    GhostAssign
 };
 
 class EWMResult {
@@ -61,7 +64,7 @@ class ExprWrapperMapper : public llvm::AnalysisInfoMixin<ExprWrapperMapper> {
     getContextForFContractClause(const llvm::MDNode &clause);
 
     std::optional<PallasWrapperContext>
-    getContextForSpecStmnt(const llvm::MDNode &stmnt);
+    getContextForSpecStmnt(const irspec::SpecStatement &stmnt);
 };
 
 } // namespace pallas

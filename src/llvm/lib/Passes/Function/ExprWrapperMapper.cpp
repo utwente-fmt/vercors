@@ -10,6 +10,7 @@
 #pragma GCC diagnostic pop
 #endif // __GNUC__
 
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Util/Constants.h"
 #include "Util/PallasMD.h"
 
@@ -50,6 +51,7 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
 
     // For all functions in the current module, check if they reference this
     // wrapper-function in a specification.
+    // TODO: Change this to use the irspec-structs
     for (Function &parentF : llvmModule->functions()) {
         // Skip wrapper-functions and intrinsics
         if (utils::isPallasExprWrapper(parentF) || parentF.isIntrinsic() ||
@@ -110,28 +112,43 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
             }
         }
 
-        // Check blocks of specification-statements
+        // Check specs that are attached to instructions
         for (auto it = llvm::inst_begin(parentF), end = llvm::inst_end(parentF);
              it != end; ++it) {
             llvm::Instruction *inst = &*it;
-            llvm::MDNode *specBlock = pallas::utils::getSpecStmntBlock(*inst);
-            if (specBlock == nullptr) {
-                continue;
-            }
-            // Check if any spec-statements reference F
-            for (auto idx = 1; idx < specBlock->getNumOperands(); ++idx) {
-                if (auto *stmnt = llvm::dyn_cast_if_present<llvm::MDNode>(
-                        specBlock->getOperand(idx).get())) {
-                    // TODO: Do amazing things
-                    if (stmnt->getNumOperands() < 3) {
-                        continue;
-                    }
-                    auto *wFunc =
-                        pallas::utils::getWrapperFunc(stmnt->getOperand(2));
-                    if (wFunc != nullptr && wFunc == &F) {
+
+            // Check blocks of specification-statements
+            if (const auto *specBlock =
+                    pallas::utils::getSpecStmntBlock(*inst)) {
+                auto stmntBlock = irspec::getSpecStatementBlock(specBlock);
+                if (!stmntBlock.has_value())
+                    return EWMResult(nullptr, std::nullopt);
+                for (auto &stmnt : stmntBlock->statements) {
+                    if (stmnt.wrapperFunction == &F)
                         return EWMResult(&parentF,
-                                         getContextForSpecStmnt(*stmnt));
-                    }
+                                         getContextForSpecStmnt(stmnt));
+                }
+            }
+
+            // Check given-assignments
+            if (const auto *gBindMD = irspec::getGivenBindingBlockMD(*inst)) {
+                auto bBlock = irspec::getGhostAssignBlock(gBindMD);
+                if (!bBlock.has_value())
+                    return EWMResult(nullptr, std::nullopt);
+                for (auto &b : bBlock->assignments) {
+                    if (b.wrapperFunction == &F)
+                        return EWMResult(&parentF, GhostAssign);
+                }
+            }
+
+            // Check Ghost assigns
+            if (const auto *gAssignMD = irspec::getGhostAssignBlockMD(*inst)) {
+                auto aBlock = irspec::getGhostAssignBlock(gAssignMD);
+                if (!aBlock.has_value())
+                    return EWMResult(nullptr, std::nullopt);
+                for (auto &a : aBlock->assignments) {
+                    if (a.wrapperFunction == &F)
+                        return EWMResult(&parentF, GhostAssign);
                 }
             }
         }
@@ -164,22 +181,20 @@ ExprWrapperMapper::getContextForFContractClause(const llvm::MDNode &clause) {
 }
 
 std::optional<PallasWrapperContext>
-ExprWrapperMapper::getContextForSpecStmnt(const llvm::MDNode &stmnt) {
-    std::optional<PallasWrapperContext> ctx = std::nullopt;
-    // Attempt to get string with statement-type
-    if (auto *stmntTypeMD = dyn_cast<MDString>(stmnt.getOperand(0).get())) {
-        auto stmntTypeStr = stmntTypeMD->getString().str();
-        if (stmntTypeStr == pallas::constants::PALLAS_ASSERT) {
-            ctx = PallasWrapperContext::AssertStmnt;
-        } else if (stmntTypeStr == pallas::constants::PALLAS_ASSUME) {
-            ctx = PallasWrapperContext::AssumeStmnt;
-        } else if (stmntTypeStr == pallas::constants::PALLAS_FOLD) {
-            ctx = PallasWrapperContext::FoldStmnt;
-        } else if (stmntTypeStr == pallas::constants::PALLAS_UNFOLD) {
-            ctx = PallasWrapperContext::UnfoldStmnt;
-        }
+ExprWrapperMapper::getContextForSpecStmnt(const irspec::SpecStatement &stmnt) {
+    // ASSERT, ASSUME, FOLD, UNFOLD
+    switch (stmnt.type) {
+    case irspec::SpecStatementType::ASSERT:
+        return PallasWrapperContext::AssertStmnt;
+    case irspec::SpecStatementType::ASSUME:
+        return PallasWrapperContext::AssumeStmnt;
+    case irspec::SpecStatementType::FOLD:
+        return PallasWrapperContext::FoldStmnt;
+    case irspec::SpecStatementType::UNFOLD:
+        return PallasWrapperContext::UnfoldStmnt;
+    default:
+        return std::nullopt;
     }
-    return ctx;
 }
 
 } // namespace pallas

@@ -8,9 +8,12 @@
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
 
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Passes/Function/ExprWrapperMapper.h"
+#include "Passes/Function/FunctionContractDeclarer.h"
 #include "Transform/BlockTransform.h"
 #include "Transform/Instruction/IntrinsicsTransform.h"
+#include "Transform/SpecStatementTransform.h"
 #include "Transform/Transform.h"
 #include "Util/BlockUtils.h"
 #include "Util/Constants.h"
@@ -378,6 +381,93 @@ void llvm2col::transformCallExpr(llvm::CallInst &callInstruction,
     for (auto &A : callInstruction.args()) {
         llvm2col::transformAndSetExpr(funcCursor, callInstruction, *A,
                                       *invocation->add_args());
+    }
+
+    // Given-bindings
+    if (auto gBindingMD =
+            pallas::irspec::getGivenBindingBlockMD(callInstruction)) {
+        auto givenBlock = pallas::irspec::getGhostAssignBlock(gBindingMD);
+        if (!givenBlock.has_value())
+            return;
+        auto *calledFunc = callInstruction.getCalledFunction();
+        auto &calledContrRes = funcCursor.getFDCResult(*calledFunc);
+        if (calledContrRes.getIRContract() == nullptr) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC,
+                "Unable to get ghost args from  contract of called function",
+                callInstruction);
+            return;
+        }
+
+        for (auto &g : givenBlock->assignments) {
+            auto *givenEntry = invocation->add_given_map();
+            // Given-variable
+            auto *colGivenVar = calledContrRes.getGhostArgByName(g.varName);
+            auto *gVarRef = givenEntry->mutable_v1();
+            gVarRef->set_id(colGivenVar->id());
+
+            // Call to wrapper function
+            auto *colWrapperCall =
+                givenEntry->mutable_v2()->mutable_llvm_function_invocation();
+            llvm2col::buildWrapperCall(
+                *g.wrapperFunction, g.wrapperArgs, g.givenArgs, g.yieldsArgs,
+                callInstruction, g.loc, *colWrapperCall, funcCursor);
+        }
+    }
+
+    // Handle yields-bindings
+    if (auto yBindingsMD =
+            pallas::irspec::getYieldsBindingBlockMD(callInstruction)) {
+        auto yieldsBlock = pallas::irspec::getYieldsBindingBlock(yBindingsMD);
+        if (!yieldsBlock.has_value())
+            return;
+
+        // Get contract of called function
+        auto &calledContrRes =
+            funcCursor.getFDCResult(*callInstruction.getCalledFunction());
+        if (calledContrRes.getIRContract() == nullptr) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC, "Unable to get contract of called function",
+                callInstruction);
+            return;
+        }
+
+        // Get contract of parent function
+        auto &parentContrRes =
+            funcCursor.getFDCResult(*callInstruction.getParent()->getParent());
+        if (parentContrRes.getIRContract() == nullptr) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC, "Unable to get contract of parent function",
+                callInstruction);
+            return;
+        }
+
+        for (auto &y : yieldsBlock->bindings) {
+            auto *yieldsEntry = invocation->add_yields();
+
+            // Expr (Ghost var from parent function)
+            auto *targetVar = parentContrRes.getGhostArgByName(y.targetVarName);
+            if (targetVar == nullptr) {
+                pallas::ErrorReporter::addError(
+                    SOURCE_LOC, "Unable to get ghost var from parent function",
+                    callInstruction);
+                return;
+            }
+            auto *targetLoc = yieldsEntry->mutable_v1()->mutable_local();
+            targetLoc->set_allocated_origin(
+                llvm2col::generatePallasSpecOrigin(y.loc, y.targetVarName));
+            targetLoc->mutable_ref()->set_id(targetVar->id());
+
+            // Yields var from called function
+            auto *yieldsVar = calledContrRes.getGhostArgByName(y.yieldsArgName);
+            if (targetVar == nullptr) {
+                pallas::ErrorReporter::addError(
+                    SOURCE_LOC, "Unable to get yields arg from called function",
+                    callInstruction);
+                return;
+            }
+            yieldsEntry->mutable_v2()->set_id(yieldsVar->id());
+        }
     }
 }
 

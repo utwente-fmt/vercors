@@ -186,7 +186,7 @@ struct YieldsBindingBlock {
     SrcLoc loc;
     llvm::SmallVector<YieldsBinding, 2> bindings;
 
-    YieldsBindingBlock(const SrcLoc &loc);
+    YieldsBindingBlock(const SrcLoc &loc) : loc(loc) {}
 
     void addBinding(YieldsBinding binding) { bindings.push_back(binding); }
 };

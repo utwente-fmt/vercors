@@ -200,11 +200,6 @@ col::Origin *llvm2col::generateLoopOrigin(llvm::Loop &llvmLoop) {
 }
 
 namespace {
-unsigned int getIntValue(llvm::Metadata *md) {
-    return cast<llvm::ConstantInt>(
-               cast<llvm::ConstantAsMetadata>(md)->getValue())
-        ->getSExtValue();
-}
 
 std::pair<unsigned int, unsigned int> getEndPosFromMD(const llvm::Function &f) {
     unsigned int maxLine = 0;

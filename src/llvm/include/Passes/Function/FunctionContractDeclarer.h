@@ -57,6 +57,8 @@ class FDCResult {
 
     col::Variable *getGhostArgMapEntry(const irspec::GhostArgDef &arg);
 
+    col::Variable *getGhostArgByName(const std::string &argName);
+
     llvm::SmallVector<col::Variable *> getGhostVars();
 
     col::LlvmFunctionContract &getAssociatedColFuncContract();
