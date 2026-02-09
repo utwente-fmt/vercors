@@ -614,4 +614,231 @@ getSpecStatementBlock(const llvm::MDNode *md) {
     return std::make_optional(stmntBlock);
 }
 
+std::optional<YieldsBinding> getYieldsBinding(const llvm::MDNode *md) {
+    if (md == nullptr) {
+        addError("Yields binding may not be null", md);
+        return std::nullopt;
+    }
+
+    if (md->getNumOperands() != 3) {
+        addError("Ill-formed yields binding. Too few operands", md);
+        return std::nullopt;
+    }
+
+    // Location
+    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(0).get()));
+    if (!loc.has_value()) {
+        addError("First operand of yields binding must be location.", md);
+        return std::nullopt;
+    }
+
+    // Target ghost-var from parent function
+    auto targetVar =
+        getGhostArgDef(llvm::dyn_cast<llvm::MDNode>(md->getOperand(1).get()));
+    if (!targetVar.has_value()) {
+        addError("Second operand of yields binding must point to definition of "
+                 "a ghost variable.",
+                 md);
+        return std::nullopt;
+    }
+
+    // Yields arg from called function
+    auto yieldsArg =
+        getGhostArgDef(llvm::dyn_cast<llvm::MDNode>(md->getOperand(2).get()));
+    if (!targetVar.has_value()) {
+        addError("Third operand of yields binding must point to definition of "
+                 "a yields argument.",
+                 md);
+        return std::nullopt;
+    }
+
+    return std::make_optional(
+        YieldsBinding(*loc, targetVar.value().name, yieldsArg.value().name));
+}
+
+std::optional<YieldsBindingBlock>
+getYieldsBindingBlock(const llvm::MDNode *md) {
+    if (md == nullptr) {
+        addError("Yields binding block may not be null", md);
+        return std::nullopt;
+    }
+
+    if (md->getNumOperands() < 2) {
+        addError("Ill-formed yields binding block. Too few operands", md);
+        return std::nullopt;
+    }
+
+    // Location
+    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(0).get()));
+    if (!loc.has_value()) {
+        addError("First operand of yields binding block must be location.", md);
+        return std::nullopt;
+    }
+
+    YieldsBindingBlock yieldsBlock(loc.value());
+
+    // Bindings
+    unsigned int yIdx = 1;
+    while (yIdx < md->getNumOperands()) {
+        auto binding = getYieldsBinding(
+            llvm::dyn_cast_or_null<llvm::MDNode>(md->getOperand(yIdx).get()));
+        if (!binding.has_value())
+            return std::nullopt;
+        yieldsBlock.addBinding(binding.value());
+        yIdx++;
+    }
+
+    return std::make_optional(yieldsBlock);
+}
+
+std::optional<GhostAssign> getGhostAssign(const llvm::MDNode *md) {
+    if (md == nullptr) {
+        addError("Assignment to ghost variable may not be null", md);
+        return std::nullopt;
+    }
+
+    if (md->getNumOperands() < 5) {
+        addError("Ill-formed ghost assign. Too few operands", md);
+        return std::nullopt;
+    }
+
+    // Ghost variable name
+    auto varDef =
+        getGhostArgDef(llvm::dyn_cast<llvm::MDNode>(md->getOperand(0).get()));
+    if (!varDef.has_value()) {
+        addError("First operand of assignment to ghost variable must point to "
+                 "definition of ghost variable.",
+                 md);
+        return std::nullopt;
+    }
+
+    // Loc
+    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(1).get()));
+    if (!loc.has_value()) {
+        addError(
+            "Second operand of assignment ot ghost variable must be location.",
+            md);
+        return std::nullopt;
+    }
+
+    // Wrapper function
+    auto *wFuncMD =
+        llvm::dyn_cast<llvm::ValueAsMetadata>(md->getOperand(2).get());
+    if (wFuncMD == nullptr) {
+        addError("Third operand of assignment to ghost variable must point to "
+                 "function.",
+                 md);
+        return std::nullopt;
+    }
+    auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
+    if (wFunc == nullptr || !utils::isPallasExprWrapper(*wFunc)) {
+        addError("Third operand of assignment to ghost variable must point to "
+                 "wrapper function.",
+                 md);
+        return std::nullopt;
+    }
+
+    GhostAssign assign(varDef.value().name, *loc, wFunc);
+
+    // Given-args
+    auto *givenList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(3).get());
+    if (givenList == nullptr) {
+        addError("Fourth operand of assignment to ghost variable must point to "
+                 "list of DIVariables.",
+                 md);
+        return std::nullopt;
+    }
+    for (const auto &g : givenList->operands()) {
+        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(g.get());
+        if (var == nullptr) {
+            addError("Expected DILocalVariable in list of given-args.",
+                     givenList);
+            return std::nullopt;
+        }
+        assign.addGivenArg(var);
+    }
+
+    // Yields-args
+    auto *yieldsList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(4).get());
+    if (yieldsList == nullptr) {
+        addError("Fifth operand of assignment to ghost variable must point to "
+                 "list of DIVariables.",
+                 md);
+        return std::nullopt;
+    }
+    for (const auto &y : yieldsList->operands()) {
+        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(y.get());
+        if (var == nullptr) {
+            addError("Expected DILocalVariable in list of yields-args.",
+                     yieldsList);
+            return std::nullopt;
+        }
+        assign.addYieldsArg(var);
+    }
+
+    // Wrapper args
+    unsigned int vIdx = 5;
+    while (vIdx < md->getNumOperands()) {
+        auto *diVar =
+            llvm::dyn_cast<llvm::DILocalVariable>(md->getOperand(vIdx).get());
+        if (diVar == nullptr) {
+            addError("Expected DIVariable at index " + std::to_string(vIdx) +
+                         " of assignment to ghost variable.",
+                     md);
+            return std::nullopt;
+        }
+        assign.addWrapperArg(diVar);
+        vIdx++;
+    }
+
+    return std::make_optional(assign);
+}
+
+std::optional<GhostAssignBlock> getGhostAssignBlock(const llvm::MDNode *md) {
+    if (md == nullptr) {
+        addError("Ghost assignment block may not be null", md);
+        return std::nullopt;
+    }
+
+    if (md->getNumOperands() < 2) {
+        addError("Ill-formed ghost assignment block. Too few operands", md);
+        return std::nullopt;
+    }
+
+    // Location
+    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(0).get()));
+    if (!loc.has_value()) {
+        addError("First operand of ghost assignment block must be location.",
+                 md);
+        return std::nullopt;
+    }
+
+    GhostAssignBlock block(loc.value());
+
+    // Assignments
+    unsigned int aIdx = 1;
+    while (aIdx < md->getNumOperands()) {
+        auto a = getGhostAssign(
+            llvm::dyn_cast_or_null<llvm::MDNode>(md->getOperand(aIdx).get()));
+        if (!a.has_value())
+            return std::nullopt;
+        block.addAssignment(a.value());
+        aIdx++;
+    }
+
+    return std::make_optional(block);
+}
+
+llvm::MDNode *getGivenBindingBlockMD(llvm::Instruction &instr) {
+    return instr.getMetadata(pallas::constants::PALLAS_GIVEN_BINDING_BLOCK);
+}
+
+llvm::MDNode *getYieldsBindingBlockMD(llvm::Instruction &instr) {
+    return instr.getMetadata(pallas::constants::PALLAS_YIELDS_BINDING_BLOCK);
+}
+
+llvm::MDNode *getGhostAssignBlockMD(llvm::Instruction &instr) {
+    return instr.getMetadata(pallas::constants::PALLAS_GHOST_ASSIGN_BLOCK);
+}
+
 } // namespace pallas::irspec

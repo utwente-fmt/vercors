@@ -164,6 +164,70 @@ struct SpecStatementBlock {
     void addStatement(SpecStatement stmnt) { statements.push_back(stmnt); }
 };
 
+/**
+ * Binding of the value returned with a yields-argument to another
+ * ghost variable.
+ */
+struct YieldsBinding {
+    SrcLoc loc;
+    std::string targetVarName;
+    std::string yieldsArgName;
+
+    YieldsBinding(const SrcLoc &loc, const std::string &targetVarName,
+                  const std::string &yieldsArgName)
+        : loc(loc), targetVarName(targetVarName), yieldsArgName(yieldsArgName) {
+    }
+};
+
+/**
+ * Block of yields-argument bindings.
+ */
+struct YieldsBindingBlock {
+    SrcLoc loc;
+    llvm::SmallVector<YieldsBinding, 2> bindings;
+
+    YieldsBindingBlock(const SrcLoc &loc);
+
+    void addBinding(YieldsBinding binding) { bindings.push_back(binding); }
+};
+
+/**
+ * Assignment of an expression to a ghost variable.
+ * Also used for given-bindings.
+ */
+struct GhostAssign {
+    // Name of the ghost variable
+    std::string varName;
+    SrcLoc loc;
+    llvm::Function *wrapperFunction;
+    llvm::SmallVector<llvm::DILocalVariable *> givenArgs;
+    llvm::SmallVector<llvm::DILocalVariable *> yieldsArgs;
+    llvm::SmallVector<llvm::DILocalVariable *> wrapperArgs;
+
+    GhostAssign(const std::string &varName, const SrcLoc &loc,
+                llvm::Function *wrapperFunction)
+        : varName(varName), loc(loc), wrapperFunction(wrapperFunction) {}
+
+    void addWrapperArg(llvm::DILocalVariable *v) { wrapperArgs.push_back(v); }
+
+    void addGivenArg(llvm::DILocalVariable *v) { givenArgs.push_back(v); }
+
+    void addYieldsArg(llvm::DILocalVariable *v) { yieldsArgs.push_back(v); }
+};
+
+/**
+ * Block of assignments to ghost variables.
+ * Also used for given bindings.
+ */
+struct GhostAssignBlock {
+    SrcLoc loc;
+    llvm::SmallVector<GhostAssign> assignments;
+
+    GhostAssignBlock(const SrcLoc &loc) : loc(loc) {}
+
+    void addAssignment(GhostAssign assign) { assignments.push_back(assign); }
+};
+
 } // namespace pallas::irspec
 
 #endif // PALLAS_IRSPEC_H

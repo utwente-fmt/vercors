@@ -21,6 +21,9 @@ const std::string PALLAS_ASSUME = "pallas.assume";
 const std::string PALLAS_ASSERT = "pallas.assert";
 const std::string PALLAS_FOLD = "pallas.fold";
 const std::string PALLAS_UNFOLD = "pallas.unfold";
+const std::string PALLAS_GIVEN_BINDING_BLOCK = "pallas.givenBindings";
+const std::string PALLAS_YIELDS_BINDING_BLOCK = "pallas.yieldsBindings";
+const std::string PALLAS_GHOST_ASSIGN_BLOCK = "pallas.ghostAssignments";
 
 const std::string PALLAS_SPEC_LIB_MARKER = "pallas.specLib";
 const std::string PALLAS_SPEC_RESULT = "pallas.result";

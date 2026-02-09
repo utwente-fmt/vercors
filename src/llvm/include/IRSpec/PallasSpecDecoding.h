@@ -71,7 +71,7 @@ std::optional<LoopContract> getLoopContract(const llvm::MDNode *md);
 
 /**
  * Decode the identifier of a specification statement in the encoding used by
- * Pallas. 
+ * Pallas.
  * If the encoding is invalid, a nullopt is returned and errors are added.
  */
 std::optional<SpecStatementType> getSpecStatementType(const llvm::MDNode *md);
@@ -89,6 +89,61 @@ std::optional<SpecStatement> getSpecStatement(const llvm::MDNode *md);
  * is returned and errors are added.
  */
 std::optional<SpecStatementBlock> getSpecStatementBlock(const llvm::MDNode *md);
+
+/**
+ * Decode a binding of a value from a yields argument to another ghost variable
+ * that is encoded in the specification format of Pallas.
+ * If the given metadata-node is not a valid encoding, an empty optional
+ * is returned and errors are added.
+ */
+std::optional<YieldsBinding> getYieldsBinding(const llvm::MDNode *md);
+
+/**
+ * Decode a block of yields-argument bindings that is encoded in the
+ * specification format of Pallas.
+ * If the given metadata-node is not a valid encoding, an empty optional is
+ * returned and errors are added.
+ */
+std::optional<YieldsBindingBlock> getYieldsBindingBlock(const llvm::MDNode *md);
+
+/**
+ * Decode an assignment to a ghost variable that is encoded in the specification
+ * format of Pallas.
+ * Also used for given-bindings.
+ * If the given metadata-node is not a valid encoding, an empty optional
+ * is returned and errors are added.
+ */
+std::optional<GhostAssign> getGhostAssign(const llvm::MDNode *md);
+
+/**
+ * Decode a block of assignments to ghost variables that is encoded in the
+ * specification format of Pallas.
+ * Also used for given-bindings.
+ * If the given metadata-node is not a valid encoding, an empty optional is
+ * returned and errors are added.
+ */
+std::optional<GhostAssignBlock> getGhostAssignBlock(const llvm::MDNode *md);
+
+/**
+ * Checks if a block of given-bindings is is attached to the given
+ * instruction and returns it if it is present. Otherwise, a nullpointer is
+ * returned
+ */
+llvm::MDNode *getGivenBindingBlockMD(llvm::Instruction &instr);
+
+/**
+ * Checks if a block of yields-bindings is is attached to the given
+ * instruction and returns it if it is present. Otherwise, a nullpointer is
+ * returned
+ */
+llvm::MDNode *getYieldsBindingBlockMD(llvm::Instruction &instr);
+
+/**
+ * Checks if a block of ghost-assignments is is attached to the given
+ * instruction and returns it if it is present. Otherwise, a nullpointer is
+ * returned
+ */
+llvm::MDNode *getGhostAssignBlockMD(llvm::Instruction &instr);
 
 } // namespace pallas::irspec
 
