@@ -1,5 +1,6 @@
 #include "Transform/BlockTransform.h"
 
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Origin/OriginProvider.h"
 #include "Transform/Instruction/BinaryOpTransform.h"
 #include "Transform/Instruction/CastOpTransform.h"
@@ -51,11 +52,16 @@ void llvm2col::transformLLVMBlock(llvm::BasicBlock &llvmBlock,
 void llvm2col::transformInstruction(pallas::FunctionCursor &funcCursor,
                                     llvm::Instruction &llvmInstruction,
                                     col::LlvmBasicBlock &colBodyBlock) {
-    // Check if a block of specification-statements is attached
+    // Check if specifications are attached to the instruction
     if (llvm::MDNode *specMD =
             pallas::utils::getSpecStmntBlock(llvmInstruction)) {
         llvm2col::transformSpecStmntBlock(*specMD, llvmInstruction,
                                           colBodyBlock, funcCursor);
+    }
+    if (auto *gAssignMD =
+            pallas::irspec::getGhostAssignBlockMD(llvmInstruction)) {
+        llvm2col::transformGhostAssignBlock(*gAssignMD, llvmInstruction,
+                                            colBodyBlock, funcCursor);
     }
 
     u_int32_t opCode = llvmInstruction.getOpcode();

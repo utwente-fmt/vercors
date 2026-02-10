@@ -639,7 +639,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
             // If the invoked function is a wrapper function, we infer the
             // type of the pointer-typed argument from the call-site.
-            if (calledFunc.isWrapper && arg.t.asPointer.isDefined) {
+            if (
+              (calledFunc.isWrapper || calledFunc.isGhostWrapper) &&
+              arg.t.asPointer.isDefined
+            ) {
               val dependencies = findDependencies(inv.args(idx))
               // TODO: Check if this can be simplified I.e. the expression
               //  should almost always be resolvable with getVariable
@@ -796,9 +799,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             case Some((idx, _)) => Some(argList(idx).ref)
             case None => None
           }
-        val isWrapper = func.isWrapper
+        val isWrapper = func.isWrapper || func.isGhostWrapper
         val returnT =
-          if (isWrapper && !wrappersInAssume.contains(func)) {
+          if (func.isWrapper && !wrappersInAssume.contains(func)) {
             TResource[Post]()
           } else {
             rw.dispatch(func.importedReturnType.getOrElse(func.returnType))

@@ -3,6 +3,7 @@ package vct.col.ast.lang.llvm
 import vct.col.ast.declaration.category.ApplicableImpl
 import vct.col.ast.{
   Declaration,
+  GhostWrapperFunction,
   LLVMFunctionDefinition,
   NormalFunction,
   PallasFunctionContract,
@@ -39,6 +40,12 @@ trait LLVMFunctionDefinitionImpl[G]
   val isWrapper: Boolean =
     functionType match {
       case _: WrapperFunction[G] => true
+      case _ => false
+    }
+
+  val isGhostWrapper: Boolean =
+    functionType match {
+      case _: GhostWrapperFunction[G] => true
       case _ => false
     }
 

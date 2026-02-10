@@ -164,6 +164,53 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
     }
 }
 
+void llvm2col::transformGhostAssignBlock(
+    llvm::MDNode &specBlock, llvm::Instruction &llvmInstr,
+    col::LlvmBasicBlock &colBlock, pallas::FunctionCursor &functionCursor) {
+    auto assignBlock = pallas::irspec::getGhostAssignBlock(&specBlock);
+    if (!assignBlock.has_value())
+        return;
+
+    for (auto &a : assignBlock->assignments)
+        transformGhostAssign(a, llvmInstr, colBlock, functionCursor);
+}
+
+void llvm2col::transformGhostAssign(const pallas::irspec::GhostAssign &gAssign,
+                                    llvm::Instruction &llvmInstr,
+                                    col::LlvmBasicBlock &colBlock,
+                                    pallas::FunctionCursor &functionCursor) {
+    col::Block &body = pallas::bodyAsBlock(colBlock);
+    auto *assign = body.add_statements()->mutable_assign();
+    assign->set_allocated_blame(new col::Blame());
+    assign->set_allocated_origin(llvm2col::generatePallasSpecOrigin(
+        gAssign.loc, "Assignment to" + gAssign.varName));
+
+    // Get ghost var from contract of parent function
+    auto *pFunc = llvmInstr.getParent()->getParent();
+    auto &pContrRes = functionCursor.getFDCResult(*pFunc);
+    if (pContrRes.getIRContract() == nullptr) {
+        printSpecStmntError(llvmInstr,
+                            "Unable to get contract of parent function");
+        return;
+    }
+    auto *gVar = pContrRes.getGhostArgByName(gAssign.varName);
+    if (gVar == nullptr) {
+        printSpecStmntError(llvmInstr,
+                            "Unable to get ghost var from parent function");
+        return;
+    }
+    // Assign target
+    auto *target = assign->mutable_target()->mutable_local();
+    target->set_allocated_origin(llvm2col::generatePallasSpecOrigin(
+        gAssign.loc, "Ghost assign to " + gAssign.varName));
+    target->mutable_ref()->set_id(gVar->id());
+    // Call to wrapper function
+    auto *wCall = assign->mutable_value()->mutable_llvm_function_invocation();
+    buildWrapperCall(*gAssign.wrapperFunction, gAssign.wrapperArgs,
+                     gAssign.givenArgs, gAssign.yieldsArgs, llvmInstr,
+                     gAssign.loc, *wCall, functionCursor);
+}
+
 void llvm2col::buildWrapperCall(
     llvm::Function &wrapperFunction,
     llvm::ArrayRef<llvm::DILocalVariable *> wrapperArgs,

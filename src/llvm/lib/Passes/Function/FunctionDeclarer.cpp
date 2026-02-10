@@ -145,14 +145,22 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
     }
 
     // Set type-flag of the function
+    int numTypeDefs = 0;
+    numTypeDefs += utils::isPallasExprWrapper(F) ? 1 : 0;
+    numTypeDefs += utils::isPallasGhostWrapper(F) ? 1 : 0;
+    numTypeDefs += utils::isPallasPredDef(F) ? 1 : 0;
+
     auto *fType = llvmFuncDef->mutable_function_type();
-    if (utils::isPallasExprWrapper(F) && utils::isPallasPredDef(F)) {
+    if (numTypeDefs > 1) {
         std::stringstream errorStream;
-        errorStream << "Functions may not be marked as both "
+        errorStream << "Functions may not be marked as both"
                     << " a wrapper AND a predicate definition!";
         pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
     } else if (utils::isPallasExprWrapper(F)) {
         fType->mutable_wrapper_function()->set_allocated_origin(
+            llvm2col::generateFuncDefOrigin(F));
+    } else if (utils::isPallasGhostWrapper(F)) {
+        fType->mutable_ghost_wrapper_function()->set_allocated_origin(
             llvm2col::generateFuncDefOrigin(F));
     } else if (utils::isPallasPredDef(F)) {
         auto isInline = utils::isPallasPredInline(F);
@@ -169,7 +177,7 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
             llvm2col::generateFuncDefOrigin(F));
     }
 
-    if (utils::isPallasExprWrapper(F)) {
+    if (utils::isPallasExprWrapper(F) || utils::isPallasGhostWrapper(F)) {
         auto mapperResult = FAM.getResult<pallas::ExprWrapperMapper>(F);
         auto *wrapperParent = mapperResult.getParentFunc();
         if (wrapperParent == nullptr) {

@@ -54,6 +54,10 @@ bool isPallasExprWrapper(const llvm::Function &f) {
     return f.hasMetadata(pallas::constants::PALLAS_WRAPPER_FUNC);
 }
 
+bool isPallasGhostWrapper(const llvm::Function &f) {
+    return f.hasMetadata(pallas::constants::PALLAS_GHOST_WRAPPER_FUNC);
+}
+
 bool isPallasPredDef(const llvm::Function &f) {
     return f.hasMetadata(pallas::constants::PALLAS_PRED_DEF);
 }
@@ -114,9 +118,12 @@ bool isConstantInt(llvm::Metadata *md) {
     return false;
 }
 
-llvm::Function *getWrapperFunc(const llvm::MDOperand &mdOp) {
-    auto *wFuncMD =
-        llvm::dyn_cast_if_present<llvm::ValueAsMetadata>(mdOp.get());
+llvm::Function *getWrapperFromLoopInv(const llvm::MDNode &invMD) {
+    if (invMD.getNumOperands() < 2) {
+        return nullptr;
+    }
+    auto *wFuncMD = llvm::dyn_cast_if_present<llvm::ValueAsMetadata>(
+        invMD.getOperand(1).get());
     if (wFuncMD == nullptr) {
         return nullptr;
     }
@@ -126,13 +133,6 @@ llvm::Function *getWrapperFunc(const llvm::MDOperand &mdOp) {
         return nullptr;
     }
     return wFunc;
-}
-
-llvm::Function *getWrapperFromLoopInv(const llvm::MDNode &invMD) {
-    if (invMD.getNumOperands() < 2) {
-        return nullptr;
-    }
-    return getWrapperFunc(invMD.getOperand(1));
 }
 
 llvm::MDNode *getPallasLoopContract(const llvm::Loop &llvmLoop) {

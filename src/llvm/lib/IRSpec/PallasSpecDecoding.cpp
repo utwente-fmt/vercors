@@ -731,9 +731,9 @@ std::optional<GhostAssign> getGhostAssign(const llvm::MDNode *md) {
         return std::nullopt;
     }
     auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
-    if (wFunc == nullptr || !utils::isPallasExprWrapper(*wFunc)) {
+    if (wFunc == nullptr || !utils::isPallasGhostWrapper(*wFunc)) {
         addError("Third operand of assignment to ghost variable must point to "
-                 "wrapper function.",
+                 "ghost wrapper function.",
                  md);
         return std::nullopt;
     }

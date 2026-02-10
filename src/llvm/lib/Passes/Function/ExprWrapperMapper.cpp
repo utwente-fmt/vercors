@@ -45,7 +45,7 @@ AnalysisKey ExprWrapperMapper::Key;
 
 ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
                                                  FunctionAnalysisManager &FAM) {
-    if (!utils::isPallasExprWrapper(F))
+    if (!(utils::isPallasExprWrapper(F) || utils::isPallasGhostWrapper(F)))
         return EWMResult(nullptr, std::nullopt);
     auto *llvmModule = F.getParent();
 
@@ -54,7 +54,8 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
     // TODO: Change this to use the irspec-structs
     for (Function &parentF : llvmModule->functions()) {
         // Skip wrapper-functions and intrinsics
-        if (utils::isPallasExprWrapper(parentF) || parentF.isIntrinsic() ||
+        if (utils::isPallasExprWrapper(parentF) ||
+            utils::isPallasGhostWrapper(parentF) || parentF.isIntrinsic() ||
             utils::isPallasSpecLib(parentF)) {
             continue;
         }

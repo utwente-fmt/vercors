@@ -57,6 +57,10 @@ PreservedAnalyses PureAssignerPass::run(Function &F,
         pureAnnotationCount++;
         isPure = true;
     }
+    if (utils::isPallasGhostWrapper(F)) {
+        pureAnnotationCount++;
+        isPure = true;
+    }
 
     // Check that no duplicate pure-definition is present
     if (pureAnnotationCount > 1) {

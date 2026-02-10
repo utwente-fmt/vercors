@@ -61,6 +61,11 @@ bool hasVcllvmContract(const llvm::Function &f);
 bool isPallasExprWrapper(const llvm::Function &f);
 
 /**
+ * Checks if the given llvm function is marked as ghost wrapper.
+ */
+bool isPallasGhostWrapper(const llvm::Function &f);
+
+/**
  * Checks if the given llvm function is marked as a predicate definition.
  */
 bool isPallasPredDef(const llvm::Function &f);
@@ -85,12 +90,6 @@ bool isWellformedPallasLocation(const llvm::MDNode *mdNode);
  * If no loop contract is present, a nullptr is returned.
  */
 llvm::MDNode *getPallasLoopContract(const llvm::Loop &llvmLoop);
-
-/**
- * Attempt to cast the value of the given MDOperand into a pointer
- * to a wrapper-function.
- */
-llvm::Function *getWrapperFunc(const llvm::MDOperand &mdOp);
 
 /*
  * Attempts to get the wrapper-function from the given MDNode which

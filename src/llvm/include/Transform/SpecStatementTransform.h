@@ -33,6 +33,16 @@ void transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
                         col::LlvmBasicBlock &colBlock,
                         pallas::FunctionCursor &functionCursor);
 
+void transformGhostAssignBlock(llvm::MDNode &specBlock,
+                             llvm::Instruction &llvmInstr,
+                             col::LlvmBasicBlock &colBlock,
+                             pallas::FunctionCursor &functionCursor);
+
+void transformGhostAssign(const pallas::irspec::GhostAssign &gAssign,
+                        llvm::Instruction &llvmInstr,
+                        col::LlvmBasicBlock &colBlock,
+                        pallas::FunctionCursor &functionCursor);
+
 
 void buildWrapperCall(llvm::Function &wrapperFunction, 
     llvm::ArrayRef<llvm::DILocalVariable *> wrapperArgs, 
