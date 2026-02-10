@@ -341,7 +341,7 @@ valKeywordNonExpr: (
  | VAL_APPLY | VAL_FOLD | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE
  | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS | VAL_GHOST | VAL_SEND | VAL_RECV
  | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE | VAL_ACTION | VAL_ATOMIC
- | VAL_EXTRACT | VAL_FRAME
+ | VAL_EXTRACT | VAL_EXTRACT_BODY | VAL_FRAME
  // Spec function keywords
  | VAL_REDUCIBLE | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_CONTRIBUTION | VAL_HELD | VAL_HPERM | VAL_IDLE
  | VAL_PERM_VAL | VAL_PERM | VAL_POINTS_TO | VAL_RUNNING | VAL_SOME | VAL_LEFT | VAL_RIGHT | VAL_VALUE
@@ -443,7 +443,10 @@ valArg
  : langType langId
  ;
 
-valEmbedContract: valEmbedContractBlock+;
+valEmbedContract
+ : valEmbedContractBlock+
+ | startSpec 'extract_body' valContractClause* endSpec valEmbedContractBlock*
+ ;
 
 valEmbedContractBlock
  : startSpec valContractClause* endSpec
@@ -456,6 +459,7 @@ valEmbedStatementBlock
  | startSpec 'extract' valDecreases? endSpec langStatement
  | startSpec 'frame' valContractClause* '{' endSpec langStatement* startSpec '}' endSpec
  | startSpec 'extract' valDecreases? 'frame' valContractClause* '{' endSpec langStatement* startSpec '}' endSpec
+ | startSpec 'extract' valDecreases? 'frame' endSpec valEmbedContract? startSpec '{' endSpec langStatement* startSpec '}' endSpec
  ;
 
 valEmbedWith: startSpec valWith? endSpec | {specLevel>0}? valWith;

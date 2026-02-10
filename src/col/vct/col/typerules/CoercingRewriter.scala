@@ -2892,6 +2892,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case specifier: CStructSpecifier[Pre] => specifier
       case ck @ CUDAKernel() => CUDAKernel()(ck.blame)
       case ok @ OpenCLKernel() => OpenCLKernel()(ok.blame)
+      case specifier: CExtractGPUKernelBody[Pre] => specifier
     }
   }
 
