@@ -3,6 +3,7 @@ package vct.rewrite.veymont.verification
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
+import vct.col.ast.expr.veymont.{ChannelInvPrimitive, ChannelInvRole}
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -169,6 +170,21 @@ case class EncodeChannels[Pre <: Generation]()
         val CommTargetRange(Ref(sender), RangeBinder(v, low, high)) =
           comm.sender.get
         val CommTargetIndex(Ref(receiver), i) = comm.receiver.get
+        // Compute the d/d' functions. d computes the receiver index given the sender index.
+        // d' (= d_inv) computes the sender index given the receiver index.
+        // Here we assume that `offset` is constant and doesn't depend on `v_`
+        val (d, d_inv): (Expr[Post] => Expr[Post], Expr[Post] => Expr[Post]) = i match {
+          case Plus(Local(Ref(v_)), offset) =>
+            assert(v_ == v)
+            (
+              // d: compute receiver from sender
+              v => Plus(v, dispatch(offset)),
+              // d': compute sender from receiver
+              v => Minus(v, dispatch(offset))
+            )
+          case Local(_) =>
+            (v => v, v => v)
+        }
 
         /*
         - define new p in ADT of type senderClass -> TRational
@@ -334,97 +350,141 @@ case class EncodeChannels[Pre <: Generation]()
       comm: Ref[Pre, Communicate[
         Pre
       ]], // The communicate statement where e appears in the channel inv
-      F: Ref[Post, Endpoint[Post]], // Sender family
-      f: Ref[Post, InstanceField[Post]], // Sender field
-      G: Ref[Post, Endpoint[Post]], // Receiving family
-      g: Ref[Post, InstanceField[Post]], // Receiver field
+      F: Ref[Post, Endpoint[Post]], // Primary family
+      f: Ref[Post, InstanceField[Post]], // Primary field
+      G: Ref[Post, Endpoint[Post]], // Dependent family
+      g: Ref[Post, InstanceField[Post]], // Dependent field
+      // Indicator for sending (exhaling, primary) or receiving (inhaling, dependent) context
       ctx: ChannelInvPrimitive[Pre],
-      // low..high range of the sender
+      // low..high range of the primary party
       low: Expr[Pre],
       high: Expr[Pre],
-      // Destination index expression and index variable of the range
-      v: Variable[Pre],
-      destinationIdx: Expr[Pre],
-      // Invariant part to be encoded
+      // Function to compute index of the dependent party
+      d: Expr[Post] => Expr[Post],
+      // Invariant part to be encoded. Ranges over \sender, \receiver, \msg
       e: Expr[Pre],
   )(implicit o: Origin): Expr[Post] = {
-    def rangeOf(ctx: ChannelInvPrimitive[_]) = {
-      ctx match {
-        case Sender(_) => (dispatch(low), dispatch(high))
-        case Receiver(_) =>
-          (
-            pureRewrite(destinationIdx, v.get -> dispatch(low)),
-            pureRewrite(destinationIdx, v.get -> dispatch(high)),
-          )
+    // Only allow sender/receiver roles
+    assert(ctx.role.invert.isDefined)
+
+    val eContainsPrimary = e.exists { case cp: ChannelInvPrimitive[Pre] => cp.role == ctx.role || cp.role == ChannelInvRole.Message }
+    val eContainsDependent = e.exists { case cp: ChannelInvPrimitive[Pre] => cp.complements(ctx) }
+
+    //// Binders to occur in the wrapping quantifier
+    val primaryIndex = new Variable[Post](TInt())(o.where(name = "i"))
+    val dependentIndex = new Variable[Post](TInt())(o.where(name = "j"))
+
+    //// Construct message based on the context
+    val primary = CtExpr(CommTargetIndex(F, primaryIndex.get))
+    val dependent = CtExpr(CommTargetIndex(G, dependentIndex.get))
+    val msg = Deref(primary, f)(PanicBlame("TODO: Forward blame properly"))
+
+    case class RoleSensitiveRewriter() extends Rewriter[Pre] {
+      override val allScopes: AllScopes[Pre, Post] = EncodeChannels.this.allScopes
+
+      override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
+        case cp: ChannelInvPrimitive[Pre] if cp.role == ctx.role => primary
+        case cp: ChannelInvPrimitive[Pre] if cp.complements(ctx) => dependent
+        case cp: ChannelInvPrimitive[Pre] if cp.role == ChannelInvRole.Message => msg
+        case _ => expr.rewriteDefault()
       }
     }
 
-    // Include sender/receiver either because of the context or because the respective keyword is present
-    val ctxIsSender = ctx match { case Sender(_) => true; case _ => false }
-    val includeSender = ctxIsSender || e.exists { case Sender(_) => true }
-    val ctxIsReceiver = ctx match { case Receiver(_) => true; case _ => false }
-    val includeReceiver = ctxIsReceiver || e.exists { case Receiver(_) => true }
+    val newE = RoleSensitiveRewriter().dispatch(e)
 
-    //// Binders to occur in the wrapping quantifier
-    val senderIdx = new Variable[Post](TInt())(o.where(name = "i"))
-    val receiverIdx = new Variable[Post](TInt())(o.where(name = "j"))
+    /*
 
-    //// Construct message based on the context
-    val sender = CtExpr(CommTargetIndex(F, senderIdx.get))
-    val receiver = CtExpr(CommTargetIndex(G, receiverIdx.get))
-    val msg =
-      ctx match {
-        case Sender(_) =>
-          Deref(sender, f)(PanicBlame("TODO: Forward blame properly"))
-        case Receiver(_) =>
-          Deref(receiver, g)(PanicBlame("TODO: Forward blame properly"))
-      }
+    \msg gets transformed into \primary[i]. So if there's a message, there *must* be a primary index binder.
 
-    val newE = pureRewrite(
-      e,
-      Sender(comm) -> sender,
-      Receiver(comm) -> receiver,
-      Message(comm) -> msg,
-    )
+    Taking this into account, the rules are:
+
+    - there is at least the primary context. So add a primary binder
+    - if there is also \dependent in the expression, add a dependent binder
+
+    So:
+
+    if only primary:
+      (\endpoint primary[i := low .. high]; e[
+        \sender -> ctx == sender ? \primary : \dependent
+        \msg -> primary.f
+      ])
+
+    if \dependent is in the expression:
+      (\endpoint primary[i := low .. high]; ∀int j := d(i); e[
+        \sender -> ctx == sender ? \primary : \dependent
+        \receiver -> ctx == receover ? \primary : \dependent
+        \msg -> primary.f
+      ])
+
+    if neither:
+      Should be safe to encode without \endpoint! Possibly, even leave it out, since it *must* concern a pure fact.
+      But let's include it for now.
+      // TODO(RR): Make a test case for this one.
+
+
+     */
+
+    (eContainsPrimary, eContainsDependent) match {
+      case (true, true) =>
+        EndpointExpr(
+          CommTargetRange(
+            F,
+            RangeBinder(primaryIndex, dispatch(low), dispatch(high)),
+          ),
+          Seq(dependentIndex),
+          (dependentIndex.get === d(primaryIndex.get)) ==> newE,
+        )(e.o)
+      case (true, false) =>
+        EndpointExpr(
+          CommTargetRange(
+            F,
+            RangeBinder(primaryIndex, dispatch(low), dispatch(high)),
+          ),
+          Seq(),
+          newE,
+        )(e.o)
+      case (false, true) => assert(false)
+      case (false, false) => newE
+    }
 
     //// If there is both the sender and receiver, the ranges are i := low .. high, j := destinationIdx(v -> i)
     //// If it's just the sender, i := low .. high
     //// If it's just the receiver, j := d(low) .. d(high)
-    (includeSender, includeReceiver) match {
-      case (true, true) =>
-        // (\endpoint F[senderIdx := low' .. high'], ∀int j = desinationIdx(v -> i); e')
-        EndpointExpr(
-          CommTargetRange(
-            F,
-            RangeBinder(senderIdx, dispatch(low), dispatch(high)),
-          ),
-          Seq(receiverIdx),
-          (receiverIdx.get ===
-            pureRewrite(destinationIdx, v.get -> senderIdx.get)) ==> newE,
-        )(e.o)
-      case (true, false) =>
-        // (\endpoint F[senderIdx := low' .. high']; e')
-        EndpointExpr(
-          CommTargetRange(
-            F,
-            RangeBinder(senderIdx, dispatch(low), dispatch(high)),
-          ),
-          Seq(),
-          newE,
-        )(e.o)
-      case (false, true) =>
-        // (\endpoint G[receiverIdx := destinationIdx(v -> low) .. destinationIdx(v -> high); e')
-        val (newLow, newHigh) = rangeOf(Receiver(comm))
-        EndpointExpr(
-          CommTargetRange(
-            G,
-            RangeBinder(receiverIdx, dispatch(low), dispatch(high)),
-          ),
-          Seq(),
-          newE,
-        )(e.o)
-      case (false, false) => ??? // Cannot happen
-    }
+//    (includeSender, includeReceiver) match {
+//      case (true, true) =>
+//        // (\endpoint F[senderIdx := low' .. high'], ∀int j = desinationIdx(v -> i); e')
+//        EndpointExpr(
+//          CommTargetRange(
+//            F,
+//            RangeBinder(senderIdx, dispatch(low), dispatch(high)),
+//          ),
+//          Seq(receiverIdx),
+//          (receiverIdx.get ===
+//            pureRewrite(destinationIdx, v.get -> senderIdx.get)) ==> newE,
+//        )(e.o)
+//      case (true, false) =>
+//        // (\endpoint F[senderIdx := low' .. high']; e')
+//        EndpointExpr(
+//          CommTargetRange(
+//            F,
+//            RangeBinder(senderIdx, dispatch(low), dispatch(high)),
+//          ),
+//          Seq(),
+//          newE,
+//        )(e.o)
+//      case (false, true) =>
+//        // (\endpoint G[receiverIdx := destinationIdx(v -> low) .. destinationIdx(v -> high); e')
+//        val (newLow, newHigh) = rangeOf(Receiver(comm))
+//        EndpointExpr(
+//          CommTargetRange(
+//            G,
+//            RangeBinder(receiverIdx, newLow, newHigh),
+//          ),
+//          Seq(),
+//          newE,
+//        )(e.o)
+//      case (false, false) => ??? // Cannot happen
+//    }
   }
 
   override def dispatch(expr: Expr[Pre]): Expr[Post] =

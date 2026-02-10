@@ -1,0 +1,20 @@
+class Node {
+    int backN;
+    int frontN;
+    int inMessage;
+    int outMessage;
+}
+
+choreography summation(int N) {
+
+  endpoints nodes[tid := 0 .. N] = Node();
+
+  requires N >= 2;
+  // requires (\endpoint nodes[i := 0 .. N - 1], ∀int j = i + 1; Perm(nodes[j].frontN, 1\2));
+  requires (\endpoint nodes[i := 0 .. N - 1]; Perm(nodes[i].frontN, 1\2));
+  run {
+      channel_invariant Perm(\sender.frontN, 1\2) ** 0 <= {: \sender.frontN :};
+      communicate nodes[i := 0 .. N - 1]: nodes[i].outMessage -> nodes[i + 1].inMessage;
+  }
+}
+

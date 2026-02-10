@@ -6,11 +6,13 @@ import vct.col.ast.{Receiver, Type}
 import vct.col.check.{CheckContext, CheckError, OnlyInChannelInvariant}
 import vct.col.print._
 
-trait ReceiverImpl[G] extends ReceiverOps[G] with ExprImpl[G] {
+trait ReceiverImpl[G] extends ReceiverOps[G] with ExprImpl[G] with ChannelInvPrimitive[G] {
   this: Receiver[G] =>
   override def layout(implicit ctx: Ctx): Doc = Text("\\receiver")
   override def precedence: Int = Precedence.ATOMIC
   override def t: Type[G] = ref.decl.receiver.get.ref.decl.singleType
+
+  override def role: ChannelInvRole = ChannelInvRole.Receiver
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) ++

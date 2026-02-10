@@ -1,0 +1,14 @@
+class Node {
+    int backN;
+}
+
+choreography summation(int N) {
+
+  endpoints nodes[tid := 0 .. N] = Node();
+
+  requires N >= 2;
+  requires (\endpoint nodes[i := 0 .. N - 1], ∀int j = i + 1; Perm(nodes[j].backN, 1\2));
+  run {
+    assert (\endpoint nodes[i := 0 .. N - 1]; Perm(nodes[i + 1].backN, 1\2));
+  }
+}
