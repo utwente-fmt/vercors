@@ -52,7 +52,7 @@ case object CPP {
   @tailrec
   def isFunctionDeclarator(declarator: CPPDeclarator[_]): Boolean =
     declarator match {
-      case CPPTypedFunctionDeclarator(_, _, _) | CPPLambdaDeclarator(_) => true
+      case CPPTypedFunctionDeclarator(_, _, _) | CPPLambdaDeclarator(_, _) => true
       case CPPName(_) => false
       case CPPAddressingDeclarator(_, inner) => isFunctionDeclarator(inner)
       case CPPArrayDeclarator(_, inner) => isFunctionDeclarator(inner)
@@ -105,7 +105,7 @@ case object CPP {
           typeOrReturnType = t => t,
           innerInfo.name,
         )
-      case CPPLambdaDeclarator(params) =>
+      case CPPLambdaDeclarator(params, attrs) =>
         DeclaratorInfo(params = Some(params), typeOrReturnType = t => t, "")
       case CPPName(name) =>
         DeclaratorInfo(params = None, typeOrReturnType = t => t, name)
@@ -128,6 +128,7 @@ case object CPP {
       case Seq(SYCLClassDefName("event", Seq())) => SYCLTEvent()
       case Seq(SYCLClassDefName("handler", Seq())) => SYCLTHandler()
       case Seq(SYCLClassDefName("queue", Seq())) => SYCLTQueue()
+      case Seq(SYCLClassDefName("sub_group", Seq())) => SYCLTSubGroup()
       case Seq(
             SYCLClassDefName(
               name,
@@ -244,6 +245,8 @@ case object CPP {
         Seq(RefSYCLConstructorDefinition(SYCLTAccessor()))
       case "sycl::local_accessor" =>
         Seq(RefSYCLConstructorDefinition(SYCLTLocalAccessor()))
+      case "sycl::sub_group" =>
+        Seq(RefSYCLConstructorDefinition(SYCLTSubGroup()))
       case _ => Seq()
     }
   }

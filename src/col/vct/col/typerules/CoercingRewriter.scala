@@ -359,6 +359,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: CPPAddressing[Pre] => node
       case node: CPPInit[Pre] => node
       case node: CPPExprOrTypeSpecifier[Pre] => node
+      case node: CPPAttribute[Pre] => node
       case node: GpuMemoryFence[Pre] => node
       case node: JavaModifier[Pre] => node
       case node: JavaImport[Pre] => node
@@ -2973,7 +2974,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         CPPArrayDeclarator(size.map(int), inner)(array.blame)
       case CPPTypedFunctionDeclarator(params, varargs, inner) =>
         CPPTypedFunctionDeclarator(params, varargs, inner)
-      case CPPLambdaDeclarator(params) => CPPLambdaDeclarator(params)
+      case CPPLambdaDeclarator(params, attrs) => CPPLambdaDeclarator(params, attrs)
       case CPPName(name) => CPPName(name)
     }
   }
@@ -3134,5 +3135,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
 
   def coerce(node: PVLEndpointName[Pre]): PVLEndpointName[Pre] = node
   def coerce(node: EndpointName[Pre]): EndpointName[Pre] = node
+
+  override def coerce(node: CPPAttribute[Pre]): CPPAttribute[Pre] = node
 
 }

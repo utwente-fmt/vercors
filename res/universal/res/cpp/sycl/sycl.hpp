@@ -79,6 +79,13 @@ namespace sycl {
   	int get_linear_id();
   }
 
+  namespace sub_group {
+    int get_local_id();   // lane within subgroup
+    int get_local_range();
+    int get_group_id();   // subgroup index within work-group
+    int get_group_range();
+  }
+
   namespace nd_item {
 		int get_local_id(int dimension);
 
@@ -100,16 +107,9 @@ namespace sycl {
 
 		int get_global_linear_id();
 
-        sub_group get_sub_group();
+        sycl::sub_group get_sub_group();
   }
 
-  namespace sub_group {
-    int get_local_id();   // lane within subgroup
-    int get_local_range();
-    int get_group_id();   // subgroup index within work-group
-    int get_group_range();
-  }
-  
   namespace accessor {
     sycl::range<1> get_range();
   }
@@ -117,5 +117,4 @@ namespace sycl {
   namespace local_accessor {
     sycl::range<1> get_range();
   }
-
 }

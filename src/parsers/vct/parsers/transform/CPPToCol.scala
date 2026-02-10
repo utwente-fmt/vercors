@@ -1272,25 +1272,25 @@ case class CPPToCol[G](
 
         val attrs = maybeAttrSpecSeq.map(convert(_)).getOrElse(Seq())
 
-        CPPLambdaDeclarator(pcs)
+        CPPLambdaDeclarator(pcs, attrs)
       }
       case LambdaDeclarator0(_, _, _, _, _, _, _) => ??(decl)
     }
 
-  def convert(implicit attrSpecSeq: AttributeSpecifierSeqContext): Seq[String] =
+  def convert(implicit attrSpecSeq: AttributeSpecifierSeqContext): Seq[CPPAttribute[G]] =
     attrSpecSeq match {
       case AttributeSpecifierSeq0(attrSpec) => convert(attrSpec)
       case AttributeSpecifierSeq1(attrSpecSeq, attrSpec) =>
         convert(attrSpecSeq) ++ convert(attrSpec)
     }
 
-  def convert(implicit attrSpec: AttributeSpecifierContext): Seq[String] =
+  def convert(implicit attrSpec: AttributeSpecifierContext): Seq[CPPAttribute[G]] =
     attrSpec match {
       case AttributeSpecifier0(_, _, Some(attrList), _, _) => convert(attrList)
       case _ => ??(attrSpec)
     }
 
-  def convert(implicit attrList: AttributeListContext): Seq[String] =
+  def convert(implicit attrList: AttributeListContext): Seq[CPPAttribute[G]] =
     attrList match {
       case AttributeList0(attr) => Seq(convert(attr))
       case AttributeList2(attr, _, attrL) =>
@@ -1298,12 +1298,36 @@ case class CPPToCol[G](
       case _ => ??(attrList)
     }
 
-  def convert(implicit attr: AttributeContext): String =
+  def convert(implicit attr: AttributeContext): CPPAttribute[G] =
     attr match {
-      case Attribute0(cppId, None) => convert(cppId)
-      case Attribute1(attributeNamespace, _, cppId, None) => {}
+      case Attribute0(cppId, None) => new CPPAttribute(convert(cppId), Seq())
+      case Attribute1(attrNS, _, cppId, Some(attrArg)) =>
+        new CPPAttribute(convert(attrNS)+"::"+convert(cppId), convert(attrArg))
       case _ => ??(attr)
     }
+
+  def convert(implicit attrArg: AttributeArgumentClauseContext): Seq[Expr[G]] =
+    attrArg match {
+      case AttributeArgumentClause0(_, Some(balancedTokenSeq), _) => convert(balancedTokenSeq)
+      case AttributeArgumentClause0(_, None, _) => Seq()
+    }
+
+  def convert(implicit balancedtokenSeq: BalancedTokenSeqContext): Seq[Expr[G]] =
+    balancedtokenSeq match {
+      case BalancedTokenSeq0(balancedToken) => convert(balancedToken)
+      case BalancedTokenSeq1(balancedToken, balancedTokenSeq) => convert(balancedToken) ++ convert(balancedTokenSeq)
+  }
+
+  def convert(implicit balancedToken: BalancedtokenContext): Seq[Expr[G]] =
+    balancedToken match {
+      case Balancedtoken0(_, bts, _) => convert(bts)
+      case Balancedtoken3(pExpression) => Seq(convert(pExpression))
+      case Balancedtoken4(pExpression, _, bts) => Seq(convert(pExpression)) ++ convert(bts)
+      case _ => ??(balancedToken)
+    }
+
+  def convert(implicit attrNS: AttributeNamespaceContext): String =
+    attrNS match { case AttributeNamespace0(cppId) => convert(cppId) }
 
   def convert(expr: LangExprContext): Expr[G] =
     expr match { case LangExpr0(expr) => convert(expr) }

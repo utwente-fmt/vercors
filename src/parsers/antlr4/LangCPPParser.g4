@@ -541,20 +541,27 @@ attributeNamespace: clangppIdentifier;
 
 attributeArgumentClause: LeftParen balancedTokenSeq? RightParen;
 
-balancedTokenSeq: balancedtoken+;
+balancedTokenSeq:
+    balancedtoken
+    | balancedtoken balancedTokenSeq;
 
 balancedtoken:
 	LeftParen balancedTokenSeq RightParen
 	| LeftBracket balancedTokenSeq RightBracket
 	| LeftBrace balancedTokenSeq RightBrace
-	| ~(
-		LeftParen
-		| RightParen
-		| LeftBrace
-		| RightBrace
-		| LeftBracket
-		| RightBracket
-	)+;
+	| primaryExpression
+	| primaryExpression Comma balancedTokenSeq
+//	Commenting out these lines to match easier on the arguments.
+//	If these are included, the arguments cannot be parsed, since the generation does not work anymore.
+//	| ~(
+//		LeftParen
+//		| RightParen
+//		| LeftBrace
+//		| RightBrace
+//		| LeftBracket
+//		| RightBracket
+//	)+
+	;
 
 // Declarators
 initDeclaratorList:

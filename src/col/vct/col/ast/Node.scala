@@ -3294,8 +3294,8 @@ final class CPPParam[G](
 )(implicit val o: Origin)
     extends Declaration[G] with CPPParamImpl[G]
 @family
-final class CPPAttribute[G](val attr: String)(implicit val o: Origin)
-    extends Declaration[G] with CPPAttributeImpl[G]
+final class CPPAttribute[G](val name: String, val args: Seq[Expr[G]])(implicit val o: Origin)
+    extends NodeFamily[G] with CPPAttributeImpl[G]
 
 @family
 sealed trait CPPDeclarator[G] extends NodeFamily[G] with CPPDeclaratorImpl[G]
@@ -3315,7 +3315,8 @@ final case class CPPTypedFunctionDeclarator[G](
     inner: CPPDeclarator[G],
 )(implicit val o: Origin)
     extends CPPDeclarator[G] with CPPTypedFunctionDeclaratorImpl[G]
-final case class CPPLambdaDeclarator[G](params: Seq[CPPParam[G]])(
+
+final case class CPPLambdaDeclarator[G](params: Seq[CPPParam[G]], attrs: Seq[CPPAttribute[G]])(
     implicit val o: Origin
 ) extends CPPDeclarator[G] with CPPLambdaDeclaratorImpl[G]
 final case class CPPName[G](name: String)(implicit val o: Origin)
@@ -3471,6 +3472,12 @@ final case class SYCLTLocalAccessor[G](
     extends SYCLTConstructableClass[G] with SYCLTLocalAccessorImpl[G]
 final case class SYCLTAccessMode[G]()(implicit val o: Origin)
     extends SYCLTClass[G] with SYCLTAccessModeImpl[G]
+final case class SYCLTSubGroup[G]()(implicit val o: Origin)
+  extends SYCLTConstructableClass[G] with SYCLTSubGroupImpl[G]
+// TODO ÖS Add the subgroup types here
+//final case class SYCLTSubGroup[G]()(implicit val o: Origin)
+//  extends SYCLTClass[G] with SYCLTSubGroupImpl[G]
+
 
 sealed trait SYCLClassObject[G] extends CPPExpr[G]
 final case class SYCLRange[G](dimensions: Seq[Expr[G]])(implicit val o: Origin)

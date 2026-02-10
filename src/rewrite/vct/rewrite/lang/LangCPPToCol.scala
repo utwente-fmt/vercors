@@ -241,6 +241,33 @@ case object LangCPPToCol {
       }
   }
 
+
+  private case class SYCLSubGroupSeqBoundFailureBlame(inv: CPPInvocation[_])
+    extends Blame[SeqBoundFailure] {
+    private case class SYCLSubGroupSeqBoundNegativeError() extends UserError {
+      override def code: String = "syclSubGroupSeqBoundNegative"
+      override def text: String =
+        inv.o.messageInContext("The dimension parameter may not be negative.")
+    }
+
+    private case class SYCLSubGroupSeqBoundExceedsLengthError()
+      extends UserError {
+      override def code: String = "syclSubGroupSeqBoundExceedsLength"
+      override def text: String =
+        inv.o.messageInContext(
+          "The dimension parameter should be smaller than the number of dimensions in the (nd_)item.."
+        )
+    }
+
+    override def blame(error: SeqBoundFailure): Unit =
+      error match {
+        case SeqBoundNegative(_) => throw SYCLSubGroupSeqBoundNegativeError()
+        case SeqBoundExceedsLength(_) =>
+          throw SYCLSubGroupSeqBoundExceedsLengthError()
+      }
+  }
+
+
   private case class SYCLKernelForkNull(node: Fork[_]) extends UserError {
     override def code: String = "syclKernelForkNull"
     override def text: String =
@@ -1230,11 +1257,26 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         getGlobalWorkItemRange(inv)
       case "sycl::nd_item::get_global_linear_id" =>
         getGlobalWorkItemLinearId(inv)
-      case "sycl::sub_group::get_local_id()" => ???
-      case "sycl::sub_group::get_local_range()" => ???
-      case "sycl::sub_group::get_group_id()" => ???
-      case "sycl::sub_group::get_group_range()" => ???
+      case "sycl::sub_group::get_local_id" =>
+        classInstance match {
+          case Some(lref) =>
+                  SeqSubscript[Post](lref,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv)) // TODO change Blame
+          case _ => throw NotApplicable(inv)
+        }
+      case "sycl::sub_group::get_group_id" =>
+        classInstance match {
+          case Some(lref) =>
+            SeqSubscript[Post](lref,c_const(1))(SYCLSubGroupSeqBoundFailureBlame(inv)) // TODO change Blame
+          case _ => throw NotApplicable(inv)
+        }
+      case "sycl::sub_group::get_local_range" => ???
+      case "sycl::sub_group::get_group_range" => ???
+      case "sycl::nd_item::get_sub_group" => {
+        val laneId = AmbiguousMod(getSimpleWorkItemLinearId(inv, LocalScope()),  c_const(32))(PanicBlame("should never happen")) // TODO make the warp size not a constant, lane ID
+        val warpId = AmbiguousDiv(getSimpleWorkItemLinearId(inv, LocalScope()),  c_const(32))(PanicBlame("should never happen"))  // TODO make the warp size not a constant, warp ID
 
+        LiteralSeq(TCInt(), Seq(laneId,warpId))
+      }
       case "sycl::accessor::get_range" =>
         classInstance match {
           case Some(Local(ref)) =>
@@ -2741,4 +2783,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     // TODO: we should not use pointer here
     TPointer(rw.dispatch(t.innerType), None)
   }
+
+  def subgroupToSeq(t: SYCLTSubGroup[Pre]): Type[Post] = TSeq(TCInt())(t.o)
 }
