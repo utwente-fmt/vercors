@@ -18,4 +18,5 @@ class PermissionSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/permissions/SwapLongTwice.java"
   vercors should verify using silicon example "concepts/permissions/SwapLongWrong.java"
   vercors should verify using silicon example "concepts/permissions/frame_error_1.pvl"
+  vercors should verify using silicon example "concepts/permissions/DwLock.pvl"
 }
