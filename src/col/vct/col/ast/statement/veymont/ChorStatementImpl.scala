@@ -25,6 +25,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
       case assume: Assume[G] => Seq(assume.assn)
       case inhale: Inhale[G] => Seq(inhale.res)
       case exhale: Exhale[G] => Seq(exhale.res)
+      case label: Label[G] => Seq()
     }).flatMap(unfoldStar)
 
   // All explicitly mentioned endpoints in the relevant expressions.
@@ -51,7 +52,7 @@ trait ChorStatementImpl[G] extends ChorStatementOps[G] with StatementImpl[G] {
   def allowed: Boolean =
     inner match {
       case _: Branch[G] | _: Loop[G] | _: Assert[G] | _: Inhale[G] |
-          _: Exhale[G] | _: Assume[G] =>
+          _: Exhale[G] | _: Assume[G] | _: Label[G] =>
         true
       case _ => false
     }

@@ -190,7 +190,11 @@ case class LangVeyMontToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteRun(run: PVLChorRun[Pre]): ChorRun[Post] = {
     run.drop()
-    ChorRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(run.o)
+    rw.labelDecls.scope {
+      ChorRun(rw.dispatch(run.body), rw.dispatch(run.contract))(run.blame)(
+        run.o
+      )
+    }
   }
 
   def rewriteStatement(stmt: Statement[Pre]): Statement[Post] =

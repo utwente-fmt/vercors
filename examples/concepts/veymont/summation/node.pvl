@@ -86,17 +86,18 @@ class Node {
     lemmaTotalShift(nodes, tid, 0);
   }
 
-  requires 1 <= tid && tid < |nodes|;
-  requires 0 <= prevId && prevId < |nodes| - 1;
-  requires Perm(backN, 1\2);
+  // requires 1 <= tid && tid < |nodes|;
+  // requires 0 <= prevId && prevId < |nodes| - 1;
+  requires Perm(backN, 1);
+  // requires Perm(backN, 1\2);
   // requires Perm(nodes[X.add(prevId + 1].backN, 1\2);
-  requires Perm(nodes[prevId + 1].backN, 1\2);
+  // requires Perm(nodes[prevId + 1].backN, 1\2);
   // requires X.sub(tid, 1) == prevId;
-  requires tid - 1 == prevId;
+  // requires tid - 1 == prevId;
   context Perm(n, 1\2);
   ensures Perm(backN, 1);
   ensures backN == n;
-  void updateBackN(seq<Node> nodes, int prevId) {
+  void updateBackN() { // seq<Node> nodes) { // , int prevId) {
     backN = n;
   }
 
@@ -130,9 +131,10 @@ requires 0 <= i && i < size;
 ensures 0 <= \result && \result < size;
 pure int prev(int i, int size) = mod(i + 1, size);
 
-requires (\forall* int i = 0 .. |nodes|; Perm(nodes[i].n, read));
-pure boolean nLessThanLength(seq<Node> nodes) =
-  (\forall int j=0..|nodes|; nodes[j].n < |nodes| - 1);
+// Not sure why this was ever here?
+// requires (\forall* int i = 0 .. |nodes|; Perm(nodes[i].n, read));
+// pure boolean nLessThanLength(seq<Node> nodes) =
+//   (\forall int j=0..|nodes|; nodes[j].n < |nodes| - 1);
 
 inline resource wfNodes(seq<Node> nodes) = nn(nodes);
 

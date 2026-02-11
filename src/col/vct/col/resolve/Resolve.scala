@@ -476,10 +476,10 @@ case object ResolveReferences extends LazyLogging {
           .appendTypeEnv(adt.typeArgs.map(v => (v, TVar[G](v.ref))).toMap)
       case chor: Choreography[G] =>
         ctx.copy(currentThis = Some(RefChoreography(chor))).declare(chor.decls)
-          .declare(chor.endpoints).declare(chor.params)
+          .declare(chor.endpoints).declare(chor.params ++ scanLabels(chor.run))
       case chor: PVLChoreography[G] =>
         ctx.copy(currentThis = Some(RefPVLChoreography(chor)))
-          .declare(chor.args).declare(chor.declarations)
+          .declare(chor.args).declare(chor.declarations ++ scanLabels(chor))
       case comm: PVLCommunicateStatement[G] =>
         // TODO (RR): This allows nodes[i := i .. i], which should instead be an error
         (comm.comm.sender match {

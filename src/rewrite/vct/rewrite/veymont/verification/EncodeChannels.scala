@@ -12,7 +12,10 @@ import vct.col.util.AstMatchHelpers.EndpointName
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
 import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.VeymontContext
-import vct.rewrite.veymont.verification.EncodeChannels.{ExhaleFailedToChannelInvariantNotEstablished, UnsupportedOffsetExpression}
+import vct.rewrite.veymont.verification.EncodeChannels.{
+  ExhaleFailedToChannelInvariantNotEstablished,
+  UnsupportedOffsetExpression,
+}
 
 object EncodeChannels extends RewriterBuilder {
   override def key: String = "encodeChannels"
@@ -192,9 +195,9 @@ case class EncodeChannels[Pre <: Generation]()
             case Minus(Local(Ref(u)), offset) if u == v =>
               (
                 // d: compute receiver from sender
-                v => Plus(v, dispatch(offset)),
-                // d': compute sender from receiver
                 v => Minus(v, dispatch(offset)),
+                // d': compute sender from receiver
+                v => Plus(v, dispatch(offset)),
               )
             case Local(_) => (v => v, v => v)
             case e => throw UnsupportedOffsetExpression(e)

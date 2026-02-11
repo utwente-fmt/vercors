@@ -3798,6 +3798,7 @@ final class PVLChoreography[G](
     val args: Seq[Variable[G]],
 )(val blame: Blame[ChoreographyFailure])(implicit val o: Origin)
     extends GlobalDeclaration[G] with PVLChoreographyImpl[G] with Declarator[G]
+@scopes[LabelDecl]
 final class PVLChorRun[G](
     val body: Statement[G],
     val contract: ApplicableContract[G],

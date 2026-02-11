@@ -1,4 +1,7 @@
-class Dummy { }
+class Dummy {
+    ensures false;
+    void magic();
+}
 
 adt  X {
   pure int add(int x, int y);
@@ -48,8 +51,8 @@ choreography summation(int N, seq<int> vals) {
       Perm(nodes[i].n, 1) ** Perm(nodes[i].frontN, 1) ** Perm(nodes[i].backN, 1\2) **
       Perm(nodes[i].dummySend, 1) ** Perm(nodes[i].dummyReceive, 1)
     );
-    loop_invariant (\endpoint nodes[i := 0 .. N - 1], ∀int j = i + 1; Perm(nodes[j].backN, 1\2));
-    loop_invariant (\endpoint nodes[N - 1]; Perm(nodes[0].backN, 1\2));
+    loop_invariant (\endpoint nodes[i := 0 .. N - 1], ∀int j = i + 1; Perm(nodes[j].backN, 1\2) ** {: nodes[j] :}.backN == {: nodes[i] :}.n);
+    loop_invariant (\endpoint nodes[N - 1]; Perm(nodes[0].backN, 1\2) ** nodes[0].backN == nodes[N - 1].n);
     loop_invariant (\endpoint nodes[i := 0 .. N - 1];
       0 <= {: nodes[i].n :} ** {: nodes[i].n :} <= N - 1 **
       {: nodes[i].total :} == getTotal(nodes, nodes[i].tid, nodes[i].n) **
@@ -77,23 +80,41 @@ choreography summation(int N, seq<int> vals) {
     // enough to allow both 1) write access for a particular nodes[i], and 2) read access for all nodes[j] with j != i.
     loop_invariant (\chor (\forall int j = 0..N, int k = 0..N; (\endpoint nodes[j]; {: nodes[j].n :}) == (\endpoint nodes[k]; {: nodes[k].n :})));
     while ((\endpoint nodes[i := 0..N]; nodes[i].n < N - 1)) {
+      assert (\endpoint nodes[i := 0 .. N]; nodes[i].backN == nodes[i].n);
+      assert (\endpoint nodes[i := 0 .. N]; nodes[i].frontN == nodes[i].n);
 
       channel_invariant
         Perm(\sender.frontN, 1\2) ** Perm(\receiver.backN, 1\2) **
-        {: \sender.frontN :} == {: \receiver.backN :} ** 0 <= {: \sender.frontN :} ** {: \sender.frontN :} <= N **
+        {: \sender.frontN :}  == {: \receiver.backN :} ** 0 <= {: \sender.frontN :} ** {: \sender.frontN :} <= N **
         {: \msg :} == {: getTotal(nodes, \sender.tid, \sender.frontN) :};
       communicate nodes[i := 0 .. N - 1]: nodes[i].outMessage -> nodes[i + 1].inMessage;
+      label afterParamComm;
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: nodes[j].frontN :} == {: nodes[i].backN :});
       channel_invariant
         Perm(\sender.frontN, 1\2) ** Perm(\receiver.backN, 1\2) **
         \sender.frontN == \receiver.backN ** 0 <= \sender.frontN ** \sender.frontN <= N **
         \msg == getTotal(nodes, \sender.tid, \sender.frontN);
       communicate nodes[0].inMessage <- nodes[N - 1].outMessage;
 
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: nodes[j].frontN :} == \old[afterParamComm](nodes[j].frontN));
+      assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].backN :} == \old[afterParamComm](nodes[i].backN));
+
+      // assert (\endpoint nodes[i := 0 .. N]; Perm(nodes[i].backN, 1) ** nodes[i].backN == nodes[i].n);
+      // assert (\endpoint nodes[i := 0 .. N]; Perm(nodes[i].frontN, 1\2) ** nodes[i].frontN == nodes[i].n);
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: nodes[j].frontN :} == {: nodes[i].backN :});
+      // assert (\endpoint nodes[0]; {: nodes[N - 1].frontN :} == {: nodes[0].backN :});
+      // assert (\endpoint nodes[i := 0 .. N]; nodes[i].backN == nodes[i].n);
+      // endpoint `witness`: `witness`.magic();
+
       endpoint nodes[tid := 0 .. N]: nodes[tid].processMessage();
       // endpoint nodes[tid := 0 .. N]: nodes[tid].getTotalProofStep();
       // endpoint nodes[tid := 0 .. N]: nodes[tid].mergeBackNPerms(nodes);
-      // TODO (RR): updateBackN contract needs to be adjusted to handle case for 0 (wraparound case)
-      endpoint nodes[tid := 0 .. N]: nodes[tid].updateBackN(nodes, tid - 1);
+      endpoint nodes[tid := 1 .. N]: nodes[tid].updateBackN(); // nodes, tid - 1);
+      endpoint nodes[0]: nodes[0].updateBackN(); // nodes, N - 1);
+
+      // TODO (RR): Probably I also need to punch through the snapshots here, like I did with frontN and backN above.
+
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: nodes[j].frontN :} + 1 == {: nodes[i].backN :});
 
       // TODO (RR): \receiver.frontN fails here. Probably something with sub/add again?
       channel_invariant Perm(\sender.backN, 1\2) ** Perm(\receiver.frontN, 1\2) ** {: \receiver.frontN :} + 1 == {: \sender.backN :};
@@ -102,6 +123,8 @@ choreography summation(int N, seq<int> vals) {
       communicate nodes[N - 1].dummyReceive <- nodes[0].dummySend;
 
       endpoint nodes[tid := 0 .. N]: nodes[tid].updateFrontN();
+
+      assert (\endpoint nodes[i := 0 .. N]; Perm(nodes[i].n, 1));
     }
 
     // Generalize each result from
