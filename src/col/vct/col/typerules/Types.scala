@@ -88,8 +88,10 @@ object Types {
       case (pt: PointerType[G], _: TNull[G]) => pt.asNullable
       case (_: TNull[G], p: PointerArrayType[G]) => p.asNullable
       case (p: PointerArrayType[G], _: TNull[G]) => p.asNullable
-      case (_: TNull[G], p: TConstPointerArray[G]) => TConstPointer(p.element)
-      case (p: TConstPointerArray[G], _: TNull[G]) => TConstPointer(p.element)
+      case (_: TNull[G], p: TImmutablePointerArray[G]) =>
+        TImmutablePointer(p.element)
+      case (p: TImmutablePointerArray[G], _: TNull[G]) =>
+        TImmutablePointer(p.element)
       case (_: TNull[G], p: CTArray[G]) => p.asPointer.get.asNullable
       case (p: CTArray[G], _: TNull[G]) => p.asPointer.get.asNullable
 

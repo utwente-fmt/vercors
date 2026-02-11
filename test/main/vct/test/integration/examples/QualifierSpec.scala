@@ -21,66 +21,6 @@ class ConstQualifierSpec extends VercorsSpec {
     """/*@ context x!=NULL ** \pointer_length(x) == 1 ** Perm(x[0], write); ensures x[0] == 1;@*/
   void f(int * const x){x[0] = 1;}"""
 
-  vercors should verify using silicon in "Const pointers add" c
-"""
-#include <stdlib.h>
-
-/*@
-  context_everywhere n > 0;
-  context_everywhere x0 != NULL ** \pointer_length(x0) == n;
-  context_everywhere x1 != NULL ** \pointer_length(x1) == n;
-  ensures \result != NULL ** \pointer_length(\result) == n ** (\forall* int i; 0<=i && i<n; Perm(\result[i], write));
-  ensures (\forall int i; 0 <= i && i <n; \result[i] == x0[i] + x1[i]);
-@*/
-int* add(int n, const int* x0, const int* x1){
-  int* res = (int*) malloc(n*sizeof(int));
-  //@ assume res != NULL;
-  /*@
-    loop_invariant 0 <= i && i <= n;
-    loop_invariant res != NULL ** \pointer_length(res) == n ** (\forall* int i; 0<=i && i<n; Perm(res[i], write));
-    loop_invariant (\forall int j; 0 <= j && j < i; res[j] == x0[j] + x1[j]);
-  @*/
-  for(int i=0; i<n; i++){
-    res[i] = x0[i] + x1[i];
-  }
-  return res;
-}
-"""
-
-  vercors should error withCode "disallowedQualifiedCoercion" in "Cast unique pointer" c
-    """
-struct vec {
-  int a;
-  int b;
-};
-
-  /*@ requires Perm(v.a, write);
-  @*/
-int f(struct vec v){
-    v.a = 1;
-    const int* n = (const int*) &v;
-    //@ assert *n == 1;
-}
-"""
-
-  vercors should error withCode "noPermissionForConstPointer" in "Specify perm const pointer" c
-  """
-/*@
- requires x!= NULL ** \pointer_length(x)==1 ** Perm(*x, 1\2);
-@*/
-void f(const int* x){
-  int y = x[0];
-}
-"""
-
-  vercors should verify using silicon in "Return head of const pointer" c
-    """
-//@ context a!= NULL ** \pointer_length(a)==1;
-int foo(const int *a) {
-    return *a;
-}
-"""
-
   vercors should verify using silicon in "Take address of const int" c
     """
 int f() {
@@ -106,31 +46,104 @@ int f(const int a) {
     return *b;
 }
 """
+}
 
+class ImmutableQualifierSpec extends VercorsSpec {
+  vercors should verify using silicon in "Assign to init immutable" c """void f(){/*@immutable*/ int x = 2; /*@ assert x == 2; @*/}"""
+  vercors should error withCode "disallowedConstAssignment" in "Assign to param immutable" c """void f(/*@immutable*/ int x){x = 0;}"""
 
-  /* TODO: This is possible if we want it. But it would be best to do this in one go together
-   *  with making unique types work for pointer fields && it takes quite some work.
-   */
-  vercors should error withCode "disallowedQualifiedType" in  "Take address of const int field" c
+  vercors should verify using silicon in "immutable pointers add" c
+    """
+#include <stdlib.h>
+
+/*@
+  context_everywhere n > 0;
+  context_everywhere x0 != NULL ** \pointer_length(x0) == n;
+  context_everywhere x1 != NULL ** \pointer_length(x1) == n;
+  ensures \result != NULL ** \pointer_length(\result) == n ** (\forall* int i; 0<=i && i<n; Perm(\result[i], write));
+  ensures (\forall int i; 0 <= i && i <n; \result[i] == x0[i] + x1[i]);
+@*/
+int* add(int n, /*@immutable*/ int* x0, /*@immutable*/ int* x1){
+  int* res = (int*) malloc(n*sizeof(int));
+  //@ assume res != NULL;
+  /*@
+    loop_invariant 0 <= i && i <= n;
+    loop_invariant res != NULL ** \pointer_length(res) == n ** (\forall* int i; 0<=i && i<n; Perm(res[i], write));
+    loop_invariant (\forall int j; 0 <= j && j < i; res[j] == x0[j] + x1[j]);
+  @*/
+  for(int i=0; i<n; i++){
+    res[i] = x0[i] + x1[i];
+  }
+  return res;
+}
+"""
+
+  vercors should error withCode "disallowedQualifiedCoercion" in "Cast immutable pointer" c
     """
 struct vec {
-  const int a;
+  int a;
+  int b;
+};
+
+  /*@ requires Perm(v.a, write);
+  @*/
+int f(struct vec v){
+    v.a = 1;
+    /*@immutable*/ int* n = (/*@immutable*/ int*) &v;
+    //@ assert *n == 1;
+}
+"""
+
+  vercors should error withCode "noPermissionForConstPointer" in "Specify perm immutable pointer" c
+    """
+/*@
+ requires x!= NULL ** \pointer_length(x)==1 ** Perm(*x, 1\2);
+@*/
+void f(/*@immutable*/ int* x){
+  int y = x[0];
+}
+"""
+
+  vercors should verify using silicon in "Return head of immutable pointer" c
+    """
+//@ context a!= NULL ** \pointer_length(a)==1;
+int foo(/*@immutable*/ int *a) {
+    return *a;
+}
+"""
+
+  vercors should verify using silicon in "Take address of immutable int" c
+    """
+int f() {
+    /*@immutable*/ int a = 0;
+    /*@immutable*/ int *b = &a;
+    return *b;
+}
+"""
+
+  /* TODO: This is possible if we want it. But it would be best to do this in one go together
+ *  with making unique types work for pointer fields && it takes quite some work.
+ */
+  vercors should error withCode "disallowedQualifiedType" in  "Take address of immutable int field" c
+    """
+struct vec {
+  /*@immutable*/ int a;
 };
 
 //@ context Perm(v, 1\2);
 int f(struct vec v) {
-  const int *b = &v.a;
+  /*@immutable*/ int *b = &v.a;
   return *b;
 }
 """
 
   vercors should verify using silicon in "Take address of const global int" c
     """
-const int a = 5;
+/*@immutable*/ int a = 5;
 
 //@ ensures \result == 5;
 int foo() {
-   const int * b = &a;
+   /*@immutable*/ int * b = &a;
    return *b;
 }
 """
@@ -432,7 +445,7 @@ struct vec {
   """
 }
 
-class QualifierSpec extends VercorsSpec {
+class UniqueQualifierSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/unique/arrays.c"
 
   vercors should verify using silicon in "same uniques pointer parameter" c """void f(/*@ unique<1> @*/ int* x0, /*@ unique<1> @*/ int* x1){x1 = x0;}"""

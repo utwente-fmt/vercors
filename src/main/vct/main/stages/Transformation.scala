@@ -489,7 +489,7 @@ case class SilverTransformation(
         SmtlibToProverTypes,
         EnumToDomain,
         ImportArray.withArg(adtImporter),
-        ImportConstPointer.withArg(adtImporter),
+        ImportImmutablePointer.withArg(adtImporter),
         EncodeIntegerPointerCast,
         ImportPointer.withArg(adtImporter),
         ImportMapCompat.withArg(adtImporter),

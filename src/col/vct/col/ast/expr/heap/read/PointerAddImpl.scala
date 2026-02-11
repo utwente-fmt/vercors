@@ -3,8 +3,8 @@ package vct.col.ast.expr.heap.read
 import vct.col.ast.{
   PointerAdd,
   PointerArrayType,
-  TConstPointer,
-  TNonNullConstPointer,
+  TImmutablePointer,
+  TNonNullImmutablePointer,
   TNonNullPointer,
   TPointer,
   Type,
@@ -17,10 +17,10 @@ trait PointerAddImpl[G] extends PointerAddOps[G] {
   override def t: Type[G] =
     pointer.t match {
       case a: PointerArrayType[G] =>
-        (a.isNonNull, a.isConst) match {
-          case (true, true) => TNonNullConstPointer(a.element)
+        (a.isNonNull, a.isImmutable) match {
+          case (true, true) => TNonNullImmutablePointer(a.element)
           case (true, false) => TNonNullPointer(a.element, a.unique)
-          case (false, true) => TConstPointer(a.element)
+          case (false, true) => TImmutablePointer(a.element)
           case (false, false) => TPointer(a.element, a.unique)
         }
       case t => t

@@ -168,6 +168,7 @@ case object C {
   def qualify[G](t: Type[G], q: CTypeQualifier[G]): Type[G] = {
     q match {
       case CConst() => TConst(t)(q.o)
+      case CImmutable() => TImmutable(t)(q.o)
       case CUnique(i) => TUnique(t, i)(q.o)
       case pf @ CUniquePointerField(_, i) =>
         val field: CStructMemberDeclarator[G] = pf.ref.get.decls

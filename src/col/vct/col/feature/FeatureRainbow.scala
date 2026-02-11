@@ -33,7 +33,8 @@ class FeatureRainbow[G] {
       case node: ArrayLocation[G] => Arrays
       case node: NewArray[G] => Arrays
       case node: NewPointer[G] => Arrays
-      case node: NewConstPointer[G] => return Seq(Arrays, AxiomaticLibraryType)
+      case node: NewImmutablePointer[G] =>
+        return Seq(Arrays, AxiomaticLibraryType)
       case node: ArraySubscript[G] => Arrays
       case node: Length[G] => Arrays
       case node: TArray[G] => Arrays
@@ -81,7 +82,7 @@ class FeatureRainbow[G] {
       case node: OptSomeTyped[G] => AxiomaticLibraryType
       case node: TNull[G] => AxiomaticLibraryType
       case node: TVector[G] => AxiomaticLibraryType
-      case node: TConstPointer[G] => AxiomaticLibraryType
+      case node: TImmutablePointer[G] => AxiomaticLibraryType
 
       case node: Assert[G] => BasicStatement
       case node: Assume[G] => BasicStatement

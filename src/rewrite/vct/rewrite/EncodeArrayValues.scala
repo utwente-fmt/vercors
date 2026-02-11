@@ -119,7 +119,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       : mutable.Map[(Type[Pre], Option[BigInt]), Procedure[Post]] = mutable
     .Map()
 
-  val constPointerArrayCreationMethods
+  val immutablePointerArrayCreationMethods
       : mutable.Map[Type[Pre], Procedure[Post]] = mutable.Map()
 
   val freeMethods: mutable.Map[PointerType[
@@ -511,15 +511,15 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         access: Variable[Post] => Expr[Post],
         innerType: Type[Post],
         unique: Option[BigInt],
-        isConst: Boolean,
+        isImmutable: Boolean,
     ): Expr[Post] = {
       implicit val o: Origin = arrayCreationOrigin
       val zero = const[Post](0)
       val t =
-        if (!isConst)
+        if (!isImmutable)
           TNonNullPointer(innerType, unique)
         else
-          TNonNullConstPointer(innerType)
+          TNonNullImmutablePointer(innerType)
       val cast = Cast(access(i), TypeValue(t))
       val body = (zero <= i.get && i.get < size) ==> (cast === access(i))
       Forall(Seq(i), Seq(Seq(cast)), body)
@@ -536,7 +536,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
       elementType: Type[Pre],
       nullable: Boolean,
       unique: Option[BigInt],
-      isConst: Boolean,
+      isImmutable: Boolean,
   ) = {
     implicit val o: Origin = arrayCreationOrigin
     // !nullable? then 'ar != null ==> ...'; otherwise 'ar != null ** ...'
@@ -568,7 +568,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           (PointerBlockOffset(result)(FramedPtrBlockOffset) === zero)
 
       // Pointer location needs pointer add, not pointer subscript
-      if (!isConst && elementType.asByValueClass.isEmpty) {
+      if (!isImmutable && elementType.asByValueClass.isEmpty) {
         ensures =
           ensures &* makeStruct.makePerm(
             i =>
@@ -603,18 +603,18 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
         } else { ensures }
 
       val returnT = {
-        if (isConst && !nullable)
-          TNonNullConstPointer(innerType)
-        else if (isConst)
-          TConstPointer(innerType)
+        if (isImmutable && !nullable)
+          TNonNullImmutablePointer(innerType)
+        else if (isImmutable)
+          TImmutablePointer(innerType)
         else if (!nullable)
           TNonNullPointer(innerType, unique)
         else
           TPointer(innerType, unique)
       }
       val name =
-        if (isConst)
-          "make_const_pointer_array_" + innerType.toString
+        if (isImmutable)
+          "make_immutable_pointer_array_" + innerType.toString
         else
           "make_pointer_array_" + innerType.toString + "" +
             (if (nullable)
@@ -667,7 +667,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
             element,
             nullable = true,
             unique,
-            isConst = false,
+            isImmutable = false,
           ),
         )
         ProcedureInvocation[Post](
@@ -685,7 +685,7 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
             element,
             nullable = false,
             unique,
-            isConst = false,
+            isImmutable = false,
           ),
         )
         ProcedureInvocation[Post](
@@ -696,14 +696,14 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(PointerArrayCreationFailed(newPointerArr, newPointerArr.blame))
-      case ncpa @ NewConstPointer(element, size) =>
-        val method = constPointerArrayCreationMethods.getOrElseUpdate(
+      case ncpa @ NewImmutablePointer(element, size) =>
+        val method = immutablePointerArrayCreationMethods.getOrElseUpdate(
           (element),
           makePointerCreationMethodFor(
             element,
             nullable = true,
             None,
-            isConst = true,
+            isImmutable = true,
           ),
         )
         ProcedureInvocation[Post](
@@ -714,14 +714,14 @@ case class EncodeArrayValues[Pre <: Generation]() extends Rewriter[Pre] {
           Nil,
           Nil,
         )(PointerArrayCreationFailed(ncpa, ncpa.blame))
-      case ncpa @ NewNonNullConstPointer(element, size) =>
-        val method = constPointerArrayCreationMethods.getOrElseUpdate(
+      case ncpa @ NewNonNullImmutablePointer(element, size) =>
+        val method = immutablePointerArrayCreationMethods.getOrElseUpdate(
           (element),
           makePointerCreationMethodFor(
             element,
             nullable = false,
             None,
-            isConst = true,
+            isImmutable = true,
           ),
         )
         ProcedureInvocation[Post](

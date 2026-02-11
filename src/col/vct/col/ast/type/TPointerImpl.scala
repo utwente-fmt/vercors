@@ -7,7 +7,7 @@ import vct.col.ast.ops.TPointerOps
 trait TPointerImpl[G] extends TPointerOps[G] {
   this: TPointer[G] =>
 
-  val isConst = false
+  val isImmutable = false
   val isNonNull = false
 
   override def layoutSplitDeclarator(implicit ctx: Ctx): (Doc, Doc) = {
