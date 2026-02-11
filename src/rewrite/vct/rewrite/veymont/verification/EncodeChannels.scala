@@ -10,8 +10,9 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.AstMatchHelpers.EndpointName
 import vct.col.util.{AstBuildHelpers, SuccessionMap}
+import vct.result.VerificationError.UserError
 import vct.rewrite.veymont.VeymontContext
-import vct.rewrite.veymont.verification.EncodeChannels.ExhaleFailedToChannelInvariantNotEstablished
+import vct.rewrite.veymont.verification.EncodeChannels.{ExhaleFailedToChannelInvariantNotEstablished, UnsupportedOffsetExpression}
 
 object EncodeChannels extends RewriterBuilder {
   override def key: String = "encodeChannels"
@@ -23,6 +24,12 @@ object EncodeChannels extends RewriterBuilder {
       extends Blame[ExhaleFailed] {
     override def blame(error: ExhaleFailed): Unit =
       comm.blame.blame(ChannelInvariantNotEstablished(error.failure, comm))
+  }
+
+  case class UnsupportedOffsetExpression(expr: Expr[_]) extends UserError {
+    override def code: String = "unexpectedOffsetExpression"
+    override def text: String =
+      expr.o.messageInContext("This offset expression is not supported")
   }
 }
 
@@ -173,18 +180,25 @@ case class EncodeChannels[Pre <: Generation]()
         // Compute the d/d' functions. d computes the receiver index given the sender index.
         // d' (= d_inv) computes the sender index given the receiver index.
         // Here we assume that `offset` is constant and doesn't depend on `v_`
-        val (d, d_inv): (Expr[Post] => Expr[Post], Expr[Post] => Expr[Post]) = i match {
-          case Plus(Local(Ref(v_)), offset) =>
-            assert(v_ == v)
-            (
-              // d: compute receiver from sender
-              v => Plus(v, dispatch(offset)),
-              // d': compute sender from receiver
-              v => Minus(v, dispatch(offset))
-            )
-          case Local(_) =>
-            (v => v, v => v)
-        }
+        val (d, d_inv): (Expr[Post] => Expr[Post], Expr[Post] => Expr[Post]) =
+          i match {
+            case Plus(Local(Ref(u)), offset) if u == v =>
+              (
+                // d: compute receiver from sender
+                v => Plus(v, dispatch(offset)),
+                // d': compute sender from receiver
+                v => Minus(v, dispatch(offset)),
+              )
+            case Minus(Local(Ref(u)), offset) if u == v =>
+              (
+                // d: compute receiver from sender
+                v => Plus(v, dispatch(offset)),
+                // d': compute sender from receiver
+                v => Minus(v, dispatch(offset)),
+              )
+            case Local(_) => (v => v, v => v)
+            case e => throw UnsupportedOffsetExpression(e)
+          }
 
         /*
         - define new p in ADT of type senderClass -> TRational
@@ -194,6 +208,7 @@ case class EncodeChannels[Pre <: Generation]()
         - replace sender, receiver, msg appropriately
          */
 
+        // TODO (RR): Also, make sure to check if there even *is* enough permission before assuming anything about eps
         val eps =
           function(
             args = Seq(new Variable(dispatch(sender.singleType))),
@@ -267,25 +282,23 @@ case class EncodeChannels[Pre <: Generation]()
                 succ(receiver),
                 succ(dstField),
                 Sender(comm.ref),
-                low,
-                high,
-                v,
-                i,
+                dispatch(low),
+                dispatch(high),
+                d,
                 e,
               )(comm.o)
             }))(PanicBlame("TODO: Forward exhale failed"))
           val inhale = Inhale(foldStar(unfoldStar(comm.invariant).map { e =>
             quantifyInvPart(
               comm.ref,
-              succ(sender),
-              succ(srcField),
               succ(receiver),
               succ(dstField),
+              succ(sender),
+              succ(srcField),
               Receiver(comm.ref),
-              low,
-              high,
-              v,
-              i,
+              d(dispatch(low)),
+              d(dispatch(high)),
+              d_inv,
               e,
             )(comm.o)
           }))
@@ -357,8 +370,8 @@ case class EncodeChannels[Pre <: Generation]()
       // Indicator for sending (exhaling, primary) or receiving (inhaling, dependent) context
       ctx: ChannelInvPrimitive[Pre],
       // low..high range of the primary party
-      low: Expr[Pre],
-      high: Expr[Pre],
+      low: Expr[Post],
+      high: Expr[Post],
       // Function to compute index of the dependent party
       d: Expr[Post] => Expr[Post],
       // Invariant part to be encoded. Ranges over \sender, \receiver, \msg
@@ -367,8 +380,13 @@ case class EncodeChannels[Pre <: Generation]()
     // Only allow sender/receiver roles
     assert(ctx.role.invert.isDefined)
 
-    val eContainsPrimary = e.exists { case cp: ChannelInvPrimitive[Pre] => cp.role == ctx.role || cp.role == ChannelInvRole.Message }
-    val eContainsDependent = e.exists { case cp: ChannelInvPrimitive[Pre] => cp.complements(ctx) }
+    val eContainsPrimary =
+      true || e.exists { case cp: ChannelInvPrimitive[Pre] =>
+        cp.role == ctx.role || cp.role == ChannelInvRole.Message
+      }
+    val eContainsDependent = e.exists { case cp: ChannelInvPrimitive[Pre] =>
+      cp.complements(ctx)
+    }
 
     //// Binders to occur in the wrapping quantifier
     val primaryIndex = new Variable[Post](TInt())(o.where(name = "i"))
@@ -380,14 +398,18 @@ case class EncodeChannels[Pre <: Generation]()
     val msg = Deref(primary, f)(PanicBlame("TODO: Forward blame properly"))
 
     case class RoleSensitiveRewriter() extends Rewriter[Pre] {
-      override val allScopes: AllScopes[Pre, Post] = EncodeChannels.this.allScopes
+      override val allScopes: AllScopes[Pre, Post] =
+        EncodeChannels.this.allScopes
 
-      override def dispatch(expr: Expr[Pre]): Expr[Post] = expr match {
-        case cp: ChannelInvPrimitive[Pre] if cp.role == ctx.role => primary
-        case cp: ChannelInvPrimitive[Pre] if cp.complements(ctx) => dependent
-        case cp: ChannelInvPrimitive[Pre] if cp.role == ChannelInvRole.Message => msg
-        case _ => expr.rewriteDefault()
-      }
+      override def dispatch(expr: Expr[Pre]): Expr[Post] =
+        expr match {
+          case cp: ChannelInvPrimitive[Pre] if cp.role == ctx.role => primary
+          case cp: ChannelInvPrimitive[Pre] if cp.complements(ctx) => dependent
+          case cp: ChannelInvPrimitive[Pre]
+              if cp.role == ChannelInvRole.Message =>
+            msg
+          case _ => expr.rewriteDefault()
+        }
     }
 
     val newE = RoleSensitiveRewriter().dispatch(e)
@@ -427,23 +449,17 @@ case class EncodeChannels[Pre <: Generation]()
     (eContainsPrimary, eContainsDependent) match {
       case (true, true) =>
         EndpointExpr(
-          CommTargetRange(
-            F,
-            RangeBinder(primaryIndex, dispatch(low), dispatch(high)),
-          ),
+          CommTargetRange(F, RangeBinder(primaryIndex, low, high)),
           Seq(dependentIndex),
           (dependentIndex.get === d(primaryIndex.get)) ==> newE,
         )(e.o)
       case (true, false) =>
         EndpointExpr(
-          CommTargetRange(
-            F,
-            RangeBinder(primaryIndex, dispatch(low), dispatch(high)),
-          ),
+          CommTargetRange(F, RangeBinder(primaryIndex, low, high)),
           Seq(),
           newE,
         )(e.o)
-      case (false, true) => assert(false)
+      case (false, true) => ???
       case (false, false) => newE
     }
 
