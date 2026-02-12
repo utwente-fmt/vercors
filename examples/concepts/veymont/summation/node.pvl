@@ -56,12 +56,19 @@ class Node {
   //
   // }
 
-  context Perm(outMessage,1) ** Perm(inMessage,1\2) ** Perm(n,1) ** Perm(total, 1);
+  context Perm(outMessage, 1) ** Perm(inMessage, 1\2) ** Perm(n, 1) ** Perm(total, 1);
+  requires (\forall int i = 0 .. |nodes|; nodes[i] != null);
+  requires |nodes| > 0;
+  requires 0 <= tid && tid < |nodes|;
+  requires 0 <= n && n < |nodes|;
+  requires inMessage == getTotal(nodes, next(tid, |nodes|), n);
+  requires nodes[tid] == this;
   ensures n == \old(n) + 1;
   ensures inMessage == \old(inMessage);
   ensures total == inMessage + v;
   ensures outMessage == total;
-  boolean processMessage() {
+  ensures outMessage == getTotal(nodes, tid, n);
+  boolean processMessage(seq<Node> nodes) {
     total = inMessage + v;
     outMessage = total;
     n++;
@@ -86,18 +93,11 @@ class Node {
     lemmaTotalShift(nodes, tid, 0);
   }
 
-  // requires 1 <= tid && tid < |nodes|;
-  // requires 0 <= prevId && prevId < |nodes| - 1;
   requires Perm(backN, 1);
-  // requires Perm(backN, 1\2);
-  // requires Perm(nodes[X.add(prevId + 1].backN, 1\2);
-  // requires Perm(nodes[prevId + 1].backN, 1\2);
-  // requires X.sub(tid, 1) == prevId;
-  // requires tid - 1 == prevId;
   context Perm(n, 1\2);
   ensures Perm(backN, 1);
   ensures backN == n;
-  void updateBackN() { // seq<Node> nodes) { // , int prevId) {
+  void updateBackN() {
     backN = n;
   }
 
