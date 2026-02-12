@@ -1454,7 +1454,9 @@ final case class CurrentThreadId[G]()(implicit val o: Origin)
 final case class LocalThreadId[G]()(implicit val o: Origin)
     extends Expr[G] with LocalThreadIdImpl[G]
 final case class GlobalThreadId[G]()(implicit val o: Origin)
-    extends Expr[G] with GlobalThreadIdImpl[G]
+  extends Expr[G] with GlobalThreadIdImpl[G]
+final case class SubGroupFuncValue[G]()(implicit val o: Origin)
+  extends Expr[G] with SubGroupFuncValueImpl[G]
 final case class Any[G]()(val blame: Blame[AnyStarError])(
     implicit val o: Origin
 ) extends Expr[G] with AnyImpl[G]
@@ -3398,6 +3400,7 @@ final case class CPPInvocation[G](
     args: Seq[Expr[G]],
     givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])],
     yields: Seq[(Expr[G], Ref[G, Variable[G]])],
+    subgroup_inv: Option[Expr[G]]=None
 )(val blame: Blame[FrontendInvocationError])(implicit val o: Origin)
     extends CPPExpr[G] with CPPInvocationImpl[G] {
   var ref: Option[CPPInvocationTarget[G]] = None
@@ -3474,10 +3477,6 @@ final case class SYCLTAccessMode[G]()(implicit val o: Origin)
     extends SYCLTClass[G] with SYCLTAccessModeImpl[G]
 final case class SYCLTSubGroup[G]()(implicit val o: Origin)
   extends SYCLTConstructableClass[G] with SYCLTSubGroupImpl[G]
-// TODO ÖS Add the subgroup types here
-//final case class SYCLTSubGroup[G]()(implicit val o: Origin)
-//  extends SYCLTClass[G] with SYCLTSubGroupImpl[G]
-
 
 sealed trait SYCLClassObject[G] extends CPPExpr[G]
 final case class SYCLRange[G](dimensions: Seq[Expr[G]])(implicit val o: Origin)

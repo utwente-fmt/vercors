@@ -3,19 +3,10 @@ package vct.main.stages
 import com.typesafe.scalalogging.LazyLogging
 import hre.io.LiteralReadable
 import hre.stages.Stage
-import vct.col.ast.{
-  ApplicableContract,
-  Expr,
-  Function,
-  GlobalDeclaration,
-  VCLLVMFunctionContract,
-  LLVMGlobalSpecification,
-  Program,
-  Verification,
-  VerificationContext,
-}
+import vct.col.ast.{ApplicableContract, Expr, Function, GlobalDeclaration, LLVMGlobalSpecification, Program, VCLLVMFunctionContract, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.origin.{FileSpanningOrigin, Origin, ReadableOrigin}
+import vct.col.print.Ctx
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.rewrite.bip.IsolateBipGlue
@@ -32,14 +23,9 @@ import vct.parsers.ParseResult
 import vct.resources.Resources
 import vct.result.VerificationError.UserError
 
-import java.io.{
-  InputStreamReader,
-  OutputStreamWriter,
-  StringReader,
-  StringWriter,
-}
+import java.io.{InputStreamReader, OutputStreamWriter, StringReader, StringWriter}
 import java.nio.charset.StandardCharsets
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 
 case object Resolution {
   case class InputResolutionError(errors: Seq[CheckError]) extends UserError {
@@ -180,6 +166,11 @@ case class Resolution[G <: Generation](
       })(typedProgram.blame)(typedProgram.o)
     val resolvedProgram = LangSpecificToCol(generatePermissions)
       .dispatch(mergedProgram)
+
+    val target = PathOrStd
+      .Path(Paths.get("some_test_with_bob.col"))
+    target.write { writer => resolvedProgram.write(writer)(Ctx().namesIn(resolvedProgram)) }
+
     resolvedProgram.check match {
       case Nil => // ok
       // PB: This explicitly allows LangSpecificToCol to generate invalid ASTs, and will blame the input for them. The

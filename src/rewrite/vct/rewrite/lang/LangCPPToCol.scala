@@ -2,14 +2,7 @@ package vct.rewrite.lang
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{
-  CPPLocalDeclaration,
-  Expr,
-  FunctionInvocation,
-  InstanceField,
-  Perm,
-  _,
-}
+import vct.col.ast.{CPPLocalDeclaration, Expr, FunctionInvocation, InstanceField, Perm, _}
 import vct.col.ast.util.ExpressionEqualityCheck.isConstantInt
 import vct.col.origin._
 import vct.col.ref.Ref
@@ -17,9 +10,9 @@ import vct.col.resolve.NotApplicable
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
 import vct.col.rewrite.ParBlockEncoder.ParBlockNotInjective
-import vct.col.rewrite.{Generation, ParBlockEncoder, Rewritten}
+import vct.col.rewrite.{Generation, ParBlockEncoder, Rewriter, Rewritten}
 import vct.col.util.AstBuildHelpers.{assignLocal, _}
-import vct.col.util.{AstBuildHelpers, SuccessionMap}
+import vct.col.util.{AstBuildHelpers, Substitute, SuccessionMap}
 import vct.result.Message
 import vct.result.VerificationError.{Unreachable, UserError}
 import vct.rewrite.lang.LangSpecificToCol.NotAValue
@@ -265,6 +258,13 @@ case object LangCPPToCol {
         case SeqBoundExceedsLength(_) =>
           throw SYCLSubGroupSeqBoundExceedsLengthError()
       }
+  }
+
+case class SubGroupFunctionPreconditionFailed(inv: CPPInvocation[_])
+    extends Blame[ExhaleFailed] {
+    override def blame(error: ExhaleFailed): Unit =
+      inv.blame
+        .blame(SYCLSubGroupPreconditionFailed(error.failure, inv))
   }
 
 
@@ -754,6 +754,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private case class LocalScope() extends KernelScopeLevel("LOCAL_ID")
   private case class GroupScope() extends KernelScopeLevel("GROUP_ID")
 
+  private var syclWarpSize: Option[Variable[Post]] = None
+
   sealed abstract class KernelType(
       rangeFields: Seq[Local[Post]],
       rangeValues: Seq[Expr[Post]],
@@ -887,6 +889,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case AmbiguousFoldTarget(
             e @ CPPInvocation(
               CPPLocal("sycl::buffer::exclusive_hostData_access", Seq()),
+              _,
               _,
               _,
               _,
@@ -1186,7 +1189,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def invocation(inv: CPPInvocation[Pre]): Expr[Post] = {
-    val CPPInvocation(_, args, givenMap, yields) = inv
+    val CPPInvocation(_, args, givenMap, yields, subgroup_inv) = inv
     implicit val o: Origin = inv.o
     inv.ref.get match {
       case spec: SpecInvocationTarget[Pre] =>
@@ -1221,7 +1224,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       e: RefCPPGlobalDeclaration[Pre],
       inv: CPPInvocation[Pre],
   ): Expr[Post] = {
-    val CPPInvocation(applicable, args, givenMap, yields) = inv
+    val CPPInvocation(applicable, args, givenMap, yields, sginv) = inv
     val RefCPPGlobalDeclaration(decls, initIdx) = e
     implicit val o: Origin = inv.o
 
@@ -1260,23 +1263,48 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case "sycl::sub_group::get_local_id" =>
         classInstance match {
           case Some(lref) =>
-                  SeqSubscript[Post](lref,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv)) // TODO change Blame
+                  SeqSubscript[Post](lref,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
           case _ => throw NotApplicable(inv)
         }
       case "sycl::sub_group::get_group_id" =>
         classInstance match {
           case Some(lref) =>
-            SeqSubscript[Post](lref,c_const(1))(SYCLSubGroupSeqBoundFailureBlame(inv)) // TODO change Blame
+            SeqSubscript[Post](lref,c_const(1))(SYCLSubGroupSeqBoundFailureBlame(inv))
           case _ => throw NotApplicable(inv)
         }
       case "sycl::sub_group::get_local_range" => ???
       case "sycl::sub_group::get_group_range" => ???
       case "sycl::nd_item::get_sub_group" => {
-        val laneId = AmbiguousMod(getSimpleWorkItemLinearId(inv, LocalScope()),  c_const(32))(PanicBlame("should never happen")) // TODO make the warp size not a constant, lane ID
-        val warpId = AmbiguousDiv(getSimpleWorkItemLinearId(inv, LocalScope()),  c_const(32))(PanicBlame("should never happen"))  // TODO make the warp size not a constant, warp ID
-
+        val warpsize = syclWarpSize.getOrElse(???) // TODO Replace ??? With proper error
+        val laneId = AmbiguousMod(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen")) // TODO make the warp size not a constant, lane ID
+        val warpId = AmbiguousDiv(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen"))  // TODO make the warp size not a constant, warp ID
         LiteralSeq(TCInt(), Seq(laneId,warpId))
       }
+      case "sycl::shift_group_left" if args.length == 3 => shiftGroupLeftProcedure(inv)
+      case "sycl::shift_group_right" if args.length == 3 => ???
+        val procedure = shiftGroupRightProcedure(inv)
+        rw.globalDeclarations.declare(procedure)
+
+        new ProcedureInvocation[Post](
+          procedure.ref,
+          inv.args.map(rw.dispatch),
+          outArgs = Nil,
+          typeArgs = Nil,
+          givenMap = Nil,
+          yields = Nil,
+        )(inv.blame)
+      case "sycl::group_broadcast" if args.length == 3 =>
+        val procedure = groupBroadCastProcedure(inv)
+        rw.globalDeclarations.declare(procedure)
+
+        new ProcedureInvocation[Post](
+          procedure.ref,
+          inv.args.map(rw.dispatch),
+          outArgs = Nil,
+          typeArgs = Nil,
+          givenMap = Nil,
+          yields = Nil,
+        )(inv.blame)
       case "sycl::accessor::get_range" =>
         classInstance match {
           case Some(Local(ref)) =>
@@ -1324,7 +1352,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       typ: SYCLTConstructableClass[Pre],
       inv: CPPInvocation[Pre],
   ): Expr[Post] = {
-    val CPPInvocation(_, args, _, _) = inv
+    val CPPInvocation(_, args, _, _, _) = inv
     implicit val o: Origin = inv.o
 
     typ match {
@@ -1438,6 +1466,22 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       kernelDeclaration.declarator,
     )
 
+    val warpSizeAssignment = rangeType match {
+      case SYCLTNDRange(_) =>{
+        syclWarpSize = Some(new Variable[Post](TCInt())(kernelDeclaration.o.where(name="warpSize")))
+        //        rw.variables.declare(syclWarpSize.get)
+
+        val maybeWarpSize = kernelDeclaration.declarator.asInstanceOf[CPPLambdaDeclarator[Post]].attrs
+          .find(attr => attr.name == "sycl::reqd_sub_group_size" && attr.args.size == 1 && attr.args.head.t == TCInt[Post]())
+
+        val defineWarpSize = maybeWarpSize match {
+          case Some(ws) => Assign(Local[Post](syclWarpSize.get.ref)(ws.o), ws.args.head)(PanicBlame("The assignment of the warpsize should never fail"))(ws.o.where(name="warpSize"))
+          case None => Assign(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), c_const(32)(kernelDeclaration.o))(PanicBlame("The assignment of the warpsize should never fail"))(kernelDeclaration.o.where(name="warpSize"))
+        }
+        Some(defineWarpSize)
+      }
+      case _ => None
+    }
 // Create a block of code for the kernel body based on what type of kernel it is
     val (
       kernelParBlock,
@@ -1529,12 +1573,19 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       ),
     )
 
+
+
+
+
+
     // Create a new class instance and assign it to the class instance variable, then fork that variable
     val result =
       (
         Block[Post](
           bufferAccessStatements ++
+            syclWarpSize.map(LocalDecl[Post](_)(commandGroup.o)).toSeq ++
             Seq(LocalDecl[Post](eventClassRef)(commandGroup.o)) ++
+            warpSizeAssignment.toSeq ++
             currentKernelType.get.getRangeFields
               .map(rf => LocalDecl[Post](rf.ref.decl)(rf.o)) ++
             Seq.range(0, rangeVars.size).flatMap(i =>
@@ -1804,6 +1855,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           case inv @ CPPInvocation(
                 _,
                 Seq(bufferRef: CPPLocal[Pre], _, accessModeRef: CPPLocal[Pre]),
+                _,
                 _,
                 _,
               ) =>
@@ -2785,4 +2837,129 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def subgroupToSeq(t: SYCLTSubGroup[Pre]): Type[Post] = TSeq(TCInt())(t.o)
+
+//  case class SubGroupInvariantRewriter(val valToSend: Expr[Post], val gid: Expr[Post]) extends Rewriter[Pre] {
+//    override val allScopes = rw.allScopes
+//
+//    override def dispatch(node: Expr[Pre]): Expr[Rewritten[Pre]] = node match {
+//      case GlobalThreadId() =>    gid
+//      case SubGroupFuncValue() => valToSend
+//      case CPPLocal(_, _) => ???
+//      case _ => super.dispatch(node)
+//    }
+//  }
+
+  val syclSubgroupInvSuccessors
+  : ScopedStack[mutable.Map[Expr[Pre], Expr[Post]]] =
+    ScopedStack()
+
+  def shiftGroupLeftProcedure(inv: CPPInvocation[Pre]): Expr[Post] = {
+    implicit val o = inv.o
+    val sgInv = inv.subgroup_inv.getOrElse(tt[Pre])
+    val sgArg = rw.dispatch(inv.args.head) //Assumes |args| == 3
+    val valToSend = rw.dispatch(inv.args(1)) //Assumes |args| == 3
+    val d = rw.dispatch(inv.args(2)) //Assumes |args| == 3
+    val sglResult = new Variable[Post](TCInt())(o.where(name = "sgl_result"))
+
+    val laneid = SeqSubscript[Post](sgArg,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
+
+
+    val exhalePred: Expr[Post] = syclSubgroupInvSuccessors.having(
+      mutable.Map(
+        GlobalThreadId[Pre]() -> valToSend,
+        SubGroupFuncValue[Pre]() -> getGlobalWorkItemLinearId(inv),
+      )
+    ) { rw.dispatch(sgInv) }
+    val inhalePred: Expr[Post] = syclSubgroupInvSuccessors.having(
+      mutable.Map(
+        GlobalThreadId[Pre]() -> Local(sglResult.ref),
+        SubGroupFuncValue[Pre]() ->  Plus(getGlobalWorkItemLinearId(inv),d),
+      )
+    ) { rw.dispatch(sgInv) }
+
+    val warpsize = syclWarpSize.getOrElse(???) // TODO Replace ??? with an error that the warpsize has to be defined here.
+
+    val predToExhale = Implies(
+      LessEq(Plus(laneid, d), Local[Post](warpsize.ref)),
+      exhalePred
+    )
+    val predToInhale = Implies(
+      LessEq(Plus(laneid, Plus(d,d)), Local[Post](warpsize.ref)),
+      inhalePred
+    )
+
+    val sg = new Variable[Post](TSeq(TCInt()))(o.where(name = "sg"))
+    val value = new Variable[Post](TCInt())(o.where(name = "value"))
+    val delta = new Variable[Post](TCInt())(o.where(name = "delta"))
+    val shiftGroupLeftBlame = PanicBlame("The call to shift_group_left should never fail")
+
+    val procedure = withResult((result: Result[Post]) => {
+      new Procedure[Post](
+        returnType = TCInt(),
+        args = Seq(sg, value, delta),
+        outArgs = Nil,
+        typeArgs = Nil,
+        body = None,
+        contract = ApplicableContract(
+            requires = UnitAccountedPredicate(Star(
+                Greater(Local[Post](delta.ref), c_const(0)),
+                tt
+              )),
+            ensures = UnitAccountedPredicate(tt),
+            contextEverywhere = tt,
+            kernelInvariant = tt,
+            signals = Nil,
+            givenArgs = Nil,
+            yieldsArgs = Nil,
+            decreases = None,
+          )(shiftGroupLeftBlame),
+      )(shiftGroupLeftBlame)(o.where(name="shift_group_left"))
+    })
+
+    rw.globalDeclarations.declare(procedure)
+
+    val result: Expr[Post] = With[Post](
+      Exhale(predToExhale)(SubGroupFunctionPreconditionFailed(inv)),
+      ScopedExpr(
+        Seq(sglResult),
+        Then(
+          PreAssignExpression(
+            Local[Post](sglResult.ref),
+            ProcedureInvocation[Post](
+              procedure.ref,
+              inv.args.map(rw.dispatch),
+              Nil,
+              Nil,
+              Nil, // Cannot accept givenArgs, are ignored
+              Nil, // Cannot accept givenArgs, are ignored
+            )(inv.blame)
+          )(PanicBlame("Assignment to temporary variable should never fail.")),
+          Inhale(predToInhale),
+        )
+      )
+    )
+
+    /*
+    With (exhale P(v),
+      ScopedExpr(
+        Seq(Variable("tmp")),
+        Then(
+          PreassignExpr("tmp" = method call),
+          inhale Q(v)
+        )
+    )
+     */
+
+
+    result
+  }
+
+  def shiftGroupRightProcedure(inv: CPPInvocation[Pre]): Procedure[Post] = {
+    ???
+  }
+
+  def groupBroadCastProcedure(inv: CPPInvocation[Pre]): Procedure[Post] = {
+    ???
+  }
+
 }

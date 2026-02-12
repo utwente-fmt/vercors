@@ -352,6 +352,17 @@ case class SYCLItemMethodPreconditionFailed(node: InvokingNode[_])
     s"The dimension parameter `$source` should be greater or equal to zero and smaller than the number of dimensions in the (nd_)item."
 }
 
+case class SYCLSubGroupPreconditionFailed(
+                                       failure: ContractFailure,
+                                       node: CPPInvocation[_],
+                                     ) extends WithContractFailure with FrontendInvocationError {
+  override def baseCode: String = "syclSubGroupPreFailed"
+  override def descInContext: String =
+    "This sub group invariant may not be established, since"
+  override def inlineDescWithSource(node: String, failure: String): String =
+    s"This sub group invariant may not be established, since $failure."
+}
+
 sealed trait CallableFailure
     extends ConstructorFailure with JavaConstructorFailure
 sealed trait ContractedFailure

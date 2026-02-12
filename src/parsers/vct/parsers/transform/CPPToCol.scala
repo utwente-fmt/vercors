@@ -665,12 +665,13 @@ case class CPPToCol[G](
           case _ => ??(expr)
         }
       case PostfixExpression2(_, _, _, _) => ??(expr)
-      case PostfixExpression3(target, _, args, _, given, yields) =>
+      case PostfixExpression3(target, _, args, _, given, yields, subgroup_invariant) =>
         CPPInvocation(
           convert(target),
           args.map(convert(_)) getOrElse Nil,
           convertEmbedGiven(given),
           convertEmbedYields(yields),
+          subgroup_invariant.map(convert(_))
         )(blame(expr))
       case PostfixExpression4(classVar, _, None, idExpr) =>
         convert(idExpr) match {
@@ -1519,6 +1520,7 @@ case class CPPToCol[G](
           case "pure" => collector.pure += mod
           case "inline" => collector.inline += mod
           case "thread_local" => collector.threadLocal += mod
+          case "opaque" => collector.opaque += mod
           case "bip_annotation" =>
             fail(mod, "This modifier is not allowed here.")
         }
@@ -1628,6 +1630,20 @@ case class CPPToCol[G](
     given match {
       case None => Nil
       case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
+    }
+
+  def convert(
+      implicit inv: ValEmbedSubGroupInvContext): Expr[G] =
+    inv match {
+
+      case ValEmbedSubGroupInv0(_, Some(expr), _) => convert(expr)
+      case ValEmbedSubGroupInv1(expr) => convert(expr)
+      case _ => ??(inv)
+    }
+
+  def convert(implicit inv: ValSubGroupInvContext): Expr[G] =
+    inv match {
+      case ValSubGroupInv0(_, _, expr, _) => convert(expr)
     }
 
   def convert(
@@ -1932,6 +1948,7 @@ case class CPPToCol[G](
                   convert(definition),
                   c.consumeApplicableContract(blame(decl)),
                   m.consume(m.inline),
+                  opaque=m.consume(m.opaque)
                 )(blame(decl))(namedOrigin)
               },
             ),
@@ -2348,6 +2365,8 @@ case class CPPToCol[G](
       case ValPrimaryContext1("\\current_thread") => CurrentThreadId()
       case ValPrimaryContext2("\\ltid") => LocalThreadId()
       case ValPrimaryContext3("\\gtid") => GlobalThreadId()
+      case ValPrimaryContext4("\\sg_val") => SubGroupFuncValue()
+
     }
 
   def convert(implicit e: ValPrimaryContext): Expr[G] =

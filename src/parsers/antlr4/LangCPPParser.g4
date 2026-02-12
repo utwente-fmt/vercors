@@ -89,7 +89,7 @@ postfixExpression:
 	annotatedPrimaryExpression
 	| postfixExpression LeftBracket oneOrMoreExpressions RightBracket
 	| postfixExpression LeftBracket bracedInitList RightBracket
-	| postfixExpression LeftParen expressionList? RightParen valEmbedGiven? valEmbedYields?
+	| postfixExpression LeftParen expressionList? RightParen valEmbedGiven? valEmbedYields? valEmbedSubGroupInv?
 	| postfixExpression Dot Template? idExpression
 	| postfixExpression Dot pseudoDestructorName
 	| postfixExpression Arrow Template? idExpression

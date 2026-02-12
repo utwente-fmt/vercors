@@ -119,6 +119,8 @@ valWith: 'with' langStatement;
 valThen: 'then' langStatement;
 valGiven: 'given' '{' valGivenMappings '}';
 valYields: 'yields' '{' valYieldsMappings '}';
+valSubGroupInv: 'sub_group_inv' '{' langExpr '}';
+
 valReveal: 'reveal';
 
 valGivenMappings
@@ -256,6 +258,7 @@ valPrimaryContext
  | '\\current_thread'
  | '\\ltid'
  | '\\gtid'
+ | '\\sg_val'
  ;
 
 valExpr
@@ -466,6 +469,7 @@ valEmbedWith: startSpec valWith? endSpec | {specLevel>0}? valWith;
 valEmbedThen: startSpec valThen? endSpec | {specLevel>0}? valThen;
 valEmbedGiven: startSpec valGiven? endSpec | {specLevel>0}? valGiven;
 valEmbedYields: startSpec valYields? endSpec | {specLevel>0}? valYields;
+valEmbedSubGroupInv: startSpec valSubGroupInv? endSpec | {specLevel>0}? valSubGroupInv;
 valEmbedReveal: startSpec valReveal? endSpec | {specLevel>0}? valReveal;
 
 valEmbedGlobalDeclarationBlock

@@ -81,8 +81,11 @@ namespace sycl {
 
   namespace sub_group {
     int get_local_id();   // lane within subgroup
+
     int get_local_range();
+
     int get_group_id();   // subgroup index within work-group
+
     int get_group_range();
   }
 
@@ -117,4 +120,11 @@ namespace sycl {
   namespace local_accessor {
     sycl::range<1> get_range();
   }
+
+  int shift_group_left(sycl::sub_group g, int valueToSend, int d);
+
+  int shift_group_right(sycl::sub_group g, int x, int d);
+
+  int group_broadcast(sycl::sub_group g, int x, int id);
+
 }

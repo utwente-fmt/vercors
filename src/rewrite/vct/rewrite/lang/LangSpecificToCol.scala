@@ -330,7 +330,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
       case atomic: GpgpuAtomic[Pre] => c.gpuAtomic(atomic)
 
-      case eval @ Eval(CPPInvocation(_, _, _, _)) =>
+      case eval @ Eval(CPPInvocation(_, _, _, _,_)) =>
         cpp.invocationStatement(eval)
 
       case fold: Fold[Pre] =>
@@ -417,7 +417,12 @@ case class LangSpecificToCol[Pre <: Generation](
       case kernel: GpgpuCudaKernelInvocation[Pre] =>
         c.cudaKernelInvocation(kernel)
       case local: LocalThreadId[Pre] => c.cudaLocalThreadId(local)
-      case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
+      case global: GlobalThreadId[Pre] if !cpp.syclSubgroupInvSuccessors.isEmpty && cpp.syclSubgroupInvSuccessors.top.contains(global) =>
+        cpp.syclSubgroupInvSuccessors.top(global)
+      case global: GlobalThreadId[Pre] => {
+        c.cudaGlobalThreadId(global)}
+      case sgfv: SubGroupFuncValue[Pre] if !cpp.syclSubgroupInvSuccessors.isEmpty && cpp.syclSubgroupInvSuccessors.top.contains(sgfv) =>
+        cpp.syclSubgroupInvSuccessors.top(sgfv)
       case cast: CCast[Pre] => c.cast(cast)
       case sizeof: SizeOf[Pre] => c.sizeOf(sizeof.tname, sizeof.o)
 

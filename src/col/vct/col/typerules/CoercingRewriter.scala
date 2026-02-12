@@ -1278,8 +1278,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case defn @ CPPLambdaDefinition(contract, declarator, body) =>
         CPPLambdaDefinition(contract, declarator, body)(defn.blame)
       case CPPLambdaRef() => e
-      case inv @ CPPInvocation(applicable, args, givenArgs, yields) =>
-        CPPInvocation(applicable, args, givenArgs, yields)(inv.blame)
+      case inv @ CPPInvocation(applicable, args, givenArgs, yields, sginv) =>
+        CPPInvocation(applicable, args, givenArgs, yields, sginv)(inv.blame)
       case CPPLiteralArray(exprs) => CPPLiteralArray(exprs)
       case CPPLocal(_, _) => e
       case SYCLReadWriteAccess() => e
@@ -1368,6 +1368,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case get @ GetLeft(e) => GetLeft(either(e)._1)(get.blame)
       case get @ GetRight(e) => GetRight(either(e)._1)(get.blame)
       case GlobalThreadId() => GlobalThreadId()
+      case SubGroupFuncValue() => SubGroupFuncValue()
       case e @ GpgpuCudaKernelInvocation(
             kernel,
             blocks,
