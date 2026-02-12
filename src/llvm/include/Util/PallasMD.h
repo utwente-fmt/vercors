@@ -91,6 +91,13 @@ bool isWellformedPallasLocation(const llvm::MDNode *mdNode);
  */
 llvm::MDNode *getPallasLoopContract(const llvm::Loop &llvmLoop);
 
+/**
+ * If the given loop.id metafdata node has a Pallas loop-contract, 
+ * a pointer to the MDNode that represents the contract is returned.
+ * If no loop contract is present, a nullptr is returned.
+ */
+llvm::MDNode *getPallasLoopContract(const llvm::MDNode &loopID);
+
 /*
  * Attempts to get the wrapper-function from the given MDNode which
  * represents a Pallas loop-invariant clause.

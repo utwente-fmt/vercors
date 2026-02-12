@@ -1,4 +1,5 @@
 #include "Passes/Module/StructConsolidator.h"
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
 #include "Util/PallasMD.h"
@@ -19,6 +20,7 @@
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/LLVMContext.h>
@@ -118,14 +120,16 @@ void StructConsolidatorPass::removeParentless(Value *V) {
 StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
     const Function &F, Value *V, const DataLayout &L, StructType &ST,
     FieldMap &Fields, ArgInfo &A, APInt SourceOffset, uint64_t FieldOffset,
-    size_t Depth, MDNode **StmntBlock) {
+    size_t Depth, MDNode **StmntBlock, MDNode **GhostAssignBlock) {
     // For now let's not consider deeper nesting
     if (Depth > 1)
         return Fail{};
 
+    // Check if V has any specifications attached to it
+    // (No need to check for given/yields bindings because these are only
+    // attached to calls.)
     if (auto *I = dyn_cast<Instruction>(V)) {
-        if (MDNode *Block =
-                I->getMetadata(constants::PALLAS_SPEC_STMNT_BLOCK)) {
+        if (MDNode *Block = utils::getSpecStmntBlock(*I)) {
             if (*StmntBlock != nullptr && *StmntBlock != Block) {
                 ErrorReporter::addWarning(
                     SOURCE_LOC,
@@ -135,6 +139,17 @@ StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
                 return Fail{};
             }
             *StmntBlock = Block;
+        }
+        if (MDNode *Block = irspec::getGhostAssignBlockMD(*I)) {
+            if (*GhostAssignBlock != nullptr && *GhostAssignBlock != Block) {
+                ErrorReporter::addWarning(
+                    SOURCE_LOC,
+                    "Multiple Ghost assignment block annotations in argument "
+                    "building for call, we won't consolidate this struct",
+                    *I);
+                return Fail{};
+            }
+            *GhostAssignBlock = Block;
         }
     }
 
@@ -151,7 +166,8 @@ StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
 
     if (auto *Load = dyn_cast<LoadInst>(V)) {
         return digToField(F, Load->getPointerOperand(), L, ST, Fields, A,
-                          SourceOffset, FieldOffset, Depth + 1, StmntBlock);
+                          SourceOffset, FieldOffset, Depth + 1, StmntBlock,
+                          GhostAssignBlock);
     }
 
     if (auto *GEP = dyn_cast<GetElementPtrInst>(V)) {
@@ -159,7 +175,8 @@ StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
             return Fail{};
 
         return digToField(F, GEP->getPointerOperand(), L, ST, Fields, A,
-                          SourceOffset, FieldOffset, Depth, StmntBlock);
+                          SourceOffset, FieldOffset, Depth, StmntBlock,
+                          GhostAssignBlock);
     }
 
     auto *AllocA = dyn_cast<AllocaInst>(V);
@@ -215,11 +232,9 @@ StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
             GetElementPtrInst::Create(
                 AllocST, V,
                 ArrayRef(
-                    new Value *[] {
+                    new Value *[]{
                         ConstantInt::get(ST.getContext(), APInt(32, 0)),
-                            ConstantInt::get(ST.getContext(),
-                                             APInt(32, InnerIdx))
-                    },
+                        ConstantInt::get(ST.getContext(), APInt(32, InnerIdx))},
                     2)),
             Twine("insertedLoad"), false, Align());
         const TypeSize FieldSize =
@@ -397,11 +412,10 @@ StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
                 GetElementPtrInst::Create(
                     &ST, SrcI,
                     ArrayRef(
-                        new Value *[] {
+                        new Value *[]{
                             ConstantInt::get(ST.getContext(), APInt(32, 0)),
-                                ConstantInt::get(ST.getContext(),
-                                                 APInt(32, FieldIdx))
-                        },
+                            ConstantInt::get(ST.getContext(),
+                                             APInt(32, FieldIdx))},
                         2)),
                 Twine("insertedLoad"), false, Align());
         }
@@ -464,6 +478,7 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
             return;
         }
         MDNode *StmntBlock = nullptr;
+        MDNode *GhostAssignBlock = nullptr;
         const Use *P = Call->arg_begin();
         // Find operands for every arg in set.arguments
         for (const Argument *FA = F.arg_begin(), *E = F.arg_end(); FA != E;
@@ -477,7 +492,7 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
                     F, P->get(), L, *ST, Fields, SA,
                     APInt(L.getPointerSizeInBits(F.getAddressSpace()), 0,
                           false),
-                    0, 0, &StmntBlock);
+                    0, 0, &StmntBlock, &GhostAssignBlock);
 
                 if (!std::holds_alternative<Fail>(Result)) {
                     break;
@@ -510,100 +525,131 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
         //  align 4; call void f(%3, %2))
         // If found store origin (and intermediary), we'll allow multiple
         // origins as long as they're all of the appropriate type
-        Set.Calls.insert({Call, {Fields, Intermediary, StmntBlock}});
+        Set.Calls.insert(
+            {Call, {Fields, Intermediary, StmntBlock, GhostAssignBlock}});
     }
 }
 
-void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
-                                                const Function &OldF,
-                                                Function *NewF,
-                                                const ReplaceableVec &Sets) {
+void StructConsolidatorPass::replaceFunctionUse(
+    CallInst *Call, const Function &OldF, Function *NewF,
+    DenseMap<const Argument *, const ReplaceableArgSet *> ArgMapping) {
+
     SmallSet<size_t, 8> ToBeRemoved;
-    for (const auto &Set : Sets) {
-        for (const ArgInfo &A : Set.Arguments) {
-            ToBeRemoved.insert(A.Arg->getArgNo());
-        }
+    SmallSet<const ReplaceableArgSet *, 4> Sets;
+    DenseMap<size_t, const ReplaceableArgSet *> OldIdxToSet;
+    for (auto [A, Set] : ArgMapping) {
+        auto OldIdx = A->getArgNo();
+        ToBeRemoved.insert(OldIdx);
+        OldIdxToSet[OldIdx] = Set;
+        Sets.insert(Set);
     }
+
+    MDNode *StmntBlock = utils::getSpecStmntBlock(*Call);
+    MDNode *GhostAssignBlock = irspec::getGhostAssignBlockMD(*Call);
 
     std::vector<Value *> NewArgs;
+    SmallSet<const ReplaceableArgSet *, 4> TransformedSets;
     NewArgs.reserve(Call->arg_size() - ToBeRemoved.size() + Sets.size());
 
-    size_t ArgI = 0;
-    for (const Use *A = Call->arg_begin(), *E = Call->arg_end(); A != E;
-         ++A, ++ArgI) {
-        if (!ToBeRemoved.contains(ArgI)) {
-            NewArgs.push_back(A->get());
-        }
-    }
-    std::vector<AllocaInst *> AllocAs;
-    AllocAs.reserve(Sets.size());
-
-    MDNode *StmntBlock = Call->getMetadata(constants::PALLAS_SPEC_STMNT_BLOCK);
-
-    for (const auto &Set : Sets) {
-        AllocaInst *AllocA = new AllocaInst(Set.Alloc->getAllocatedType(),
-                                            NewF->getAddressSpace(),
-                                            Twine("InsertedAllocA"), Call);
-        bool Found = false;
-        for (const auto &[C, CallInfo] : Set.Calls) {
-            if (C != Call)
+    for (auto [OldArgIdx, OldArg] : enumerate(Call->args())) {
+        if (!ToBeRemoved.contains(OldArgIdx)) {
+            // Copy unchanged argument
+            NewArgs.push_back(OldArg.get());
+        } else {
+            // Consolidated argument
+            assert(OldIdxToSet.contains(OldArgIdx));
+            auto &Set = *OldIdxToSet.at(OldArgIdx);
+            // Only run once per consolidated argument set
+            if (TransformedSets.contains(&Set))
                 continue;
-            if (CallInfo.StmntBlock != nullptr) {
-                if (StmntBlock != nullptr &&
-                    StmntBlock != CallInfo.StmntBlock) {
-                    ErrorReporter::addError(
-                        SOURCE_LOC,
-                        "Transformation failed, multiple stmnt blocks in call",
-                        *Call);
-                }
-                StmntBlock = CallInfo.StmntBlock;
-            }
-            for (const auto &[_Offset, Source] : CallInfo.Fields) {
-                const auto &[Idx, Field] = Source;
-                auto *GEP = GetElementPtrInst::CreateInBounds(
-                    Set.Alloc->getAllocatedType(), AllocA,
-                    ArrayRef(
-                        new Value *[] {
-                            ConstantInt::get(NewF->getContext(), APInt(32, 0)),
-                                ConstantInt::get(NewF->getContext(),
-                                                 APInt(32, Idx))
-                        },
-                        2),
-                    Twine("InsertedCallerGEP"), Call);
-                if (Field == NULL) {
-                    break;
-                }
-                if (auto *I = dyn_cast<Instruction>(Field)) {
-                    if (I->getParent() == NULL) {
-                        for (Use &U : I->operands()) {
-                            if (auto *I2 = dyn_cast<Instruction>(U.get())) {
-                                if (I2->getParent() == NULL)
-                                    I2->insertBefore(Call);
-                            }
-                        }
-                        I->insertBefore(Call);
-                    }
-                }
-                new StoreInst(Field, GEP, Call);
-            }
+            TransformedSets.insert(&Set);
 
-            Found = true;
-            break;
+            AllocaInst *AllocA = new AllocaInst(Set.Alloc->getAllocatedType(),
+                                                NewF->getAddressSpace(),
+                                                Twine("InsertedAllocA"), Call);
+            bool Found = false;
+            for (const auto &[C, CallInfo] : Set.Calls) {
+                if (C != Call)
+                    continue;
+                if (CallInfo.StmntBlock != nullptr) {
+                    if (StmntBlock != nullptr &&
+                        StmntBlock != CallInfo.StmntBlock) {
+                        ErrorReporter::addError(SOURCE_LOC,
+                                                "Transformation failed, "
+                                                "multiple stmnt blocks in call",
+                                                *Call);
+                    }
+                    StmntBlock = CallInfo.StmntBlock;
+                }
+                if (CallInfo.GhostAssignBlock != nullptr) {
+                    if (GhostAssignBlock != nullptr &&
+                        GhostAssignBlock != CallInfo.GhostAssignBlock) {
+                        ErrorReporter::addError(
+                            SOURCE_LOC,
+                            "Transformation failed, multiple "
+                            "ghost assign blocks in call",
+                            *Call);
+                    }
+                    GhostAssignBlock = CallInfo.GhostAssignBlock;
+                }
+                for (const auto &[_Offset, Source] : CallInfo.Fields) {
+                    const auto &[Idx, Field] = Source;
+                    auto *GEP = GetElementPtrInst::CreateInBounds(
+                        Set.Alloc->getAllocatedType(), AllocA,
+                        ArrayRef(
+                            new Value *[]{ConstantInt::get(NewF->getContext(),
+                                                           APInt(32, 0)),
+                                          ConstantInt::get(NewF->getContext(),
+                                                           APInt(32, Idx))},
+                            2),
+                        Twine("InsertedCallerGEP"), Call);
+                    if (Field == NULL) {
+                        break;
+                    }
+                    if (auto *I = dyn_cast<Instruction>(Field)) {
+                        if (I->getParent() == NULL) {
+                            for (Use &U : I->operands()) {
+                                if (auto *I2 = dyn_cast<Instruction>(U.get())) {
+                                    if (I2->getParent() == NULL)
+                                        I2->insertBefore(Call);
+                                }
+                            }
+                            I->insertBefore(Call);
+                        }
+                    }
+                    new StoreInst(Field, GEP, Call);
+                }
+
+                Found = true;
+                break;
+            }
+            if (!Found) {
+                ErrorReporter::addError(SOURCE_LOC,
+                                        "Transformation failed, call set was "
+                                        "missing a call to the function");
+            }
+            NewArgs.push_back(AllocA);
         }
-        if (!Found) {
-            ErrorReporter::addError(SOURCE_LOC,
-                                    "Transformation failed, call set was "
-                                    "missing a call to the function");
-        }
-        NewArgs.push_back(AllocA);
     }
 
-    // Again most of this is from the DeadArgumentElimination pass
+    TransformedSets.clear();
     AttributeList PAL = Call->getAttributes();
     if (!PAL.isEmpty()) {
         SmallVector<AttributeSet, 8> ArgAttrs;
-        for (unsigned ArgNo = 0; ArgNo < NewArgs.size(); ++ArgNo)
-            ArgAttrs.push_back(PAL.getParamAttrs(ArgNo));
+        for (unsigned OldArgIdx = 0; OldArgIdx < Call->arg_size();
+             ++OldArgIdx) {
+            if (!ToBeRemoved.contains(OldArgIdx)) {
+                ArgAttrs.push_back(PAL.getParamAttrs(OldArgIdx));
+            } else {
+                // Add empty args for consolidated arg-set
+                // (Only Once per set)
+                auto *Set = OldIdxToSet.at(OldArgIdx);
+                if (TransformedSets.contains(Set))
+                    continue;
+                TransformedSets.insert(Set);
+                ArgAttrs.push_back(AttributeSet());
+            }
+        }
         PAL = AttributeList::get(OldF.getContext(), PAL.getFnAttrs(),
                                  PAL.getRetAttrs(), ArgAttrs);
     }
@@ -619,6 +665,9 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
     newCall->copyMetadata(*Call, {LLVMContext::MD_prof, LLVMContext::MD_dbg});
     if (StmntBlock != nullptr)
         newCall->setMetadata(constants::PALLAS_SPEC_STMNT_BLOCK, StmntBlock);
+    if (GhostAssignBlock != nullptr)
+        newCall->setMetadata(constants::PALLAS_GHOST_ASSIGN_BLOCK,
+                             GhostAssignBlock);
 
     Call->replaceAllUsesWith(newCall);
     newCall->takeName(Call);
@@ -635,7 +684,7 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
     }
 
     for (const auto &Set : Sets) {
-        for (const auto &[C, CallInfo] : Set.Calls) {
+        for (const auto &[C, CallInfo] : Set->Calls) {
             if (C != Call)
                 continue;
             if (CallInfo.Intermediary != nullptr) {
@@ -727,7 +776,8 @@ bool StructConsolidatorPass::gatherWrites(
             Writes.push_back(W);
         } else if (isa<LoadInst>(I)) {
             // Don't traverse further when we find a load
-        } else if (!F.hasMetadata(constants::PALLAS_WRAPPER_FUNC)) {
+        } else if (!(utils::isPallasExprWrapper(F) ||
+                     utils::isPallasGhostWrapper(F))) {
             LaterWrites.push_back(Store);
         }
     }
@@ -848,6 +898,14 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
                     {cast<Argument>(W.Src), W.Offset, W.Size});
             }
         }
+
+        // Only consolidate neighbouring arguments to keep the ordering intact.
+        if (!checkArgsNeighboring(Set)) {
+            ErrorReporter::addWarning(
+                SOURCE_LOC, "Not adding because arguments are not neighboring");
+            Set.Valid = false;
+        }
+
         if (Set.Valid) {
             if (Set.Intermediary != NULL)
                 Intermediaries.insert(Set.Intermediary);
@@ -904,79 +962,48 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
     return Sets;
 }
 
-void StructConsolidatorPass::replaceWrapperCalls(
-    Function *F, Function *NF, SmallSet<const Argument *, 8> &ToBeRemoved,
-    MDNode *MD, const ReplaceableVec &Sets, SmallSet<MDNode *, 8> &Visited) {
-    if (!Visited.insert(MD).second)
-        return;
-    for (const MDOperand &O : MD->operands()) {
-        if (auto *NO = dyn_cast_if_present<MDNode>(O.get())) {
-            replaceWrapperCalls(F, NF, ToBeRemoved, NO, Sets, Visited);
+bool StructConsolidatorPass::checkArgsNeighboring(
+    const ReplaceableArgSet &ArgSet) {
+    llvm::SmallVector<unsigned, 4> argIndices;
+    for (auto &a : ArgSet.Arguments)
+        argIndices.push_back(a.Arg->getArgNo());
+    llvm::sort(argIndices);
+    for (int i = 0; i < argIndices.size() - 1; ++i)
+        if (argIndices[i + 1] != argIndices[i] + 1)
+            return false;
+    return true;
+}
+
+void StructConsolidatorPass::replaceWrapperCallInContract(ValueAsMetadata *OldF,
+                                                          ValueAsMetadata *NewF,
+                                                          MDNode *Contract) {
+    // Check all clauses:
+    for (unsigned CIdx = 5; CIdx < Contract->getNumOperands(); ++CIdx) {
+        auto *Clause = cast<MDNode>(Contract->getOperand(CIdx).get());
+        if (Clause->getNumOperands() >= 5 && Clause->getOperand(2) == OldF) {
+            Clause->replaceOperandWith(2, NewF);
         }
     }
-    if (MD->getNumOperands() < 2)
-        return;
+}
 
-    ValueAsMetadata *MF = ValueAsMetadata::get(F);
-    SmallVector<Metadata *> NewOperands;
-    const MDOperand &First = MD->getOperand(0);
-    size_t Offset;
-    if (First && (First.equalsStr(constants::PALLAS_ASSERT) ||
-                  First.equalsStr(constants::PALLAS_ASSUME) ||
-                  First.equalsStr(constants::PALLAS_FOLD) ||
-                  First.equalsStr(constants::PALLAS_UNFOLD))) {
-        auto *Loc = dyn_cast_if_present<MDNode>(MD->getOperand(1).get());
-        if (!Loc || !utils::isWellformedPallasLocation(Loc))
-            return;
-        if (MD->getOperand(2).get() != MF)
-            return;
-        NewOperands.push_back(MD->getOperand(0).get());
-        NewOperands.push_back(MD->getOperand(1).get());
-        Offset = 3;
-    } else {
-        // Loop invariant
-        auto *Loc = dyn_cast_if_present<MDNode>(First.get());
-        if (!Loc || !utils::isWellformedPallasLocation(Loc))
-            return;
-        if (MD->getOperand(1).get() != MF)
-            return;
-        NewOperands.push_back(MD->getOperand(0).get());
-        Offset = 2;
-    }
-
-    // Relatively certain now that we are looking at a call to the wrapper
-    // function Now we reorder the arguments to match the new order
-    NewOperands.push_back(ValueAsMetadata::get(NF));
-
-    size_t ArgI = 0;
-    for (Argument *I = F->arg_begin(), *E = F->arg_end(); I != E; ++I, ++ArgI) {
-        if (!ToBeRemoved.contains(I)) {
-            NewOperands.push_back(MD->getOperand(Offset + ArgI).get());
+void StructConsolidatorPass::replaceWrapperCallInLoopInv(ValueAsMetadata *OldF,
+                                                         ValueAsMetadata *NewF,
+                                                         MDNode *LoopInv) {
+    // Check all clauses:
+    for (unsigned CIdx = 2; CIdx < LoopInv->getNumOperands(); ++CIdx) {
+        auto *Clause = cast<MDNode>(LoopInv->getOperand(CIdx).get());
+        if (Clause->getNumOperands() >= 4 && Clause->getOperand(1) == OldF) {
+            Clause->replaceOperandWith(1, NewF);
         }
     }
+}
 
-    for (const ReplaceableArgSet &Set : Sets) {
-        ArgI = 0;
-        for (Argument *I = F->arg_begin(), *E = F->arg_end(); I != E;
-             ++I, ++ArgI) {
-            bool found = false;
-            for (const auto &A : Set.Arguments) {
-                if (A.Arg == I) {
-                    NewOperands.push_back(MD->getOperand(Offset + ArgI).get());
-                    found = true;
-                    break;
-                }
-            }
-            if (found)
-                break;
-        }
-    }
-
-    for (ArgI = 0; ArgI < MD->getNumOperands(); ++ArgI) {
-        if (NewOperands.size() >= ArgI) {
-            MD->replaceOperandWith(ArgI, NewOperands[ArgI]);
-        } else {
-            MD->replaceOperandWith(ArgI, nullptr);
+void StructConsolidatorPass::replaceWrapperCallInSpecBlock(
+    ValueAsMetadata *OldF, ValueAsMetadata *NewF, MDNode *Block) {
+    for (unsigned Idx = 1; Idx < Block->getNumOperands(); ++Idx) {
+        auto *SElem = cast<MDNode>(Block->getOperand(Idx).get());
+        if (SElem->getNumOperands() >= 5 && SElem->getOperand(2) == OldF) {
+            SElem->replaceOperandWith(2, NewF);
         }
     }
 }
@@ -987,36 +1014,49 @@ StructConsolidatorPass::updateFunction(Function &F,
     // Based on DeadArgumentEliminationPass::removeDeadStuffFromFunction
     assert(!F.isVarArg());
 
-    SmallSet<const Argument *, 8> ToBeRemoved;
+    DenseMap<const Argument *, const ReplaceableArgSet *> ArgMapping;
     for (const auto &set : Sets) {
         for (const ArgInfo &A : set.Arguments) {
-            ToBeRemoved.insert(A.Arg);
+            ArgMapping[A.Arg] = &set;
         }
     }
+
+    // Build new FunctionType:
     FunctionType *FTy = F.getFunctionType();
     std::vector<Type *> Params;
-    Params.reserve(F.arg_size() - ToBeRemoved.size() + Sets.size());
     SmallVector<AttributeSet> ArgAttrVec;
     const AttributeList &PAL = F.getAttributes();
 
-    size_t ArgI = 0;
-    for (const Argument *I = F.arg_begin(), *E = F.arg_end(); I != E;
-         ++I, ++ArgI) {
-        if (!ToBeRemoved.contains(I)) {
-            Params.push_back(I->getType());
-            ArgAttrVec.push_back(PAL.getParamAttrs(ArgI));
+    // Build args while maintaining order:
+    size_t NewIdx = 0;
+    DenseMap<size_t, size_t> OldToNewIdx;
+    SmallSet<const ReplaceableArgSet *, 4> AddedSets;
+    for (auto [OldArgIdx, OldArg] : llvm::enumerate(F.args())) {
+        if (!ArgMapping.contains(&OldArg)) {
+            // 1) Copy argument
+            Params.push_back(OldArg.getType());
+            ArgAttrVec.push_back(PAL.getParamAttrs(OldArgIdx));
+        } else {
+            // 2) Consolidate
+            auto *ArgSet = ArgMapping.at(&OldArg);
+            // Only execute for first arg of the set
+            if (AddedSets.contains(ArgSet))
+                continue;
+            AddedSets.insert(ArgSet);
+            // Add set to args
+            Params.push_back(
+                PointerType::get(F.getContext(), F.getAddressSpace()));
+            AttrBuilder B(F.getContext());
+            // TODO: This should be byref for wrapper functions (I don't think
+            // it matters though)
+            B.addByValAttr(ArgSet->Alloc->getAllocatedType());
+            B.addAttribute(Attribute::NoUndef);
+            ArgAttrVec.push_back(AttributeSet::get(F.getContext(), B));
         }
-    }
-
-    const size_t NewIdx = Params.size();
-    for (const auto &set : Sets) {
-        Params.push_back(PointerType::get(F.getContext(), F.getAddressSpace()));
-        AttrBuilder B(F.getContext());
-        // TODO: This should be byref for wrapper functions (I don't think it
-        // matters though)
-        B.addByValAttr(set.Alloc->getAllocatedType());
-        B.addAttribute(Attribute::NoUndef);
-        ArgAttrVec.push_back(AttributeSet::get(F.getContext(), B));
+        // Maintain mapping of old to new argument indices
+        // Only for the first argument of a set the index is added
+        OldToNewIdx[OldArgIdx] = NewIdx;
+        ++NewIdx;
     }
 
     // AllocSize attribute may refer to removed argument
@@ -1034,6 +1074,7 @@ StructConsolidatorPass::updateFunction(Function &F,
 
     assert(NFTy != FTy);
 
+    // Build new Function
     Function *NF = Function::Create(NFTy, F.getLinkage(), F.getAddressSpace());
     NF->copyAttributesFrom(&F);
     NF->setComdat(F.getComdat());
@@ -1044,37 +1085,44 @@ StructConsolidatorPass::updateFunction(Function &F,
 
     for (User *U : make_early_inc_range(F.users())) {
         if (auto *C = dyn_cast<CallInst>(U)) {
-            replaceFunctionUse(C, F, NF, Sets);
+            replaceFunctionUse(C, F, NF, ArgMapping);
         }
     }
 
     NF->splice(NF->begin(), &F);
 
-    ArgI = 0;
-    for (Argument *I = F.arg_begin(), *E = F.arg_end(); I != E; ++I) {
-        if (!ToBeRemoved.contains(I)) {
-            I->replaceAllUsesWith(NF->getArg(ArgI));
-            ++ArgI;
+    // Replace uses of the old function's arguments
+    for (auto [ArgIdx, Arg] : llvm::enumerate(F.args())) {
+        if (!ArgMapping.contains(&Arg)) {
+            // Replace use of unchanged argument
+            assert(OldToNewIdx.contains(ArgIdx));
+            Arg.replaceAllUsesWith(NF->getArg(OldToNewIdx.at(ArgIdx)));
+        } else {
+            // Replace use alloca belonging to consolidated argument
+            // Only execute for first arg of the set
+            if (!OldToNewIdx.contains(ArgIdx))
+                continue;
+            auto *Set = ArgMapping.at(&Arg);
+            Set->Alloc->replaceAllUsesWith(NF->getArg(OldToNewIdx.at(ArgIdx)));
+            Set->Alloc->eraseFromParent();
+            if (Set->Intermediary) {
+                SmallSet<Value *, 8> Visited;
+                removeRecursively(Set->Intermediary, Visited);
+            }
         }
     }
 
-    for (; ArgI < Params.size(); ++ArgI) {
-        const auto &Set = Sets[ArgI - NewIdx];
-        Set.Alloc->replaceAllUsesWith(NF->getArg(ArgI));
-        Set.Alloc->eraseFromParent();
-        if (Set.Intermediary) {
-            SmallSet<Value *, 8> Visited;
-            removeRecursively(Set.Intermediary, Visited);
-        }
-    }
-
+    // Copy Metadata & check if wrapper function
     const unsigned WrapperID =
         F.getContext().getMDKindID(constants::PALLAS_WRAPPER_FUNC);
+    const unsigned GhostWrapperID =
+        F.getContext().getMDKindID(constants::PALLAS_GHOST_WRAPPER_FUNC);
     bool IsWrapper = false;
     SmallVector<std::pair<unsigned, MDNode *>, 1> MDs;
     F.getAllMetadata(MDs);
     for (auto [KindID, Node] : MDs) {
         IsWrapper |= KindID == WrapperID;
+        IsWrapper |= KindID == GhostWrapperID;
         NF->addMetadata(KindID, *Node);
     }
 
@@ -1088,30 +1136,31 @@ StructConsolidatorPass::updateFunction(Function &F,
         // Look for a Pallas MDNode representing a call to the wrapper function
         // TODO: This should maybe be cached? Or maybe we could store a
         // reference to all of these in the !pallas.exprWrapper node?
-        SmallVector<MDNode *> Metas;
+        // SmallVector<MDNode *> Metas;
+        auto *OldFMD = ValueAsMetadata::get(&F);
+        auto *NewFMD = ValueAsMetadata::get(NF);
         for (Function &OtherF : *F.getParent()) {
-            if (auto MD = OtherF.getMetadata(constants::PALLAS_FUNC_CONTRACT))
-                Metas.push_back(MD);
-            for (BasicBlock &BB : OtherF) {
-                for (Instruction &I : BB) {
-                    if (auto MD =
-                            I.getMetadata(constants::PALLAS_SPEC_STMNT_BLOCK))
-                        Metas.push_back(MD);
-                    if (auto MD = I.getMetadata(LLVMContext::MD_loop))
-                        Metas.push_back(MD);
-                }
+            if (auto MD = utils::getPallasContract(OtherF))
+                replaceWrapperCallInContract(OldFMD, NewFMD, MD);
+            for (auto I = inst_begin(F), E = inst_end(F); I != E; ++I) {
+                if (auto MD = utils::getSpecStmntBlock(*I))
+                    replaceWrapperCallInSpecBlock(OldFMD, NewFMD, MD);
+                if (auto MD = irspec::getGhostAssignBlockMD(*I))
+                    replaceWrapperCallInSpecBlock(OldFMD, NewFMD, MD);
+                if (auto MD = irspec::getGivenBindingBlockMD(*I))
+                    replaceWrapperCallInSpecBlock(OldFMD, NewFMD, MD);
+                if (auto *LoopID = I->getMetadata(LLVMContext::MD_loop))
+                    if (auto MD = utils::getPallasLoopContract(*LoopID))
+                        replaceWrapperCallInLoopInv(OldFMD, NewFMD, MD);
             }
-        }
-        for (MDNode *MD : Metas) {
-            SmallSet<MDNode *, 8> Visited;
-            replaceWrapperCalls(&F, NF, ToBeRemoved, MD, Sets, Visited);
         }
     }
 
-    for (Argument *I = F.arg_begin(), *E = F.arg_end(); I != E; ++I) {
-        if (ToBeRemoved.contains(I)) {
+    // Remove arguments from the old function have been consolidated
+    for (auto &Arg : F.args()) {
+        if (ArgMapping.contains(&Arg)) {
             SmallSet<Value *, 8> Visited;
-            removeRecursively(I, Visited);
+            removeRecursively(&Arg, Visited);
         }
     }
 

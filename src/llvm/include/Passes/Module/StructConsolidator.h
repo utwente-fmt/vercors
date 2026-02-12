@@ -35,6 +35,7 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
         FieldMap Fields;
         AllocaInst *Intermediary;
         MDNode *StmntBlock;
+        MDNode *GhostAssignBlock;
     };
 
     struct ReplaceableArgSet {
@@ -62,21 +63,33 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
                                 const DataLayout &L, StructType &ST,
                                 FieldMap &Fields, ArgInfo &A,
                                 APInt SourceOffset, uint64_t FieldOffset,
-                                size_t Depth, MDNode **StmntBlock);
+                                size_t Depth, MDNode **StmntBlock,
+                                MDNode **GhostAssignBlock);
     void gatherUseData(const Function &F, const DataLayout &L,
                        ReplaceableArgSet &Set);
     bool gatherWrites(const Function &F, const DataLayout &L, uint64_t Size,
                       const Value &V, APInt Offset, WriteVec &Writes,
                       SmallVectorImpl<Instruction *> &LaterWrites);
+    /*
     void replaceWrapperCalls(Function *F, Function *NF,
                              SmallSet<const Argument *, 8> &ToBeRemoved,
                              MDNode *MD, const ReplaceableVec &Sets,
                              SmallSet<MDNode *, 8> &Visited);
+    */
+    void replaceWrapperCallInContract(ValueAsMetadata *OldF,
+                                      ValueAsMetadata *NewF, MDNode *Contract);
+    void replaceWrapperCallInLoopInv(ValueAsMetadata *OldF,
+                                     ValueAsMetadata *NewF, MDNode *LoopInv);
+    void replaceWrapperCallInSpecBlock(ValueAsMetadata *OldF,
+                                       ValueAsMetadata *NewF, MDNode *Block);
+
     const Function &updateFunction(Function &F, const ReplaceableVec &Sets);
-    void replaceFunctionUse(CallInst *Call, const Function &OldF,
-                            Function *NewF, const ReplaceableVec &Sets);
+    void replaceFunctionUse(
+        CallInst *Call, const Function &OldF, Function *NewF,
+        DenseMap<const Argument *, const ReplaceableArgSet *> ArgMapping);
     ReplaceableVec findReplaceableSets(Function &F, const DataLayout &L,
                                        const DominatorTree &DT);
+    bool checkArgsNeighboring(const ReplaceableArgSet &ArgSet);
 };
 
 } // namespace pallas

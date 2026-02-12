@@ -140,8 +140,11 @@ llvm::MDNode *getPallasLoopContract(const llvm::Loop &llvmLoop) {
     llvm::MDNode *loopID = llvmLoop.getLoopID();
     if (loopID == nullptr)
         return nullptr;
+    return getPallasLoopContract(*loopID);
+}
 
-    for (const llvm::MDOperand &op : loopID->operands()) {
+llvm::MDNode *getPallasLoopContract(const llvm::MDNode &loopID) {
+    for (const llvm::MDOperand &op : loopID.operands()) {
         auto *opNode = llvm::dyn_cast_if_present<llvm::MDNode>(op.get());
         // Check that the first operand is a MDString identifier for a
         // loop contract
