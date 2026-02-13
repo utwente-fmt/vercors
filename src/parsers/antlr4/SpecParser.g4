@@ -104,8 +104,8 @@ valImpOp: '-*' | '==>';
 valAndOp: '**';
 valInOp: '\\in';
 valMulOp: '\\';
-valPrependOp : '+:';
-valAppendOp : ':+'; // postfix issues? maybe disable in spec - no side effects?
+valPrependOp : '::';
+valAppendOp : '++'; // postfix issues? maybe disable in spec - no side effects?
 valPostfix
  : '[' '..' langExpr ']'
  | '[' langExpr '..' langExpr? ']'
