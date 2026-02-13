@@ -167,10 +167,6 @@ case class Resolution[G <: Generation](
     val resolvedProgram = LangSpecificToCol(generatePermissions)
       .dispatch(mergedProgram)
 
-    val target = PathOrStd
-      .Path(Paths.get("some_test_with_bob.col"))
-    target.write { writer => resolvedProgram.write(writer)(Ctx().namesIn(resolvedProgram)) }
-
     resolvedProgram.check match {
       case Nil => // ok
       // PB: This explicitly allows LangSpecificToCol to generate invalid ASTs, and will blame the input for them. The

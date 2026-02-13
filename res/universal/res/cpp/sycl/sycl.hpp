@@ -82,7 +82,7 @@ namespace sycl {
   namespace sub_group {
     int get_local_id();   // lane within subgroup
 
-    int get_local_range();
+    int get_local_range(int dimension);
 
     int get_group_id();   // subgroup index within work-group
 

@@ -1056,10 +1056,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           if (!t.superTypeOf(rw.dispatch(inv.t))) {
             throw UnexpectedCPPTypeError(t, inv)
           }
-          val (block, syclBufferRef) = rewriteSYCLBufferConstruction(
+          val (block, syclBufferRef, rangeRelations) = rewriteSYCLBufferConstruction(
             inv,
             Some(varO),
           )
+          syclBufferRangeRelations ++= rangeRelations
           v = syclBufferRef
           result = block
         case (SYCLTLocalAccessor(_, _), inv: CPPInvocation[Pre])
@@ -1093,6 +1094,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     cppNameSuccessor(RefCPPLocalDeclaration(decl, 0)) = v
     result
   }
+
+  var syclBufferRangeRelations: Seq[Eq[Post]] = Nil
 
   def local(local: CPPLocal[Pre]): Expr[Post] = {
     implicit val o: Origin = local.o
@@ -1272,39 +1275,19 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             SeqSubscript[Post](lref,c_const(1))(SYCLSubGroupSeqBoundFailureBlame(inv))
           case _ => throw NotApplicable(inv)
         }
-      case "sycl::sub_group::get_local_range" => ???
+      case "sycl::sub_group::get_local_range" if args.length == 1 =>
+        val warpsize = syclWarpSize.getOrElse(???) // TODO Replace ??? With proper error
+        Local(warpsize.ref)
       case "sycl::sub_group::get_group_range" => ???
       case "sycl::nd_item::get_sub_group" => {
         val warpsize = syclWarpSize.getOrElse(???) // TODO Replace ??? With proper error
-        val laneId = AmbiguousMod(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen")) // TODO make the warp size not a constant, lane ID
-        val warpId = AmbiguousDiv(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen"))  // TODO make the warp size not a constant, warp ID
+        val laneId = AmbiguousMod(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen")) // lane ID
+        val warpId = AmbiguousDiv(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen")) // warp ID
         LiteralSeq(TCInt(), Seq(laneId,warpId))
       }
       case "sycl::shift_group_left" if args.length == 3 => shiftGroupLeftProcedure(inv)
-      case "sycl::shift_group_right" if args.length == 3 => ???
-        val procedure = shiftGroupRightProcedure(inv)
-        rw.globalDeclarations.declare(procedure)
-
-        new ProcedureInvocation[Post](
-          procedure.ref,
-          inv.args.map(rw.dispatch),
-          outArgs = Nil,
-          typeArgs = Nil,
-          givenMap = Nil,
-          yields = Nil,
-        )(inv.blame)
-      case "sycl::group_broadcast" if args.length == 3 =>
-        val procedure = groupBroadCastProcedure(inv)
-        rw.globalDeclarations.declare(procedure)
-
-        new ProcedureInvocation[Post](
-          procedure.ref,
-          inv.args.map(rw.dispatch),
-          outArgs = Nil,
-          typeArgs = Nil,
-          givenMap = Nil,
-          yields = Nil,
-        )(inv.blame)
+      case "sycl::shift_group_right" if args.length == 3 => shiftGroupRightProcedure(inv)
+      case "sycl::group_broadcast" if args.length == 3 => groupBroadCastProcedure(inv)
       case "sycl::accessor::get_range" =>
         classInstance match {
           case Some(Local(ref)) =>
@@ -1466,7 +1449,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       kernelDeclaration.declarator,
     )
 
-    val warpSizeAssignment = rangeType match {
+    //TODO ÖS add something context_every about warpsize so this info gets propagated into the kernel
+    val maybeWarpSize = rangeType match {
       case SYCLTNDRange(_) =>{
         syclWarpSize = Some(new Variable[Post](TCInt())(kernelDeclaration.o.where(name="warpSize")))
         //        rw.variables.declare(syclWarpSize.get)
@@ -1475,8 +1459,43 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           .find(attr => attr.name == "sycl::reqd_sub_group_size" && attr.args.size == 1 && attr.args.head.t == TCInt[Post]())
 
         val defineWarpSize = maybeWarpSize match {
-          case Some(ws) => Assign(Local[Post](syclWarpSize.get.ref)(ws.o), ws.args.head)(PanicBlame("The assignment of the warpsize should never fail"))(ws.o.where(name="warpSize"))
-          case None => Assign(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), c_const(32)(kernelDeclaration.o))(PanicBlame("The assignment of the warpsize should never fail"))(kernelDeclaration.o.where(name="warpSize"))
+          case Some(ws) => (
+            Assign(Local[Post](syclWarpSize.get.ref)(ws.o), ws.args.head)(PanicBlame("The assignment of the warpsize should never fail"))(ws.o.where(name="warpSize")),
+            Eq(Local[Post](syclWarpSize.get.ref)(ws.o), ws.args.head)(ws.o),
+          )
+          case None =>
+            implicit val o: Origin = invocation.o
+            val wrpsizVar = new Variable[Post](TCInt())(o.where(name="warpSize"))
+            val wrpsizeProcedure = new Procedure[Post](
+            returnType = TBool(),
+            args = Seq(wrpsizVar),
+            outArgs = Nil,
+            typeArgs = Nil,
+            body = ???, // I have to encode PowerOfTwo as well I believe, maybe that can be part of the sycl helpers.
+            contract = ApplicableContract(
+              requires = UnitAccountedPredicate(tt),
+              ensures = UnitAccountedPredicate(tt),
+              contextEverywhere = tt,
+              kernelInvariant = tt,
+              signals = Nil,
+              givenArgs = Nil,
+              yieldsArgs = Nil,
+              decreases = None,
+            ),
+            inline = false,
+            pure = true,
+            opaque = false,
+            )(PanicBlame("Should never fail"))(o.where(name="warpSizeFunc"))
+            // pure boolean wrpsiz(int wpsize) =
+            //     (N == 16 && ExpTwo(4) == 16) ||
+            //     (N == 32 && ExpTwo(5) == 32) ||
+            //     (N == 64 && ExpTwo(6) == 64);
+
+
+
+            (Assign(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), c_const(32)(kernelDeclaration.o))(PanicBlame("The assignment of the warpsize should never fail"))(kernelDeclaration.o.where(name="warpSize")),
+            Eq(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), c_const(32)(kernelDeclaration.o))(kernelDeclaration.o.where(name="warpSize"))
+            )
         }
         Some(defineWarpSize)
       }
@@ -1523,19 +1542,56 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val rangeAssignments = currentKernelType.get
       .getRangeParamAssignments(rangeVars)
 
+    val rangeDefinitions = Seq.range(0, rangeVars.size).flatMap(i =>
+      Seq(
+        LocalDecl[Post](rangeVars(i))(rangeVars(i).o),
+        assignLocal(
+          rangeVars(i).get(rangeVars(i).o),
+          currentKernelType.get.getRangeValues(i),
+        )(rangeVars(i).o),
+      )
+    )
+
+    // These annotations are to be added as context_everywhere,
+    // so the relation between variables and their values gets maintained over parblocks
+    val extraContextEverywheres =
+      syclBufferRangeRelations ++
+      maybeWarpSize.map(_._2).toSeq ++
+      Seq.range(0, rangeVars.size).map(i =>
+        Eq(rangeVars(i).get(rangeVars(i).o),
+          currentKernelType.get.getRangeValues(i))(rangeVars(i).o),
+      )
+
+    val kernelParBlockUpdated = ParBlock(
+      decl = kernelParBlock.decl,
+      iters = kernelParBlock.iters,
+      context_everywhere = AstBuildHelpers.foldStar(
+        extraContextEverywheres++
+        Seq(kernelParBlock.context_everywhere)
+      )(kernelParBlock.context_everywhere.o),
+      requires = kernelParBlock.requires,
+      ensures = kernelParBlock.ensures,
+      content = kernelParBlock.content,
+    )(kernelParBlock.blame)(kernelParBlock.o)
+
     // Create the pre- and postconditions for the run-method that will hold the generated kernel code
-    val kernelRunnerContextEverywhere =
-      getKernelQuantifiedCondition(
-        kernelParBlock,
-        removeKernelAccessorPermissions(contractContextEverywhere, accessors),
+    val kernelRunnerContextEverywhere = {
+      AstBuildHelpers.foldStar(
+        extraContextEverywheres ++
+        Seq(getKernelQuantifiedCondition(
+          kernelParBlockUpdated,
+          removeKernelAccessorPermissions(contractContextEverywhere, accessors),
+        )(kernelDeclaration.contract.contextEverywhere.o))
+
       )(kernelDeclaration.contract.contextEverywhere.o)
+    }
 
     val kernelRunnerPreCondition = {
       implicit val o: Origin = kernelDeclaration.contract.requires.o
       UnitAccountedPredicate(
         foldStar(
           accessorRunMethodConditions :+ getKernelQuantifiedCondition(
-            kernelParBlock,
+            kernelParBlockUpdated,
             removeKernelAccessorPermissions(contractRequires, accessors),
           ) :+ kernelRunnerContextEverywhere
         )(commandGroupBody.o)
@@ -1546,7 +1602,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       UnitAccountedPredicate(
         foldStar(
           accessorRunMethodConditions ++ Seq(getKernelQuantifiedCondition(
-            kernelParBlock,
+            kernelParBlockUpdated,
             removeKernelAccessorPermissions(contractEnsures, accessors),
           )) ++ Seq(kernelRunnerContextEverywhere)
         )(commandGroupBody.o)
@@ -1573,11 +1629,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       ),
     )
 
-
-
-
-
-
     // Create a new class instance and assign it to the class instance variable, then fork that variable
     val result =
       (
@@ -1585,26 +1636,19 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           bufferAccessStatements ++
             syclWarpSize.map(LocalDecl[Post](_)(commandGroup.o)).toSeq ++
             Seq(LocalDecl[Post](eventClassRef)(commandGroup.o)) ++
-            warpSizeAssignment.toSeq ++
+            maybeWarpSize.map(_._1).toSeq ++
             currentKernelType.get.getRangeFields
               .map(rf => LocalDecl[Post](rf.ref.decl)(rf.o)) ++
-            Seq.range(0, rangeVars.size).flatMap(i =>
-              Seq(
-                LocalDecl[Post](rangeVars(i))(rangeVars(i).o),
-                assignLocal(
-                  rangeVars(i).get(rangeVars(i).o),
-                  currentKernelType.get.getRangeValues(i),
-                )(rangeVars(i).o),
-              )
-            ) ++
+            rangeDefinitions
+             ++
             Seq(Assert(rangeChecks)((SYCLKernelRangeInvalidBlame(rangeChecks)))(
               rangeChecks.o
             )) ++ rangeAssignments ++ Seq(
               IndetBranch(Seq(
                 Block(Seq[Statement[Post]](
-                  ParStatement[Post](kernelParBlock)(kernelDeclaration.body.o),
-                  Inhale(ff)(kernelParBlock.o),
-                ))(kernelParBlock.o),
+                  ParStatement[Post](kernelParBlockUpdated)(kernelDeclaration.body.o),
+                  Inhale(ff)(kernelParBlockUpdated.o),
+                ))(kernelParBlockUpdated.o),
                 Block(Seq(
                   Exhale[Post](kernelRunnerPreCondition.pred)(
                     kernelRunnerPreCondition.pred.o
@@ -1621,6 +1665,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     currentDimensionIterVars.clear()
     syclAccessorSuccessor.clear()
     currentThis = None
+    syclBufferRangeRelations = Nil
 
     result
   }
@@ -2315,7 +2360,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private def rewriteSYCLBufferConstruction(
       inv: CPPInvocation[Pre],
       maybeVarNameO: Option[Origin] = None,
-  ): (Statement[Post], Variable[Post]) = {
+  ): (Statement[Post], Variable[Post], Seq[Eq[Post]]) = {
     implicit val o: Origin = inv.o
     val varNameO = maybeVarNameO.getOrElse(o)
     val preType = inv.t.asInstanceOf[SYCLTBuffer[Pre]]
@@ -2365,7 +2410,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     // Get arguments
     val hostData = rw.dispatch(inv.args.head)
-    val (range, dimdecls) =
+    val (range, dimdecls, rangeRelations) =
       rw.dispatch(inv.args(1)) match {
         case r: SYCLRange[Post] =>
           r
@@ -2383,7 +2428,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             Seq(LocalDecl(vars(i)), assignLocal(vars(i).get, r.dimensions(i)))
           )
 
-          (updatedR, dimdecls)
+          val rangeRelations = Seq.range(0, vars.size).map(i =>
+            Eq[Post](Local[Post](vars(i).ref), r.dimensions(i))
+          )
+
+          (updatedR, dimdecls, rangeRelations)
         case _ =>
           throw Unreachable(
             "The range parameter of the buffer was not rewritten to a range."
@@ -2417,7 +2466,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       dimdecls ++
         Seq(LocalDecl(v), assignLocal(v.get, copyInv), gainExclusiveAccess)
     )
-    (result, v)
+    (result, v, rangeRelations)
   }
 
   private def destroySYCLBuffer(
@@ -2866,14 +2915,14 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     val exhalePred: Expr[Post] = syclSubgroupInvSuccessors.having(
       mutable.Map(
-        GlobalThreadId[Pre]() -> valToSend,
-        SubGroupFuncValue[Pre]() -> getGlobalWorkItemLinearId(inv),
+        GlobalThreadId[Pre]() -> getGlobalWorkItemLinearId(inv),
+        SubGroupFuncValue[Pre]() -> valToSend,
       )
     ) { rw.dispatch(sgInv) }
     val inhalePred: Expr[Post] = syclSubgroupInvSuccessors.having(
       mutable.Map(
-        GlobalThreadId[Pre]() -> Local(sglResult.ref),
-        SubGroupFuncValue[Pre]() ->  Plus(getGlobalWorkItemLinearId(inv),d),
+        GlobalThreadId[Pre]() -> Plus(getGlobalWorkItemLinearId(inv),d),
+        SubGroupFuncValue[Pre]() ->  Local(sglResult.ref),
       )
     ) { rw.dispatch(sgInv) }
 
@@ -2954,11 +3003,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     result
   }
 
-  def shiftGroupRightProcedure(inv: CPPInvocation[Pre]): Procedure[Post] = {
+  def shiftGroupRightProcedure(inv: CPPInvocation[Pre]): Expr[Post] = {
     ???
   }
 
-  def groupBroadCastProcedure(inv: CPPInvocation[Pre]): Procedure[Post] = {
+  def groupBroadCastProcedure(inv: CPPInvocation[Pre]): Expr[Post] = {
     ???
   }
 
