@@ -13,6 +13,13 @@ namespace sycl {
       ensures \result == sycl::h::add(b,a);
       decreases assume;
       pure int add(int a, int b) = a+b;
+
+      requires 0 <= p;
+      requires n > 0;
+      ensures 0 < p  ==> \result == n * sycl::h::exp(n, p - 1);
+      ensures !(0<p) ==> \result == 1;
+      decreases p;
+      pure int exp(int n, int p) = 0 < p ? n * sycl::h::exp(n, p - 1) : 1;
     */
   }
 

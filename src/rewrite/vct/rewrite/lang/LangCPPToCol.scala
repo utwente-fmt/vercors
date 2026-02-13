@@ -1466,35 +1466,58 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           case None =>
             implicit val o: Origin = invocation.o
             val wrpsizVar = new Variable[Post](TCInt())(o.where(name="warpSize"))
-            val wrpsizeProcedure = new Procedure[Post](
-            returnType = TBool(),
-            args = Seq(wrpsizVar),
-            outArgs = Nil,
-            typeArgs = Nil,
-            body = ???, // I have to encode PowerOfTwo as well I believe, maybe that can be part of the sycl helpers.
-            contract = ApplicableContract(
-              requires = UnitAccountedPredicate(tt),
-              ensures = UnitAccountedPredicate(tt),
-              contextEverywhere = tt,
-              kernelInvariant = tt,
-              signals = Nil,
-              givenArgs = Nil,
-              yieldsArgs = Nil,
-              decreases = None,
-            ),
-            inline = false,
-            pure = true,
-            opaque = false,
-            )(PanicBlame("Should never fail"))(o.where(name="warpSizeFunc"))
-            // pure boolean wrpsiz(int wpsize) =
-            //     (N == 16 && ExpTwo(4) == 16) ||
-            //     (N == 32 && ExpTwo(5) == 32) ||
-            //     (N == 64 && ExpTwo(6) == 64);
+            val wrpsizeProcedure = withResult((result: Result[Post]) => {
+                new Procedure[Post](
+                  returnType = TCInt(),
+                  args = Seq(),
+                  outArgs = Nil,
+                  typeArgs = Nil,
+                  body = None,
+                  contract = ApplicableContract(
+                    requires = UnitAccountedPredicate(tt),
+                    ensures = UnitAccountedPredicate(
+                      Or(
+                          Or(
+                            And(
+                              Eq[Post](result, c_const(16)),
+                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(4)), SYCLMulMethodInvocationBlame(), o), c_const(16))
+                            ),
+                            And(
+                              Eq[Post](result, c_const(32)),
+                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(5)), SYCLMulMethodInvocationBlame(), o), c_const(32))
+                            )
+                          ),
+                            And(
+                              Eq[Post](result, c_const(64)),
+                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(6)), SYCLMulMethodInvocationBlame(), o), c_const(64))
+                          )
+                      )
+                    ),
+                    contextEverywhere = tt,
+                    kernelInvariant = tt,
+                    signals = Nil,
+                    givenArgs = Nil,
+                    yieldsArgs = Nil,
+                    decreases = None,
+                  )(PanicBlame("There are no preconditions"))(invocation.o),
+                  inline = false,
+                  pure = true,
+                  opaque = false,
+                )(PanicBlame("Should never fail"))(o.where(name = "warpSizeFunc"))
+              })
 
+              rw.globalDeclarations.declare(wrpsizeProcedure)
+              val callToWrpsizeProcedure = new ProcedureInvocation[Post](
+                  ref = wrpsizeProcedure.ref,
+                  args = Seq(),
+                  outArgs = Nil,              //: Seq[Expr[G]],
+                  typeArgs = Nil,             //: Seq[Type[G]],
+                  givenMap = Nil,             //: Seq[(Ref[G, Variable[G]], Expr[G])],
+                  yields = Nil,             //: Seq[(Expr[G], Ref[G, Variable[G]])],
+              )(PanicBlame("Should never fail"))
 
-
-            (Assign(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), c_const(32)(kernelDeclaration.o))(PanicBlame("The assignment of the warpsize should never fail"))(kernelDeclaration.o.where(name="warpSize")),
-            Eq(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), c_const(32)(kernelDeclaration.o))(kernelDeclaration.o.where(name="warpSize"))
+            (Assign(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), callToWrpsizeProcedure)(PanicBlame("The assignment of the warpsize should never fail"))(kernelDeclaration.o.where(name="warpSize")),
+            Eq(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o),      callToWrpsizeProcedure)(kernelDeclaration.o.where(name="warpSize"))
             )
         }
         Some(defineWarpSize)
