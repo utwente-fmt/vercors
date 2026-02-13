@@ -1,0 +1,82 @@
+class Node {
+  final int v;
+  final int tid;
+  int inMessage, outMessage, dummySend, dummyReceive, total;
+  int n, frontN, backN;
+
+
+  context Perm(total, 1) ** Perm(inMessage, 1\2) ** Perm(outMessage, 1) ** Perm(n, 1);
+  void processMessage() {
+    total = inMessage + v;
+    outMessage = total;
+    n++;
+  }
+
+  context Perm(backN, 1) ** Perm(n, 1\2);
+  ensures backN == n;
+  void updateBackN() {
+    backN = n;
+  }
+
+  context Perm(frontN, 1) ** Perm(n, 1\2);
+  ensures frontN == n;
+  void updateFrontN() {
+    frontN = n;
+  }
+}
+
+choreography summation(int N, seq<int> vals) {
+  // endpoint `witness` = Dummy();
+  // endpoints nodes[tid := 0 .. N] = Node(vals[tid], tid);
+
+  // nodes[i]
+  endpoint node_i = Node();
+  // nodes[i + 1 % N]
+  endpoint node_ip = Node();
+
+  run {
+    // TODO (RR): getTotal is missing here
+    inhale (\endpoint node_i;
+      Perm(node_i.outMessage, 1) ** Perm(node_i.inMessage, 1) ** Perm(node_i.total, 1) **
+      Perm(node_i.n, 1) ** Perm(node_i.frontN, 1) ** Perm(node_i.backN, 1\2) **
+      Perm(node_i.dummySend, 1) ** Perm(node_i.dummyReceive, 1) **
+      Perm(node_ip.backN, 1\2) **
+      node_ip.backN == node_i.n **
+      0 <= node_i.n ** node_i.n <= N - 1 **
+      node_i.total == node_i.outMessage **
+      node_i.n == node_i.frontN ** node_i.n == node_i.backN **
+      node_i.frontN == node_ip.backN
+    );
+
+    inhale (\endpoint node_ip;
+      Perm(node_i.outMessage, 1) ** Perm(node_i.inMessage, 1) ** Perm(node_i.total, 1) **
+      Perm(node_i.n, 1) ** Perm(node_i.frontN, 1) ** Perm(node_i.backN, 1\2) **
+      Perm(node_i.dummySend, 1) ** Perm(node_i.dummyReceive, 1) **
+      Perm(node_ip.backN, 1\2) **
+      node_ip.backN == node_i.n **
+      0 <= node_i.n ** node_i.n <= N - 1 **
+      node_i.total == node_i.outMessage **
+      node_i.n == node_i.frontN ** node_i.n == node_i.backN **
+      node_i.frontN == node_ip.backN
+    );
+
+    inhale (\chor (\endpoint node_i; node_i.n) == (\endpoint node_ip; node_ip.n));
+
+    channel_invariant
+      Perm(\sender.frontN, 1\2) ** Perm(\receiver.backN, 1\2) **
+      \sender.frontN == \receiver.backN ** 0 <= \sender.frontN ** \sender.frontN <= N;
+    communicate node_i.outMessage -> node_ip.inMessage;
+
+    endpoint node_ip: node_ip.processMessage();
+
+    endpoint node_ip: node_ip.updateBackN();
+
+    channel_invariant Perm(\sender.backN, 1\2) ** Perm(\receiver.frontN, 1\2) **
+      \receiver.frontN + 1 == \sender.backN;
+    communicate node_i.dummyReceive <- node_ip.dummySend;
+
+    endpoint node_i: node_i.updateFrontN();
+
+    // assert (\endpoint nodes[i := 0 .. N]; {: nodes[i].total :} == getTotal(nodes, nodes[i].tid, nodes[i].n));
+  }
+}
