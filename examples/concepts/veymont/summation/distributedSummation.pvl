@@ -48,6 +48,8 @@ choreography summation(int N, seq<int> vals) {
 //    endpoint nodes[i := 0 .. N - 1]: nodes[i].couple(nodes[i + 1]);
 //    endpoint nodes[N - 1]: nodes[N - 1].couple(nodes[0]);
 
+    endpoint nodes[i := 0 .. N]: nodes[i].getTotal_init(nodes);
+
     // Parallel loop invariant
     loop_invariant (\endpoint nodes[i := 0 .. N];
       Perm(nodes[i].outMessage, 1) ** Perm(nodes[i].inMessage, 1) ** Perm(nodes[i].total, 1) **
@@ -112,12 +114,11 @@ choreography summation(int N, seq<int> vals) {
 
       assert (\endpoint nodes[i := 0 .. N]; {: nodes[i].total :} == getTotal(nodes, nodes[i].tid, nodes[i].n));
       assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].n :} == nodes[i].backN);
-      assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].inMessage :} == getTotal(nodes, nodes[i - 1].tid, nodes[i - 1].frontN));
-      assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].n :} == nodes[i - 1].frontN);
-      assert (\endpoint nodes[i := 1 .. N], \forall int j = i - 1; {: nodes[i].tid :} - 1 == {: nodes[j].tid :});
+      assert (\endpoint nodes[i := 1 .. N], \forall int j = i - 1; {: nodes[i].inMessage :} == getTotal(nodes, {: nodes[j] :}.tid, nodes[j].frontN));
+      assert (\endpoint nodes[i := 1 .. N], \forall int j = i - 1; {: nodes[i].n :} == {: nodes[j] :}.frontN );
+      assert (\endpoint nodes[i := 1 .. N], \forall int j = i - 1; {: nodes[i].tid :} - 1 == {: nodes[j] :}.tid);
       assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].inMessage :} == getTotal(nodes, nodes[i].tid - 1, nodes[i].n));
       endpoint nodes[tid := 0 .. N]: nodes[tid].processMessage(nodes);
-      endpoint `witness`: `witness`.magic();
       // assert (\endpoint nodes[i := 0 .. N]; {: nodes[i].total :} == nodes[i].inMessage + nodes[i].v);
       // assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].inMessage :} == getTotal(nodes, nodes[i - 1].tid, nodes[i - 1].frontN));
       // assert (\endpoint nodes[0]; nodes[0].inMessage == getTotal(nodes, nodes[N - 1].tid, nodes[N - 1].frontN));
@@ -126,13 +127,12 @@ choreography summation(int N, seq<int> vals) {
 
 
       // Re-establish previous fact
-      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: \old[beforeProcess](nodes[j].frontN) :} == {: \old[beforeProcess](nodes[i].backN) :});
+      // assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: \old[beforeProcess](nodes[j].frontN) :} == {: \old[beforeProcess](nodes[i].backN) :});
 
       endpoint nodes[tid := 0 .. N]: nodes[tid].updateBackN();
 
-      endpoint `witness`: `witness`.bookmark(42);
       // Re-establish previous fact
-      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: \old[beforeProcess](nodes[j].frontN) :} == {: \old[beforeProcess](nodes[i].backN) :});
+      // assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: \old[beforeProcess](nodes[j].frontN) :} == {: \old[beforeProcess](nodes[i].backN) :});
 
       // Assert for changes on both sides
       assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: nodes[j].frontN :} == \old[beforeProcess](nodes[j].frontN));

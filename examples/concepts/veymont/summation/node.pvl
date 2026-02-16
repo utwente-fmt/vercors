@@ -48,6 +48,21 @@ class Node {
     backN = 0;
   }
 
+  context Perm(total, 1\2) ** Perm(n, 1\2);
+  requires n == 0;
+  requires |nodes| >= 0;
+  requires 0 <= tid && tid < |nodes|;
+  requires nn(nodes);
+  requires nodes[tid] == this;
+  requires total == v;
+  ensures n == 0;
+  ensures total == getTotal(nodes, tid, n);
+  void getTotal_init(seq<Node> nodes) {
+    open_getTotal();
+    assert n == 0;
+    assert total == getTotal(nodes, tid, n);
+  }
+
   // // TODO: How about using sub(add(tid, 1), 1)?
   // requires Perm(nodes[X.add(tid, 1) - 1].backN, 1\2);
   // requires Perm(nodes[tid].backN, 1\2);
@@ -69,6 +84,8 @@ class Node {
   ensures outMessage == total;
   ensures outMessage == getTotal(nodes, tid, n);
   boolean processMessage(seq<Node> nodes) {
+    open_getTotal();
+
     total = inMessage + v;
     outMessage = total;
     n++;
@@ -108,18 +125,28 @@ class Node {
   }
 }
 
+ensures (\forall seq<Node> nodes, int i, int rounds;
+  nn(nodes) &&
+  0 <= i && i < |nodes| &&
+  0 <= rounds && rounds <= |nodes|;
+  {: getTotal(nodes, i, rounds) :} == getTotal_impl(nodes, i, rounds));
+void open_getTotal();
+
 requires nn(nodes);
 requires 0 <= i && i < |nodes|;
 requires 0 <= rounds && rounds <= |nodes|;
-pure int getTotal(seq<Node> nodes, int i, int rounds) =
-  // TODO: What is this forall doing here? It's excluded by "nn(nodes)", but still...?
-  (\forall int i = 0 .. |nodes|; nodes[i] != null) ? (
+pure int getTotal(seq<Node> nodes, int i, int rounds);
+
+requires nn(nodes);
+requires 0 <= i && i < |nodes|;
+requires 0 <= rounds && rounds <= |nodes|;
+pure int getTotal_impl(seq<Node> nodes, int i, int rounds) =
   rounds == 0
     ? nodes[i].v
     : (\let int nextI = next(i, |nodes|);
-      (\let int nextTotal = getTotal(nodes, nextI, rounds - 1);
+      (\let int nextTotal = getTotal_impl(nodes, nextI, rounds - 1);
         nextTotal + nodes[i].v))
-        ) : 0;
+  ;
 
 requires size > 0;
 requires 0 <= i && i < size;
