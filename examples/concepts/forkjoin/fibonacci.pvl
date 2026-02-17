@@ -6,14 +6,11 @@
 /*
  * This example verifies the permission used for 
  * a fork/join computation of a Fibonacci number.
- *
- * To verify this example, use:
- *
- *   vct --silver=silicon fibonacci.pvl
  */
 // begin(all)
 
-pure int fib(int n)=n<2?1:fib(n-1)+fib(n-2);
+decreases n;
+pure int fib(int n)= n < 2 ? 1 : fib(n-1)+fib(n-2);
 
 class Fib {
   int input, output;
