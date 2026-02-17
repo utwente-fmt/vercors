@@ -1,12 +1,4 @@
-// -*- tab-width:2 ; indent-tabs-mode:nil -*-
-
-//:: cases ColoredTiles
-//:: tools silicon
-//:: suite medium problem-fail
-// Doesn't verify because of a bug:
-// https://github.com/viperproject/silicon/issues/537
-// The failing loop invariant succeeds when verified with silicon master
-//:: verdict Fail
+// Colored tiles challenge
 
 adt Int {
     pure int pred(int i);
@@ -22,14 +14,14 @@ class ColoredTiles {
          || (i >= 1 && i < n-1 && s[i-1] && s[i+1])
          || (i < n - 2        && s[i+1] && s[i+2])
       );
-  
+
   pure boolean uniqueS(seq<seq<boolean>> s)
    = (\forall int i;0<=i && i<|s|;
        (\forall int j;0<=j && j<|s|; (s[i] == s[j]) ==> i == j));
-       
+
   pure boolean has_false_in_prefix(seq<boolean> s,int k)
    = (\exists int y;0<=y && y < k+1 && y<|s|; s[y]==false);
-  
+
   ensures left != right ==> (prefix + left != prefix + right);
   void lemma_uniqueness_prefix(seq<boolean> left, seq<boolean> right, seq<boolean> prefix) {
     if (|left| == |right|) {
@@ -50,7 +42,7 @@ class ColoredTiles {
       assert |prefix + left| != |prefix + right|;
     }
   }
-  
+
   requires l <= k && 0 <= l;
   requires (\forall int z;0<=z && z < |last|; 0<=l && l < |last[z]|);
   requires (\forall int z;0<=z && z < |last|;last[z][l]==false);
@@ -59,10 +51,10 @@ class ColoredTiles {
     par exf (int z=0..|last|)
       requires 0<=l && l<|last[z]| && last[z][l]==false && l<=k && 0 <= l;
       ensures has_false_in_prefix(last[z],k);
-    { 
+    {
     }
   }
-  
+
   requires uniqueS(res);
   requires 0 <= j;
   requires j < |res|;
@@ -77,12 +69,12 @@ class ColoredTiles {
     }
     return;
   }
-  
+
   requires uniqueS(ini);
   requires (\forall int y;0 <= y && y < |ini|;!(ini[y] == elm));
   ensures uniqueS(ini + seq<seq<boolean>> { elm });
   void lemma_unique_add_one(seq<seq<boolean>> ini, seq<boolean> elm)
-  { 
+  {
     seq<seq<boolean>> res = ini + seq<seq<boolean>> { elm };
     par lemma_uiu_par (int z=0..|ini|+1)
       context res == ini + seq<seq<boolean>> { elm } && |res| == |ini| + 1;
@@ -92,7 +84,7 @@ class ColoredTiles {
     {}
     return;
   }
-  
+
   requires (\forall int y;0<=y && y < |s|;has_false_in_prefix(s[y],k));
   context_everywhere k2 > k;
   ensures (\forall int y;0<=y && y < |s|;has_false_in_prefix(s[y],k2));
@@ -124,7 +116,7 @@ class ColoredTiles {
     assert uniqueS(res[2]);
     assert !(res[3][0][0] == res[3][1][0]);
     assert uniqueS(res[3]);
-    
+
     int n=4;
     loop_invariant n>=4 && n<=i;
     loop_invariant |res| == n;
@@ -206,7 +198,7 @@ class ColoredTiles {
       n = n + 1;
       res = res + seq<seq<seq <boolean>>> { last } ;
     }
-    
+
     assert |res[i-1]| == count[i-1]; // algorithm computed the number corresponding to our ghost variable
     assert (\let int predI = i - 1;
         (\forall int y; 0<=y && y <|res[i-1]|;validSequence(res[predI][y],i-1)) // all sequences are valid
@@ -214,5 +206,5 @@ class ColoredTiles {
     assert uniqueS(res[i-1]); // all sequences are uniqueS
     return count[i-1];
   }
-  
+
 }

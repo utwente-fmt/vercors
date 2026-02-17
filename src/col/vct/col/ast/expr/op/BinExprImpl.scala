@@ -12,6 +12,7 @@ import vct.col.ast.{
   TAnyValue,
   TBool,
   TCInt,
+  TConst,
   TInt,
   TProcess,
   TRational,
@@ -24,6 +25,8 @@ import vct.col.origin.Origin
 import vct.col.resolve.lang.C
 import vct.col.typerules.{CoercionUtils, TypeSize, Types}
 import vct.result.VerificationError
+
+import scala.annotation.tailrec
 
 object BinOperatorTypes {
   def isCIntOp[G](lt: Type[G], rt: Type[G]): Boolean =
@@ -104,7 +107,17 @@ object BinOperatorTypes {
       case TypeSize.Minimally(_) => 0
     }
 
-  def getNumericType[G](lt: Type[G], rt: Type[G], o: Origin): Type[G] = {
+  @tailrec
+  def stripTypeAnnotations[G](t: Type[G]): Type[G] =
+    t match {
+      case TConst(it) => stripTypeAnnotations(it)
+      case TUnique(it, _) => stripTypeAnnotations(it)
+      case _ => t
+    }
+
+  def getNumericType[G](ltt: Type[G], rtt: Type[G], o: Origin): Type[G] = {
+    val lt = stripTypeAnnotations(ltt)
+    val rt = stripTypeAnnotations(rtt)
     if (isCIntOp(lt, rt))
       (lt, rt) match {
         case (l: BitwiseType[G], r: BitwiseType[G])
@@ -151,12 +164,14 @@ object BinOperatorTypes {
     //            these pointers return TAnyValue() and checking for it here we delay this check until a later pass.
     else if (lt == TAnyValue[G]() || rt == TAnyValue[G]())
       TAnyValue[G]()
-    else
+    else {
+
       getFloatMax[G](lt, rt) getOrElse
         (if (isRationalOp(lt, rt))
            TRational[G]()
          else
            throw NumericBinError(lt, rt, o))
+    }
   }
 }
 
