@@ -27,9 +27,8 @@ class ForkJoinSpec extends VercorsSpec {
         join c;
     }
     """
-
-
-
+  
+  vercors should verify using anyBackend example "concepts/forkjoin/update-point.pvl"
 
 
 }
