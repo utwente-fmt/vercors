@@ -731,6 +731,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   val syclRangeVariableToInitializer: mutable.Map[Variable[Post], Expr[Post]] =
     mutable.Map.empty
 
+  val syclSubgroupInvSuccessors
+  : ScopedStack[mutable.Map[Expr[Pre], Expr[Post]]] =
+    ScopedStack()
+
   val syclBufferSuccessor
       : ScopedStack[mutable.Map[Variable[Post], SYCLBuffer[Post]]] =
     ScopedStack()
@@ -738,6 +742,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       : mutable.Map[CPPNameTarget[Pre], SYCLAccessor[Post]] = mutable.Map.empty
   val syclLocalAccessorVarToDimensions
       : mutable.Map[Variable[Post], Seq[Expr[Post]]] = mutable.Map.empty
+
+  var syclBufferRangeRelations: Seq[Eq[Post]] = Nil
 
   val currentlyRunningKernels: mutable.Map[Local[
     Post
@@ -1094,8 +1100,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     cppNameSuccessor(RefCPPLocalDeclaration(decl, 0)) = v
     result
   }
-
-  var syclBufferRangeRelations: Seq[Eq[Post]] = Nil
 
   def local(local: CPPLocal[Pre]): Expr[Post] = {
     implicit val o: Origin = local.o
@@ -1517,7 +1521,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               )(PanicBlame("Should never fail"))
 
             (Assign(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), callToWrpsizeProcedure)(PanicBlame("The assignment of the warpsize should never fail"))(kernelDeclaration.o.where(name="warpSize")),
-            Eq(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o),      callToWrpsizeProcedure)(kernelDeclaration.o.where(name="warpSize"))
+            Eq(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), callToWrpsizeProcedure)(kernelDeclaration.o.where(name="warpSize"))
             )
         }
         Some(defineWarpSize)
@@ -2909,21 +2913,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def subgroupToSeq(t: SYCLTSubGroup[Pre]): Type[Post] = TSeq(TCInt())(t.o)
-
-//  case class SubGroupInvariantRewriter(val valToSend: Expr[Post], val gid: Expr[Post]) extends Rewriter[Pre] {
-//    override val allScopes = rw.allScopes
-//
-//    override def dispatch(node: Expr[Pre]): Expr[Rewritten[Pre]] = node match {
-//      case GlobalThreadId() =>    gid
-//      case SubGroupFuncValue() => valToSend
-//      case CPPLocal(_, _) => ???
-//      case _ => super.dispatch(node)
-//    }
-//  }
-
-  val syclSubgroupInvSuccessors
-  : ScopedStack[mutable.Map[Expr[Pre], Expr[Post]]] =
-    ScopedStack()
 
   def shiftGroupLeftProcedure(inv: CPPInvocation[Pre]): Expr[Post] = {
     implicit val o = inv.o
