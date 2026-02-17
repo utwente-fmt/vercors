@@ -6,7 +6,7 @@
   
   The command line to verify with the VerCors Tool is:
   
-  vct --silver=silicon TreeRecursiveSilver.java
+  vct --backend silicon TreeRecursiveSilver.java
   
   The expected result is Pass.
 */
@@ -15,8 +15,9 @@
 requires t != null ==> t.state();
 ensures t != null ==> \result.size > 0;
 pure seq<int> contents(Tree t) =
-  t == null ? [t:int] :
-    \unfolding t.state() \in (contents(t.left) + [t.data] + contents(t.right));
+  t == null ? [t:int] 
+            : \unfolding t.state() \in 
+                (contents(t.left) + [t.data] + contents(t.right));
 @*/
 
 final class Tree {
@@ -30,8 +31,8 @@ final class Tree {
     Perm(data,write) **
     Perm(left,write) **
     Perm(right,write) **
-    left->state() **
-    right->state();
+    left?.state() **
+    right?.state();
   @*/
   
   /*@
