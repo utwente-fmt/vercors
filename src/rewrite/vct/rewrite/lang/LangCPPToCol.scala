@@ -17,6 +17,7 @@ import vct.result.Message
 import vct.result.VerificationError.{Unreachable, UserError}
 import vct.rewrite.lang.LangSpecificToCol.NotAValue
 
+import scala.Seq
 import scala.collection.mutable
 
 case object LangCPPToCol {
@@ -394,6 +395,25 @@ case class SubGroupFunctionPreconditionFailed(inv: CPPInvocation[_])
     override def blame(error: AssertFailed): Unit =
       throw KernelRangeInvalidError(error)
   }
+
+  private case class SYCLAccessorPermInsufficient(expr: Expr[_])
+    extends Blame[AssertFailed] {
+    private case class AccessorPermInsufficientError(error: AssertFailed)
+      extends UserError {
+      override def code: String = "syclAccPermInsufficient"
+
+      override def text: String =
+        error.failure.node.o match {
+          case _ =>
+            Message.messagesInContext(
+              (error.node.o, "Contract specifies write permission, while accessor specifies read only permission..."))
+        }
+    }
+
+    override def blame(error: AssertFailed): Unit =
+      throw AccessorPermInsufficientError(error)
+  }
+
 
   private case class SYCLBufferConstructionFailed(inv: CPPInvocation[_])
       extends UserError {
@@ -1556,6 +1576,37 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           )
       }
 
+    val permissionChecks =
+      syclAccessorSuccessor.values.flatMap { acc =>
+      acc.accessMode match {
+        case SYCLReadOnlyAccess() =>
+          implicit val o: Origin = acc.o
+          val any = Any[Post]()(PanicBlame("There should be sufficient permission to access the buffer variable"))
+          val buff = acc.buffer.generatedVar
+          val indexVar1 = new Variable[Post](TCInt())(o.where(name = "i"))
+
+
+
+          val frl = Forall[Post](
+            bindings = Seq(indexVar1),
+            triggers = Nil,
+            body =
+              Implies[Post](
+                And[Post](
+                  GreaterEq[Post](Local[Post](indexVar1.ref), c_const(0)),
+                  Less[Post](Local[Post](indexVar1.ref), Length[Post](Local[Post](buff.ref))(PanicBlame("Buffer is not null is generated"))),
+                ),
+
+                  CurPerm[Post](
+                    AmbiguousLocation(ArraySubscript[Post](Local[Post](buff.ref),Local[Post](indexVar1.ref))(PanicBlame("Should not be possible")))) <  WritePerm()
+              )
+          )
+//          val expr: Expr[Post] = Star(contractContextEverywhere, contractContextEverywhere) ==> frl
+          Seq(Assert[Post](frl)(SYCLAccessorPermInsufficient(frl)))
+        case _ => Seq()
+      }
+    }
+
     val rangeVars: mutable.Buffer[Variable[Post]] = mutable.Buffer.empty
 
     // Generate expressions that check the bounds of the given range
@@ -1598,7 +1649,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       )(kernelParBlock.context_everywhere.o),
       requires = kernelParBlock.requires,
       ensures = kernelParBlock.ensures,
-      content = kernelParBlock.content,
+      content = Block[Post](permissionChecks.toSeq ++ Seq(kernelParBlock.content))(kernelParBlock.content.o),
     )(kernelParBlock.blame)(kernelParBlock.o)
 
     // Create the pre- and postconditions for the run-method that will hold the generated kernel code
@@ -1617,10 +1668,9 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       implicit val o: Origin = kernelDeclaration.contract.requires.o
       UnitAccountedPredicate(
         foldStar(
-          accessorRunMethodConditions :+ getKernelQuantifiedCondition(
-            kernelParBlockUpdated,
-            removeKernelAccessorPermissions(contractRequires, accessors),
-          ) :+ kernelRunnerContextEverywhere
+          accessorRunMethodConditions ++
+            Seq(getKernelQuantifiedCondition(kernelParBlockUpdated, removeKernelAccessorPermissions(contractRequires, accessors))) ++
+            Seq(kernelRunnerContextEverywhere)
         )(commandGroupBody.o)
       )
     }
@@ -1668,9 +1718,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               .map(rf => LocalDecl[Post](rf.ref.decl)(rf.o)) ++
             rangeDefinitions
              ++
-            Seq(Assert(rangeChecks)((SYCLKernelRangeInvalidBlame(rangeChecks)))(
-              rangeChecks.o
-            )) ++ rangeAssignments ++ Seq(
+            Seq(Assert(rangeChecks)((SYCLKernelRangeInvalidBlame(rangeChecks)))(rangeChecks.o)) ++
+            rangeAssignments ++
+//            permissionChecks ++
+            Seq(
               IndetBranch(Seq(
                 Block(Seq[Statement[Post]](
                   ParStatement[Post](kernelParBlockUpdated)(kernelDeclaration.body.o),

@@ -63,7 +63,7 @@ class SYCLSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/sycl/dataAccessors/TwoWriteKernels.cpp"
   vercors should verify using silicon example "concepts/sycl/dataAccessors/TwoWriteKernelsWithWait.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/dataAccessors/WriteOnReadAccessorWithDoubleAccessors.cpp"
-  vercors should error withCode "syclKernelForkPre" example "concepts/sycl/dataAccessors/WriteToReadAccessor.cpp"
+  vercors should error withCode "syclAccPermInsufficient" example "concepts/sycl/dataAccessors/WriteToReadAccessor.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/dataAccessors/WrongGenericArgumentForAccessType.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/dataAccessors/WrongGenericArgumentForBufferDataType.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/dataAccessors/WrongGenericArgumentForBufferRangeType.cpp"
