@@ -1577,7 +1577,15 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
 
     val permissionChecks =
-      syclAccessorSuccessor.values.flatMap { acc =>
+      syclAccessorSuccessor.groupBy(_._2.buffer).values.flatMap { accs =>
+
+      // Always take the accessor with the largest permission
+      val acc = accs.values.reduce( (l,r) =>  (l.accessMode,r.accessMode) match {
+        case (SYCLReadOnlyAccess(), SYCLReadWriteAccess()) => r
+        case (SYCLReadWriteAccess(), SYCLReadOnlyAccess()) => l
+        case _ => l
+      })
+
       acc.accessMode match {
         case SYCLReadOnlyAccess() =>
           implicit val o: Origin = acc.o

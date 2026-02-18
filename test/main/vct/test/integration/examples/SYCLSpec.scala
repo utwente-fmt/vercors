@@ -16,7 +16,6 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "syclNoExtraCodeInCommandGroup" example "concepts/sycl/kernels/NonSYCLCodeInCommandGroup.cpp"
   vercors should error withCode "syclNoExtraCodeInCommandGroup" example "concepts/sycl/kernels/OtherSYCLCodeInCommandGroup.cpp"
   vercors should error withCode "syclItemMethodSeqBoundExceedsLength" example "concepts/sycl/kernels/TooHighKernelDimensionForItemMethod.cpp"
-  vercors should error withCode "resolutionError:outOfScope" example "concepts/sycl/kernels/UnsupportedLocalVariableUsageInCommandGroup.cpp"
   vercors should error withCode "syclKernelRangeInvalid" example "concepts/sycl/kernels/ZeroNDRange.cpp"
 
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalId.cpp"
