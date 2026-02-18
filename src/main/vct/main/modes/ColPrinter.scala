@@ -31,6 +31,7 @@ object ColPrinter {
     val Product = classOf[Product]
     val Option = classOf[Option[_]]
     val Ref = classOf[Ref[_, _]]
+    val String = classOf[String]
   }
 
   def isNode(obj: Object): Boolean =
@@ -71,6 +72,13 @@ object ColPrinter {
       case _ => cls.Option.isAssignableFrom(obj.getClass)
     }
 
+  def isString(obj: Object): Boolean =
+    obj match {
+      case null => true
+      case c: Predef.Class[_] => c == cls.String
+      case _ => cls.String.isAssignableFrom(obj.getClass)
+    }
+
   def isVolatile(field: java.lang.reflect.Field): Boolean =
     java.lang.reflect.Modifier.isVolatile(field.getModifiers)
 
@@ -82,15 +90,15 @@ object ColPrinter {
     }).collect {
       case (f, v)
           if (isNode(v) || isSeq(v) || isOption(v) || isProduct(v) ||
-            isRef(v) || v.getClass.isPrimitive) && f != "debugRewriteState" &&
-            f != "o" =>
+            isRef(v) || isString(v) || v.getClass.isPrimitive) &&
+            f != "debugRewriteState" && f != "o" && f != "blame" =>
         (f, v)
     }
 
   implicit val ctx = vct.col.print.Ctx(width = 200)
   import vct.col.print.Line
 
-  def colPrint(o: Object): Doc =
+  def colPrint(o: Object): Doc = {
     o match {
       case null => Text("null")
       case ParseResult(decls, _) =>
@@ -109,8 +117,10 @@ object ColPrinter {
       case Some(o) => Text("Some(") <> colPrint(o.asInstanceOf[Object]) <> ")"
       case None => Text("None")
       case d: Declaration[_] => name(d) <+> "@" <+> classSplitFields(d)
+      case s: String => Text("\"" + s + "\"")
       case o: Object => classSplitFields(o)
     }
+  }
 
   def name(d: Node[_]): Doc =
     d.o.originContents match {
@@ -136,8 +146,11 @@ object ColPrinter {
 
     if (options.format == ColPrinter.Format.CoreCol) {
       val resolution = Resolution.ofOptions[Generation](options, blameProvider)
-      val resolutionResult = resolution.run(parseResult)
-      println(colPrint(resolutionResult).toStringWithContext)
+      try {
+        val resolutionResult = resolution.run(parseResult)
+        println(colPrint(resolutionResult).toStringWithContext)
+      } catch { case e: Exception => println(e) }
+
       return 0
     }
 
