@@ -252,6 +252,10 @@ sealed trait BitwiseType[G] extends Type[G] with BitwiseTypeImpl[G]
 
 final case class TInt[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends IntType[G] with TIntImpl[G]
+final case class TCheckedInt[G](gte: BigInt, lt: BigInt)(
+    val blame: Blame[IntegerOutOfBounds]
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends IntType[G] with TCheckedIntImpl[G]
 final case class TBoundedInt[G](gte: BigInt, lt: BigInt)(
     implicit val o: Origin = DiagnosticOrigin
 ) extends IntType[G] with TBoundedIntImpl[G]
@@ -1196,8 +1200,14 @@ final case class CoerceCFloatCInt[G](source: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceCFloatCIntImpl[G]
 final case class CoerceCIntCFloat[G](target: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceCIntCFloatImpl[G]
+final case class CoerceBoolCInt[G](target: Type[G])(implicit val o: Origin)
+    extends Coercion[G] with CoerceBoolCIntImpl[G]
+final case class CoerceCIntBool[G]()(implicit val o: Origin)
+    extends Coercion[G] with CoerceCIntBoolImpl[G]
 final case class CoerceCIntInt[G](t: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceCIntIntImpl[G]
+final case class CoerceCheckedIntInt[G]()(implicit val o: Origin)
+    extends Coercion[G] with CoerceCheckedIntIntImpl[G]
 final case class CoerceCFloatFloat[G](source: Type[G], target: Type[G])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceCFloatFloatImpl[G]
@@ -1342,6 +1352,7 @@ sealed trait ResourceTerm[G] extends Expr[G] with ResourceTermImpl[G]
 // Trait mirroring Viper's PossibleTrigger should be implemented by all expressions that eventually become nodes that implement Viper's trait
 sealed trait PossibleTrigger[G] extends Expr[G] with PossibleTriggerImpl[G]
 
+// Dummy constant, used for type inference, should not appear in the AST after a rewrite (therefore there is no entry in CoercingRewriter ensuring we crash)
 final case class DummyConstant[G](t: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends Expr[G] with DummyConstantImpl[G]
@@ -1349,12 +1360,17 @@ final case class DummyConstant[G](t: Type[G])(
 sealed trait Constant[G] extends Expr[G] with ConstantImpl[G]
 sealed trait ConstantInt[G] extends Constant[G] with ConstantIntImpl[G]
 sealed trait ConstantFloat[G] extends Constant[G]
-// Dummy constant, used for type inference, should not appear in the AST after a rewrite (therefore there is no entry in CoercingRewriter ensuring we crash)
 final case class CIntegerValue[G](value: BigInt, t: Type[G])(
     implicit val o: Origin
 ) extends ConstantInt[G] with Expr[G] with CIntegerValueImpl[G]
 final case class IntegerValue[G](value: BigInt)(implicit val o: Origin)
     extends ConstantInt[G] with Expr[G] with IntegerValueImpl[G]
+final case class CheckedIntegerValue[G](value: BigInt, gte: BigInt, lt: BigInt)(
+    val blame: Blame[IntegerOutOfBounds]
+)(implicit val o: Origin)
+    extends ConstantInt[G] with Expr[G] with CheckedIntegerValueImpl[G]
+final case class UncheckedMath[G](inner: Expr[G])(implicit val o: Origin)
+    extends Expr[G] with UncheckedMathImpl[G]
 final case class BooleanValue[G](value: Boolean)(implicit val o: Origin)
     extends Constant[G] with BooleanValueImpl[G]
 final case class FloatValue[G](value: BigDecimal, t: Type[G] /* TFloat */ )(
@@ -3205,6 +3221,7 @@ sealed trait CPointerType[G] extends CType[G] with CPointerTypeImpl[G]
 final case class TCInt[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends IntType[G] with CType[G] with TCIntImpl[G] with BitwiseType[G] {
   var signed: Boolean = true
+  var rank: Int = -1
 }
 final case class TCFloat[G](exponent: Int, mantissa: Int)(
     implicit val o: Origin = DiagnosticOrigin

@@ -612,9 +612,12 @@ class CSpec extends VercorsSpec {
   vercors should error withCode "unsupportedCast" in "Casting struct pointers only works for the first element" c
     """
     #include <stdbool.h>
+    struct C {
+        int whatever;
+    };
     struct A {
         int integer;
-        bool boolean;
+        struct C structure;
     };
 
     struct B {
@@ -622,8 +625,7 @@ class CSpec extends VercorsSpec {
     };
     void cannotCastToBoolean() {
         struct B struct_b;
-        struct_b.struct_a.boolean = true == true; // We currently don't support boolean literals
-        bool *pointer_to_boolean = (bool *)&struct_b;
+        struct C *pointer_to_struct = (struct C *)&struct_b;
     }
     """
   vercors should verify using silicon example "concepts/c/mismatched_provenance.c"

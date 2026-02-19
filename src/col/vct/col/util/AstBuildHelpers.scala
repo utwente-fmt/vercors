@@ -6,6 +6,7 @@ import vct.col.ast.expr.apply.FunctionInvocationImpl
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.Rewritten
+import vct.col.typerules.TypeSize
 import vct.result.VerificationError.{Unreachable, UserError}
 
 /** Collection of general AST building utilities. This is meant to organically
@@ -593,10 +594,18 @@ object AstBuildHelpers {
   def const[G](i: BigInt)(implicit o: Origin): IntegerValue[G] = IntegerValue(i)
 
   def c_const[G](i: Int)(implicit o: Origin): CIntegerValue[G] =
-    CIntegerValue(i, TCInt())
+    c_const(BigInt(i))
 
-  def c_const[G](i: BigInt)(implicit o: Origin): CIntegerValue[G] =
-    CIntegerValue(i, TCInt())
+  def c_const[G](i: BigInt)(implicit o: Origin): CIntegerValue[G] = {
+    val cint = TCInt[G]()
+    cint.signed = i < 0
+    // Set rank low so user specified types are always preferred
+    cint.rank = 0
+    // Calculate minimum amount of bits necessary for storing this value
+    cint.storedBits = TypeSize.Exact(if (i < 0) { i.bitLength + 1 }
+    else { i.bitLength })
+    CIntegerValue(i, cint)
+  }
 
   def contract[G](
       blame: Blame[NontrivialUnsatisfiable],

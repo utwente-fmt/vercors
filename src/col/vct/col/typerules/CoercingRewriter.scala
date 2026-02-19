@@ -322,7 +322,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceDecreasePrecision(_, _) => e
       case CoerceCFloatCInt(_) => e
       case CoerceCIntCFloat(_) => e
+      case CoerceBoolCInt(_) => e
+      case CoerceCIntBool() => e
       case CoerceCIntInt(_) => e
+      case CoerceCheckedIntInt() => e
       case CoerceCFloatFloat(_, _) => e
 
       case CoerceLLVMIntInt() => e
@@ -2094,6 +2097,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         ValidMatrix(arrayMatrix(mat)._1, int(w), int(h))
       case value: BooleanValue[Pre] => e
       case value: CIntegerValue[Pre] => e
+      case value: CheckedIntegerValue[Pre] => e
+      case _: UncheckedMath[Pre] => e
       case value: IntegerValue[Pre] => e
       case value: FloatValue[Pre] => e
       case value: FloatNaN[Pre] => e

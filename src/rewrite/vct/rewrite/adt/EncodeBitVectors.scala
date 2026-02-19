@@ -43,7 +43,7 @@ import vct.col.origin.{
   AbstractApplicable,
   AssertFailed,
   Blame,
-  IntegerOutOfBounds,
+  BitwiseIntegerOutOfBounds,
   LabelContext,
   Origin,
   PanicBlame,
@@ -62,11 +62,11 @@ import scala.collection.mutable
 case object EncodeBitVectors extends RewriterBuilderArg[Boolean] {
   private case class OutOfBoundsBlame(
       node: Node[_],
-      blame: Blame[IntegerOutOfBounds],
+      blame: Blame[BitwiseIntegerOutOfBounds],
   )(implicit val bits: Int)
       extends Blame[AssertFailed] {
     override def blame(error: AssertFailed): Unit =
-      blame.blame(IntegerOutOfBounds(node, bits))
+      blame.blame(BitwiseIntegerOutOfBounds(node, bits))
   }
 
   private val BaseOrigin: Origin = Origin(
@@ -89,7 +89,7 @@ case class EncodeBitVectors[Pre <: Generation](opaque: Boolean)
 
   private def to(
       e: Expr[Post],
-      blame: Blame[IntegerOutOfBounds],
+      blame: Blame[BitwiseIntegerOutOfBounds],
   )(implicit bits: Int, signed: Boolean): Expr[Post] = {
     val stripped = StripAsserting().dispatch(e)
     val inner = let(
@@ -294,7 +294,7 @@ case class EncodeBitVectors[Pre <: Generation](opaque: Boolean)
       r: Expr[Pre],
       b: Int,
       s: Boolean,
-      blame: Blame[IntegerOutOfBounds],
+      blame: Blame[BitwiseIntegerOutOfBounds],
   ): Expr[Post] = {
     implicit val bits: Int = b
     implicit val signed: Boolean = s

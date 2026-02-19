@@ -227,22 +227,28 @@ trait SilverBackend
           case IfFailed(node, reason, _) => defer(reason)
           case WhileFailed(node, reason, _) => defer(reason)
           case AssertFailed(node, reason, _) =>
-            val assert = get[col.Assert[_]](node)
+            val offNode =
+              reason match {
+                case reasons.InsufficientPermission(n) => n
+                case reasons.MagicWandChunkNotFound(n) => n
+                case reasons.AssertionFalse(n) => n
+                case reasons.NegativePermission(n) => n
+              }
+            val (bl, assert) = info(offNode).asserting.map(n => (n.blame, n))
+              .getOrElse[(blame.Blame[blame.AssertFailed], Node[_])](
+                (get[col.Assert[_]] _).andThen(n => (n.blame, n))(node)
+              )
             reason match {
               case reasons.InsufficientPermission(permNode) =>
                 get[col.Node[_]](permNode) match {
                   case _: col.Perm[_] | _: col.PredicateApply[_] |
                       _: col.Value[_] =>
-                    assert.blame
-                      .blame(blame.AssertFailed(getFailure(reason), assert))
+                    bl.blame(blame.AssertFailed(getFailure(reason), assert))
                   case _ => defer(reason)
                 }
-              case _: reasons.MagicWandChunkNotFound =>
-                assert.blame
-                  .blame(blame.AssertFailed(getFailure(reason), assert))
-              case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
-                assert.blame
-                  .blame(blame.AssertFailed(getFailure(reason), assert))
+              case reasons.MagicWandChunkNotFound(_) | reasons
+                    .AssertionFalse(_) | reasons.NegativePermission(_) =>
+                bl.blame(blame.AssertFailed(getFailure(reason), assert))
               case otherReason => defer(otherReason)
             }
           case PostconditionViolated(_, member, reason, _) =>

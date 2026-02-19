@@ -330,6 +330,10 @@ case object Options {
       ).text(
         "Replace bitwise operations (&, |, ^, <<, >>, ~) with opaque functions"
       ),
+      opt[Unit]("check-integer-bounds")
+        .action((_, c) => c.copy(checkIntegerBounds = true)).text(
+          "Check for integer bounds, currently only C is supported. Make sure to set the target so that sizes are known"
+        ),
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
@@ -513,6 +517,7 @@ case class Options(
     generatePermissions: Boolean = false,
     targetString: Option[String] = None,
     opaqueBitwiseOperators: Boolean = false,
+    checkIntegerBounds: Boolean = false,
 
     // Verify options - hidden
     devParserReportAmbiguities: Boolean = false,
