@@ -84,5 +84,5 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/localAccessors/WrongGenericArgumentForDataType.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/localAccessors/WrongGenericArgumentForRangeType.cpp"
 
-  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/ShiftGroupLeft.cpp"
+  vercors should verify using silicon flags("--no-infer-heap-context-into-frame", "--backend-option", "--numberOfErrorsToReport=0") example "concepts/sycl/kernels/ShiftGroupLeft.cpp"
 }
