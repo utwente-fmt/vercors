@@ -3,7 +3,7 @@ set -e
 ROOT="$(dirname "$(dirname "$(readlink -f $0)")")"
 (cd "$ROOT"; ./mill -j 0 vercors.main.runScript)
 
-if [[ "$OSTYPE" == *"darwin"* ]]; then
+if [[ "$OSTYPE" == "darwin"* ]]; then
   Z3="$ROOT/res/universal/deps/darwin/z3/bin/z3"
 else
   Z3="$ROOT/res/universal/deps/unix/z3/bin/z3"
