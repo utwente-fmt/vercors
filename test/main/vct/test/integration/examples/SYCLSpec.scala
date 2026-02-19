@@ -53,7 +53,6 @@ class SYCLSpec extends VercorsSpec {
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/dataAccessors/GetKernelResult.cpp"
   vercors should error withCode "syclAccessorInsufficientReferencePermission" example "concepts/sycl/dataAccessors/GetRangeDimensionOutOfBounds1.cpp"
   vercors should error withCode "syclAccessorInsufficientReferencePermission" example "concepts/sycl/dataAccessors/GetRangeDimensionOutOfBounds2.cpp"
-//  vercors should error withCode "syclAccessorArraySubscriptLinearizePreconditionFailed" example "concepts/sycl/dataAccessors/MissingRangeRequirements.cpp"
   vercors should error withCode "syclBufferOutOfScope" example  "concepts/sycl/dataAccessors/PassBufferToMethod.cpp"
   vercors should error withCode "syclAccessorArraySubscriptArrayBounds" example "concepts/sycl/dataAccessors/SubscriptOutOfBounds1.cpp"
   vercors should error withCode "syclAccessorArraySubscriptArrayBounds" example "concepts/sycl/dataAccessors/SubscriptOutOfBounds2.cpp"
@@ -84,4 +83,6 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "notApplicable" example "concepts/sycl/localAccessors/WrongGenericArgumentForConstructorRangeType2.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/localAccessors/WrongGenericArgumentForDataType.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/localAccessors/WrongGenericArgumentForRangeType.cpp"
+
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/ShiftGroupLeft.cpp"
 }
