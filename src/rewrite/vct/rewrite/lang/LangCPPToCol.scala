@@ -1473,7 +1473,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       kernelDeclaration.declarator,
     )
 
-    //TODO ÖS add something context_every about warpsize so this info gets propagated into the kernel
     val maybeWarpSize = rangeType match {
       case SYCLTNDRange(_) =>{
         syclWarpSize = Some(new Variable[Post](TCInt())(kernelDeclaration.o.where(name="warpSize")))
@@ -1548,6 +1547,43 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
       case _ => None
     }
+
+    val accsInBody = kernelDeclaration.body.collect {
+      case local: CPPLocal[Pre] if local.t.isInstanceOf[CPPPrimitiveType[Pre]] &&
+                                    local.ref.nonEmpty &&
+                                    local.ref.get.isInstanceOf[RefCPPLocalDeclaration[Pre]] &&
+                                    local.ref.get.asInstanceOf[RefCPPLocalDeclaration[Pre]].decls.decl.specs.nonEmpty &&
+                                    local.ref.get.asInstanceOf[RefCPPLocalDeclaration[Pre]].decls.decl.specs.exists(s =>
+                                      s.isInstanceOf[CPPSpecificationType[Pre]] &&
+                                      s.asInstanceOf[CPPSpecificationType[Pre]].t.isInstanceOf[SYCLTAccessor[Pre]] &&
+                                      s.asInstanceOf[CPPSpecificationType[Pre]].t.asInstanceOf[SYCLTAccessor[Pre]].readOnly
+                                    )
+      => local.ref.get.asInstanceOf[RefCPPLocalDeclaration[Pre]]
+    }
+
+    val readOnlyPerms = accsInBody.map { accRef =>
+      val buff = syclAccessorSuccessor(accRef).buffer.generatedVar
+      implicit val o = accRef.decls.o
+      val indexVar = new Variable[Post](TCInt())(o.where(name = "i"))
+      val blame = PanicBlame("Should never fail. Please report if it does fail")
+      Starall(
+            bindings = Seq(indexVar),
+            triggers = Seq(
+              Seq(
+                ArraySubscript(
+                  Local[Post](buff.ref),
+                  Local[Post](indexVar.ref)
+                )(blame)
+              )
+            ),
+            body = (Local[Post](indexVar.ref) >= c_const(0)  &&
+                Local[Post](indexVar.ref) < Length(Local[Post](buff.ref))(PanicBlame("Should never be null")))
+            ==> Perm(
+              AmbiguousLocation(ArraySubscript(Local[Post](buff.ref),Local[Post](indexVar.ref))(blame)),
+              ReadPerm())(buff.o)
+      )(blame)
+    }
+
 // Create a block of code for the kernel body based on what type of kernel it is
     val (
       kernelParBlock,
@@ -1560,13 +1596,13 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           createBasicKernelBody(
             kernelDimensions,
             kernelDeclaration,
-            accessorParblockConditions,
+            accessorParblockConditions++readOnlyPerms,
           )
         case SYCLTNDRange(_) =>
           createNDRangeKernelBody(
             kernelDimensions,
             kernelDeclaration,
-            accessorParblockConditions,
+            accessorParblockConditions++readOnlyPerms,
             collectedLocalAccessorDeclarations,
           )
         case _ =>
@@ -1575,45 +1611,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               "The dimensions parameter in a kernel declaration is supposed to be of type sycl::range<int> or sycl::nd_range<int>."
           )
       }
-
-    val permissionChecks =
-      syclAccessorSuccessor.groupBy(_._2.buffer).values.flatMap { accs =>
-
-      // Always take the accessor with the largest permission
-      val acc = accs.values.reduce( (l,r) =>  (l.accessMode,r.accessMode) match {
-        case (SYCLReadOnlyAccess(), SYCLReadWriteAccess()) => r
-        case (SYCLReadWriteAccess(), SYCLReadOnlyAccess()) => l
-        case _ => l
-      })
-
-      acc.accessMode match {
-        case SYCLReadOnlyAccess() =>
-          implicit val o: Origin = acc.o
-          val any = Any[Post]()(PanicBlame("There should be sufficient permission to access the buffer variable"))
-          val buff = acc.buffer.generatedVar
-          val indexVar1 = new Variable[Post](TCInt())(o.where(name = "i"))
-
-
-
-          val frl = Forall[Post](
-            bindings = Seq(indexVar1),
-            triggers = Nil,
-            body =
-              Implies[Post](
-                And[Post](
-                  GreaterEq[Post](Local[Post](indexVar1.ref), c_const(0)),
-                  Less[Post](Local[Post](indexVar1.ref), Length[Post](Local[Post](buff.ref))(PanicBlame("Buffer is not null is generated"))),
-                ),
-
-                  CurPerm[Post](
-                    AmbiguousLocation(ArraySubscript[Post](Local[Post](buff.ref),Local[Post](indexVar1.ref))(PanicBlame("Should not be possible")))) <  WritePerm()
-              )
-          )
-//          val expr: Expr[Post] = Star(contractContextEverywhere, contractContextEverywhere) ==> frl
-          Seq(Assert[Post](frl)(SYCLAccessorPermInsufficient(frl)))
-        case _ => Seq()
-      }
-    }
 
     val rangeVars: mutable.Buffer[Variable[Post]] = mutable.Buffer.empty
 
@@ -1647,17 +1644,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         Eq(rangeVars(i).get(rangeVars(i).o),
           currentKernelType.get.getRangeValues(i))(rangeVars(i).o),
       )
-
-    val kernelParBlockUpdated = ParBlock(
-      decl = kernelParBlock.decl,
-      iters = kernelParBlock.iters,
-      context_everywhere = AstBuildHelpers.foldStar(
-        extraContextEverywheres++
-        Seq(kernelParBlock.context_everywhere)
-      )(kernelParBlock.context_everywhere.o),
-      requires = kernelParBlock.requires,
-      ensures = kernelParBlock.ensures,
-      content = Block[Post](permissionChecks.toSeq ++ Seq(kernelParBlock.content))(kernelParBlock.content.o),
+    val kernelParBlockUpdated = kernelParBlock.copy(context_everywhere =
+      AstBuildHelpers.foldStar(
+        extraContextEverywheres ++
+          Seq(kernelParBlock.context_everywhere)
+      )(kernelParBlock.context_everywhere.o)
     )(kernelParBlock.blame)(kernelParBlock.o)
 
     // Create the pre- and postconditions for the run-method that will hold the generated kernel code
