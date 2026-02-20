@@ -209,12 +209,16 @@ case class CFloatIntCoercion[Pre <: Generation](
         if (!tt.signed) { cast }
         else if (checkIntegerBounds) {
           if (
-            vt.storedBits > tt.storedBits ||
-            (!vt.signed && vt.storedBits == tt.storedBits)
+            (vt.storedBits > tt.storedBits ||
+              (!vt.signed && vt.storedBits == tt.storedBits)) &&
+            isInSignedRangeConstant(v, tt.storedBits).isEmpty
           ) { throw ConversionImplementationDefined(v, vt, tt) }
           else { cast }
         } else {
-          if (vt.rank > tt.rank || (vt.rank == tt.rank && !vt.signed)) {
+          if (
+            (vt.rank > tt.rank || (vt.rank == tt.rank && !vt.signed)) &&
+            isInSignedRangeConstant(v, tt.storedBits).isEmpty
+          ) {
             logger.warn(
               s"Expression ${cons(v)} might have implementation defined behaviour if $v is out of bounds for the target type"
             )
@@ -225,6 +229,22 @@ case class CFloatIntCoercion[Pre <: Generation](
         cons(Cast(v, TypeValue(target)(v.o))(v.o))
       case _ => cons(v)
     }
+  }
+
+  private def isInSignedRangeConstant(
+      e: Expr[Pre],
+      size: TypeSize,
+  ): Option[(BigInt, BigInt)] = {
+    getConstant(e).flatMap(c =>
+      size match {
+        case TypeSize.Unknown() =>
+          throw Unreachable("Unknown size should never appear")
+        case TypeSize.Minimally(_) => throw MinimalSize()
+        case TypeSize.Exact(bits) =>
+          if (c.bitLength < bits) { Some((bits, c)) }
+          else { None }
+      }
+    )
   }
 
   private def getConstant(e: Expr[Pre]): Option[BigInt] =
@@ -440,7 +460,8 @@ case class CFloatIntCoercion[Pre <: Generation](
           target.t,
           AssignInitial(target, _)(a.blame)(a.o),
         )
-      case Return(value) =>
+      // If returnContext is empty then this must be a different sort of return which we don't have in C (I've specifically seen JavaBIP examples fail)
+      case Return(value) if returnContext.nonEmpty =>
         applyOneWayPromotions(value, returnContext.top, Return(_)(s.o))
       case _ => super.preCoerce(s)
     }
@@ -517,7 +538,15 @@ case class CFloatIntCoercion[Pre <: Generation](
         dispatch(e)
       // This can happen if this is a user-specified cast
       case et: TCInt[Pre] if !unsetTarget =>
-        throw ConversionImplementationDefined(e, et, t)
+        val constant = isInSignedRangeConstant(e, t.storedBits);
+        if (constant.isDefined) {
+          val (size, value) = constant.get
+          CheckedIntegerValue(
+            value,
+            -BigInt(2).pow(size.intValue - 1),
+            BigInt(2).pow(size.intValue - 1),
+          )(globalBlame.top)
+        } else { throw ConversionImplementationDefined(e, et, t) }
       case _: TCInt[Pre] => dispatch(e)
       case TBool() => Select(dispatch(e), const(1), const(0))
       // Assume that we've already added done something with this expression (for example add a Mod) which means it doesn't have to be rechecked

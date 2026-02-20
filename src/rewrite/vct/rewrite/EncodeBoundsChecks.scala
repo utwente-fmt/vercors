@@ -51,6 +51,7 @@ import vct.col.ast.{
   Deref,
   DerefPointer,
   DividingExpr,
+  DividingVectorBinExpr,
   Exhale,
   Exists,
   Exp,
@@ -239,28 +240,12 @@ case class EncodeBoundsChecks[Pre <: Generation]()
           case _: AmbiguousDiv[Pre] | _: AmbiguousTruncDiv[Pre] =>
             if (div.isVectorOp)
               return super.dispatch(div)
-            div.t match {
-              case i @ TCheckedInt(gte, lt) if gte < 0 =>
-                Asserting(
-                  inPure.having(()) { dispatch(div.left) } > const(gte) ||
-                    inPure.having(()) { dispatch(div.right) } >= const(0),
-                  super.dispatch(div),
-                )(OverflowBlame(div, i.blame, lt))
-              case _ => super.dispatch(e)
-            }
+            checkDivision(div)
           case _: AmbiguousMod[Pre] | _: AmbiguousTruncMod[Pre] =>
             super.dispatch(e)
         }
-      case FloorDiv(left, right) if inPure.isEmpty =>
-        BinOperatorTypes.getNumericType(left.t, right.t, e.o) match {
-          case i @ TCheckedInt(gte, lt) if gte < 0 =>
-            Asserting(
-              inPure.having(()) { dispatch(left) } <= const(gte) &&
-                inPure.having(()) { dispatch(right) } < const(0),
-              super.dispatch(e),
-            )(OverflowBlame(e, i.blame, lt))
-          case _ => super.dispatch(e)
-        }
+      case div: FloorDiv[Pre] if inPure.isEmpty => checkDivision(div)
+      case div: TruncDiv[Pre] if inPure.isEmpty => checkDivision(div)
       case m: AmbiguousMult[Pre] if inPure.isEmpty => checkPost(m)
       case m: Mult[Pre] if inPure.isEmpty => checkPost(m)
       case UMinus(e) if inPure.isEmpty =>
@@ -397,8 +382,21 @@ case class EncodeBoundsChecks[Pre <: Generation]()
         )(UnderflowBlame(op, i.blame, gte))
       case _ => super.dispatch(op)
     }
-
   }
+
+  private def checkDivision(e: BinExpr[Pre]): Expr[Post] = {
+    implicit val o: Origin = e.o
+    e.t match {
+      case i @ TCheckedInt(gte, lt) if gte < 0 =>
+        Asserting(
+          inPure.having(()) { dispatch(e.left) } > const(gte) ||
+            inPure.having(()) { dispatch(e.right) } >= const(0),
+          super.dispatch(e),
+        )(OverflowBlame(e, i.blame, lt))
+      case _ => super.dispatch(e)
+    }
+  }
+
   private def havingVars[T](vs: Seq[Variable[Pre]])(op: => T): T = {
     val filtered = vs.filter(_.t.isInstanceOf[TCheckedInt[Pre]])
     filtered.foreach { v =>
