@@ -758,5 +758,92 @@ void main(){
     assert(v2.x == 3 && p[0].y == 10);
 }
   """
+  vercors should verify using silicon flags("--check-integer-bounds", "--target", "i686-linux-unknown") example "concepts/c/integer_bounds.c"
+  vercors should fail withCode "overflow" using silicon flags("--check-integer-bounds", "--target", "i686-linux-unknown") in "signed integer overflow should fail" c
+  """
+void foo(int a) {
+  int b = a + 1;
+}
+  """
+  vercors should fail withCode "underflow" using silicon flags("--check-integer-bounds", "--target", "i686-linux-unknown") in "signed integer underflow should fail" c
+  """
+void foo(int a) {
+  int b = a - 1;
+}
+  """
+  vercors should verify using silicon flags("--check-integer-bounds", "--target", "i686-linux-unknown") in "unsigned integer overflow should succeed" c
+  """
+void foo(int a) {
+  unsigned int b = a + 1;
+}
+  """
+  vercors should verify using silicon flags("--check-integer-bounds", "--target", "i686-linux-unknown") in "signed integer overflow should succeed" c
+  """
+void foo(int a) {
+  unsigned int b = a + 1;
+}
+  """
+  vercors should error withCode "implementationDefinedConversion" flags("--check-integer-bounds", "--target", "i686-linux-unknown") in "implicit conversion to smaller signed integer" c
+  """
+void foo(unsigned int a) {
+  int b = a;
+}
+  """
+  vercors should verify using silicon flags("--check-integer-bounds", "--target", "i686-linux-unknown") in "implicit conversion to larger signed integer" c
+  """
+void foo(unsigned int a) {
+  signed long long b = a;
+}
+  """
+
+  vercors should error withCode "implementationDefinedConversion" flags("--check-integer-bounds", "--target", "i686-linux-unknown") in "explicit conversion to smaller signed integer" c
+  """
+void foo(unsigned int a) {
+  (int)a;
+}
+  """
+  vercors should verify using silicon flags("--check-integer-bounds", "--target", "i686-linux-unknown") in "explicit conversion to larger signed integer" c
+  """
+void foo(unsigned int a) {
+  (signed long long)a;
+}
+  """
+  vercors should verify using silicon in "implicit conversion to boolean in if" c
+  """
+#include <stdbool.h>
+bool foo(int a) {
+   if (a) { return true; } else { return false; }
+}
+  """
+  vercors should verify using silicon in "implicit conversion to boolean in ternary" c
+  """
+#include <stdbool.h>
+bool foo(int a) {
+   return a ? true : false;
+}
+  """
+  vercors should verify using silicon in "implicit conversion to boolean in expression" c
+  """
+#include <stdbool.h>
+bool foo(int a) {
+   return true && a;
+}
+  """
+  vercors should verify using silicon in "implicit conversion to integer in expression" c
+  """
+#include <stdbool.h>
+int foo(bool a) {
+   return a + 1;
+}
+  """
+  vercors should verify using silicon in "implicit conversion to integer in call" c
+  """
+#include <stdbool.h>
+int bar(int a);
+
+int foo(bool a) {
+   return bar(a);
+}
+  """
 }
 

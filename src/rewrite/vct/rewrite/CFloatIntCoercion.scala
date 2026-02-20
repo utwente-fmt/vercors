@@ -460,6 +460,10 @@ case class CFloatIntCoercion[Pre <: Generation](
           target.t,
           AssignInitial(target, _)(a.blame)(a.o),
         )
+      case Branch(branches) =>
+        Branch(branches.map { case (cond, s) =>
+          applyOneWayPromotions(preCoerce(cond), TBool(), (_, s))
+        })(s.o)
       // If returnContext is empty then this must be a different sort of return which we don't have in C (I've specifically seen JavaBIP examples fail)
       case Return(value) if returnContext.nonEmpty =>
         applyOneWayPromotions(value, returnContext.top, Return(_)(s.o))
@@ -576,7 +580,7 @@ case class CFloatIntCoercion[Pre <: Generation](
         AmbiguousNeq(dispatch(a), dispatch(b), TInt(), size.map(dispatch))(e.o)
       case Cast(v, tv @ TypeValue(t @ TCInt())) =>
         Cast(applyCast(v, t), TypeValue(dispatch(t))(tv.o))(e.o)
-      case Cast(v, tv @ TypeValue(TBool())) if e.t.isInstanceOf[TCInt[Pre]] =>
+      case Cast(v, tv @ TypeValue(TBool())) if v.t.isInstanceOf[TCInt[Pre]] =>
         Neq(dispatch(v), const(0)(v.o))(v.o)
       case CIntegerValue(v, i @ TCInt())
           if inPure.isEmpty && checkIntegerBounds && !unsetTarget =>
