@@ -465,6 +465,8 @@ case class SilverTransformation(
       ) ++ simplifyAfterRelations ++ Seq(
         UntupledQuantifiers,
 
+        // Resolve scale before encoding proof helpers, for easier access to annotation info.
+        ResolveScale,
         // Encode proof helpers
         EncodeProofHelpers.withArg(inferHeapContextIntoFrame),
         ImportSetCompat.withArg(adtImporter),
@@ -479,7 +481,6 @@ case class SilverTransformation(
         ResolveExpressionSideChecks,
         ResolveExpressionSideEffects,
         EncodeTryThrowSignals,
-        ResolveScale,
         MonomorphizeClass,
         // No more classes
         ClassToRef,

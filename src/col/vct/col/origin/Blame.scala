@@ -820,6 +820,18 @@ case class KernelPostconditionFailed(
       case Right(cppLambdaDef) => cppLambdaDef
     }
 }
+
+case class ExtractedKernelPostconditionFailed(
+    failure: ContractFailure,
+    node: CGpgpuKernelSpecifier[_],
+) extends KernelFailure with WithContractFailure {
+  override def baseCode: String = "postExtractedKernelFailed"
+  override def descInContext: String =
+    "The postcondition of this extracted kernel may not hold, since"
+  override def inlineDescWithSource(node: String, failure: String): String =
+    s"The postcondition of `$node` may not hold, since $failure."
+}
+
 case class KernelPredicateNotInjective(
     kernel: Either[CGpgpuKernelSpecifier[_], CPPLambdaDefinition[_]],
     predicate: Expr[_],

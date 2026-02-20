@@ -22,14 +22,14 @@ object EncodeForkJoin extends RewriterBuilder {
   override def desc: String =
     "Encode fork and join statements with the contract of the run method it refers to."
 
-  private def IdleToken(cls: Class[_]): Origin = cls.o.where(prefix = "idle")
+  private def IdleToken(cls: Class[_]): Origin = cls.o.where(name = "idle")
 
   private def RunningToken(cls: Class[_]): Origin =
-    cls.o.where(prefix = "running")
+    cls.o.where(name = "running")
 
-  private def ForkMethod(cls: Class[_]): Origin = cls.o.where(prefix = "fork")
+  private def ForkMethod(cls: Class[_]): Origin = cls.o.where(name = "fork")
 
-  private def JoinMethod(cls: Class[_]): Origin = cls.o.where(prefix = "join")
+  private def JoinMethod(cls: Class[_]): Origin = cls.o.where(name = "join")
 
   case class ForkInstanceInvocation(fork: Fork[_])
       extends Blame[InstanceInvocationFailure] {
@@ -259,7 +259,7 @@ case class EncodeForkJoin[Pre <: Generation]() extends Rewriter[Pre] {
             Nil,
             labelDecls.scope { m.body.map(dispatch) },
             dispatch(m.contract),
-          )(m.blame)
+          )(m.blame)(m.o.where(name = "run_impl"))
         )
       case other => rewriteDefault(other)
     }

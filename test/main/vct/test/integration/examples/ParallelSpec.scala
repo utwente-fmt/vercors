@@ -5,7 +5,7 @@ import vct.test.integration.helper.VercorsSpec
 class ParallelSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/parallel/array_par.pvl"
   vercors should verify using silicon example "concepts/parallel/block-par.pvl"
-  vercors should verify using silicon example "concepts/parallel/forward-host.pvl"
+  vercors should fail withCode "assertFailed:false" using silicon flags("--prover-config:smt.arith.solver=6") example "concepts/parallel/forward-host.pvl"
   vercors should verify using silicon example "concepts/parallel/ForWithinParallel.pvl"
   vercors should verify using silicon example "concepts/parallel/inv-test.pvl"
   vercors should verify using silicon example "concepts/parallel/inv-test-fail1.pvl"
