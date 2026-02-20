@@ -318,6 +318,9 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
           case DerefPointer(DerefHeapVariable(Ref(v)))
               if !globalStripped.contains(v) =>
             v
+          case PointerLocation(DerefHeapVariable(Ref(v)))
+              if !globalStripped.contains(v) =>
+            v
         }
         foldStar(
           nonStripped.map(v =>
@@ -329,6 +332,9 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
           case DerefPointer(DerefHeapVariable(Ref(v)))
               if !globalStripped.contains(v) =>
             v
+          case PointerLocation(DerefHeapVariable(Ref(v)))
+              if !globalStripped.contains(v) =>
+            v
         }
         foldStar(
           nonStripped.map(v =>
@@ -338,6 +344,9 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
       case AutoValue(location) =>
         val nonStripped = location.collect {
           case DerefPointer(DerefHeapVariable(Ref(v)))
+              if !globalStripped.contains(v) =>
+            v
+          case PointerLocation(DerefHeapVariable(Ref(v)))
               if !globalStripped.contains(v) =>
             v
         }
