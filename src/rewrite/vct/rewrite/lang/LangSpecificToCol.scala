@@ -324,7 +324,15 @@ case class LangSpecificToCol[Pre <: Generation](
         java.initLocal(locals)
 
       case CDeclarationStatement(decl) => c.rewriteLocal(decl)
-      case CPPDeclarationStatement(decl) => cpp.rewriteLocalDecl(decl)
+      case CPPDeclarationStatement(decl) =>
+        if (cpp.gatherBlockStatements) cpp.visitedKernelStatements=cpp.visitedKernelStatements ++ Seq(decl)
+        cpp.rewriteLocalDecl(decl)
+      case assign: AssignInitial[Pre] if cpp.gatherBlockStatements =>
+        cpp.visitedKernelStatements=cpp.visitedKernelStatements ++ Seq(assign)
+        assign.rewriteDefault()
+      case assign: Assign[Pre] if cpp.gatherBlockStatements =>
+        cpp.visitedKernelStatements=cpp.visitedKernelStatements ++ Seq(assign)
+        assign.rewriteDefault()
       case scope: CPPLifetimeScope[Pre] => cpp.rewriteLifetimeScope(scope)
       case goto: CGoto[Pre] => c.rewriteGoto(goto)
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
@@ -436,8 +444,11 @@ case class LangSpecificToCol[Pre <: Generation](
         cpp.checkPredicateFoldingAllowed(unfolding.res)
         super.dispatch(unfolding)
       }
-
+      case assign: PostAssignExpression[Pre] =>
+        if (cpp.gatherBlockStatements) cpp.visitedKernelStatements=cpp.visitedKernelStatements ++ Seq(assign)
+        super.dispatch(assign)
       case assign: PreAssignExpression[Pre] =>
+        if (cpp.gatherBlockStatements) cpp.visitedKernelStatements=cpp.visitedKernelStatements ++ Seq(assign)
         assign.target match {
           case AmbiguousSubscript(v, _) =>
             v.t match {

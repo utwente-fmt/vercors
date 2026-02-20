@@ -48,7 +48,7 @@ void smartsum(sycl::queue q, int T, int N, int* fx) {
         int d1 = 1;
 
         fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], d1)
-          /*@ sub_group_inv { \sg_val == sum(fxGs()[\gtid..\gtid+d1]) } */;
+          /*@ sub_group_inv { \sg_val == gid + sum(fxGs()[\gtid..\gtid+d1]) } */;
 
         /*@ assert lemmaSumOverConcat(fxGs()[gid .. gid+d1],fxGs()[gid+d1 .. gid+d1+d1]);
             assert lemmaSumOverABBCisAC(fxGs(), gid, gid+d1, gid+d1+d1);

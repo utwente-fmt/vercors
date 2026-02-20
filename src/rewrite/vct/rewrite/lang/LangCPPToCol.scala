@@ -10,7 +10,7 @@ import vct.col.resolve.NotApplicable
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
 import vct.col.rewrite.ParBlockEncoder.ParBlockNotInjective
-import vct.col.rewrite.{Generation, ParBlockEncoder, Rewriter, Rewritten}
+import vct.col.rewrite.{Generation, ParBlockEncoder, Rewriter, Rewritten, SimplifyNestedQuantifiers}
 import vct.col.util.AstBuildHelpers.{assignLocal, _}
 import vct.col.util.{AstBuildHelpers, Substitute, SuccessionMap}
 import vct.result.Message
@@ -753,7 +753,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   val syclSubgroupInvSuccessors
   : ScopedStack[mutable.Map[Expr[Pre], Expr[Post]]] =
-    ScopedStack()
+ScopedStack()
 
   val syclBufferSuccessor
       : ScopedStack[mutable.Map[Variable[Post], SYCLBuffer[Post]]] =
@@ -773,6 +773,8 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       : mutable.Map[KernelScopeLevel, mutable.Buffer[IterVariable[Post]]] =
     mutable.Map.empty
   var currentKernelType: Option[KernelType] = None
+  var gatherBlockStatements = false
+  var visitedKernelStatements: mutable.Seq[Node[Pre]] = mutable.Seq.empty
   var currentThis: Option[Expr[Post]] = None
 
   sealed abstract class KernelScopeLevel(val idName: String)
@@ -1719,7 +1721,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
              ++
             Seq(Assert(rangeChecks)((SYCLKernelRangeInvalidBlame(rangeChecks)))(rangeChecks.o)) ++
             rangeAssignments ++
-//            permissionChecks ++
             Seq(
               IndetBranch(Seq(
                 Block(Seq[Statement[Post]](
@@ -1743,7 +1744,6 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     syclAccessorSuccessor.clear()
     currentThis = None
     syclBufferRangeRelations = Nil
-
     result
   }
 
@@ -1790,6 +1790,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     })
     implicit val o: Origin = kernelDeclaration.o
 
+    gatherBlockStatements = true
+    visitedKernelStatements = mutable.Seq.empty
+    val body = rw.dispatch(kernelDeclaration.body)
+    visitedKernelStatements = mutable.Seq.empty
+    gatherBlockStatements = false
     // Create the parblock representing the kernels
     val parBlock =
       ParBlock[Post](
@@ -1801,7 +1806,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         ),
         requires = contractRequires,
         ensures = contractEnsures,
-        content = rw.dispatch(kernelDeclaration.body),
+        content = body,
       )(SYCLKernelParBlockFailureBlame(kernelDeclaration))
 
     (parBlock, contractRequires, contractEnsures, contractContextEverywhere)
@@ -1894,6 +1899,11 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     implicit val o: Origin = kernelDeclaration.o
 
+    gatherBlockStatements=true
+    visitedKernelStatements = mutable.Seq.empty
+    val body = rw.dispatch(kernelDeclaration.body)
+    visitedKernelStatements = mutable.Seq.empty
+    gatherBlockStatements=false
     // Create the parblock representing the work-items inside work-groups
     val workItemParBlock = ParStatement[Post](
       ParBlock[Post](
@@ -1908,7 +1918,7 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         ),
         requires = contractRequires,
         ensures = contractEnsures,
-        content = rw.dispatch(kernelDeclaration.body),
+        content = body,
       )(SYCLKernelParBlockFailureBlame(kernelDeclaration))
     )
 
@@ -2998,6 +3008,18 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       LessEq(Plus(laneid, Plus(d,d)), Local[Post](warpsize.ref)),
       inhalePred
     )
+
+    val tmp = visitedKernelStatements.dropRight(1).flatMap {
+      case PostAssignExpression(target, value) => Seq((target, value))
+      case PreAssignExpression(target, value) => Seq((target,value))
+      case Assign(target, value) => Seq((target, value))
+      case AssignInitial(target, value) => Seq((target, value))
+      case CPPDeclarationStatement(decl) => decl.decl.inits.map(d => (d.decl,d.init))
+      case _ => Seq()
+    }
+
+
+
 
     val sg = new Variable[Post](TSeq(TCInt()))(o.where(name = "sg"))
     val value = new Variable[Post](TCInt())(o.where(name = "value"))
