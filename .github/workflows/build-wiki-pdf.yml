@@ -10,7 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt install pandoc texlive-xetex
+      - run: |
+          sudo apt-get update
+          sudo apt-get install pandoc texlive-xetex
       - working-directory: util/wiki
         run: |
           python3 -m venv venv
