@@ -533,6 +533,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   private def castIsId(exprType: Type[Pre], castType: Type[Pre]): Boolean = {
     (getBaseType(castType), getBaseType(exprType)) match {
+      case (tc @ TCInt(), te @ TCInt()) =>
+        tc.signed == te.signed && tc.rank == te.rank
       case (tc, te) if tc == te && tc.bits == te.bits => true
       case (TCInt(), TBoundedInt(_, _)) => true
       case (TBoundedInt(_, _), TCInt()) => true

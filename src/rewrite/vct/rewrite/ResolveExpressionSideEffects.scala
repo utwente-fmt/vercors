@@ -544,12 +544,15 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
 
       // ## Nodes of which the combination with side effects is ill-defined: ##
       // PB: we could probably support let in impure contexts, is it useful?
+      // AS: I've allowed let for now, it only gets a bit confusing when someone
+      //     uses with/then inside the body of the let (they don't have access
+      //     to the variable)
       // PB: technically only binders are problematic, others are just confusing
       // e.g. allowing unfolding would enable:
       //     \unfolding p() in (1 with inhale p())
       // to verify.
       case Star(_, _) | Exists(_, _, _) | Forall(_, _, _) | Starall(_, _, _) |
-          Let(_, _, _) | Sum(_, _, _) | Product(_, _, _) | ForPerm(_, _, _) |
+          Sum(_, _, _) | Product(_, _, _) | ForPerm(_, _, _) |
           PolarityDependent(_, _) | Unfolding(_, _) =>
         throw DisallowedProofExpression(e)
 
@@ -564,6 +567,13 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
           }
         stored(
           ReInliner().dispatch(Select(cond1, whenTrue1, whenFalse1)(e.o)),
+          e.t,
+        )
+      case Let(v, value, body) =>
+        val value1 = dispatchImpure(value)
+        val body1 = dispatchImpure(body)
+        stored(
+          ReInliner().dispatch(Let(variables.dispatch(v), value1, body1)(e.o)),
           e.t,
         )
       case Implies(left, right) =>

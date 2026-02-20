@@ -24,7 +24,8 @@ case object CoercionUtils {
   ): Option[Coercion[G]] = {
     Some((innerSource, innerTarget) match {
       case (l, r) if l == r => CoerceIdentity(source)
-      case (TCInt(), TInt()) => CoerceIdentity(source)
+      case (TCInt(), TInt()) => CoerceCIntInt(source)
+      case (TCheckedInt(_, _), TInt()) => CoerceCheckedIntInt()
       case (CPrimitiveType(specs), r) =>
         specs.collectFirst { case spec: CSpecificationType[G] => spec } match {
           case Some(CSpecificationType(t)) =>
@@ -423,6 +424,9 @@ case object CoercionUtils {
           CoerceCFloatFloat(coercedCFloat, target),
         ))
       case (TCInt(), TInt()) => CoerceCIntInt(source)
+      case (l @ TCInt(), TBool()) => CoerceCIntBool()
+      case (TBool(), TCInt()) => CoerceBoolCInt(target)
+      case (TCheckedInt(_, _), TInt()) => CoerceCheckedIntInt()
       case (LLVMTInt(_), TInt()) => CoerceLLVMIntInt()
       case (TInt(), LLVMTInt(_)) => CoerceIdentity(target)
       case (LLVMTInt(_), TBool()) => CoerceLLVMIntBool()

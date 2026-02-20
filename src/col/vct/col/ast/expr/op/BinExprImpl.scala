@@ -12,6 +12,7 @@ import vct.col.ast.{
   TAnyValue,
   TBool,
   TCInt,
+  TCheckedInt,
   TConst,
   TInt,
   TProcess,
@@ -25,6 +26,7 @@ import vct.col.origin.Origin
 import vct.col.resolve.lang.C
 import vct.col.typerules.{CoercionUtils, TypeSize, Types}
 import vct.result.VerificationError
+import vct.result.VerificationError.Unreachable
 
 import scala.annotation.tailrec
 
@@ -156,8 +158,20 @@ object BinOperatorTypes {
       }
     else if (isLLVMIntOp(lt, rt))
       Types.leastCommonSuperType(lt, rt).asInstanceOf[LLVMTInt[G]]
-    else if (isIntOp(lt, rt))
-      TInt[G]()
+    else if (isIntOp(lt, rt)) {
+      (lt, rt) match {
+        case (l @ TCheckedInt(gteL, ltL), TCheckedInt(gteR, ltR)) =>
+          if (gteL == gteR && ltL == ltR)
+            TCheckedInt[G](gteL, ltL)(l.blame)
+          // Refer to section 6.3.1 of the C standard for discussion on integer type rankings and type promotions
+          else
+            throw Unreachable("What to do when the checked ints conflict?")
+        case (TCheckedInt(_, _), _) | (_, TCheckedInt(_, _)) =>
+          // If one int is not a checked int, then it is a mathematical integer
+          TInt[G]()
+        case _ => TInt[G]()
+      }
+    }
     // TODO (AS): This TAnyValue check is because we do not yet have the correct types for pointer variables during
     //            LangLLVMToCol therefore querying the type of a binary operator which has operands whose values derive
     //            from the type of these pointers will yield the NumericBinError below. By making the dereference of
