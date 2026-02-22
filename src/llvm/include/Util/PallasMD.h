@@ -38,12 +38,6 @@ bool hasPallasContract(const llvm::Function &f);
 bool hasExternalPallasContract(const llvm::Function &f);
 
 /**
- * Checks if the given function has a metadata-node that is labeled as an
- * Pallas ghost contract.
- */
-bool hasPallasGhostContract(const llvm::Function &f);
-
-/**
  * If f has an external or a normal pallas-contract, return this contract.
  */
 llvm::MDNode *getPallasContract(const llvm::Function &f);

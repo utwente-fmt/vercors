@@ -10,6 +10,7 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif // __GNUC__
+#include <llvm/IR/Metadata.h>
 #include <llvm/IR/PassManager.h>
 
 #include "IRSpec/PallasIRSpec.h"
@@ -42,8 +43,7 @@ class FDCResult {
 
     std::optional<irspec::FunctionContract> associatedIRContract = std::nullopt;
 
-    std::unordered_map<const irspec::GhostArgDef *, col::Variable *>
-        ghostArgMap;
+    std::unordered_map<const llvm::MDNode *, col::Variable *> ghostArgMap;
 
   public:
     explicit FDCResult(col::LlvmFunctionContract &colFuncContract);
@@ -52,12 +52,9 @@ class FDCResult {
 
     const irspec::FunctionContract *getIRContract();
 
-    void addGhostArgMapEntry(const irspec::GhostArgDef &arg,
-                             col::Variable &colVar);
+    void addGhostArgMapEntry(const llvm::MDNode &arg, col::Variable &colVar);
 
-    col::Variable *getGhostArgMapEntry(const irspec::GhostArgDef &arg);
-
-    col::Variable *getGhostArgByName(const std::string &argName);
+    col::Variable *getGhostArgMapEntry(const llvm::MDNode &arg);
 
     llvm::SmallVector<col::Variable *> getGhostVars();
 

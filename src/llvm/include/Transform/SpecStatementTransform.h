@@ -17,8 +17,8 @@
 #include <llvm/IR/Metadata.h>
 
 /**
- * Implements the transformation of specification statements and other 
- * specifications that are attached to an instruction. 
+ * Implements the transformation of specification statements and other
+ * specifications that are attached to an instruction.
  */
 namespace llvm2col {
 namespace col = vct::col::ast;
@@ -33,25 +33,14 @@ void transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
                         col::LlvmBasicBlock &colBlock,
                         pallas::FunctionCursor &functionCursor);
 
-void transformGhostAssignBlock(llvm::MDNode &specBlock,
-                             llvm::Instruction &llvmInstr,
-                             col::LlvmBasicBlock &colBlock,
-                             pallas::FunctionCursor &functionCursor);
-
-void transformGhostAssign(const pallas::irspec::GhostAssign &gAssign,
-                        llvm::Instruction &llvmInstr,
-                        col::LlvmBasicBlock &colBlock,
-                        pallas::FunctionCursor &functionCursor);
-
-
-void buildWrapperCall(llvm::Function &wrapperFunction, 
-    llvm::ArrayRef<llvm::DILocalVariable *> wrapperArgs, 
-    llvm::ArrayRef<llvm::DILocalVariable *> givenArgs,
-    llvm::ArrayRef<llvm::DILocalVariable *> yieldsArgs,
-    llvm::Instruction &matchedInstruction, 
-    const pallas::irspec::SrcLoc &srcLoc,
-    col::LlvmFunctionInvocation &colWrapperCall,
-    pallas::FunctionCursor &functionCursor);
+/**
+ * Function for mapping DILocalVariables to the corresponding dbg-intrinsic.
+ * Tries to map the variable to a unique dbg.declare and if this fail to the
+ * closest dbg.value.
+ */
+llvm::DbgVariableIntrinsic *stmntVarMapper(llvm::DILocalVariable &diVar,
+                                           llvm::Value &matchedValue,
+                                           llvm::FunctionAnalysisManager &fam);
 
 } // namespace llvm2col
 

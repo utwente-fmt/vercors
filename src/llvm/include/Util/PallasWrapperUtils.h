@@ -27,16 +27,15 @@ namespace pallas::utils {
 /**
  * Checks if the given debug-intrinsic has a non-empty DIExpression.
  */
-bool hasDiExpression(llvm::DbgVariableIntrinsic &intr);
+bool hasDiExpression(const llvm::DbgVariableIntrinsic &intr);
 
 /**
  * Given an alloca-Instruction, this function adds an argument to the given
  * call of a wrapper function that dereferences the alloca.
  */
 void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
+                            const pallas::irspec::WrappedSpecElement &specElem,
                             unsigned int argIdx, llvm::AllocaInst &llvmAlloca,
-                            llvm::Function &llvmWFunc,
-                            const pallas::irspec::SrcLoc &srcLoc,
                             pallas::FunctionCursor &functionCursor);
 
 /**
@@ -45,12 +44,10 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
  * reads the given value.
  * Returns true on success and false otherwise.
  */
-bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
-                              unsigned int argIdx, llvm::DbgValueInst &dbgVal,
-                              llvm::Function &llvmWFunc,
-                              const pallas::irspec::SrcLoc &srcLoc,
-                              pallas::FunctionCursor &functionCursor,
-                              llvm::Function &llvmParentFunc);
+bool buildArgExprFromDbgValue(
+    col::LlvmFunctionInvocation &wrapperCall,
+    const pallas::irspec::WrappedSpecElement &specElem, unsigned int argIdx,
+    llvm::DbgValueInst &dbgVal, pallas::FunctionCursor &functionCursor);
 
 /**
  * Given an llvm-instruction and a list of debug-intrinsics,

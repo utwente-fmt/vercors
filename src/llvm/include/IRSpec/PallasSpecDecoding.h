@@ -19,10 +19,40 @@ namespace pallas::irspec {
 const llvm::ConstantInt *asConstantInt(const llvm::Metadata *md);
 
 /**
- * Checks if the provided mdNode is a valid encoding of a source location
- * according to the specification fromat used by Pallas.
+ * Decodes a metadata node that contains a mapping of ghost variables to
+ * arguments of a wrapper function.
+ * Returns false if the given MDNode is not a valid encoding and adds an error.
  */
-bool isWellformedPallasLocation(const llvm::MDNode *mdNode);
+bool decodeWArgToGhostMapping(const llvm::MDNode *md,
+                              WrapperArgGhostMap &mapping,
+                              const std::string &errMsg);
+
+/**
+ * Decodes a metadata node that contains a mapping of variables from the parent
+ * function to arguments of a wrapper function. Returns false if the given
+ * MDNode is not a valid encoding and adds an error.
+ */
+bool decodeWArgToVarMapping(const llvm::MDNode *md, WrapperArgVarMap &mapping,
+                            const std::string &errMsg);
+
+/**
+ * Decodes the mappings of ghost and regular variables to the arguments of a 
+ * wrapper-function. 
+ * Assumes that the passed MD-node contains the mapping of 
+ * - given-args as operand 3
+ * - yields-args as operand 4
+ * - regular variables as operand 5
+ * Returns false if the given MDNode is not a valid encoding and adds an error.
+ */
+bool decodeWrapperArgMapping(const llvm::MDNode &md,
+                             WrappedSpecElement &specElem,
+                             const std::string &errMsg);
+
+    /**
+     * Checks if the provided mdNode is a valid encoding of a source location
+     * according to the specification fromat used by Pallas.
+     */
+    bool isWellformedPallasLocation(const llvm::MDNode *mdNode);
 
 /**
  * If the given metadata node encodes a source location in the specification
@@ -36,8 +66,7 @@ std::optional<irspec::SrcLoc> getSrcLoc(const llvm::MDNode *md);
  * format of Pallas, return it.
  * Otherwise, an empty optional is returned and errors are added.
  */
-std::optional<ContractClause> getContractClause(const llvm::MDNode *md,
-                                                bool hasImplicitArgs);
+std::optional<ContractClause> getContractClause(const llvm::MDNode *md);
 
 /**
  * If the given metadata node encodes a definition of a ghost argument
@@ -51,8 +80,7 @@ std::optional<GhostArgDef> getGhostArgDef(const llvm::MDNode *md);
  * format of Pallas, returns it as a SrcLoc.
  * Otherwise, an empty optional is returned and errors are added.
  */
-std::optional<FunctionContract> getContract(const llvm::MDNode *md,
-                                            bool externalOrGhost);
+std::optional<FunctionContract> getContract(const llvm::MDNode *md);
 
 /**
  * Decode a loop invariant clause from the specification format of Pallas.
@@ -107,22 +135,20 @@ std::optional<YieldsBinding> getYieldsBinding(const llvm::MDNode *md);
 std::optional<YieldsBindingBlock> getYieldsBindingBlock(const llvm::MDNode *md);
 
 /**
- * Decode an assignment to a ghost variable that is encoded in the specification
+ * Decode a binding of a value to a given-argument that is encoded in the specification
  * format of Pallas.
- * Also used for given-bindings.
  * If the given metadata-node is not a valid encoding, an empty optional
  * is returned and errors are added.
  */
-std::optional<GhostAssign> getGhostAssign(const llvm::MDNode *md);
+std::optional<GivenBinding> getGivenBinding(const llvm::MDNode *md);
 
 /**
- * Decode a block of assignments to ghost variables that is encoded in the
+ * Decode a block of bindings to given arguments that is encoded in the
  * specification format of Pallas.
- * Also used for given-bindings.
  * If the given metadata-node is not a valid encoding, an empty optional is
  * returned and errors are added.
  */
-std::optional<GhostAssignBlock> getGhostAssignBlock(const llvm::MDNode *md);
+std::optional<GivenBindingBlock> getGivenBindingBlock(const llvm::MDNode *md);
 
 /**
  * Checks if a block of given-bindings is is attached to the given
@@ -137,13 +163,6 @@ llvm::MDNode *getGivenBindingBlockMD(llvm::Instruction &instr);
  * returned
  */
 llvm::MDNode *getYieldsBindingBlockMD(llvm::Instruction &instr);
-
-/**
- * Checks if a block of ghost-assignments is is attached to the given
- * instruction and returns it if it is present. Otherwise, a nullpointer is
- * returned
- */
-llvm::MDNode *getGhostAssignBlockMD(llvm::Instruction &instr);
 
 } // namespace pallas::irspec
 

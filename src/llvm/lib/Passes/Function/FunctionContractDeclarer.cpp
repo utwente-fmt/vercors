@@ -4,6 +4,7 @@
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
+#include "IRSpec/PallasSpecDecoding.h"
 
 namespace pallas {
 const std::string SOURCE_LOC = "Passes::Function::FunctionContractDeclarer";
@@ -21,23 +22,14 @@ col::LlvmFunctionContract &FDCResult::getAssociatedColFuncContract() {
     return associatedColFuncContract;
 }
 
-void FDCResult::addGhostArgMapEntry(const irspec::GhostArgDef &arg,
+void FDCResult::addGhostArgMapEntry(const llvm::MDNode &arg,
                                     col::Variable &colVar) {
     ghostArgMap.insert({&arg, &colVar});
 }
 
-col::Variable *FDCResult::getGhostArgMapEntry(const irspec::GhostArgDef &arg) {
+col::Variable *FDCResult::getGhostArgMapEntry(const llvm::MDNode &arg) {
     return ghostArgMap.at(&arg);
 }
-
-col::Variable *FDCResult::getGhostArgByName(const std::string &argName) {
-    for (auto [k, v] : ghostArgMap) {
-        if (k->name == argName)
-            return v;
-    }
-    return nullptr;
-}
-
 
 llvm::SmallVector<col::Variable *> FDCResult::getGhostVars() {
     llvm::SmallVector<col::Variable *> gArgs;

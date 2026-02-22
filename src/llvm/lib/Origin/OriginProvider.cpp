@@ -386,6 +386,12 @@ llvm2col::generateFunctionCallOrigin(llvm::CallInst &callInstruction) {
 }
 
 col::Origin *llvm2col::generatePallasWrapperCallOrigin(
+    const pallas::irspec::WrappedSpecElement &specElem) {
+    return generatePallasWrapperCallOrigin(specElem.getWrapper(),
+                                           specElem.getLoc());
+}
+
+col::Origin *llvm2col::generatePallasWrapperCallOrigin(
     const llvm::Function &wrapperFunc,
     const pallas::irspec::SrcLoc &clauseSrcLoc) {
 

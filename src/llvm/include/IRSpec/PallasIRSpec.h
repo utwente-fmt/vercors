@@ -1,6 +1,7 @@
 #ifndef PALLAS_IRSPEC_H
 #define PALLAS_IRSPEC_H
 
+#include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 
@@ -32,26 +33,88 @@ struct SrcLoc {
 enum ContractClauseType { REQUIRES, ENSURES };
 
 /**
+ * Maps DILocalVariables from the wrapper-function to DILocalVariables of the
+ * function where the specification is used (parentFunction);
+ */
+typedef llvm::SmallDenseMap<llvm::DILocalVariable *, llvm::DILocalVariable *, 8>
+    WrapperArgVarMap;
+
+/**
+ * Maps DILocalVariables from the wrapper-function to metadata nodes that define
+ * ghost variable in the function where the specification is used
+ * (parentFunction);
+ */
+typedef llvm::SmallDenseMap<llvm::DILocalVariable *, llvm::MDNode *, 4>
+    WrapperArgGhostMap;
+
+/**
+ * Base-class for wrapped specification-elements.
+ * Contains:
+ * - A source location
+ * - Pointer to a wrapper function
+ * - Mappings of the wrapper function's arguments to given- and yields-arguments
+ * and regular variable sof the parent function.
+ */
+class WrappedSpecElement {
+  public:
+    WrappedSpecElement(const SrcLoc &loc, llvm::Function &wrapper);
+
+    virtual ~WrappedSpecElement() = default;
+
+    const SrcLoc &getLoc() const;
+
+    llvm::Function &getWrapper() const;
+
+    WrapperArgGhostMap &getGivenMapping();
+
+    WrapperArgGhostMap &getYieldsMapping();
+
+    WrapperArgVarMap &getParentVarMapping();
+
+    void addGivenMapping(llvm::DILocalVariable *wArg, llvm::MDNode *gDef);
+
+    void addYieldsMapping(llvm::DILocalVariable *wArg, llvm::MDNode *yDef);
+
+    void addVarMapping(llvm::DILocalVariable *wArg,
+                       llvm::DILocalVariable *pVar);
+
+    llvm::MDNode *getGivenDef(llvm::DILocalVariable *wArg) const;
+
+    llvm::MDNode *getYieldsDef(llvm::DILocalVariable *wArg) const;
+
+    llvm::MDNode *getGhostDef(llvm::DILocalVariable *wArg) const;
+
+    llvm::DILocalVariable *getVarForGhostDef(const llvm::MDNode &gDef) const;
+
+    llvm::DILocalVariable *getParentVar(llvm::DILocalVariable *wArg) const;
+
+    unsigned getNumGiven() const;
+
+    unsigned getNumYields() const;
+
+    unsigned getNumGhostArgs() const;
+
+  protected:
+    SrcLoc loc;
+    llvm::Function *wrapper;
+    WrapperArgGhostMap givenArgs;
+    WrapperArgGhostMap yieldsArgs;
+    WrapperArgVarMap wrapperArgs;
+};
+
+/**
  * Representation of a contract clause as used in the specification format of
  * Pallas.
  */
-struct ContractClause {
-    ContractClauseType type;
-    SrcLoc loc;
-    llvm::Function *wrapperFunction;
-    llvm::SmallVector<llvm::DILocalVariable *> givenArgs;
-    llvm::SmallVector<llvm::DILocalVariable *> yieldsArgs;
-    llvm::SmallVector<llvm::DILocalVariable *> wrapperArgs;
-
+class ContractClause : public WrappedSpecElement {
+  public:
     ContractClause(const ContractClauseType &type, const SrcLoc &loc,
-                   llvm::Function *wrapperFunction)
-        : type(type), loc(loc), wrapperFunction(wrapperFunction) {}
+                   llvm::Function &wrapperFunction);
 
-    void addWrapperArg(llvm::DILocalVariable *v) { wrapperArgs.push_back(v); }
+    ContractClauseType getType() const;
 
-    void addGivenArg(llvm::DILocalVariable *v) { givenArgs.push_back(v); }
-
-    void addYieldsArg(llvm::DILocalVariable *v) { yieldsArgs.push_back(v); }
+  protected:
+    ContractClauseType type;
 };
 
 /**
@@ -74,38 +137,26 @@ struct FunctionContract {
     SrcLoc loc;
     bool pure;
     bool assumed;
-    llvm::SmallVector<GhostArgDef> givenArgs;
-    llvm::SmallVector<GhostArgDef> yieldsArgs;
-    llvm::SmallVector<ContractClause> clauses;
+    llvm::SmallVector<llvm::MDNode *, 4> givenArgs;
+    llvm::SmallVector<llvm::MDNode *, 4> yieldsArgs;
+    llvm::SmallVector<ContractClause, 4> clauses;
 
     FunctionContract(const SrcLoc &loc, const bool pure, const bool assumed)
         : loc(loc), pure(pure), assumed(assumed) {}
 
     void addClause(ContractClause clause) { clauses.push_back(clause); }
 
-    void addGivenArg(GhostArgDef arg) { givenArgs.push_back(arg); }
+    void addGivenArg(llvm::MDNode *arg) { givenArgs.push_back(arg); }
 
-    void addYieldsArg(GhostArgDef arg) { yieldsArgs.push_back(arg); }
+    void addYieldsArg(llvm::MDNode *arg) { yieldsArgs.push_back(arg); }
 };
 
 /**
  * Representation of a clause that is part of a block of loop invariants.
  */
-struct LoopInvariantClause {
-    SrcLoc loc;
-    llvm::Function *wrapperFunction;
-    llvm::SmallVector<llvm::DILocalVariable *> givenArgs;
-    llvm::SmallVector<llvm::DILocalVariable *> yieldsArgs;
-    llvm::SmallVector<llvm::DILocalVariable *> wrapperArgs;
-
-    LoopInvariantClause(const SrcLoc &loc, llvm::Function *wrapperFunction)
-        : loc(loc), wrapperFunction(wrapperFunction) {}
-
-    void addWrapperArg(llvm::DILocalVariable *v) { wrapperArgs.push_back(v); }
-
-    void addGivenArg(llvm::DILocalVariable *v) { givenArgs.push_back(v); }
-
-    void addYieldsArg(llvm::DILocalVariable *v) { yieldsArgs.push_back(v); }
+class LoopInvariantClause : public WrappedSpecElement {
+  public:
+    LoopInvariantClause(const SrcLoc &loc, llvm::Function &wrapperFunction);
 };
 
 /**
@@ -114,7 +165,7 @@ struct LoopInvariantClause {
  */
 struct LoopContract {
     SrcLoc loc;
-    llvm::SmallVector<LoopInvariantClause> clauses;
+    llvm::SmallVector<LoopInvariantClause, 4> clauses;
 
     LoopContract(const SrcLoc &loc) : loc(loc) {}
 
@@ -124,31 +175,30 @@ struct LoopContract {
 /**
  * Types of specification statements in the specification format of Pallas.
  */
-enum SpecStatementType { ASSERT, ASSUME, FOLD, UNFOLD };
+enum SpecStatementType { ASSERT, ASSUME, FOLD, UNFOLD, GHOST_ASSIGN };
 
 /**
  * Representation of a specification statement in the specification-format
  * of Pallas.
  */
-// TODO: De-duplicate this with the other specification constructs.
-// (I.e. make base-class for specification clauses and blocks)
-struct SpecStatement {
+struct SpecStatement : public WrappedSpecElement {
+  public:
+    SpecStatement(const SpecStatementType type, const SrcLoc &loc,
+                  llvm::Function &wrapperFunction);
+
+    SpecStatementType getType() const;
+
+    void setAssignTarget(llvm::MDNode *target);
+
+    // TODO: Turn this into a separate subclass!
+    llvm::MDNode *getAssignTarget() const;
+
+  protected:
     SpecStatementType type;
-    SrcLoc loc;
-    llvm::Function *wrapperFunction;
-    llvm::SmallVector<llvm::DILocalVariable *> givenArgs;
-    llvm::SmallVector<llvm::DILocalVariable *> yieldsArgs;
-    llvm::SmallVector<llvm::DILocalVariable *> wrapperArgs;
 
-    SpecStatement(const SpecStatementType &type, const SrcLoc &loc,
-                  llvm::Function *wrapperFunction)
-        : type(type), loc(loc), wrapperFunction(wrapperFunction) {}
-
-    void addWrapperArg(llvm::DILocalVariable *v) { wrapperArgs.push_back(v); }
-
-    void addGivenArg(llvm::DILocalVariable *v) { givenArgs.push_back(v); }
-
-    void addYieldsArg(llvm::DILocalVariable *v) { yieldsArgs.push_back(v); }
+    // If the statement is a ghost-assign, this is the MD-node that encodes the
+    // target variable.
+    llvm::MDNode *assignTarget = nullptr;
 };
 
 /**
@@ -157,7 +207,7 @@ struct SpecStatement {
  */
 struct SpecStatementBlock {
     SrcLoc loc;
-    llvm::SmallVector<SpecStatement> statements;
+    llvm::SmallVector<SpecStatement, 4> statements;
 
     SpecStatementBlock(const SrcLoc &loc) : loc(loc) {}
 
@@ -168,15 +218,20 @@ struct SpecStatementBlock {
  * Binding of the value returned with a yields-argument to another
  * ghost variable.
  */
-struct YieldsBinding {
+class YieldsBinding {
     SrcLoc loc;
-    std::string targetVarName;
-    std::string yieldsArgName;
+    llvm::MDNode *targetVar;
+    llvm::MDNode *yieldsArg;
 
-    YieldsBinding(const SrcLoc &loc, const std::string &targetVarName,
-                  const std::string &yieldsArgName)
-        : loc(loc), targetVarName(targetVarName), yieldsArgName(yieldsArgName) {
-    }
+  public:
+    YieldsBinding(const SrcLoc &loc, llvm::MDNode &targetVar,
+                  llvm::MDNode &yieldsArg);
+
+    const SrcLoc &getLoc() const;
+
+    llvm::MDNode &getTargetVar() const;
+
+    llvm::MDNode &getYieldsArg() const;
 };
 
 /**
@@ -192,40 +247,30 @@ struct YieldsBindingBlock {
 };
 
 /**
- * Assignment of an expression to a ghost variable.
- * Also used for given-bindings.
+ * Binding of a value to a given-variable.
  */
-struct GhostAssign {
-    // Name of the ghost variable
-    std::string varName;
-    SrcLoc loc;
-    llvm::Function *wrapperFunction;
-    llvm::SmallVector<llvm::DILocalVariable *> givenArgs;
-    llvm::SmallVector<llvm::DILocalVariable *> yieldsArgs;
-    llvm::SmallVector<llvm::DILocalVariable *> wrapperArgs;
+class GivenBinding : public WrappedSpecElement {
+  public:
+    GivenBinding(const SrcLoc &loc, llvm::Function &wrapper,
+                 llvm::MDNode &givenDef);
 
-    GhostAssign(const std::string &varName, const SrcLoc &loc,
-                llvm::Function *wrapperFunction)
-        : varName(varName), loc(loc), wrapperFunction(wrapperFunction) {}
+    llvm::MDNode *getGivenDef() const;
 
-    void addWrapperArg(llvm::DILocalVariable *v) { wrapperArgs.push_back(v); }
-
-    void addGivenArg(llvm::DILocalVariable *v) { givenArgs.push_back(v); }
-
-    void addYieldsArg(llvm::DILocalVariable *v) { yieldsArgs.push_back(v); }
+  protected:
+    llvm::MDNode *givenDef;
 };
 
 /**
- * Block of assignments to ghost variables.
+ * Block of bindings to given-arguments.
  * Also used for given bindings.
  */
-struct GhostAssignBlock {
+struct GivenBindingBlock {
     SrcLoc loc;
-    llvm::SmallVector<GhostAssign> assignments;
+    llvm::SmallVector<GivenBinding, 4> bindings;
 
-    GhostAssignBlock(const SrcLoc &loc) : loc(loc) {}
+    GivenBindingBlock(const SrcLoc &loc) : loc(loc) {}
 
-    void addAssignment(GhostAssign assign) { assignments.push_back(assign); }
+    void addBinding(GivenBinding binding) { bindings.push_back(binding); }
 };
 
 } // namespace pallas::irspec

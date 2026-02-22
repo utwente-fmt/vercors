@@ -11,12 +11,18 @@ const std::string SOURCE_LOC = "IRSpec::PallasSpecDecoding";
 
 namespace {
 
-void addError(std::string msg, const llvm::Metadata *md) {
+void addError(const std::string &msg, const llvm::Metadata *md) {
     if (md == nullptr) {
         pallas::ErrorReporter::addError(SOURCE_LOC, msg);
     } else {
         pallas::ErrorReporter::addError(SOURCE_LOC, msg, md);
     }
+}
+
+void addError(const std::string &prefix, const std::string &msg,
+              const llvm::Metadata *md) {
+    std::string fullMsg = prefix + ": " + msg;
+    addError(fullMsg, md);
 }
 
 } // namespace
@@ -72,16 +78,144 @@ const llvm::ConstantInt *asConstantInt(const llvm::Metadata *md) {
     return llvm::dyn_cast<llvm::ConstantInt>(mdConst->getValue());
 }
 
-std::optional<ContractClause> getContractClause(const llvm::MDNode *md,
-                                                bool hasImplicitArgs) {
+bool decodeWArgToGhostMapping(const llvm::MDNode *md,
+                              WrapperArgGhostMap &mapping,
+                              const std::string &errMsg) {
+    if (md == nullptr) {
+        addError(errMsg, "Mapping of ghost variables may not be null.", md);
+        return false;
+    }
+
+    // Decode the entries of shape {VAR_DEF, WRAPPER_VAR}
+    for (const auto &op : md->operands()) {
+        auto *entry = llvm::dyn_cast<llvm::MDNode>(op.get());
+        if (entry == nullptr || entry->getNumOperands() != 2) {
+            addError(errMsg,
+                     "Mapping of ghost variables may only contain MDNodes with "
+                     "exactly two operands.",
+                     md);
+            return false;
+        }
+
+        // Get definition of ghost-var
+        auto *gVarDef =
+            llvm::dyn_cast<llvm::MDNode>(entry->getOperand(0).get());
+        if (!getGhostArgDef(gVarDef).has_value()) {
+            addError(errMsg,
+                     "First element of ghost variable mapping must point to "
+                     "MDNode that defines a ghost-variable.",
+                     entry);
+            return false;
+        }
+
+        // Get DIVar of wrapper
+        auto *wArg =
+            llvm::dyn_cast<llvm::DILocalVariable>(entry->getOperand(1).get());
+        if (wArg == nullptr) {
+            addError(errMsg,
+                     "Second element of ghost variable mapping must be "
+                     "DILocalVariable.",
+                     entry);
+            return false;
+        }
+
+        // Add to mapping
+        mapping.insert({wArg, gVarDef});
+    }
+
+    return true;
+}
+
+bool decodeWArgToVarMapping(const llvm::MDNode *md, WrapperArgVarMap &mapping,
+                            const std::string &errMsg) {
+    if (md == nullptr) {
+        addError(errMsg, "Mapping of variables to wrapper-argsmay not be null.",
+                 md);
+        return false;
+    }
+
+    // Decode the entries of shape {PARENT_VAR, WRAPPER_VAR}
+    for (const auto &op : md->operands()) {
+        auto *entry = llvm::dyn_cast<llvm::MDNode>(op.get());
+        if (entry == nullptr || entry->getNumOperands() != 2) {
+            addError(errMsg,
+                     "Mapping of variables to wrapper-args may only contain "
+                     "MDNodes with exactly two operands.",
+                     md);
+            return false;
+        }
+
+        // Get DIVar of parent
+        auto *pVar =
+            llvm::dyn_cast<llvm::DILocalVariable>(entry->getOperand(0).get());
+        if (pVar == nullptr) {
+            addError(errMsg,
+                     "First element of wrapper-arg mapping must be "
+                     "DILocalVariable.",
+                     entry);
+            return false;
+        }
+
+        // Get DIVar of wrapper
+        auto *wArg =
+            llvm::dyn_cast<llvm::DILocalVariable>(entry->getOperand(1).get());
+        if (wArg == nullptr) {
+            addError(errMsg,
+                     "Second element of wrapper-arg mapping must be "
+                     "DILocalVariable.",
+                     entry);
+            return false;
+        }
+
+        // Add to mapping
+        mapping.insert({wArg, pVar});
+    }
+
+    return true;
+}
+
+bool decodeWrapperArgMapping(const llvm::MDNode &md,
+                             WrappedSpecElement &specElem,
+                             const std::string &errMsg) {
+    if (md.getNumOperands() < 6) {
+        addError(errMsg, "Expected six operands", &md);
+        return false;
+    }
+
+    // Given
+    bool givenOk = decodeWArgToGhostMapping(
+        llvm::dyn_cast<llvm::MDNode>(md.getOperand(3).get()),
+        specElem.getGivenMapping(),
+        errMsg + " Fourth operand of must be mapping of given-args.");
+    if (!givenOk)
+        return false;
+
+    // Yields
+    bool yieldsOk = decodeWArgToGhostMapping(
+        llvm::dyn_cast<llvm::MDNode>(md.getOperand(4).get()),
+        specElem.getYieldsMapping(),
+        errMsg + "Fifth operand must be mapping of yields-args.");
+    if (!yieldsOk)
+        return false;
+
+    // Regular args
+    bool argsOk = decodeWArgToVarMapping(
+        llvm::dyn_cast<llvm::MDNode>(md.getOperand(5).get()),
+        specElem.getParentVarMapping(),
+        errMsg +
+            "Sixth operand must be mapping of wrapper-args to parent-vars.");
+
+    return argsOk;
+}
+
+std::optional<ContractClause> getContractClause(const llvm::MDNode *md) {
     if (md == nullptr) {
         addError("Contract clause may not be null", md);
         return std::nullopt;
     }
 
-    if ((!hasImplicitArgs && md->getNumOperands() < 5) ||
-        (hasImplicitArgs && md->getNumOperands() != 5)) {
-        addError("Ill-formed contract clause. Too few operands", md);
+    if (md->getNumOperands() != 6) {
+        addError("Ill-formed contract clause. Expected 6 operands", md);
         return std::nullopt;
     }
 
@@ -118,72 +252,35 @@ std::optional<ContractClause> getContractClause(const llvm::MDNode *md,
         return std::nullopt;
     }
     auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
-    if (wFunc == nullptr || !utils::isPallasExprWrapper(*wFunc)) {
+    if (wFunc == nullptr || !(utils::isPallasExprWrapper(*wFunc) ||
+                              utils::isPallasGhostWrapper(*wFunc))) {
         addError(
             "Third operand of contract clause must point to wrapper function.",
             md);
         return std::nullopt;
     }
 
-    ContractClause clause(type, loc.value(), wFunc);
+    ContractClause clause(type, loc.value(), *wFunc);
 
-    // Given
-    auto *givenList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(3).get());
-    if (givenList == nullptr) {
-        addError("Fourth operand of contract clause must point to list of "
-                 "DIVariables.",
-                 md);
+    // Mapping of wrapper-args
+    bool mappingOk =
+        decodeWrapperArgMapping(*md, clause, "Decoding of contract clause ");
+    if (!mappingOk)
         return std::nullopt;
-    }
-    for (const auto &g : givenList->operands()) {
-        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(g.get());
-        if (var == nullptr) {
-            addError("Expected DILocalVariable in list of given-args.",
-                     givenList);
-            return std::nullopt;
-        }
-        clause.addGivenArg(var);
-    }
-
-    // Yields
-    auto *yieldsList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(4).get());
-    if (yieldsList == nullptr) {
-        addError("Fifth operand of contract clause must point to list of "
-                 "DIVariables.",
-                 md);
-        return std::nullopt;
-    }
-    for (const auto &y : yieldsList->operands()) {
-        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(y.get());
-        if (var == nullptr) {
-            addError("Expected DILocalVariable in list of yields-args.",
-                     yieldsList);
-            return std::nullopt;
-        }
-        clause.addYieldsArg(var);
-    }
-
-    // DIVariables
-    unsigned int vIdx = 5;
-    while (vIdx < md->getNumOperands()) {
-        auto *diVar =
-            llvm::dyn_cast<llvm::DILocalVariable>(md->getOperand(vIdx).get());
-        if (diVar == nullptr) {
-            addError("Expected DIVariable at index " + std::to_string(vIdx) +
-                         " of contract clause.",
-                     md);
-            return std::nullopt;
-        }
-        clause.addWrapperArg(diVar);
-        vIdx++;
-    }
 
     return std::make_optional(clause);
 }
 
 std::optional<GhostArgDef> getGhostArgDef(const llvm::MDNode *md) {
-    if (md == nullptr || md->getNumOperands() != 2) {
+
+    if (md == nullptr) {
+        addError("Definition of ghost argument may not be null.", md);
+        return std::nullopt;
+    }
+
+    if (md->getNumOperands() != 2) {
         addError("Definition of ghost argument must have two operands.", md);
+        return std::nullopt;
     }
 
     // Loc
@@ -206,8 +303,7 @@ std::optional<GhostArgDef> getGhostArgDef(const llvm::MDNode *md) {
     return std::make_optional(argDef);
 }
 
-std::optional<FunctionContract> getContract(const llvm::MDNode *md,
-                                            bool externalOrGhost) {
+std::optional<FunctionContract> getContract(const llvm::MDNode *md) {
 
     if (md == nullptr) {
         addError("Contract may not be null", md);
@@ -255,10 +351,12 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md,
         return std::nullopt;
     }
     for (const auto &op : givenList->operands()) {
-        auto gDef = getGhostArgDef(llvm::dyn_cast<llvm::MDNode>(op.get()));
-        if (!gDef.has_value())
+        auto *gDefMD = llvm::dyn_cast<llvm::MDNode>(op.get());
+        if (!getGhostArgDef(gDefMD).has_value()) {
+            addError("Invalid definition of given-argument.", md);
             return std::nullopt;
-        contract.addGivenArg(*gDef);
+        }
+        contract.addGivenArg(gDefMD);
     }
 
     // Yields
@@ -270,37 +368,38 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md,
         return std::nullopt;
     }
     for (const auto &op : yieldsList->operands()) {
-        auto yDef = getGhostArgDef(llvm::dyn_cast<llvm::MDNode>(op.get()));
-        if (!yDef.has_value())
+        auto *yDefMD = llvm::dyn_cast<llvm::MDNode>(op.get());
+        if (!getGhostArgDef(yDefMD).has_value()) {
+            addError("Invalid definition of yields-argument.", md);
             return std::nullopt;
-        contract.addYieldsArg(*yDef);
+        }
+        contract.addYieldsArg(yDefMD);
     }
 
     // Clauses
     unsigned int cIdx = 5;
     while (cIdx < md->getNumOperands()) {
         auto clause = getContractClause(
-            llvm::dyn_cast_or_null<llvm::MDNode>(md->getOperand(cIdx).get()),
-            externalOrGhost);
+            llvm::dyn_cast_or_null<llvm::MDNode>(md->getOperand(cIdx).get()));
         if (!clause.has_value())
             return std::nullopt;
         // Check that number of ghost arguments is consistent between
         // contract and clause
-        if (clause->givenArgs.size() != contract.givenArgs.size()) {
+        if (clause->getNumGiven() != contract.givenArgs.size()) {
             addError("Number of given-args does not match between clause and "
                      "contract.",
                      md);
             return std::nullopt;
         }
-        if (clause->type != REQUIRES &&
-            clause->yieldsArgs.size() != contract.yieldsArgs.size()) {
+        if (clause->getType() != REQUIRES &&
+            clause->getNumYields() != contract.yieldsArgs.size()) {
             addError("Number of yields-args does not match between clause and "
                      "contract.",
                      md);
             return std::nullopt;
         }
 
-        if (clause->type == REQUIRES && clause->yieldsArgs.size() != 0) {
+        if (clause->getType() == REQUIRES && clause->getNumYields() != 0) {
             addError("Number of yields-args in requires-clause must be zero",
                      md);
             return std::nullopt;
@@ -315,100 +414,60 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md,
 
 std::optional<LoopInvariantClause>
 getLoopInvariantClause(const llvm::MDNode *md) {
-    // TODO: De-duplicate his with the decoding of the contract clauses
     if (md == nullptr) {
         addError("Loop invariant clause may not be null", md);
         return std::nullopt;
     }
 
-    if (md->getNumOperands() < 4) {
-        addError("Ill-formed loop invariant  clause. Too few operands", md);
+    if (md->getNumOperands() != 6) {
+        addError("Ill-formed loop invariant clause. Expected six operands", md);
+        return std::nullopt;
+    }
+
+    // ID-String
+    auto *idStr = llvm::dyn_cast<llvm::MDString>(md->getOperand(0).get());
+    if (idStr == nullptr ||
+        idStr->getString().str() != pallas::constants::PALLAS_LOOP_INV_ID) {
+        addError("First operand of loop invariant must be !\"pallas.loopInv\"",
+                 md);
         return std::nullopt;
     }
 
     // Location
-    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(0).get()));
+    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(1).get()));
     if (!loc.has_value()) {
-        addError("First operand of loop invariant clause must be location.",
-                 md);
+        addError("Second operand of loop invariant must be location.", md);
         return std::nullopt;
     }
 
     // Wrapper function
     auto *wFuncMD =
-        llvm::dyn_cast<llvm::ValueAsMetadata>(md->getOperand(1).get());
+        llvm::dyn_cast<llvm::ValueAsMetadata>(md->getOperand(2).get());
     if (wFuncMD == nullptr) {
-        addError("Second operand of contract clause must point to function.",
-                 md);
+        addError("Third operand of loop invariant must point to function.", md);
         return std::nullopt;
     }
     auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
-    if (wFunc == nullptr || !utils::isPallasExprWrapper(*wFunc)) {
+    if (wFunc == nullptr || !(utils::isPallasExprWrapper(*wFunc) ||
+                              utils::isPallasGhostWrapper(*wFunc))) {
         addError("Second operand of loop invariant clause must point to "
                  "wrapper function.",
                  md);
         return std::nullopt;
     }
 
-    LoopInvariantClause clause(loc.value(), wFunc);
+    LoopInvariantClause clause(loc.value(), *wFunc);
 
-    // Given
-    auto *givenList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(2).get());
-    if (givenList == nullptr) {
-        addError("Third operand of loop invariant clause must point to list of "
-                 "DIVariables.",
-                 md);
+    // Mapping of wrapper-args
+    bool mappingOk =
+        decodeWrapperArgMapping(*md, clause, "Decoding of loop invariant -");
+    if (!mappingOk)
         return std::nullopt;
-    }
-    for (const auto &g : givenList->operands()) {
-        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(g.get());
-        if (var == nullptr) {
-            addError("Expected DILocalVariable in list of given-args.",
-                     givenList);
-            return std::nullopt;
-        }
-        clause.addGivenArg(var);
-    }
-
-    // Yields
-    auto *yieldsList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(3).get());
-    if (yieldsList == nullptr) {
-        addError(
-            "Fourth operand of loop invariant clause must point to list of "
-            "DIVariables.",
-            md);
-        return std::nullopt;
-    }
-    for (const auto &y : yieldsList->operands()) {
-        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(y.get());
-        if (var == nullptr) {
-            addError("Expected DILocalVariable in list of yields-args.",
-                     yieldsList);
-            return std::nullopt;
-        }
-        clause.addYieldsArg(var);
-    }
-
-    // DIVariables
-    unsigned int vIdx = 4;
-    while (vIdx < md->getNumOperands()) {
-        auto *diVar =
-            llvm::dyn_cast<llvm::DILocalVariable>(md->getOperand(vIdx).get());
-        if (diVar == nullptr) {
-            addError("Expected DIVariable at index " + std::to_string(vIdx) +
-                         " of loop invariant clause.",
-                     md);
-            return std::nullopt;
-        }
-        clause.addWrapperArg(diVar);
-        vIdx++;
-    }
 
     return std::make_optional(clause);
 }
 
 std::optional<LoopContract> getLoopContract(const llvm::MDNode *md) {
-    // TODO: De-duplicate this with the function contracts
     if (md == nullptr) {
         addError("Loop invariant may not be null", md);
         return std::nullopt;
@@ -468,20 +527,20 @@ getSpecStatementType(const llvm::Metadata *md) {
         return FOLD;
     } else if (typeStr == pallas::constants::PALLAS_UNFOLD) {
         return UNFOLD;
+    } else if (typeStr == pallas::constants::PALLAS_GHOST_ASSIGN) {
+        return GHOST_ASSIGN;
     }
     addError("Unknown specification-statement type.", md);
     return std::nullopt;
 }
 
 std::optional<SpecStatement> getSpecStatement(const llvm::MDNode *md) {
-    // TODO: De-duplicate this with the other specification constructs
-    // Check number of operands
     if (md == nullptr) {
         addError("Specification statement may not be null", md);
         return std::nullopt;
     }
 
-    if (md->getNumOperands() < 5) {
+    if (md->getNumOperands() < 6) {
         addError("Ill-formed specification statement. Too few operands", md);
         return std::nullopt;
     }
@@ -491,6 +550,23 @@ std::optional<SpecStatement> getSpecStatement(const llvm::MDNode *md) {
     if (!type.has_value()) {
         addError("Ill-formed specification statement type.", md);
         return std::nullopt;
+    }
+
+    // Check number of operands
+    if (type == GHOST_ASSIGN) {
+        if (md->getNumOperands() != 7) {
+            addError(
+                "Ill-formed specification statement. Expected seven operands",
+                md);
+            return std::nullopt;
+        }
+    } else {
+        if (md->getNumOperands() != 6) {
+            addError(
+                "Ill-formed specification statement. Expected six operands",
+                md);
+            return std::nullopt;
+        }
     }
 
     // Loc
@@ -511,65 +587,32 @@ std::optional<SpecStatement> getSpecStatement(const llvm::MDNode *md) {
         return std::nullopt;
     }
     auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
-    if (wFunc == nullptr || !utils::isPallasExprWrapper(*wFunc)) {
+    if (wFunc == nullptr || !(utils::isPallasExprWrapper(*wFunc) ||
+                              utils::isPallasGhostWrapper(*wFunc))) {
         addError("Third operand of specification statement must point to "
                  "wrapper function.",
                  md);
         return std::nullopt;
     }
 
-    SpecStatement stmnt(*type, *loc, wFunc);
+    SpecStatement stmnt(*type, *loc, *wFunc);
 
-    // Given-args
-    auto *givenList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(3).get());
-    if (givenList == nullptr) {
-        addError(
-            "Fourth operand of specification statement must point to list of "
-            "DIVariables.",
-            md);
+    // Mapping of wrapper-args
+    bool mappingOk =
+        decodeWrapperArgMapping(*md, stmnt, "Decoding of spec statement -");
+    if (!mappingOk)
         return std::nullopt;
-    }
-    for (const auto &g : givenList->operands()) {
-        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(g.get());
-        if (var == nullptr) {
-            addError("Expected DILocalVariable in list of given-args.",
-                     givenList);
-            return std::nullopt;
-        }
-        stmnt.addGivenArg(var);
-    }
 
-    // Yields-args
-    auto *yieldsList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(4).get());
-    if (yieldsList == nullptr) {
-        addError("Fifth operand of specification statement clause must point "
-                 "to list of DIVariables.",
-                 md);
-        return std::nullopt;
-    }
-    for (const auto &y : yieldsList->operands()) {
-        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(y.get());
-        if (var == nullptr) {
-            addError("Expected DILocalVariable in list of yields-args.",
-                     yieldsList);
-            return std::nullopt;
-        }
-        stmnt.addYieldsArg(var);
-    }
-
-    // Wrapper args
-    unsigned int vIdx = 5;
-    while (vIdx < md->getNumOperands()) {
-        auto *diVar =
-            llvm::dyn_cast<llvm::DILocalVariable>(md->getOperand(vIdx).get());
-        if (diVar == nullptr) {
-            addError("Expected DIVariable at index " + std::to_string(vIdx) +
-                         " of specification statement.",
+    // Target of ghost assign
+    if (type.value() == GHOST_ASSIGN) {
+        auto *aTarget = llvm::dyn_cast<llvm::MDNode>(md->getOperand(6).get());
+        if (!getGhostArgDef(aTarget).has_value()) {
+            addError("Seventh operand of ghost assign must point to definition "
+                     "of ghost variable",
                      md);
             return std::nullopt;
         }
-        stmnt.addWrapperArg(diVar);
-        vIdx++;
+        stmnt.setAssignTarget(aTarget);
     }
 
     return std::make_optional(stmnt);
@@ -620,31 +663,39 @@ std::optional<YieldsBinding> getYieldsBinding(const llvm::MDNode *md) {
         return std::nullopt;
     }
 
-    if (md->getNumOperands() != 3) {
+    if (md->getNumOperands() != 4) {
         addError("Ill-formed yields binding. Too few operands", md);
         return std::nullopt;
     }
 
+    // ID-String
+    auto *idStr = llvm::dyn_cast<llvm::MDString>(md->getOperand(0).get());
+    if (idStr == nullptr ||
+        idStr->getString().str() != pallas::constants::PALLAS_YIELDS_BINDING) {
+        addError("First operand of yields binding must be id-string", md);
+        return std::nullopt;
+    }
+
     // Location
-    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(0).get()));
+    auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(1).get()));
     if (!loc.has_value()) {
-        addError("First operand of yields binding must be location.", md);
+        addError("Second operand of yields binding must be location.", md);
         return std::nullopt;
     }
 
     // Target ghost-var from parent function
-    auto targetVar =
-        getGhostArgDef(llvm::dyn_cast<llvm::MDNode>(md->getOperand(1).get()));
+    auto *targetVarMD = llvm::dyn_cast<llvm::MDNode>(md->getOperand(2).get());
+    auto targetVar = getGhostArgDef(targetVarMD);
     if (!targetVar.has_value()) {
-        addError("Second operand of yields binding must point to definition of "
+        addError("Third operand of yields binding must point to definition of "
                  "a ghost variable.",
                  md);
         return std::nullopt;
     }
 
     // Yields arg from called function
-    auto yieldsArg =
-        getGhostArgDef(llvm::dyn_cast<llvm::MDNode>(md->getOperand(2).get()));
+    auto *yieldsArgMD = llvm::dyn_cast<llvm::MDNode>(md->getOperand(3).get());
+    auto yieldsArg = getGhostArgDef(yieldsArgMD);
     if (!targetVar.has_value()) {
         addError("Third operand of yields binding must point to definition of "
                  "a yields argument.",
@@ -652,8 +703,7 @@ std::optional<YieldsBinding> getYieldsBinding(const llvm::MDNode *md) {
         return std::nullopt;
     }
 
-    return std::make_optional(
-        YieldsBinding(*loc, targetVar.value().name, yieldsArg.value().name));
+    return std::make_optional(YieldsBinding(*loc, *targetVarMD, *yieldsArgMD));
 }
 
 std::optional<YieldsBindingBlock>
@@ -691,24 +741,22 @@ getYieldsBindingBlock(const llvm::MDNode *md) {
     return std::make_optional(yieldsBlock);
 }
 
-std::optional<GhostAssign> getGhostAssign(const llvm::MDNode *md) {
+std::optional<GivenBinding> getGivenBinding(const llvm::MDNode *md) {
     if (md == nullptr) {
-        addError("Assignment to ghost variable may not be null", md);
+        addError("Binding to given-arg may not be null", md);
         return std::nullopt;
     }
 
-    if (md->getNumOperands() < 5) {
-        addError("Ill-formed ghost assign. Too few operands", md);
+    if (md->getNumOperands() != 7) {
+        addError("Ill-formed binding to given-arg. Too few operands", md);
         return std::nullopt;
     }
 
-    // Ghost variable name
-    auto varDef =
-        getGhostArgDef(llvm::dyn_cast<llvm::MDNode>(md->getOperand(0).get()));
-    if (!varDef.has_value()) {
-        addError("First operand of assignment to ghost variable must point to "
-                 "definition of ghost variable.",
-                 md);
+    // ID-String
+    auto *idStr = llvm::dyn_cast<llvm::MDString>(md->getOperand(0).get());
+    if (idStr == nullptr ||
+        idStr->getString().str() != pallas::constants::PALLAS_GIVEN_BINDING) {
+        addError("First operand of given binding must be id-string", md);
         return std::nullopt;
     }
 
@@ -738,92 +786,53 @@ std::optional<GhostAssign> getGhostAssign(const llvm::MDNode *md) {
         return std::nullopt;
     }
 
-    GhostAssign assign(varDef.value().name, *loc, wFunc);
-
-    // Given-args
-    auto *givenList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(3).get());
-    if (givenList == nullptr) {
-        addError("Fourth operand of assignment to ghost variable must point to "
-                 "list of DIVariables.",
+    // Given-arg def
+    auto argDef = llvm::dyn_cast<llvm::MDNode>(md->getOperand(6).get());
+    if (!getGhostArgDef(argDef).has_value()) {
+        addError("Seventh operand of binding to given-arg must point to its "
+                 "definition.",
                  md);
         return std::nullopt;
     }
-    for (const auto &g : givenList->operands()) {
-        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(g.get());
-        if (var == nullptr) {
-            addError("Expected DILocalVariable in list of given-args.",
-                     givenList);
-            return std::nullopt;
-        }
-        assign.addGivenArg(var);
-    }
 
-    // Yields-args
-    auto *yieldsList = llvm::dyn_cast<llvm::MDNode>(md->getOperand(4).get());
-    if (yieldsList == nullptr) {
-        addError("Fifth operand of assignment to ghost variable must point to "
-                 "list of DIVariables.",
-                 md);
+    GivenBinding binding(*loc, *wFunc, *argDef);
+
+    // Mapping of wrapper-args
+    bool mappingOk =
+        decodeWrapperArgMapping(*md, binding, "Decoding of given-binding -");
+    if (!mappingOk)
         return std::nullopt;
-    }
-    for (const auto &y : yieldsList->operands()) {
-        auto *var = llvm::dyn_cast<llvm::DILocalVariable>(y.get());
-        if (var == nullptr) {
-            addError("Expected DILocalVariable in list of yields-args.",
-                     yieldsList);
-            return std::nullopt;
-        }
-        assign.addYieldsArg(var);
-    }
 
-    // Wrapper args
-    unsigned int vIdx = 5;
-    while (vIdx < md->getNumOperands()) {
-        auto *diVar =
-            llvm::dyn_cast<llvm::DILocalVariable>(md->getOperand(vIdx).get());
-        if (diVar == nullptr) {
-            addError("Expected DIVariable at index " + std::to_string(vIdx) +
-                         " of assignment to ghost variable.",
-                     md);
-            return std::nullopt;
-        }
-        assign.addWrapperArg(diVar);
-        vIdx++;
-    }
-
-    return std::make_optional(assign);
+    return std::make_optional(binding);
 }
 
-std::optional<GhostAssignBlock> getGhostAssignBlock(const llvm::MDNode *md) {
+std::optional<GivenBindingBlock> getGivenBindingBlock(const llvm::MDNode *md) {
     if (md == nullptr) {
-        addError("Ghost assignment block may not be null", md);
+        addError("Given-binding block may not be null", md);
         return std::nullopt;
     }
 
     if (md->getNumOperands() < 2) {
-        addError("Ill-formed ghost assignment block. Too few operands", md);
+        addError("Ill-formed given-binding block. Too few operands", md);
         return std::nullopt;
     }
 
     // Location
     auto loc = getSrcLoc(llvm::dyn_cast<llvm::MDNode>(md->getOperand(0).get()));
     if (!loc.has_value()) {
-        addError("First operand of ghost assignment block must be location.",
-                 md);
+        addError("First operand of given-binding block must be location.", md);
         return std::nullopt;
     }
 
-    GhostAssignBlock block(loc.value());
+    GivenBindingBlock block(loc.value());
 
     // Assignments
-    unsigned int aIdx = 1;
-    while (aIdx < md->getNumOperands()) {
-        auto a = getGhostAssign(
-            llvm::dyn_cast_or_null<llvm::MDNode>(md->getOperand(aIdx).get()));
-        if (!a.has_value())
+    for (size_t idx = 1; idx < md->getNumOperands(); ++idx) {
+        auto b = getGivenBinding(
+            llvm::dyn_cast_or_null<llvm::MDNode>(md->getOperand(idx).get()));
+        if (!b.has_value())
             return std::nullopt;
-        block.addAssignment(a.value());
-        aIdx++;
+        block.addBinding(b.value());
     }
 
     return std::make_optional(block);
@@ -835,10 +844,6 @@ llvm::MDNode *getGivenBindingBlockMD(llvm::Instruction &instr) {
 
 llvm::MDNode *getYieldsBindingBlockMD(llvm::Instruction &instr) {
     return instr.getMetadata(pallas::constants::PALLAS_YIELDS_BINDING_BLOCK);
-}
-
-llvm::MDNode *getGhostAssignBlockMD(llvm::Instruction &instr) {
-    return instr.getMetadata(pallas::constants::PALLAS_GHOST_ASSIGN_BLOCK);
 }
 
 } // namespace pallas::irspec

@@ -2,6 +2,7 @@
 #include "IRSpec/PallasSpecDecoding.h"
 #include "Origin/OriginProvider.h"
 #include "Passes/Function/FunctionContractDeclarer.h"
+#include "Transform/WrapperCallTransform.h"
 #include "Util/BlockUtils.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
@@ -36,79 +37,50 @@ void llvm2col::transformSpecStmntBlock(llvm::MDNode &llvmSpecBlock,
 namespace {
 namespace col = vct::col::ast;
 
-void printSpecStmntError(llvm::Instruction &inst, std::string msg) {
+void printError(llvm::Instruction &inst, std::string msg) {
     pallas::ErrorReporter::addError(SOURCE_LOC,
                                     "Malformed specification: " + msg, inst);
 }
 
-bool buildArgForDIVar(llvm::DIVariable &diVar, llvm::Instruction &llvmInstr,
-                      col::LlvmFunctionInvocation &wrapperCall,
-                      llvm::Function &llvmWrapperFunc, unsigned int argIdx,
-                      const pallas::irspec::SrcLoc &srcLoc,
-                      pallas::FunctionCursor &functionCursor) {
-    llvm::DILocalVariable *diLocVar =
-        llvm::dyn_cast<llvm::DILocalVariable>(&diVar);
-    if (diLocVar == nullptr) {
-        printSpecStmntError(llvmInstr,
-                            "Global DIVariables are currently unsupported");
-        return false;
-    }
-
-    // Function in which the instruction is located
-    llvm::Function *parentFunc = llvmInstr.getFunction();
-
-    llvm::SmallVector<llvm::DbgVariableIntrinsic *> intrinsics =
-        pallas::utils::getIntrinsicsForDIVar(*parentFunc, *diLocVar);
-
-    if (intrinsics.empty()) {
-        printSpecStmntError(llvmInstr,
-                            "Unable to map DIVariable to intrinsic.");
-        return false;
-    } else if (intrinsics.size() == 1 &&
-               llvm::isa<llvm::DbgDeclareInst>(intrinsics.front())) {
-        // Try to map to unique dbg.declare
-        auto dbgDeclare = llvm::cast<llvm::DbgDeclareInst>(intrinsics.front());
-        if (pallas::utils::hasDiExpression(*dbgDeclare)) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC, "DIExpressions are currently not supported.",
-                *dbgDeclare);
-            return false;
-        }
-        auto alloca =
-            llvm::dyn_cast<llvm::AllocaInst>(dbgDeclare->getAddress());
-        if (alloca == nullptr) {
-            printSpecStmntError(llvmInstr,
-                                "Currently, only alloca is supported "
-                                "as a target for dbg.declare.");
-            return false;
-        }
-        pallas::utils::buildArgExprFromAlloca(wrapperCall, argIdx, *alloca,
-                                              llvmWrapperFunc, srcLoc,
-                                              functionCursor);
-    } else {
-        // Search the dbg.value-intrinsic that is closest to the instruction
-        // to which the spec-block is attached.
-        auto &fam = functionCursor.getFunctionAnalysisManager();
-        auto *dbgValueIntr =
-            pallas::utils::getClosestDbgValue(intrinsics, llvmInstr, fam);
-        if (dbgValueIntr == nullptr) {
-            printSpecStmntError(llvmInstr,
-                                "Unable to map dbg.value to instruction.");
-            return false;
-        }
-        bool ok = pallas::utils::buildArgExprFromDbgValue(
-            wrapperCall, argIdx, *dbgValueIntr, llvmWrapperFunc, srcLoc,
-            functionCursor, *parentFunc);
-        if (!ok) {
-            printSpecStmntError(llvmInstr,
-                                "Unable to build argument of wrapper-function");
-            return false;
-        }
-    }
-    return true;
+void printError(llvm::Metadata &md, std::string msg) {
+    pallas::ErrorReporter::addError(SOURCE_LOC,
+                                    "Malformed specification: " + msg, &md);
 }
 
 } // namespace
+
+llvm::DbgVariableIntrinsic *llvm2col::stmntVarMapper(llvm::DILocalVariable &diVar,
+                                           llvm::Value &matchedValue,
+                                           llvm::FunctionAnalysisManager &fam) {
+
+    auto *inst = llvm::dyn_cast<llvm::Instruction>(&matchedValue);
+    if (inst == nullptr) {
+        printError(diVar,
+                   "Failed to map DIVar to intrinsic, expected instruction.");
+        return nullptr;
+    }
+
+    auto *pFunc = inst->getFunction();
+    auto intrinsics = pallas::utils::getIntrinsicsForDIVar(*pFunc, diVar);
+
+    if (intrinsics.empty()) {
+        printError(diVar, "Unable to map DIVariable to intrinsic.");
+        return nullptr;
+    }
+
+    // Try to map to unique dbg.declare
+    if (intrinsics.size() == 1 &&
+        llvm::isa<llvm::DbgDeclareInst>(intrinsics.front())) {
+        return intrinsics.front();
+    }
+
+    // Search the dbg.value-intrinsic that is closest to the matched instruction
+    auto *dbgValueIntr =
+        pallas::utils::getClosestDbgValue(intrinsics, *inst, fam);
+    if (dbgValueIntr == nullptr)
+        printError(*inst, "Unable to map DIVariable to intrinsic.");
+    return dbgValueIntr;
+}
 
 void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
                                   llvm::Instruction &llvmInstr,
@@ -117,148 +89,80 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
 
     // Build call to wrapper-function
     auto *wCall = new col::LlvmFunctionInvocation();
-    buildWrapperCall(*stmnt.wrapperFunction, stmnt.wrapperArgs, stmnt.givenArgs,
-                     stmnt.yieldsArgs, llvmInstr, stmnt.loc, *wCall,
-                     functionCursor);
+    llvm2col::buildWrapperCall(stmnt, llvmInstr, *llvmInstr.getFunction(),
+                               *wCall, functionCursor, stmntVarMapper);
 
     // COL-node for the statement
     col::Block &body = pallas::bodyAsBlock(colBlock);
-    if (stmnt.type == pallas::irspec::SpecStatementType::ASSERT) {
+    if (stmnt.getType() == pallas::irspec::SpecStatementType::ASSERT) {
         // Build Assert
         col::VctAssert *assert = body.add_statements()->mutable_vct_assert();
         assert->set_allocated_blame(new col::Blame());
         // TODO: Fix the origin
         assert->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, stmnt.loc, "assert"));
+            llvmInstr, stmnt.getLoc(), "assert"));
         assert->mutable_res()->set_allocated_llvm_function_invocation(wCall);
-    } else if (stmnt.type == pallas::irspec::SpecStatementType::ASSUME) {
+    } else if (stmnt.getType() == pallas::irspec::SpecStatementType::ASSUME) {
         // Build Assume
         col::Assume *assume = body.add_statements()->mutable_assume();
         assume->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, stmnt.loc, "assume"));
+            llvmInstr, stmnt.getLoc(), "assume"));
         assume->mutable_assn()->set_allocated_llvm_function_invocation(wCall);
-    } else if (stmnt.type == pallas::irspec::SpecStatementType::FOLD) {
+    } else if (stmnt.getType() == pallas::irspec::SpecStatementType::FOLD) {
         // Build Fold
         col::Fold *fold = body.add_statements()->mutable_fold();
         fold->set_allocated_blame(new col::Blame());
         fold->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, stmnt.loc, "fold"));
+            llvmInstr, stmnt.getLoc(), "fold"));
         col::AmbiguousFoldTarget *target =
             fold->mutable_res()->mutable_ambiguous_fold_target();
         target->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, stmnt.loc, "fold"));
+            llvmInstr, stmnt.getLoc(), "fold"));
         target->mutable_target()->set_allocated_llvm_function_invocation(wCall);
-    } else if (stmnt.type == pallas::irspec::SpecStatementType::UNFOLD) {
+    } else if (stmnt.getType() == pallas::irspec::SpecStatementType::UNFOLD) {
         // Build Unfold
         col::Unfold *unfold = body.add_statements()->mutable_unfold();
         unfold->set_allocated_blame(new col::Blame());
         unfold->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, stmnt.loc, "unfold"));
+            llvmInstr, stmnt.getLoc(), "unfold"));
         col::AmbiguousFoldTarget *target =
             unfold->mutable_res()->mutable_ambiguous_fold_target();
         target->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
-            llvmInstr, stmnt.loc, "unfold"));
+            llvmInstr, stmnt.getLoc(), "unfold"));
         target->mutable_target()->set_allocated_llvm_function_invocation(wCall);
-    } else {
-        printSpecStmntError(llvmInstr, "Unknown statement-type");
-    }
-}
-
-void llvm2col::transformGhostAssignBlock(
-    llvm::MDNode &specBlock, llvm::Instruction &llvmInstr,
-    col::LlvmBasicBlock &colBlock, pallas::FunctionCursor &functionCursor) {
-    auto assignBlock = pallas::irspec::getGhostAssignBlock(&specBlock);
-    if (!assignBlock.has_value())
-        return;
-
-    for (auto &a : assignBlock->assignments)
-        transformGhostAssign(a, llvmInstr, colBlock, functionCursor);
-}
-
-void llvm2col::transformGhostAssign(const pallas::irspec::GhostAssign &gAssign,
-                                    llvm::Instruction &llvmInstr,
-                                    col::LlvmBasicBlock &colBlock,
-                                    pallas::FunctionCursor &functionCursor) {
-    col::Block &body = pallas::bodyAsBlock(colBlock);
-    auto *assign = body.add_statements()->mutable_assign();
-    assign->set_allocated_blame(new col::Blame());
-    assign->set_allocated_origin(llvm2col::generatePallasSpecOrigin(
-        gAssign.loc, "Assignment to" + gAssign.varName));
-
-    // Get ghost var from contract of parent function
-    auto *pFunc = llvmInstr.getParent()->getParent();
-    auto &pContrRes = functionCursor.getFDCResult(*pFunc);
-    if (pContrRes.getIRContract() == nullptr) {
-        printSpecStmntError(llvmInstr,
-                            "Unable to get contract of parent function");
-        return;
-    }
-    auto *gVar = pContrRes.getGhostArgByName(gAssign.varName);
-    if (gVar == nullptr) {
-        printSpecStmntError(llvmInstr,
-                            "Unable to get ghost var from parent function");
-        return;
-    }
-    // Assign target
-    auto *target = assign->mutable_target()->mutable_local();
-    target->set_allocated_origin(llvm2col::generatePallasSpecOrigin(
-        gAssign.loc, "Ghost assign to " + gAssign.varName));
-    target->mutable_ref()->set_id(gVar->id());
-    // Call to wrapper function
-    auto *wCall = assign->mutable_value()->mutable_llvm_function_invocation();
-    buildWrapperCall(*gAssign.wrapperFunction, gAssign.wrapperArgs,
-                     gAssign.givenArgs, gAssign.yieldsArgs, llvmInstr,
-                     gAssign.loc, *wCall, functionCursor);
-}
-
-void llvm2col::buildWrapperCall(
-    llvm::Function &wrapperFunction,
-    llvm::ArrayRef<llvm::DILocalVariable *> wrapperArgs,
-    llvm::ArrayRef<llvm::DILocalVariable *> givenArgs,
-    llvm::ArrayRef<llvm::DILocalVariable *> yieldsArgs,
-    llvm::Instruction &matchedInstruction, const pallas::irspec::SrcLoc &srcLoc,
-    col::LlvmFunctionInvocation &colWrapperCall,
-    pallas::FunctionCursor &functionCursor) {
-    auto &fam = functionCursor.getFunctionAnalysisManager();
-    auto &colWrapper = fam.getResult<pallas::FunctionDeclarer>(wrapperFunction)
-                           .getAssociatedColFuncDef();
-
-    // Initialize call
-    colWrapperCall.set_allocated_origin(
-        llvm2col::generatePallasWrapperCallOrigin(wrapperFunction, srcLoc));
-    colWrapperCall.set_allocated_blame(new col::Blame());
-    colWrapperCall.mutable_ref()->set_id(colWrapper.id());
-
-    // Add arguments to wrapper-call
-    for (auto [argIdx, diVar] : llvm::enumerate(wrapperArgs)) {
-        if (!buildArgForDIVar(*diVar, matchedInstruction, colWrapperCall,
-                              wrapperFunction, argIdx, srcLoc, functionCursor))
+    } else if (stmnt.getType() ==
+               pallas::irspec::SpecStatementType::GHOST_ASSIGN) {
+        // Get ghost-var from contract of parent:
+        auto *pFunc = llvmInstr.getFunction();
+        auto &pContrRes = functionCursor.getFDCResult(*pFunc);
+        if (pContrRes.getIRContract() == nullptr) {
+            printError(llvmInstr, "Unable to get contract of parent function");
             return;
-    }
-
-    // Get contract from parent function
-    auto *llvmParentFunc = matchedInstruction.getParent()->getParent();
-    auto &parentContrRes =
-        fam.getResult<pallas::FunctionContractDeclarer>(*llvmParentFunc);
-    if (parentContrRes.getIRContract() == nullptr &&
-        (givenArgs.size() > 0 || yieldsArgs.size() > 0)) {
-        printSpecStmntError(
-            matchedInstruction,
-            "Unable to get ghost args from contract of parent function");
-        return;
-    }
-
-    // Add ghost args to wrapper-call
-    llvm::SmallVector<col::Variable *> ghostArgVars;
-    for (auto &gArg : parentContrRes.getIRContract()->givenArgs)
-        ghostArgVars.push_back(parentContrRes.getGhostArgMapEntry(gArg));
-    for (auto &yArg : parentContrRes.getIRContract()->yieldsArgs)
-        ghostArgVars.push_back(parentContrRes.getGhostArgMapEntry(yArg));
-
-    for (auto *v : ghostArgVars) {
-        auto *argExpr = colWrapperCall.add_args()->mutable_local();
-        argExpr->set_allocated_origin(
-            llvm2col::generatePallasWrapperCallOrigin(wrapperFunction, srcLoc));
-        argExpr->mutable_ref()->set_id(v->id());
+        }
+        auto targetDef =
+            pallas::irspec::getGhostArgDef(stmnt.getAssignTarget());
+        if (!targetDef.has_value())
+            return;
+        auto *gVar = pContrRes.getGhostArgMapEntry(*stmnt.getAssignTarget());
+        if (gVar == nullptr) {
+            printError(llvmInstr,
+                       "Unable to get ghost var from parent function");
+            return;
+        }
+        // Build assignment
+        col::Block &body = pallas::bodyAsBlock(colBlock);
+        auto *assign = body.add_statements()->mutable_assign();
+        assign->set_allocated_blame(new col::Blame());
+        assign->set_allocated_origin(llvm2col::generatePallasSpecOrigin(
+            stmnt.getLoc(), "Assignment to" + targetDef->name));
+        // Build assign target
+        auto *target = assign->mutable_target()->mutable_local();
+        target->set_allocated_origin(llvm2col::generatePallasSpecOrigin(
+            stmnt.getLoc(), "Ghost assign to " + targetDef->name));
+        target->mutable_ref()->set_id(gVar->id());
+        // Call
+        assign->mutable_value()->set_allocated_llvm_function_invocation(wCall);
+    } else {
+        printError(llvmInstr, "Unknown statement-type");
     }
 }

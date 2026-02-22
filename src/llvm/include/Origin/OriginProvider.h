@@ -68,12 +68,17 @@ col::Origin *generateFunctionCallOrigin(llvm::CallInst &callInstruction);
 /**
  * Generates an origin for generated call to a wrapper function of the clause
  * of a pallas function-contract.
- * Assumes that the provided metadata-node is a well-formed encoding of a
- * source-location (adhering to the location-format of pallas).
  */
 col::Origin *
 generatePallasWrapperCallOrigin(const llvm::Function &wrapperFunc,
                                 const pallas::irspec::SrcLoc &clauseSrcLoc);
+
+/**
+ * Generates an origin for generated call to a wrapper function of a
+ * specification element.
+ */
+col::Origin *generatePallasWrapperCallOrigin(
+    const pallas::irspec::WrappedSpecElement &specElem);
 
 /**
  * Generates an origin for a clause of a pallas function contract that is

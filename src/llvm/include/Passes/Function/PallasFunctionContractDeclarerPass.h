@@ -106,30 +106,7 @@ class PallasFunctionContractDeclarerPass
                              const irspec::FunctionContract &irContract,
                              unsigned int clauseIdx,
                              FunctionAnalysisManager &fam, Function &parentFunc,
-                             const bool implicitArgs);
-
-    /**
-     * Resolve the DIVariables from a given MD-nodes that encodes a contract-
-     * clause into col-variables.
-     */
-    std::optional<SmallVector<col::Variable *, 8>>
-    getContractArgs(const pallas::irspec::ContractClause &clause,
-                    Function &parentFunc, FunctionAnalysisManager &fam);
-
-    /**
-     * Get the arguments for a call to a wrapper-function that is part of the
-     * given parent-function's contract.
-     */
-    std::optional<SmallVector<col::Variable *, 8>>
-    getExternalContractArgs(Function &parentFunc, FunctionAnalysisManager &fam);
-
-    /**
-     * Takes a function and a DIVariable that describes an argument of
-     * the original source-function and attempts to map the DIVariable
-     * to the corresponding argument of the llvm-function.
-     * If the mapping isnot possible, a nullptr is returned.
-     */
-    Argument *mapDIVarToArg(Function &f, DIVariable &diVar);
+                             const bool isExternal);
 
     /**
      * Initializes the given predicate 'newPred' such that it represents a split
@@ -157,7 +134,7 @@ class PallasFunctionContractDeclarerPass
      * If the type cannot be determined, returns nullptr and adds error.
      */
     llvm::Type *getGhostArgType(const irspec::FunctionContract &contract,
-                                size_t argIdx, llvm::Function &f,
+                                const llvm::MDNode &gArgMD, llvm::Function &f,
                                 bool isGivenArg);
 
     /**
@@ -165,7 +142,7 @@ class PallasFunctionContractDeclarerPass
      * ghost argument definition (gArgDef).
      */
     void transformGhostArg(const irspec::GhostArgDef &gArgDef,
-                           col::Variable *colVar, llvm::Type &type, size_t idx,
+                           col::Variable *colVar, llvm::Type &type,
                            llvm::Function &parentFunc);
 };
 } // namespace pallas

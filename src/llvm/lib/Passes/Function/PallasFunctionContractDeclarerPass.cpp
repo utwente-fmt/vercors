@@ -5,6 +5,7 @@
 #include "Passes/Function/FunctionContractDeclarer.h"
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Transform/Transform.h"
+#include "Transform/WrapperCallTransform.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
 #include "Util/PallasDIMapping.h"
@@ -31,25 +32,6 @@ const std::string SOURCE_LOC =
 
 using namespace llvm;
 
-namespace {
-void addError(llvm::Function &func, const std::string &msg) {
-    pallas::ErrorReporter::addError(SOURCE_LOC, msg, func);
-}
-
-std::optional<bool> getAssumedFlag(const MDNode &contractMD) {
-    if (contractMD.getNumOperands() < 3)
-        return std::nullopt;
-    auto *constMD =
-        dyn_cast<ConstantAsMetadata>(contractMD.getOperand(2).get());
-    auto *assumedVal = dyn_cast_if_present<ConstantInt>(constMD->getValue());
-    if (assumedVal == nullptr || (assumedVal->getBitWidth() != 1)) {
-        return std::nullopt;
-    }
-    return assumedVal->isOne();
-}
-
-} // namespace
-
 /*
  * Pallas Function Contract Declarer Pass
  */
@@ -64,23 +46,34 @@ PallasFunctionContractDeclarerPass::run(Module &m, ModuleAnalysisManager &mam) {
 }
 
 llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
-    const irspec::FunctionContract &contract, size_t argIdx, llvm::Function &f,
-    bool isGivenArg) {
+    const irspec::FunctionContract &contract, const llvm::MDNode &gArgMD,
+    llvm::Function &f, bool isGivenArg) {
+
+    auto gArgDef = irspec::getGhostArgDef(&gArgMD);
+    if (!gArgDef.has_value())
+        return nullptr;
 
     llvm::Type *currentType = nullptr;
+    // Check the signature of the contract's claues to determine the type of the
+    // ghost argument
     for (auto &clause : contract.clauses) {
         // Skip requires-clauses for yields args:
-        if (!isGivenArg && clause.type == irspec::ContractClauseType::REQUIRES)
+        if (!isGivenArg &&
+            clause.getType() == irspec::ContractClauseType::REQUIRES)
             continue;
 
         // Map debug variable to LLVM-value and get type
-        auto *diVar =
-            isGivenArg ? clause.givenArgs[argIdx] : clause.yieldsArgs[argIdx];
-
-        auto *mappedArg = mapDIVarToArg(*clause.wrapperFunction, *diVar);
+        auto *diVar = clause.getVarForGhostDef(gArgMD);
+        if (diVar == nullptr) {
+            ErrorReporter::addError(
+                SOURCE_LOC,
+                "Failed to find DIVariable for ghost-arg definition ", f);
+            return nullptr;
+        }
+        auto *mappedArg = utils::mapDIVarToArg(clause.getWrapper(), *diVar);
         if (mappedArg == nullptr) {
-            std::string err = "Failed to get type for ghost-arg at index " +
-                              std::to_string(argIdx);
+            std::string err =
+                "Failed to get type for ghost-arg " + gArgDef->name;
             ErrorReporter::addError(SOURCE_LOC, err, f);
             return nullptr;
         }
@@ -89,8 +82,7 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
         // Compare type to previously determined type to check consistency
         if (currentType != nullptr && newType != currentType) {
             std::string err =
-                "Found conflicting types for ghost-arg at index " +
-                std::to_string(argIdx);
+                "Found conflicting types for ghost-arg " + gArgDef->name;
             ErrorReporter::addError(SOURCE_LOC, err, f);
             return nullptr;
         }
@@ -98,8 +90,8 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
     }
 
     if (currentType == nullptr) {
-        std::string err = "Failed to determine type for ghost-arg at index " +
-                          std::to_string(argIdx);
+        std::string err =
+            "Failed to determine type for ghost-arg " + gArgDef->name;
         ErrorReporter::addError(SOURCE_LOC, err, f);
     }
     return currentType;
@@ -107,7 +99,7 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
 
 void PallasFunctionContractDeclarerPass::transformGhostArg(
     const irspec::GhostArgDef &gArgDef, col::Variable *colVar, llvm::Type &type,
-    size_t idx, llvm::Function &parentFunc) {
+    llvm::Function &parentFunc) {
     const auto &dataLayout = parentFunc.getParent()->getDataLayout();
     colVar->set_allocated_origin(
         llvm2col::generatePallasSpecOrigin(gArgDef.loc, gArgDef.name));
@@ -116,7 +108,7 @@ void PallasFunctionContractDeclarerPass::transformGhostArg(
         llvm2col::transformAndSetType(type, *colVar->mutable_t(), dataLayout);
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
-        errorStream << e.what() << " in ghost argument #" << idx;
+        errorStream << e.what() << " in ghost argument " << gArgDef.name;
         pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(),
                                         parentFunc);
     }
@@ -134,13 +126,11 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
     if (utils::hasVcllvmContract(f) || utils::getPallasContract(f) == nullptr)
         return;
 
-    bool isGhost = utils::hasPallasGhostContract(f);
     bool isExternal = utils::hasExternalPallasContract(f);
-    bool implicitArgs = isGhost || isExternal;
 
     // Decode the MD-encoding
     auto *contractNode = utils::getPallasContract(f);
-    auto decodedContract = irspec::getContract(contractNode, implicitArgs);
+    auto decodedContract = irspec::getContract(contractNode);
     if (!decodedContract.has_value())
         return;
 
@@ -172,25 +162,31 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
         llvm2col::generatePallasFunctionContractOrigin(f, irContract->loc));
 
     // Add given-args
-    for (const auto [idx, g] : llvm::enumerate(irContract->givenArgs)) {
-        llvm::Type *gType = getGhostArgType(*irContract, idx, f, true);
+    for (const auto g : irContract->givenArgs) {
+        auto gDef = irspec::getGhostArgDef(g);
+        if (!gDef.has_value())
+            return;
+        llvm::Type *gType = getGhostArgType(*irContract, *g, f, true);
         auto *colVar = colContract->add_given_args();
-        transformGhostArg(g, colVar, *gType, idx, f);
-        cResult.addGhostArgMapEntry(g, *colVar);
+        transformGhostArg(*gDef, colVar, *gType, f);
+        cResult.addGhostArgMapEntry(*g, *colVar);
     }
 
     // Add yields-args
-    for (const auto [idx, y] : llvm::enumerate(irContract->yieldsArgs)) {
-        llvm::Type *gType = getGhostArgType(*irContract, idx, f, false);
+    for (const auto y : irContract->yieldsArgs) {
+        auto yDef = irspec::getGhostArgDef(y);
+        if (!yDef.has_value())
+            return;
+        llvm::Type *yType = getGhostArgType(*irContract, *y, f, false);
         auto *colVar = colContract->add_yields_args();
-        transformGhostArg(y, colVar, *gType, idx, f);
-        cResult.addGhostArgMapEntry(y, *colVar);
+        transformGhostArg(*yDef, colVar, *yType, f);
+        cResult.addGhostArgMapEntry(*y, *colVar);
     }
 
     // Handle contract clauses
     for (size_t idx = 0; idx < irContract->clauses.size(); ++idx) {
         bool addClauseSuccess = addClauseToContract(*colContract, *irContract,
-                                                    idx, fam, f, implicitArgs);
+                                                    idx, fam, f, isExternal);
         if (!addClauseSuccess)
             return;
     }
@@ -203,126 +199,28 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
     addEmptyKernelInvariant(*colContract, f);
 }
 
-std::optional<SmallVector<col::Variable *, 8>>
-PallasFunctionContractDeclarerPass::getExternalContractArgs(
-    Function &parentFunc, FunctionAnalysisManager &fam) {
-    // For external function, return the arguments of the parent-function
-    FDResult colFResult = fam.getResult<FunctionDeclarer>(parentFunc);
-
-    SmallVector<col::Variable *, 8> colArgs;
-    for (auto &arg : parentFunc.args()) {
-        auto colArgVar = &colFResult.getFuncArgMapEntry(arg);
-        colArgs.push_back(colArgVar);
-    }
-
-    return colArgs;
-}
-
-std::optional<SmallVector<col::Variable *, 8>>
-PallasFunctionContractDeclarerPass::getContractArgs(
-    const pallas::irspec::ContractClause &clause, Function &parentFunc,
-    FunctionAnalysisManager &fam) {
-    FDResult colFResult = fam.getResult<FunctionDeclarer>(parentFunc);
-
-    // Resolve the DIVariables to col-variables
-    SmallVector<col::Variable *, 8> colArgs;
-    for (auto *localVar : clause.wrapperArgs) {
-        // Check that the DIVariable belongs to the function to which the
-        // contract is attached
-        if (localVar->getScope() != parentFunc.getSubprogram()) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC,
-                "Ill-formed contract clause. DIVariable does not belong to "
-                "the function to which the contract is attached.",
-                parentFunc);
-            return std::nullopt;
-        }
-
-        auto llvmArg = mapDIVarToArg(parentFunc, *localVar);
-        if (llvmArg == nullptr) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC, "Unable to map DIVariable to argument.",
-                parentFunc);
-            return std::nullopt;
-        }
-        auto colArgVar = &colFResult.getFuncArgMapEntry(*llvmArg);
-        colArgs.push_back(colArgVar);
-    }
-    return colArgs;
-}
-
 bool PallasFunctionContractDeclarerPass::addClauseToContract(
     col::ApplicableContract &contract,
     const irspec::FunctionContract &irContract, unsigned int clauseIdx,
-    FunctionAnalysisManager &fam, Function &parentFunc,
-    const bool implicitArgs) {
+    FunctionAnalysisManager &fam, Function &parentFunc, const bool isExternal) {
 
     auto &clause = irContract.clauses[clauseIdx];
-
-    // Get COL representation of wrapper function
-    auto wrapperFResult =
-        fam.getResult<FunctionDeclarer>(*clause.wrapperFunction);
-    auto &contrResult = fam.getResult<FunctionContractDeclarer>(parentFunc);
-    col::LlvmFunctionDefinition &colWrapperF =
-        wrapperFResult.getAssociatedColFuncDef();
-
-    // Get arguments for the wrapper-call
-    auto wrapperArgs = implicitArgs ? getExternalContractArgs(parentFunc, fam)
-                                    : getContractArgs(clause, parentFunc, fam);
-    if (!wrapperArgs.has_value()) {
-        return false;
-    }
-
-    // Add ghost args
-    for (auto &gArg : irContract.givenArgs) {
-        auto *v = contrResult.getGhostArgMapEntry(gArg);
-        if (v == nullptr)
-            return false;
-        wrapperArgs->push_back(v);
-    }
-
-    if (clause.type != irspec::ContractClauseType::REQUIRES) {
-        for (auto &yArg : irContract.yieldsArgs) {
-            auto *v = contrResult.getGhostArgMapEntry(yArg);
-            if (v == nullptr)
-                return false;
-            wrapperArgs->push_back(v);
-        }
-    }
 
     // Build a call to the wrapper-function with the gathered arguments
     col::LlvmFunctionInvocation *wrapperCall =
         new col::LlvmFunctionInvocation();
-    wrapperCall->set_allocated_origin(llvm2col::generatePallasWrapperCallOrigin(
-        *clause.wrapperFunction, clause.loc));
-    wrapperCall->set_allocated_blame(new col::Blame());
-
-    // Build ref to parent function
-    auto *fRef = wrapperCall->mutable_ref();
-    fRef->set_id(colWrapperF.id());
-
-    // Add argument-expression to invocation
-    for (auto *v : *wrapperArgs) {
-        // Construct Local-node that references the variable and add it to the
-        // list of arguments
-        auto *argExpr = wrapperCall->add_args()->mutable_local();
-        // TODO: Currently this just points to the full clause.
-        //       Could be extended to point to the specific variable instead.
-        argExpr->set_allocated_origin(llvm2col::generatePallasWrapperCallOrigin(
-            *clause.wrapperFunction, clause.loc));
-        auto *varRef = argExpr->mutable_ref();
-        varRef->set_id(v->id());
-    }
+    llvm2col::buildContractWrapperCall(clause, parentFunc, *wrapperCall, fam,
+                                       isExternal);
 
     // Construct an AccountedPredicate that wraps the call to the
     // wrapper-function
     col::UnitAccountedPredicate *newPred = new col::UnitAccountedPredicate();
     newPred->set_allocated_origin(llvm2col::generatePallasFContractClauseOrigin(
-        parentFunc, clause.loc, clauseIdx + 1));
+        parentFunc, clause.getLoc(), clauseIdx + 1));
     newPred->mutable_pred()->set_allocated_llvm_function_invocation(
         wrapperCall);
 
-    if (clause.type == pallas::irspec::ContractClauseType::REQUIRES) {
+    if (clause.getType() == pallas::irspec::ContractClauseType::REQUIRES) {
         // Add to requires clauses
         if (!contract.has_requires_()) {
             contract.mutable_requires_()
@@ -335,7 +233,8 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
                                 parentFunc, irContract.loc),
                             oldPred, newPred);
         }
-    } else if (clause.type == pallas::irspec::ContractClauseType::ENSURES) {
+    } else if (clause.getType() ==
+               pallas::irspec::ContractClauseType::ENSURES) {
         // Add to ensures clauses
         if (!contract.has_ensures()) {
             contract.mutable_ensures()->set_allocated_unit_accounted_predicate(
@@ -351,84 +250,6 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     }
 
     return true;
-}
-
-Argument *PallasFunctionContractDeclarerPass::mapDIVarToArg(Function &f,
-                                                            DIVariable &diVar) {
-    auto *locDiVar = dyn_cast<DILocalVariable>(&diVar);
-    if (locDiVar == nullptr || !locDiVar->isParameter()) {
-        return nullptr;
-    }
-
-    // Get the debug-intrinsic that uses the local variable.
-    SmallVector<DbgVariableIntrinsic *, 8> intrinsics;
-    for (auto i = inst_begin(&f), end = inst_end(&f); i != end; ++i) {
-        auto *asIntr = dyn_cast<DbgVariableIntrinsic>(&*i);
-        if (asIntr != nullptr && pallas::utils::hasDiExpression(*asIntr)) {
-            addError(f, "DIExpressions are not yet supported.");
-            return nullptr;
-        }
-        if (asIntr != nullptr && asIntr->getVariable() == locDiVar)
-            intrinsics.push_back(asIntr);
-    }
-
-    // Try to map to unique dbg.declare
-    auto *declIntr = pallas::utils::getUniqueDbgDeclare(intrinsics);
-    if (declIntr != nullptr) {
-        if (auto *argument = dyn_cast<Argument>(declIntr->getAddress())) {
-            return argument;
-        }
-        // Check if intrinsic refers to an alloca in the initial block of the
-        // function that is set to the value of an argument in its first use.
-        auto *alloc = dyn_cast_if_present<AllocaInst>(declIntr->getAddress());
-        if (alloc == nullptr || !alloc->isUsedInBasicBlock(&f.getEntryBlock()))
-            return nullptr;
-
-        // Find all instructions that use the alloca
-        SmallSet<Instruction *, 16> userInstr;
-        for (User *user : alloc->users()) {
-            if (auto *userInst = dyn_cast<Instruction>(user)) {
-                userInstr.insert(userInst);
-            }
-        }
-
-        // Check that the first user of the alloca is a store
-        // that stores the value of an argument.
-        for (auto &inst : f.getEntryBlock()) {
-            if (!userInstr.contains(&inst)) {
-                continue;
-            }
-            auto *storeInst = dyn_cast<StoreInst>(&inst);
-            if (storeInst == nullptr) {
-                return nullptr;
-            }
-
-            if (auto *arg = dyn_cast<Argument>(storeInst->getValueOperand())) {
-                assert(arg->getParent() == &f);
-                return arg;
-            }
-            if (auto *cast = dyn_cast<CastInst>(storeInst->getValueOperand())) {
-                // We only go one layer deep here, but we might require more
-                // depending on what compilers do
-                if (auto *arg = dyn_cast<Argument>(cast->getOperand(0))) {
-                    assert(arg->getParent() == &f);
-                    return arg;
-                }
-            }
-            return nullptr;
-        }
-        return nullptr;
-    }
-    // Try to map to dbg.value that refers directly to an argument of f
-    for (auto *intr : intrinsics) {
-        if (auto *valIntr = dyn_cast<DbgValueInst>(intr)) {
-            auto *arg = dyn_cast_if_present<Argument>(valIntr->getValue());
-            if (arg != nullptr && arg->getParent() == &f)
-                return arg;
-        }
-    }
-
-    return nullptr;
 }
 
 void PallasFunctionContractDeclarerPass::addEmptyRequires(
@@ -506,7 +327,6 @@ void PallasFunctionContractDeclarerPass::extendPredicate(
 bool PallasFunctionContractDeclarerPass::hasConflictingContract(Function &f) {
     int contrCount = 0;
     contrCount += utils::hasExternalPallasContract(f) ? 1 : 0;
-    contrCount += utils::hasPallasGhostContract(f) ? 1 : 0;
     contrCount += utils::hasPallasContract(f) ? 1 : 0;
     contrCount += utils::hasVcllvmContract(f) ? 1 : 0;
 

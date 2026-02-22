@@ -58,11 +58,6 @@ void llvm2col::transformInstruction(pallas::FunctionCursor &funcCursor,
         llvm2col::transformSpecStmntBlock(*specMD, llvmInstruction,
                                           colBodyBlock, funcCursor);
     }
-    if (auto *gAssignMD =
-            pallas::irspec::getGhostAssignBlockMD(llvmInstruction)) {
-        llvm2col::transformGhostAssignBlock(*gAssignMD, llvmInstruction,
-                                            colBodyBlock, funcCursor);
-    }
 
     u_int32_t opCode = llvmInstruction.getOpcode();
     if (llvm::Instruction::TermOpsBegin <= opCode &&
