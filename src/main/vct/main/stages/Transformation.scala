@@ -29,7 +29,7 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
-  CFloatIntCoercion,
+  CTypeConversions,
   DisambiguateLocation,
   DisambiguatePredicateExpression,
   EncodeAssuming,
@@ -370,7 +370,7 @@ case class SilverTransformation(
 ) extends Transformation(
       onPassEvent,
       Seq(
-        CFloatIntCoercion.withArg(checkIntegerBounds, unsetTarget),
+        CTypeConversions.withArg(checkIntegerBounds, unsetTarget),
         EncodeBoundsChecks,
         // Replace leftover SYCL types
         ReplaceSYCLTypes,

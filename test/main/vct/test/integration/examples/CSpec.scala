@@ -21,640 +21,640 @@ class CSpec extends VercorsSpec {
   vercors should error withCode "resolutionError:type" in "float should not be demoted" c
   """
   int main(){
-    int x = 4.0 % 1;
+int x = 4.0 % 1;
   }
   """
   vercors should fail withCode "assignFieldFailed" using silicon in "cannot access field of struct after freeing" c
-    """
-    #include <stdlib.h>
+"""
+#include <stdlib.h>
 
-    struct d{
-      int x;
-    };
+struct d{
+  int x;
+};
 
-    struct e{
-      struct d s;
-      int x;
-    };
+struct e{
+  struct d s;
+  int x;
+};
 
-    int main(){
-      struct e* a = (struct e*) malloc(1*sizeof(struct e));
-      if (a == NULL) return 1;
+int main(){
+  struct e* a = (struct e*) malloc(1*sizeof(struct e));
+  if (a == NULL) return 1;
 
-      a->s.x = 1;
-      struct d* b = &(a->s);
-      free(a);
-      b->x = 2;
-    }
-    """
+  a->s.x = 1;
+  struct d* b = &(a->s);
+  free(a);
+  b->x = 2;
+}
+"""
 
   vercors should fail withCode "ptrNull" using silicon in "use malloc result without null check" c
-    """
-      #include <stdlib.h>
-      int main(){
-          int* xs = (int*) malloc(1*sizeof(int));
-          *xs = 12;
-          free(xs);
-      }
-    """
+"""
+  #include <stdlib.h>
+  int main(){
+      int* xs = (int*) malloc(1*sizeof(int));
+      *xs = 12;
+      free(xs);
+  }
+"""
 
   vercors should verify using silicon in "free null pointer" c
-    """
-      #include <stdlib.h>
-      int main(){
-          int* xs = NULL;
-          free(xs);
-          free(xs);
-          free(xs);
-      }
-    """
+"""
+  #include <stdlib.h>
+  int main(){
+      int* xs = NULL;
+      free(xs);
+      free(xs);
+      free(xs);
+  }
+"""
 
   vercors should fail withCode "ptrOffsetNonZero" using silicon in "free stack garbage pointer" c
-    """
-      #include <stdlib.h>
-      int main(){
-          int* xs;
-          free(xs);
-      }
-    """
+"""
+  #include <stdlib.h>
+  int main(){
+      int* xs;
+      free(xs);
+  }
+"""
 
   vercors should fail withCode "ptrOffsetNonZero" using silicon in "free offset 1 pointer" c
-    """
-      #include <stdlib.h>
-      int main(){
-          int* xs = (int*) malloc(sizeof(int)*3);
-          free(xs+1);
-      }
-    """
+"""
+  #include <stdlib.h>
+  int main(){
+      int* xs = (int*) malloc(sizeof(int)*3);
+      free(xs+1);
+  }
+"""
 
   vercors should fail withCode "ptrFreePerm" using silicon in "free pointer with insufficient permission" c
-    """
-      #include <stdlib.h>
-      int main(){
-          int* xs = (int*) malloc(sizeof(int)*3);
-          //@ exhale Perm(xs[0], 1\2);
-          free(xs);
-      }
-    """
-  vercors should fail withCode "ptrFreeFieldError" using silicon in "free pointer with insufficient permission for field" c
-    """
-    #include <stdlib.h>
-    struct d{
-      int x;
-    };
-    int main(){
-      struct d* xs = (struct d*) malloc(sizeof(struct d)*3);
-      struct d* ys = (struct d*) malloc(sizeof(struct d)*3);
-      //@ exhale Perm(xs[0].x, 1\2);
+"""
+  #include <stdlib.h>
+  int main(){
+      int* xs = (int*) malloc(sizeof(int)*3);
+      //@ exhale Perm(xs[0], 1\2);
       free(xs);
-    }
-    """
+  }
+"""
+  vercors should fail withCode "ptrFreeFieldError" using silicon in "free pointer with insufficient permission for field" c
+"""
+#include <stdlib.h>
+struct d{
+  int x;
+};
+int main(){
+  struct d* xs = (struct d*) malloc(sizeof(struct d)*3);
+  struct d* ys = (struct d*) malloc(sizeof(struct d)*3);
+  //@ exhale Perm(xs[0].x, 1\2);
+  free(xs);
+}
+"""
   vercors should fail withCode "ptrNull" using silicon in "Deref field of null ptr" c
-    """
-    struct d{
-      int x;
-    };
-    int main(){
-      struct d* s;
-      s->x = 1;
-    }
-    """
+"""
+struct d{
+  int x;
+};
+int main(){
+  struct d* s;
+  s->x = 1;
+}
+"""
 
   vercors should fail withCode "assignFieldFailed" using silicon in "Deref field of zero perm ptr" c
-    """
-    struct d{
-      int x;
-    };
-    int main(){
-      struct d s1;
-      struct d* s2 = &s1;
-      //@ exhale Perm(s2->x, 1\1);
-      s2->x = 1;
-    }
-    """
+"""
+struct d{
+  int x;
+};
+int main(){
+  struct d s1;
+  struct d* s2 = &s1;
+  //@ exhale Perm(s2->x, 1\1);
+  s2->x = 1;
+}
+"""
 
   vercors should fail withCode "assignFieldFailed" using silicon in "Deref field of zero perm field" c
-    """
-    struct d{
-      int x;
-    };
-    int main(){
-      struct d s1;
-      struct d* s2 = &s1;
-      //@ exhale Perm(s2->x, 1\1);
-      s2->x = 1;
-    }
-    """
+"""
+struct d{
+  int x;
+};
+int main(){
+  struct d s1;
+  struct d* s2 = &s1;
+  //@ exhale Perm(s2->x, 1\1);
+  s2->x = 1;
+}
+"""
 
   vercors should fail withCode "assignFieldFailed" using silicon in "Access field of zero perm ptr" c
-    """
-    struct d{
-      int x;
-    };
-    int main(){
-      struct d s;
-      //@ exhale Perm(s.x, 1\1);
-      s.x = 1;
-    }
-    """
+"""
+struct d{
+  int x;
+};
+int main(){
+  struct d s;
+  //@ exhale Perm(s.x, 1\1);
+  s.x = 1;
+}
+"""
   vercors should fail withCode "perm" using silicon in "Read field of zero perm ptr" c
-    """
-    struct d{
-      int x;
-    };
-    int main(){
-      struct d s;
-      s.x = 1;
-      //@ exhale Perm(s.x, 1\1);
-      int x = s.x;
-    }
-    """
+"""
+struct d{
+  int x;
+};
+int main(){
+  struct d s;
+  s.x = 1;
+  //@ exhale Perm(s.x, 1\1);
+  int x = s.x;
+}
+"""
 
   vercors should verify using silicon in "Cast ptr struct to int" c
-    """
-    struct d{
-      int x;
-    };
-    int main(){
-      struct d *s;
-      int* ss;
-      ss = (int *) s;
-    }
-    """
+"""
+struct d{
+  int x;
+};
+int main(){
+  struct d *s;
+  int* ss;
+  ss = (int *) s;
+}
+"""
 
   vercors should error withCode "unsupportedCast" in "Cast struct to int" c
-    """
-    struct d{
-      int x;
-    };
-    int main(){
-      struct d s;
-      int ss;
-      ss = (int ) s;
-    }
-    """
+"""
+struct d{
+  int x;
+};
+int main(){
+  struct d s;
+  int ss;
+  ss = (int ) s;
+}
+"""
 
   vercors should error withCode "unsupportedCast" in "Cast int to struct" c
-    """
-    struct d{
-      int x;
-    };
-    int main(){
-      struct d s;
-      int ss = 5;
-      s = (struct d) ss;
-    }
-    """
+"""
+struct d{
+  int x;
+};
+int main(){
+  struct d s;
+  int ss = 5;
+  s = (struct d) ss;
+}
+"""
 
   vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" in "Supported malloc without sizeof" c
-    """
-    #include <stdlib.h>
-    int main(){
-      int size = 5 * sizeof(int);
-      int *x = (int*) malloc(size);
-      //@ assert x == NULL || \pointer_block_length(x) == 5;
-    }
-    """
+"""
+#include <stdlib.h>
+int main(){
+  int size = 5 * sizeof(int);
+  int *x = (int*) malloc(size);
+  //@ assert x == NULL || \pointer_block_length(x) == 5;
+}
+"""
 
   vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" in "Malloc with wrong cast" c
-    """
-    #include <stdlib.h>
-    int main(){
-      float *x = (float*) malloc(sizeof(int)*4);
-      //@ assert x == NULL || \pointer_block_length(x) == 4;
-    }
-    """
+"""
+#include <stdlib.h>
+int main(){
+  float *x = (float*) malloc(sizeof(int)*4);
+  //@ assert x == NULL || \pointer_block_length(x) == 4;
+}
+"""
 
   vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" in "Use of sizeof with a target" c
-    """
-    int main(){
-      int x = sizeof(int);
-      //@ assert x == 4;
-    }
-    """
+"""
+int main(){
+  int x = sizeof(int);
+  //@ assert x == 4;
+}
+"""
 
   vercors should fail withCode "assertFailed:false" using silicon in "Use of sizeof without a target" c
-    """
-    int main(){
-      int x = sizeof(int);
-      //@ assert x == 4;
-    }
-    """
+"""
+int main(){
+  int x = sizeof(int);
+  //@ assert x == 4;
+}
+"""
 
   vercors should fail withCode "divByZero" using silicon in "Truncated div divide zero" c
-    """
-    int test(int a, int b){
-      return a/b;
-    }
-    """
+"""
+int test(int a, int b){
+  return a/b;
+}
+"""
 
   vercors should fail withCode "divByZero" using silicon in "Truncated mod divide zero" c
-    """
-    int test(int a, int b){
-      return a%b;
-    }
-    """
+"""
+int test(int a, int b){
+  return a%b;
+}
+"""
 
   vercors should fail withCode "divByZero" using silicon in "Eucl div divide zero" c
-    """
-    int test(int a, int b){
-      return a/b;
-    }
-    """
+"""
+int test(int a, int b){
+  return a/b;
+}
+"""
 
   vercors should fail withCode "divByZero" using silicon in "Eucl mod divide zero" c
-    """
-    int test(int a, int b){
-      return a%b;
-    }
-    """
+"""
+int test(int a, int b){
+  return a%b;
+}
+"""
 
   vercors should error withCode "noSuchName" in "No struct found" c
-    """
-    struct d {
-        int x;
-    };
+"""
+struct d {
+    int x;
+};
 
-    int main(){
-        struct y x;
-    }
-    """
+int main(){
+    struct y x;
+}
+"""
 
   vercors should verify using silicon in "Pure function in c" c
-    """
-    #include <stdlib.h>
-    #include <assert.h>
+"""
+#include <stdlib.h>
+#include <assert.h>
 
-    /*@ pure @*/ int plusOne(int x){
-        return x+1;
-    }
+/*@ pure @*/ int plusOne(int x){
+    return x+1;
+}
 
-    //@ ensures \result == plusOne(x);
-    int test(int x){
-        return x+1;
-    }
+//@ ensures \result == plusOne(x);
+int test(int x){
+    return x+1;
+}
 
-    int main(){
-        assert(test(1) == 2);
-    }
-    """
+int main(){
+    assert(test(1) == 2);
+}
+"""
   vercors should error withCode "cyclicStruct" in "cylic struct" c
-    """
-    struct d {
-      int x;
-      struct d y;
-    };
+"""
+struct d {
+  int x;
+  struct d y;
+};
 
-    //@ requires Perm(s, write);
-    void test (struct d s) {
-      int x;
-    }
+//@ requires Perm(s, write);
+void test (struct d s) {
+  int x;
+}
 
-    int main () {
-      struct d s;
-    }
-    """
+int main () {
+  struct d s;
+}
+"""
 
   vercors should error withCode "notAValue" in "struct type is no value" c
-    """
-    struct d {
-        int x;
-    };
+"""
+struct d {
+    int x;
+};
 
-    int main(){
-        struct d s = d;
-    }
-    """
+int main(){
+    struct d s = d;
+}
+"""
 
   vercors should error withCode "resolutionError:type" in "struct type is again no value" c
-    """
-    struct d {
-        int x;
-    };
+"""
+struct d {
+    int x;
+};
 
-    int main(){
-        struct d s;
-        s = d;
-    }
-    """
+int main(){
+    struct d s;
+    s = d;
+}
+"""
 
   vercors should error withCode "typeUsedAsValue" in "Struct deref type is used as value" c
-    """
-    struct d {
-        int x;
-    };
+"""
+struct d {
+    int x;
+};
 
-    int main(){
-        struct d s;
-        //@ exhale Perm(d.x, 1\1);
-    }
-    """
+int main(){
+    struct d s;
+    //@ exhale Perm(d.x, 1\1);
+}
+"""
 
   vercors should fail withCode "copyClassFailedBeforeCall" using silicon in "Insufficient permission for field x to copy struct before call" c
-    """
-    struct d {
-        int x;
-    };
+"""
+struct d {
+    int x;
+};
 
 
-    int test(struct d t){
-        return 1;
-    }
+int test(struct d t){
+    return 1;
+}
 
-    int main(){
-        struct d s;
-        //@ exhale Perm(s.x, 1\1);
-        test(s);
-    }
-    """
+int main(){
+    struct d s;
+    //@ exhale Perm(s.x, 1\1);
+    test(s);
+}
+"""
 
   vercors should fail withCode "copyClassFailed" using silicon in "Insufficient permission for field x to copy struct" c
-    """
-    struct d {
-        int x;
-    };
+"""
+struct d {
+    int x;
+};
 
 
-    int test(struct d t){
-        return 1;
+int test(struct d t){
+    return 1;
+}
+
+int main(){
+    struct d s, t;
+    //@ exhale Perm(s.x, 1\1);
+    t = s;
+}
+"""
+
+vercors should error withCode "preprocessorError" in "Source file with preprocessor error" c
+"""
+#define foo(
+"""
+
+vercors should verify using silicon in "Parallel omp loop with declarations inside" c
+"""
+#include <omp.h>
+#include <assert.h>
+
+int main(){
+    int sum[3] = {0, 0, 0};
+
+    #pragma omp parallel for
+    for(int i=0;i<3;i++)
+    /*@
+        context 0 <= i && i <3;
+        context Perm(sum[i], write);
+        requires sum[i] == 0;
+        ensures sum[i] == i;
+    @*/
+    {
+        int xs[1] = {i};
+        sum[i] += xs[0];
     }
+    assert(sum[0] == 0);
+    assert(sum[1] == 1);
+    assert(sum[2] == 2);
+}
+"""
 
-    int main(){
-        struct d s, t;
-        //@ exhale Perm(s.x, 1\1);
-        t = s;
-    }
-    """
+vercors should verify using silicon in "Casting null to pointers" c
+"""
+#include <stdlib.h>
 
-    vercors should error withCode "preprocessorError" in "Source file with preprocessor error" c
-    """
-    #define foo(
-    """
+struct nested {
+  struct nested *inner;
+};
 
-    vercors should verify using silicon in "Parallel omp loop with declarations inside" c
-    """
-    #include <omp.h>
-    #include <assert.h>
+void main() {
+  int *ip = NULL;
+  double *dp = NULL;
+  struct nested *np = NULL;
+  np = (struct nested*) NULL;
+  np = (struct nested*) malloc(sizeof(struct nested));
+  if (np == NULL) return;
+  np->inner = NULL;
+  np->inner = (struct nested*) NULL;
+}
+"""
 
-    int main(){
-        int sum[3] = {0, 0, 0};
+vercors should error withCode "wrongCType" in "Vector initialized with to much arguments" c
+"""
+// wrongCType
+#include <immintrin.h>
 
-        #pragma omp parallel for
-        for(int i=0;i<3;i++)
-        /*@
-            context 0 <= i && i <3;
-            context Perm(sum[i], write);
-            requires sum[i] == 0;
-            ensures sum[i] == i;
-        @*/
-        {
-            int xs[1] = {i};
-            sum[i] += xs[0];
-        }
-        assert(sum[0] == 0);
-        assert(sum[1] == 1);
-        assert(sum[2] == 2);
-    }
-    """
+void test(){
+    __m128i x = {0,1,2,3};
+}
+"""
 
-    vercors should verify using silicon in "Casting null to pointers" c
-    """
-    #include <stdlib.h>
+vercors should error withCode "resolutionError:type" in "Vector literal with wrong types" c
+"""
+// type
+#include <immintrin.h>
 
-    struct nested {
-      struct nested *inner;
-    };
+void test(){
+    __m128i x = {0.1, 0.1};
+}
+"""
 
-    void main() {
-      int *ip = NULL;
-      double *dp = NULL;
-      struct nested *np = NULL;
-      np = (struct nested*) NULL;
-      np = (struct nested*) malloc(sizeof(struct nested));
-      if (np == NULL) return;
-      np->inner = NULL;
-      np->inner = (struct nested*) NULL;
-    }
-    """
+vercors should error withCode "resolutionError:type" in "Vector initialized with wrong type" c
+"""
+// type
+#include <immintrin.h>
 
-    vercors should error withCode "wrongCType" in "Vector initialized with to much arguments" c
-    """
-    // wrongCType
-    #include <immintrin.h>
+void test(){
+    __m128i x = {0.1, 0.1};
+}
+"""
 
-    void test(){
-        __m128i x = {0,1,2,3};
-    }
-    """
+vercors should error withCode "wrongVectorType" in "Vector type wrong declaration" c
+"""
+typedef int v4si __attribute__ ((vector_size (sizeof(float)*4)));
 
-    vercors should error withCode "resolutionError:type" in "Vector literal with wrong types" c
-    """
-    // type
-    #include <immintrin.h>
+void test(){
+    v4si x = {0, 1, 2, 3};
+}
+"""
 
-    void test(){
-        __m128i x = {0.1, 0.1};
-    }
-    """
+vercors should error withCode "wrongVectorType" in "Vector type wrong declaration 2" c
+"""
+typedef int v4si __attribute__ ((vector_size (16)));
 
-    vercors should error withCode "resolutionError:type" in "Vector initialized with wrong type" c
-    """
-    // type
-    #include <immintrin.h>
+void test(){
+    v4si x = {0, 1, 2, 3};
+}
+"""
 
-    void test(){
-        __m128i x = {0.1, 0.1};
-    }
-    """
+vercors should fail withCode "vecIndexExceedsLength" using silicon in "Vector index exceeds length" c
+"""
+// vecIndexExceedsLength
+typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
 
-    vercors should error withCode "wrongVectorType" in "Vector type wrong declaration" c
-    """
-    typedef int v4si __attribute__ ((vector_size (sizeof(float)*4)));
+void test(){
+    v4si x = {0, 1, 2, 3};
+    x[5] = 3;
+}
+"""
 
-    void test(){
-        v4si x = {0, 1, 2, 3};
-    }
-    """
+vercors should fail withCode "vecIndexNegative" using silicon in "Vector negative indexed" c
+"""
+// vecIndexNegative
+typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
 
-    vercors should error withCode "wrongVectorType" in "Vector type wrong declaration 2" c
-    """
-    typedef int v4si __attribute__ ((vector_size (16)));
+void test(){
+    v4si x = {0, 1, 2, 3};
+    x[-1] = 3;
+}
+"""
 
-    void test(){
-        v4si x = {0, 1, 2, 3};
-    }
-    """
+vercors should fail withCode "vecIndexNegative" using silicon in "Vector value negative indexed" c
+"""
+// vecIndexNegative
+typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
 
-    vercors should fail withCode "vecIndexExceedsLength" using silicon in "Vector index exceeds length" c
-    """
-    // vecIndexExceedsLength
-    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
+void test(){
+    v4si x = {0, 1, 2, 3};
+    int y = x[-1];
+}
+"""
 
-    void test(){
-        v4si x = {0, 1, 2, 3};
-        x[5] = 3;
-    }
-    """
+vercors should fail withCode "vectorDivByZero" using silicon in "Vector divide by zero" c
+"""
+// vecIndexNegative
+typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
 
-    vercors should fail withCode "vecIndexNegative" using silicon in "Vector negative indexed" c
-    """
-    // vecIndexNegative
-    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
-
-    void test(){
-        v4si x = {0, 1, 2, 3};
-        x[-1] = 3;
-    }
-    """
-
-    vercors should fail withCode "vecIndexNegative" using silicon in "Vector value negative indexed" c
-    """
-    // vecIndexNegative
-    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
-
-    void test(){
-        v4si x = {0, 1, 2, 3};
-        int y = x[-1];
-    }
-    """
-
-    vercors should fail withCode "vectorDivByZero" using silicon in "Vector divide by zero" c
-    """
-    // vecIndexNegative
-    typedef int v4si __attribute__ ((vector_size (sizeof(int)*4)));
-
-    void test(){
-        v4si x = {0, 1, 2, 3};
-        v4si y = {1, 0, 1, 1};
-        y = x / y;
-    }
-    """
+void test(){
+    v4si x = {0, 1, 2, 3};
+    v4si y = {1, 0, 1, 1};
+    y = x / y;
+}
+"""
 
   vercors should error withCode "resolutionError:type" in "OpenCL Vector wrong type initializer" c
-    """
-    // type
-    #include <opencl.h>
+"""
+// type
+#include <opencl.h>
 
-    __kernel void test(__global bool* a) {
-        int2 x = (int4)(0, 0, 0, 0);
-        return;
-    }
-    """
+__kernel void test(__global bool* a) {
+    int2 x = (int4)(0, 0, 0, 0);
+    return;
+}
+"""
 
   vercors should error withCode "noSuchName" in "OpenCL Vector wrong field name" c
-    """
-    // field not found
-    #include <opencl.h>
+"""
+// field not found
+#include <opencl.h>
 
-    __kernel void test(__global bool* a) {
-        int4 x = (int4)(0, 0, 0, 0);
-        int y = x.s5;
-        return;
-    }
-    """
+__kernel void test(__global bool* a) {
+    int4 x = (int4)(0, 0, 0, 0);
+    int y = x.s5;
+    return;
+}
+"""
 
   vercors should error withCode "noSuchName" in "OpenCL Vector wrong field name letter" c
-    """
-    // field not found
-    #include <opencl.h>
+"""
+// field not found
+#include <opencl.h>
 
-    __kernel void test(__global bool* a) {
-        int2 x = (int2)(0, 0);
-        int y = x.w;
-        return;
-    }
-    """
+__kernel void test(__global bool* a) {
+    int2 x = (int2)(0, 0);
+    int y = x.w;
+    return;
+}
+"""
 
   vercors should error withCode "wrongOpenCLLiteralVector" in "OpenCL Vector field assign" c
-    """
-    // wrongOpenCLLiteralVector
-    #include <opencl.h>
+"""
+// wrongOpenCLLiteralVector
+#include <opencl.h>
 
-    __kernel void test(__global bool* a) {
-        int2 x = (int2)(0, 0);
-        x.xx = x;
-        return;
-    }
-    """
+__kernel void test(__global bool* a) {
+    int2 x = (int2)(0, 0);
+    x.xx = x;
+    return;
+}
+"""
 
   vercors should error withCode "wrongOpenCLLiteralVector" in "OpenCL Vector initialize wrong type" c
-    """
-    // wrongOpenCLLiteralVector
-    #include <opencl.h>
+"""
+// wrongOpenCLLiteralVector
+#include <opencl.h>
 
-    __kernel void test(__global bool* a) {
-        int4 x = (int4)((int2)(0,1), 0.0f, 0);
-        return;
-    }
-    """
+__kernel void test(__global bool* a) {
+    int4 x = (int4)((int2)(0,1), 0.0f, 0);
+    return;
+}
+"""
 
   vercors should verify using silicon in "OpenCL vector initializer correctly uses stateful function" c
-    """
+"""
    // pass
-    #include <opencl.h>
+#include <opencl.h>
 
-    /*@ context y != NULL && \pointer_length(y) == 1 ** Perm(*y, write);
-      ensures \old(*y)+1 == *y && \result.x == *y && \result.y == *y;
-    @*/
-    int2 alter_state(int* y){
-        *y = *y+1;
-        return (int2)(*y,*y);
-    }
+/*@ context y != NULL && \pointer_length(y) == 1 ** Perm(*y, write);
+  ensures \old(*y)+1 == *y && \result.x == *y && \result.y == *y;
+@*/
+int2 alter_state(int* y){
+    *y = *y+1;
+    return (int2)(*y,*y);
+}
 
-    __kernel void test(__global bool* a) {
-        int y[1] = {0};
-        int4 x = (int4)(alter_state(y), alter_state(y));
-        //@ assert x.x == 1 && x.y == 1 && x.z == 2 && x.w == 2;
-        return;
-    }
-    """
+__kernel void test(__global bool* a) {
+    int y[1] = {0};
+    int4 x = (int4)(alter_state(y), alter_state(y));
+    //@ assert x.x == 1 && x.y == 1 && x.z == 2 && x.w == 2;
+    return;
+}
+"""
 
   vercors should error withCode "unsupportedCast" in "Casting struct pointers only works for the first element" c
-    """
-    #include <stdbool.h>
-    struct C {
-        int whatever;
-    };
-    struct A {
-        int integer;
-        struct C structure;
-    };
+"""
+#include <stdbool.h>
+struct C {
+    int whatever;
+};
+struct A {
+    int integer;
+    struct C structure;
+};
 
-    struct B {
-        struct A struct_a;
-    };
-    void cannotCastToBoolean() {
-        struct B struct_b;
-        struct C *pointer_to_struct = (struct C *)&struct_b;
-    }
-    """
+struct B {
+    struct A struct_a;
+};
+void cannotCastToBoolean() {
+    struct B struct_b;
+    struct C *pointer_to_struct = (struct C *)&struct_b;
+}
+"""
   vercors should verify using silicon example "concepts/c/mismatched_provenance.c"
   vercors should verify using silicon example "concepts/c/ptr_comparisons.c"
   vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" flag "--dev-no-sat" example "concepts/c/pointer_tag.c"
   vercors should verify using silicon flags("--target", "x86_64-linux-unknown", "--dev-no-sat", "--opaque-bitwise-operators") example "concepts/c/xor_linked_list.c"
   vercors should verify using silicon in "Pointer address correctly offset based on type size" c
-    """
-    #include <stdint.h>
-    #include <stdlib.h>
+"""
+#include <stdint.h>
+#include <stdlib.h>
 
-    void main(){
-        int *array = (int *)malloc(sizeof(int) * 10);
-        if (array == NULL) return;
-        uintptr_t a0 = (uintptr_t)array;
-        uintptr_t a1 = (uintptr_t)&array[1];
-        //@ assert a0 + sizeof(int) == a1;
-    }
-    """
+void main(){
+    int *array = (int *)malloc(sizeof(int) * 10);
+    if (array == NULL) return;
+    uintptr_t a0 = (uintptr_t)array;
+    uintptr_t a1 = (uintptr_t)&array[1];
+    //@ assert a0 + sizeof(int) == a1;
+}
+"""
 
   vercors should verify using silicon in "Taking sizeof of typedef" c
-    """
-    #include <stdlib.h>
-    typedef int test;
-    int main(){
-        test* x = (test *) malloc(sizeof ( test ) );
-        int y = (test) 5.0;
-    }
-    """
+"""
+#include <stdlib.h>
+typedef int test;
+int main(){
+    test* x = (test *) malloc(sizeof ( test ) );
+    int y = (test) 5.0;
+}
+"""
 
   vercors should verify using silicon in "Trigger specified for pointer with helper function" c
   """
@@ -687,33 +687,33 @@ pure bool get_facts(int x, int y, int nx, int ny);
   context_everywhere nx>0 && ny>0;
   context_everywhere xs != NULL ** \pointer_length(xs) == nx*ny;
   context_everywhere (\forall* int x, int y;
-    0 <= x && x < nx && 0 <= y && y < ny;
-    Perm({:xs[a2d(x, y, nx, ny)]:}, 1\1));
+0 <= x && x < nx && 0 <= y && y < ny;
+Perm({:xs[a2d(x, y, nx, ny)]:}, 1\1));
   ensures (\forall int x, int y;
-    0 <= x && x < nx && 0 <= y && y < ny;
-    {:xs[a2d(x, y, nx, ny)]:} == x + y);
+0 <= x && x < nx && 0 <= y && y < ny;
+{:xs[a2d(x, y, nx, ny)]:} == x + y);
 @*/
 void test(int* xs, int nx, int ny){
   /*@
   loop_invariant 0 <= y && y <= ny;
   loop_invariant (\forall int x, int yf;
-    0 <= x && x < nx && 0 <= yf && yf < y;
-    {:xs[a2d(x, yf, nx, ny)]:} == x + yf);
+0 <= x && x < nx && 0 <= yf && yf < y;
+{:xs[a2d(x, yf, nx, ny)]:} == x + yf);
   @*/
   for(int y = 0; y < ny; y++){
-    /*@
-    loop_invariant 0 <= x && x <= nx;
-    loop_invariant (\forall int x, int yf;
-      0 <= x && x < nx && 0 <= yf && yf < y;
-      {:xs[a2d(x, yf, nx, ny)]:} == x + yf);
-    loop_invariant (\forall int xf;
-      0 <= xf && xf < x;
-      {:xs[a2d(xf, y, nx, ny)]:} == xf + y);
-    @*/
-    for(int x = 0; x < nx; x++){
-      xs[a2d(x, y, nx, ny)] = x + y;
-    }
-    //@ assert (\forall int x; 0 <= x && x < nx; {:xs[a2d(x, y, nx, ny)]:} == x + y);
+/*@
+loop_invariant 0 <= x && x <= nx;
+loop_invariant (\forall int x, int yf;
+  0 <= x && x < nx && 0 <= yf && yf < y;
+  {:xs[a2d(x, yf, nx, ny)]:} == x + yf);
+loop_invariant (\forall int xf;
+  0 <= xf && xf < x;
+  {:xs[a2d(xf, y, nx, ny)]:} == xf + y);
+@*/
+for(int x = 0; x < nx; x++){
+  xs[a2d(x, y, nx, ny)] = x + y;
+}
+//@ assert (\forall int x; 0 <= x && x < nx; {:xs[a2d(x, y, nx, ny)]:} == x + y);
   }
 }
   """
@@ -739,23 +739,23 @@ struct s set_x(struct s v, int x) {
  ensures \result == p->x;
 */
 /*@ pure */int get_x(struct s *p) {
-    return p->x;
+return p->x;
 }
 
 void main(){
-    struct s p[1];
-    p[0].x = 5;
-    p[0].y = 10;
-    int x = get_x(p);
-    // Gets the correct value
-    assert(x == 5);
-    struct s v2 = set_x(p[0], 3);
-    // Since p[0] is passed by value, it is not changed
-    //@ assert(p[0].x == 5);
-    assert(p[0].x == 5);
-    assert(p[0].y == 10);
-    // But the returned valued is changed
-    assert(v2.x == 3 && p[0].y == 10);
+struct s p[1];
+p[0].x = 5;
+p[0].y = 10;
+int x = get_x(p);
+// Gets the correct value
+assert(x == 5);
+struct s v2 = set_x(p[0], 3);
+// Since p[0] is passed by value, it is not changed
+//@ assert(p[0].x == 5);
+assert(p[0].x == 5);
+assert(p[0].y == 10);
+// But the returned valued is changed
+assert(v2.x == 3 && p[0].y == 10);
 }
   """
   vercors should verify using silicon flags("--check-integer-bounds", "--target", "i686-linux-unknown") example "concepts/c/integer_bounds.c"
@@ -808,42 +808,145 @@ void foo(unsigned int a) {
   (signed long long)a;
 }
   """
-  vercors should verify using silicon in "implicit conversion to boolean in if" c
+  vercors should verify using silicon in "implicit integer conversion to boolean in if" c
   """
 #include <stdbool.h>
 bool foo(int a) {
-   if (a) { return true; } else { return false; }
+  if (a) { return true; } else { return false; }
 }
   """
-  vercors should verify using silicon in "implicit conversion to boolean in ternary" c
+  vercors should verify using silicon in "implicit integer conversion to boolean in ternary" c
   """
 #include <stdbool.h>
 bool foo(int a) {
-   return a ? true : false;
+  return a ? true : false;
 }
   """
-  vercors should verify using silicon in "implicit conversion to boolean in expression" c
+  vercors should verify using silicon in "implicit integer conversion to boolean in expression" c
   """
 #include <stdbool.h>
 bool foo(int a) {
-   return true && a;
+  return true && a;
 }
   """
-  vercors should verify using silicon in "implicit conversion to integer in expression" c
+  vercors should verify using silicon in "implicit integer conversion to boolean in return" c
+  """
+#include <stdbool.h>
+bool foo(int a) {
+  return a;
+}
+  """
+  vercors should verify using silicon in "implicit boolean conversion to integer in expression" c
   """
 #include <stdbool.h>
 int foo(bool a) {
-   return a + 1;
+  return a + 1;
 }
   """
+  vercors should verify using silicon in "implicit boolean conversion to integer in return" c
+  """
+#include <stdbool.h>
+int foo(bool a) {
+  return a;
+}
+  """
+
+  vercors should verify using silicon in "implicit pointer conversion to boolean in if" c
+  """
+#include <stdbool.h>
+bool foo(int *a) {
+  if (a) { return true; } else { return false; }
+}
+  """
+  vercors should verify using silicon in "implicit pointer conversion to boolean in ternary" c
+  """
+#include <stdbool.h>
+bool foo(int *a) {
+  return a ? true : false;
+}
+  """
+  vercors should verify using silicon in "implicit pointer conversion to boolean in expression" c
+  """
+#include <stdbool.h>
+bool foo(int *a) {
+  return true && a;
+}
+  """
+  vercors should verify using silicon in "implicit pointer conversion to boolean in return" c
+  """
+#include <stdbool.h>
+bool foo(int *a) {
+  return a;
+}
+  """
+
   vercors should verify using silicon in "implicit conversion to integer in call" c
   """
 #include <stdbool.h>
 int bar(int a);
 
 int foo(bool a) {
-   return bar(a);
+  return bar(a);
 }
   """
+  vercors should verify using silicon in "explicit integer conversion to boolean in if" c
+  """
+#include <stdbool.h>
+bool foo(int a) {
+  if ((bool)a) { return true; } else { return false; }
+}
+  """
+  vercors should verify using silicon in "explicit integer conversion to boolean in ternary" c
+  """
+#include <stdbool.h>
+bool foo(int a) {
+  return ((bool)a) ? true : false;
+}
+  """
+  vercors should verify using silicon in "explicit integer conversion to boolean in expression" c
+  """
+#include <stdbool.h>
+bool foo(int a) {
+  return true && (bool)a;
+}
+  """
+  vercors should verify using silicon in "explicit boolean conversion to integer in expression" c
+  """
+#include <stdbool.h>
+int foo(bool a) {
+  return (int)a + 1;
+}
+  """
+  vercors should verify using silicon in "explicit pointer conversion to boolean in if" c
+  """
+#include <stdbool.h>
+bool foo(int *a) {
+  if ((bool)a) { return true; } else { return false; }
+}
+  """
+  vercors should verify using silicon in "explicit pointer conversion to boolean in ternary" c
+  """
+#include <stdbool.h>
+bool foo(int *a) {
+  return ((bool)a) ? true : false;
+}
+  """
+  vercors should verify using silicon in "explicit pointer conversion to boolean in expression" c
+  """
+#include <stdbool.h>
+bool foo(int *a) {
+  return true && (bool)a;
+}
+  """
+  vercors should verify using silicon in "explicit conversion to integer in call" c
+  """
+#include <stdbool.h>
+int bar(int a);
+
+int foo(bool a) {
+  return bar((int)a);
+}
+  """
+
 }
 

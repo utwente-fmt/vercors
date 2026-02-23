@@ -1204,6 +1204,8 @@ final case class CoerceBoolCInt[G](target: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceBoolCIntImpl[G]
 final case class CoerceCIntBool[G]()(implicit val o: Origin)
     extends Coercion[G] with CoerceCIntBoolImpl[G]
+final case class CoercePointerBool[G](source: Type[G])(implicit val o: Origin)
+    extends Coercion[G] with CoercePointerBoolImpl[G]
 final case class CoerceCIntInt[G](t: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceCIntIntImpl[G]
 final case class CoerceCheckedIntInt[G]()(implicit val o: Origin)

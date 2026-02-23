@@ -354,9 +354,8 @@ case class EncodeBoundsChecks[Pre <: Generation]()
         }
       case a: AssignExpression[Pre] =>
         a.target match {
-          case Local(Ref(v)) if v.t.isInstanceOf[TCheckedInt[Pre]] =>
-            val int = v.t.asInstanceOf[TCheckedInt[Pre]]
-            currentVars(v) = (int.gte, int.lt)
+          case WithExactType(Local(Ref(v)), TCheckedInt(gte, lt)) =>
+            currentVars(v) = (gte, lt)
           case _ =>
         }
         super.dispatch(a)
@@ -538,9 +537,8 @@ case class EncodeBoundsChecks[Pre <: Generation]()
         assume.rewrite(assn = inPure.having(()) { dispatch(assn) })
       case a: AssignStmt[Pre] =>
         a.target match {
-          case Local(Ref(v)) if v.t.isInstanceOf[TCheckedInt[Pre]] =>
-            val int = v.t.asInstanceOf[TCheckedInt[Pre]]
-            currentVars(v) = (int.gte, int.lt)
+          case WithExactType(Local(Ref(v)), TCheckedInt(gte, lt)) =>
+            currentVars(v) = (gte, lt)
           case _ =>
         }
         super.dispatch(a)

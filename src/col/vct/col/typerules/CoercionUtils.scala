@@ -236,6 +236,10 @@ case object CoercionUtils {
       case (TNull(), TEnum(target)) => CoerceNullEnum(target)
       case (TNull(), LLVMTPointer(target)) => CoerceNullLLVMPointer(target)
 
+      case (CTPointer(_), TBool()) => CoercePointerBool(source)
+      case (_: PointerType[G], TBool()) => CoercePointerBool(source)
+      case (_: PointerArrayType[G], TBool()) => CoercePointerBool(source)
+
       case (t: CTArray[G], TArray(element)) if element == t.innerMostType =>
         CoerceCArrayPointer(element)
       case (CPPTArray(_, innerType), TArray(element)) if element == innerType =>
