@@ -37,9 +37,9 @@ bool decodeWArgToVarMapping(const llvm::MDNode *md, WrapperArgVarMap &mapping,
                             const std::string &errMsg);
 
 /**
- * Decodes the mappings of ghost and regular variables to the arguments of a 
- * wrapper-function. 
- * Assumes that the passed MD-node contains the mapping of 
+ * Decodes the mappings of ghost and regular variables to the arguments of a
+ * wrapper-function.
+ * Assumes that the passed MD-node contains the mapping of
  * - given-args as operand 3
  * - yields-args as operand 4
  * - regular variables as operand 5
@@ -49,11 +49,11 @@ bool decodeWrapperArgMapping(const llvm::MDNode &md,
                              WrappedSpecElement &specElem,
                              const std::string &errMsg);
 
-    /**
-     * Checks if the provided mdNode is a valid encoding of a source location
-     * according to the specification fromat used by Pallas.
-     */
-    bool isWellformedPallasLocation(const llvm::MDNode *mdNode);
+/**
+ * Checks if the provided mdNode is a valid encoding of a source location
+ * according to the specification fromat used by Pallas.
+ */
+bool isWellformedPallasLocation(const llvm::MDNode *mdNode);
 
 /**
  * If the given metadata node encodes a source location in the specification
@@ -67,7 +67,7 @@ std::optional<irspec::SrcLoc> getSrcLoc(const llvm::MDNode *md);
  * format of Pallas, return it.
  * Otherwise, an empty optional is returned and errors are added.
  */
-std::optional<ContractClause> getContractClause(const llvm::MDNode *md);
+std::optional<ContractClause> getContractClause(llvm::MDNode *md);
 
 /**
  * If the given metadata node encodes a definition of a ghost argument
@@ -88,8 +88,7 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md);
  * If the given metadata-node is not a valid encoding, an empty optional is
  * returned and errors are added.
  */
-std::optional<LoopInvariantClause>
-getLoopInvariantClause(const llvm::MDNode *md);
+std::optional<LoopInvariantClause> getLoopInvariantClause(llvm::MDNode *md);
 
 /**
  * Decode the loop-invariant block in the specification fromat of Pallas.
@@ -110,7 +109,7 @@ std::optional<SpecStatementType> getSpecStatementType(const llvm::MDNode *md);
  * If the given metadata-node is not a valid encoding, an empty optional is
  * returned and errors are added.
  */
-std::optional<SpecStatement> getSpecStatement(const llvm::MDNode *md);
+std::optional<SpecStatement> getSpecStatement(llvm::MDNode *md);
 
 /**
  * Decode a block of specification statements from the specification format of
@@ -136,12 +135,11 @@ std::optional<YieldsBinding> getYieldsBinding(const llvm::MDNode *md);
 std::optional<YieldsBindingBlock> getYieldsBindingBlock(const llvm::MDNode *md);
 
 /**
- * Decode a binding of a value to a given-argument that is encoded in the specification
- * format of Pallas.
- * If the given metadata-node is not a valid encoding, an empty optional
- * is returned and errors are added.
+ * Decode a binding of a value to a given-argument that is encoded in the
+ * specification format of Pallas. If the given metadata-node is not a valid
+ * encoding, an empty optional is returned and errors are added.
  */
-std::optional<GivenBinding> getGivenBinding(const llvm::MDNode *md);
+std::optional<GivenBinding> getGivenBinding(llvm::MDNode *md);
 
 /**
  * Decode a block of bindings to given arguments that is encoded in the
@@ -157,6 +155,13 @@ std::optional<GivenBindingBlock> getGivenBindingBlock(const llvm::MDNode *md);
  * If no loop contract is present, a nullptr is returned.
  */
 llvm::MDNode *getLoopContractMD(const llvm::Loop &llvmLoop);
+
+/**
+ * If the given MDNode contains an operand that represents a loop contract in
+ * the format of Pallas, the contract is returned. Otherwise, a nullptr is
+ * returned.
+ */
+llvm::MDNode *getLoopContractMD(llvm::MDNode &md);
 
 /**
  * Checks if a block if specification-statements is attached to the given
@@ -182,7 +187,7 @@ llvm::MDNode *getYieldsBindingBlockMD(llvm::Instruction &instr);
 /**
  * Checks if the given function is labeled as a function from the pallas
  * specification-library.
- * If so, returns an optinal that contains the string-identifier of the 
+ * If so, returns an optinal that contains the string-identifier of the
  * spec-lib function. Otherwise, an empty optional is returned.
  */
 std::optional<std::string> isPallasSpecLib(const llvm::Function &f);
@@ -202,7 +207,7 @@ bool hasExternalPallasContract(const llvm::Function &f);
 /**
  * If f has an external or a normal pallas-contract, return this contract.
  */
-llvm::MDNode *getPallasContract(const llvm::Function &f);
+llvm::MDNode *getContractMD(const llvm::Function &f);
 
 /**
  * Checks if the given llvm function is marked as an expression wrapper of a

@@ -208,7 +208,7 @@ bool decodeWrapperArgMapping(const llvm::MDNode &md,
     return argsOk;
 }
 
-std::optional<ContractClause> getContractClause(const llvm::MDNode *md) {
+std::optional<ContractClause> getContractClause(llvm::MDNode *md) {
     if (md == nullptr) {
         addError("Contract clause may not be null", md);
         return std::nullopt;
@@ -260,7 +260,7 @@ std::optional<ContractClause> getContractClause(const llvm::MDNode *md) {
         return std::nullopt;
     }
 
-    ContractClause clause(type, loc.value(), *wFunc);
+    ContractClause clause(md, type, loc.value(), *wFunc);
 
     // Mapping of wrapper-args
     bool mappingOk =
@@ -412,8 +412,7 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md) {
     return std::make_optional(contract);
 }
 
-std::optional<LoopInvariantClause>
-getLoopInvariantClause(const llvm::MDNode *md) {
+std::optional<LoopInvariantClause> getLoopInvariantClause(llvm::MDNode *md) {
     if (md == nullptr) {
         addError("Loop invariant clause may not be null", md);
         return std::nullopt;
@@ -456,7 +455,7 @@ getLoopInvariantClause(const llvm::MDNode *md) {
         return std::nullopt;
     }
 
-    LoopInvariantClause clause(loc.value(), *wFunc);
+    LoopInvariantClause clause(md, loc.value(), *wFunc);
 
     // Mapping of wrapper-args
     bool mappingOk =
@@ -534,7 +533,7 @@ getSpecStatementType(const llvm::Metadata *md) {
     return std::nullopt;
 }
 
-std::optional<SpecStatement> getSpecStatement(const llvm::MDNode *md) {
+std::optional<SpecStatement> getSpecStatement(llvm::MDNode *md) {
     if (md == nullptr) {
         addError("Specification statement may not be null", md);
         return std::nullopt;
@@ -595,7 +594,7 @@ std::optional<SpecStatement> getSpecStatement(const llvm::MDNode *md) {
         return std::nullopt;
     }
 
-    SpecStatement stmnt(*type, *loc, *wFunc);
+    SpecStatement stmnt(md, *type, *loc, *wFunc);
 
     // Mapping of wrapper-args
     bool mappingOk =
@@ -741,7 +740,7 @@ getYieldsBindingBlock(const llvm::MDNode *md) {
     return std::make_optional(yieldsBlock);
 }
 
-std::optional<GivenBinding> getGivenBinding(const llvm::MDNode *md) {
+std::optional<GivenBinding> getGivenBinding(llvm::MDNode *md) {
     if (md == nullptr) {
         addError("Binding to given-arg may not be null", md);
         return std::nullopt;
@@ -795,7 +794,7 @@ std::optional<GivenBinding> getGivenBinding(const llvm::MDNode *md) {
         return std::nullopt;
     }
 
-    GivenBinding binding(*loc, *wFunc, *argDef);
+    GivenBinding binding(md, *loc, *wFunc, *argDef);
 
     // Mapping of wrapper-args
     bool mappingOk =
@@ -844,7 +843,11 @@ llvm::MDNode *getLoopContractMD(const llvm::Loop &llvmLoop) {
     if (loopID == nullptr)
         return nullptr;
 
-    for (const llvm::MDOperand &op : loopID->operands()) {
+    return getLoopContractMD(*loopID);
+}
+
+llvm::MDNode *getLoopContractMD(llvm::MDNode &md) {
+    for (const llvm::MDOperand &op : md.operands()) {
         auto *opNode = llvm::dyn_cast_if_present<llvm::MDNode>(op.get());
         // Check that the first operand is a MDString identifier for a
         // loop contract
@@ -891,7 +894,7 @@ bool hasPallasContract(const llvm::Function &f) {
     return f.hasMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
 }
 
-llvm::MDNode *getPallasContract(const llvm::Function &f) {
+llvm::MDNode *getContractMD(const llvm::Function &f) {
     if (hasPallasContract(f)) {
         return f.getMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
     }

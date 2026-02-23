@@ -6,9 +6,12 @@ namespace pallas::irspec {
  *  WrappedSpecElement
  */
 
-WrappedSpecElement::WrappedSpecElement(const SrcLoc &loc,
+WrappedSpecElement::WrappedSpecElement(llvm::MDNode *md, const SrcLoc &loc,
                                        llvm::Function &wrapper)
-    : loc(loc), wrapper(&wrapper), givenArgs(), yieldsArgs(), wrapperArgs() {}
+    : md(md), loc(loc), wrapper(&wrapper), givenArgs(), yieldsArgs(),
+      wrapperArgs() {}
+
+llvm::MDNode *WrappedSpecElement::getMD() const { return md; }
 
 const SrcLoc &WrappedSpecElement::getLoc() const { return loc; }
 
@@ -96,10 +99,10 @@ unsigned WrappedSpecElement::getNumGhostArgs() const {
  *  ContractClause
  */
 
-ContractClause::ContractClause(const ContractClauseType &type,
+ContractClause::ContractClause(llvm::MDNode *md, const ContractClauseType &type,
                                const SrcLoc &loc,
                                llvm::Function &wrapperFunction)
-    : WrappedSpecElement(loc, wrapperFunction), type(type) {}
+    : WrappedSpecElement(md, loc, wrapperFunction), type(type) {}
 
 ContractClauseType ContractClause::getType() const { return type; }
 
@@ -107,17 +110,17 @@ ContractClauseType ContractClause::getType() const { return type; }
  *  LoopInvariantClause
  */
 
-LoopInvariantClause::LoopInvariantClause(const SrcLoc &loc,
+LoopInvariantClause::LoopInvariantClause(llvm::MDNode *md, const SrcLoc &loc,
                                          llvm::Function &wrapperFunction)
-    : WrappedSpecElement(loc, wrapperFunction) {}
+    : WrappedSpecElement(md, loc, wrapperFunction) {}
 
 /*
  *  SpecStatement
  */
 
-SpecStatement::SpecStatement(const SpecStatementType type, const SrcLoc &loc,
-                             llvm::Function &wrapperFunction)
-    : WrappedSpecElement(loc, wrapperFunction), type(type) {}
+SpecStatement::SpecStatement(llvm::MDNode *md, const SpecStatementType type,
+                             const SrcLoc &loc, llvm::Function &wrapperFunction)
+    : WrappedSpecElement(md, loc, wrapperFunction), type(type) {}
 
 SpecStatementType SpecStatement::getType() const { return type; }
 
@@ -130,9 +133,9 @@ llvm::MDNode *SpecStatement::getAssignTarget() const { return assignTarget; }
 /*
  *  GivenBinding
  */
-GivenBinding::GivenBinding(const SrcLoc &loc, llvm::Function &wrapper,
-                           llvm::MDNode &givenDef)
-    : WrappedSpecElement(loc, wrapper), givenDef(&givenDef) {}
+GivenBinding::GivenBinding(llvm::MDNode *md, const SrcLoc &loc,
+                           llvm::Function &wrapper, llvm::MDNode &givenDef)
+    : WrappedSpecElement(md, loc, wrapper), givenDef(&givenDef) {}
 
 llvm::MDNode *GivenBinding::getGivenDef() const { return givenDef; }
 

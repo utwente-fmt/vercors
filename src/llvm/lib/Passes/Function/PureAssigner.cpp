@@ -45,7 +45,7 @@ PreservedAnalyses PureAssignerPass::run(Function &F,
     }
 
     // Check if the function is annotated with a pallas function contract
-    if (auto *contractMDNode = irspec::getPallasContract(F)) {
+    if (auto *contractMDNode = irspec::getContractMD(F)) {
         pureAnnotationCount++;
         if (!isPallasPureWellformed(*contractMDNode, F))
             return PreservedAnalyses::all();

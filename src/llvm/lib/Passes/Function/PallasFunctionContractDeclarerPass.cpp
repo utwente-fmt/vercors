@@ -123,13 +123,13 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
     // If it does not have a contract, we need an empty VCLLVM contract instead
     // of an empty Pallas contract. Otherwise the mechanism for loading
     // contracts from a PVL-file does not get invoked.
-    if (utils::hasVcllvmContract(f) || irspec::getPallasContract(f) == nullptr)
+    if (utils::hasVcllvmContract(f) || irspec::getContractMD(f) == nullptr)
         return;
 
     bool isExternal = irspec::hasExternalPallasContract(f);
 
     // Decode the MD-encoding
-    auto *contractNode = irspec::getPallasContract(f);
+    auto *contractNode = irspec::getContractMD(f);
     auto decodedContract = irspec::getContract(contractNode);
     if (!decodedContract.has_value())
         return;

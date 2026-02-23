@@ -4,6 +4,7 @@
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/Metadata.h>
 
 /**
  * Representations to decode the Pallas specifications into.
@@ -57,9 +58,12 @@ typedef llvm::SmallDenseMap<llvm::DILocalVariable *, llvm::MDNode *, 4>
  */
 class WrappedSpecElement {
   public:
-    WrappedSpecElement(const SrcLoc &loc, llvm::Function &wrapper);
+    WrappedSpecElement(llvm::MDNode *md, const SrcLoc &loc,
+                       llvm::Function &wrapper);
 
     virtual ~WrappedSpecElement() = default;
+
+    llvm::MDNode *getMD() const;
 
     const SrcLoc &getLoc() const;
 
@@ -95,6 +99,7 @@ class WrappedSpecElement {
     unsigned getNumGhostArgs() const;
 
   protected:
+    llvm::MDNode *md;
     SrcLoc loc;
     llvm::Function *wrapper;
     WrapperArgGhostMap givenArgs;
@@ -108,8 +113,8 @@ class WrappedSpecElement {
  */
 class ContractClause : public WrappedSpecElement {
   public:
-    ContractClause(const ContractClauseType &type, const SrcLoc &loc,
-                   llvm::Function &wrapperFunction);
+    ContractClause(llvm::MDNode *md, const ContractClauseType &type,
+                   const SrcLoc &loc, llvm::Function &wrapperFunction);
 
     ContractClauseType getType() const;
 
@@ -156,7 +161,8 @@ struct FunctionContract {
  */
 class LoopInvariantClause : public WrappedSpecElement {
   public:
-    LoopInvariantClause(const SrcLoc &loc, llvm::Function &wrapperFunction);
+    LoopInvariantClause(llvm::MDNode *md, const SrcLoc &loc,
+                        llvm::Function &wrapperFunction);
 };
 
 /**
@@ -183,8 +189,8 @@ enum SpecStatementType { ASSERT, ASSUME, FOLD, UNFOLD, GHOST_ASSIGN };
  */
 struct SpecStatement : public WrappedSpecElement {
   public:
-    SpecStatement(const SpecStatementType type, const SrcLoc &loc,
-                  llvm::Function &wrapperFunction);
+    SpecStatement(llvm::MDNode *md, const SpecStatementType type,
+                  const SrcLoc &loc, llvm::Function &wrapperFunction);
 
     SpecStatementType getType() const;
 
@@ -251,7 +257,7 @@ struct YieldsBindingBlock {
  */
 class GivenBinding : public WrappedSpecElement {
   public:
-    GivenBinding(const SrcLoc &loc, llvm::Function &wrapper,
+    GivenBinding(llvm::MDNode *md, const SrcLoc &loc, llvm::Function &wrapper,
                  llvm::MDNode &givenDef);
 
     llvm::MDNode *getGivenDef() const;

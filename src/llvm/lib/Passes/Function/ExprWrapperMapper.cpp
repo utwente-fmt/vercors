@@ -56,7 +56,7 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
         }
 
         // If the function has a pallas-contract, check all clauses
-        if (auto *contrMD = irspec::getPallasContract(parentF)) {
+        if (auto *contrMD = irspec::getContractMD(parentF)) {
             auto contract = irspec::getContract(contrMD);
 
             for (auto &clause : contract->clauses) {

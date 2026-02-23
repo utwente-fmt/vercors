@@ -1,6 +1,7 @@
 #ifndef PALLAS_STRUCTCONSOLIDATOR_H
 #define PALLAS_STRUCTCONSOLIDATOR_H
 
+#include "IRSpec/PallasIRSpec.h";
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Dominators.h>
@@ -68,15 +69,26 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
     bool gatherWrites(const Function &F, const DataLayout &L, uint64_t Size,
                       const Value &V, APInt Offset, WriteVec &Writes,
                       SmallVectorImpl<Instruction *> &LaterWrites);
-    void replaceWrapperCalls(Function *F, Function *NF,
-                             SmallSet<const Argument *, 8> &ToBeRemoved,
-                             MDNode *MD, const ReplaceableVec &Sets,
-                             SmallSet<MDNode *, 8> &Visited);
+    /**
+     * Replace all references in specification-metadata that point to
+     * wrapper-function WF with references to function NWF.
+     */
+    void replaceWrapperReferences(Function &WF, Function &NWF);
     const Function &updateFunction(Function &F, const ReplaceableVec &Sets);
     void replaceFunctionUse(CallInst *Call, const Function &OldF,
                             Function *NewF, const ReplaceableVec &Sets);
     ReplaceableVec findReplaceableSets(Function &F, const DataLayout &L,
                                        const DominatorTree &DT);
+    /**
+     * If the spec-element references wrapper-function OWF,
+     * replaces the reference to the wrapper-function in the underlying MDNode
+     * with a reference to NWF.
+     *
+     * NOTE: This means that other existing instances of WrappedSpecElement go
+     * out-of-sync, i.e. still point to the old wrapper function.
+     */
+    void replaceWrapper(irspec::WrappedSpecElement &S, llvm::Function &OWF,
+                        llvm::Function &NWF);
 };
 
 } // namespace pallas

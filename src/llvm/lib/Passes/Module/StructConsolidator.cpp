@@ -20,6 +20,7 @@
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/LLVMContext.h>
@@ -124,9 +125,10 @@ StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
     if (Depth > 1)
         return Fail{};
 
+    // Given- / Yields-bindings are only attached to call-instructions.
+    // So we do not check for multiple annotations here.
     if (auto *I = dyn_cast<Instruction>(V)) {
-        if (MDNode *Block =
-                I->getMetadata(constants::PALLAS_SPEC_STMNT_BLOCK)) {
+        if (auto *Block = irspec::getStmntBlockMD(*I)) {
             if (*StmntBlock != nullptr && *StmntBlock != Block) {
                 ErrorReporter::addWarning(
                     SOURCE_LOC,
@@ -536,7 +538,9 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
     std::vector<AllocaInst *> AllocAs;
     AllocAs.reserve(Sets.size());
 
-    MDNode *StmntBlock = Call->getMetadata(constants::PALLAS_SPEC_STMNT_BLOCK);
+    auto *StmntBlock = irspec::getStmntBlockMD(*Call);
+    auto *GivenBinding = irspec::getGivenBindingBlockMD(*Call);
+    auto *YieldsBinding = irspec::getYieldsBindingBlockMD(*Call);
 
     for (const auto &Set : Sets) {
         AllocaInst *AllocA = new AllocaInst(Set.Alloc->getAllocatedType(),
@@ -615,6 +619,12 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
     newCall->copyMetadata(*Call, {LLVMContext::MD_prof, LLVMContext::MD_dbg});
     if (StmntBlock != nullptr)
         newCall->setMetadata(constants::PALLAS_SPEC_STMNT_BLOCK, StmntBlock);
+    if (GivenBinding != nullptr)
+        newCall->setMetadata(constants::PALLAS_GIVEN_BINDING_BLOCK,
+                             GivenBinding);
+    if (YieldsBinding != nullptr)
+        newCall->setMetadata(constants::PALLAS_YIELDS_BINDING_BLOCK,
+                             YieldsBinding);
 
     Call->replaceAllUsesWith(newCall);
     newCall->takeName(Call);
@@ -688,7 +698,7 @@ bool StructConsolidatorPass::gatherWrites(
             Function *IF = Call->getCalledFunction();
             // If we are calling a spec lib function then it will not have
             // side-effects
-            if (IF->hasMetadata(constants::PALLAS_SPEC_LIB_MARKER))
+            if (irspec::isPallasSpecLib(*IF) != std::nullopt)
                 continue;
 
             // Check if we are indeed writing to our value (otherwise we are the
@@ -723,7 +733,8 @@ bool StructConsolidatorPass::gatherWrites(
             Writes.push_back(W);
         } else if (isa<LoadInst>(I)) {
             // Don't traverse further when we find a load
-        } else if (!F.hasMetadata(constants::PALLAS_WRAPPER_FUNC)) {
+        } else if (!(F.hasMetadata(constants::PALLAS_WRAPPER_FUNC) ||
+                     F.hasMetadata(constants::PALLAS_GHOST_WRAPPER_FUNC))) {
             LaterWrites.push_back(Store);
         }
     }
@@ -900,81 +911,53 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
     return Sets;
 }
 
-void StructConsolidatorPass::replaceWrapperCalls(
-    Function *F, Function *NF, SmallSet<const Argument *, 8> &ToBeRemoved,
-    MDNode *MD, const ReplaceableVec &Sets, SmallSet<MDNode *, 8> &Visited) {
-    if (!Visited.insert(MD).second)
-        return;
-    for (const MDOperand &O : MD->operands()) {
-        if (auto *NO = dyn_cast_if_present<MDNode>(O.get())) {
-            replaceWrapperCalls(F, NF, ToBeRemoved, NO, Sets, Visited);
+void StructConsolidatorPass::replaceWrapperReferences(Function &WF,
+                                                      Function &NWF) {
+    // Check all functions for specifications that reference F:
+    for (Function &OtherF : *WF.getParent()) {
+        // Contract
+        if (auto *contrMD = irspec::getContractMD(OtherF)) {
+            auto contr = irspec::getContract(contrMD);
+            for (auto &clause : contr->clauses) {
+                replaceWrapper(clause, WF, NWF);
+            }
         }
-    }
-    if (MD->getNumOperands() < 2)
-        return;
 
-    ValueAsMetadata *MF = ValueAsMetadata::get(F);
-    SmallVector<Metadata *> NewOperands;
-    const MDOperand &First = MD->getOperand(0);
-    size_t Offset;
-    if (First && (First.equalsStr(constants::PALLAS_ASSERT) ||
-                  First.equalsStr(constants::PALLAS_ASSUME) ||
-                  First.equalsStr(constants::PALLAS_FOLD) ||
-                  First.equalsStr(constants::PALLAS_UNFOLD))) {
-        auto *Loc = dyn_cast_if_present<MDNode>(MD->getOperand(1).get());
-        if (!Loc || !irspec::isWellformedPallasLocation(Loc))
-            return;
-        if (MD->getOperand(2).get() != MF)
-            return;
-        NewOperands.push_back(MD->getOperand(0).get());
-        NewOperands.push_back(MD->getOperand(1).get());
-        Offset = 3;
-    } else {
-        // Loop invariant
-        auto *Loc = dyn_cast_if_present<MDNode>(First.get());
-        if (!Loc || !irspec::isWellformedPallasLocation(Loc))
-            return;
-        if (MD->getOperand(1).get() != MF)
-            return;
-        NewOperands.push_back(MD->getOperand(0).get());
-        Offset = 2;
-    }
-
-    // Relatively certain now that we are looking at a call to the wrapper
-    // function Now we reorder the arguments to match the new order
-    NewOperands.push_back(ValueAsMetadata::get(NF));
-
-    size_t ArgI = 0;
-    for (Argument *I = F->arg_begin(), *E = F->arg_end(); I != E; ++I, ++ArgI) {
-        if (!ToBeRemoved.contains(I)) {
-            NewOperands.push_back(MD->getOperand(Offset + ArgI).get());
-        }
-    }
-
-    for (const ReplaceableArgSet &Set : Sets) {
-        ArgI = 0;
-        for (Argument *I = F->arg_begin(), *E = F->arg_end(); I != E;
-             ++I, ++ArgI) {
-            bool found = false;
-            for (const auto &A : Set.Arguments) {
-                if (A.Arg == I) {
-                    NewOperands.push_back(MD->getOperand(Offset + ArgI).get());
-                    found = true;
-                    break;
+        // Check instructions
+        for (auto I = inst_begin(OtherF), E = inst_end(OtherF); I != E; ++I) {
+            // Stmnt-Block
+            if (auto BMD = irspec::getStmntBlockMD(*I)) {
+                auto Block = irspec::getSpecStatementBlock(BMD);
+                for (auto &S : Block->statements) {
+                    replaceWrapper(S, WF, NWF);
                 }
             }
-            if (found)
-                break;
+            // Loop Invariant
+            if (auto *LID = I->getMetadata(LLVMContext::MD_loop)) {
+                if (auto *LContrMD = irspec::getLoopContractMD(*LID)) {
+                    auto LContr = irspec::getLoopContract(LContrMD);
+                    for (auto &Inv : LContr->clauses) {
+                        replaceWrapper(Inv, WF, NWF);
+                    }
+                }
+            }
+            // Given Binding
+            if (auto BMD = irspec::getGivenBindingBlockMD(*I)) {
+                auto Block = irspec::getGivenBindingBlock(BMD);
+                for (auto &B : Block->bindings) {
+                    replaceWrapper(B, WF, NWF);
+                }
+            }
         }
     }
+}
 
-    for (ArgI = 0; ArgI < MD->getNumOperands(); ++ArgI) {
-        if (NewOperands.size() >= ArgI) {
-            MD->replaceOperandWith(ArgI, NewOperands[ArgI]);
-        } else {
-            MD->replaceOperandWith(ArgI, nullptr);
-        }
-    }
+void StructConsolidatorPass::replaceWrapper(irspec::WrappedSpecElement &S,
+                                            llvm::Function &OWF,
+                                            llvm::Function &NWF) {
+    if (&S.getWrapper() != &OWF)
+        return;
+    S.getMD()->replaceOperandWith(2, llvm::ValueAsMetadata::get(&NWF));
 }
 
 const Function &
@@ -1008,8 +991,8 @@ StructConsolidatorPass::updateFunction(Function &F,
     for (const auto &set : Sets) {
         Params.push_back(PointerType::get(F.getContext(), F.getAddressSpace()));
         AttrBuilder B(F.getContext());
-        // TODO: This should be byref for wrapper functions (I don't think it
-        // matters though)
+        // TODO: This should be byref for wrapper functions (I don't think
+        // it matters though)
         B.addByValAttr(set.Alloc->getAllocatedType());
         B.addAttribute(Attribute::NoUndef);
         ArgAttrVec.push_back(AttributeSet::get(F.getContext(), B));
@@ -1021,8 +1004,8 @@ StructConsolidatorPass::updateFunction(Function &F,
 
     assert(ArgAttrVec.size() == Params.size());
 
-    // TODO: Perhaps we also want to detect and transform cases where a small
-    // struct is returned
+    // TODO: Perhaps we also want to detect and transform cases where a
+    // small struct is returned
     AttributeList NewPAL = AttributeList::get(F.getContext(), FnAttrs,
                                               PAL.getRetAttrs(), ArgAttrVec);
 
@@ -1066,11 +1049,14 @@ StructConsolidatorPass::updateFunction(Function &F,
 
     const unsigned WrapperID =
         F.getContext().getMDKindID(constants::PALLAS_WRAPPER_FUNC);
+    const unsigned GhostWrapperID =
+        F.getContext().getMDKindID(constants::PALLAS_GHOST_WRAPPER_FUNC);
     bool IsWrapper = false;
     SmallVector<std::pair<unsigned, MDNode *>, 1> MDs;
     F.getAllMetadata(MDs);
     for (auto [KindID, Node] : MDs) {
         IsWrapper |= KindID == WrapperID;
+        IsWrapper |= KindID == GhostWrapperID;
         NF->addMetadata(KindID, *Node);
     }
 
@@ -1081,27 +1067,8 @@ StructConsolidatorPass::updateFunction(Function &F,
     }
 
     if (IsWrapper) {
-        // Look for a Pallas MDNode representing a call to the wrapper function
-        // TODO: This should maybe be cached? Or maybe we could store a
-        // reference to all of these in the !pallas.exprWrapper node?
-        SmallVector<MDNode *> Metas;
-        for (Function &OtherF : *F.getParent()) {
-            if (auto MD = OtherF.getMetadata(constants::PALLAS_FUNC_CONTRACT))
-                Metas.push_back(MD);
-            for (BasicBlock &BB : OtherF) {
-                for (Instruction &I : BB) {
-                    if (auto MD =
-                            I.getMetadata(constants::PALLAS_SPEC_STMNT_BLOCK))
-                        Metas.push_back(MD);
-                    if (auto MD = I.getMetadata(LLVMContext::MD_loop))
-                        Metas.push_back(MD);
-                }
-            }
-        }
-        for (MDNode *MD : Metas) {
-            SmallSet<MDNode *, 8> Visited;
-            replaceWrapperCalls(&F, NF, ToBeRemoved, MD, Sets, Visited);
-        }
+        // Replace references to F in Pallas specifications
+        replaceWrapperReferences(F, *NF);
     }
 
     for (Argument *I = F.arg_begin(), *E = F.arg_end(); I != E; ++I) {
@@ -1134,10 +1101,11 @@ PreservedAnalyses StructConsolidatorPass::run(Module &M,
         // Ensure that this a function which we can safely transform:
         // - It is not a declaration and cannot change externally
         // - It is not a varargs function
-        // - It has no parameters with the InAllocA or Preallocated attributes
-        // (these imply extra assumptions the caller is making regarding the
-        // value this function returns and how we treat the passed in arguments)
-        // These checks match those in the DeadArgumentEliminationPass
+        // - It has no parameters with the InAllocA or Preallocated
+        // attributes (these imply extra assumptions the caller is making
+        // regarding the value this function returns and how we treat the
+        // passed in arguments) These checks match those in the
+        // DeadArgumentEliminationPass
         if (!F.hasExactDefinition() || F.isVarArg() ||
             F.getAttributes().hasAttrSomewhere(Attribute::InAlloca) ||
             F.getAttributes().hasAttrSomewhere(Attribute::Preallocated) ||
