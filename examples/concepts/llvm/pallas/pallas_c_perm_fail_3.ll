@@ -11,54 +11,54 @@ target triple = "x86_64-unknown-linux-gnu"
 define dso_local i32 @foo(ptr noundef %0) #0 !dbg !14 !pallas.fcontract !20 {
   %2 = alloca ptr, align 8
   store ptr %0, ptr %2, align 8
-  call void @llvm.dbg.declare(metadata ptr %2, metadata !25, metadata !DIExpression()), !dbg !28
-  %3 = load ptr, ptr %2, align 8, !dbg !29
-  %4 = load i32, ptr %3, align 4, !dbg !30
-  %5 = add nsw i32 %4, 1, !dbg !31
-  ret i32 %5, !dbg !32
+  call void @llvm.dbg.declare(metadata ptr %2, metadata !27, metadata !DIExpression()), !dbg !39
+  %3 = load ptr, ptr %2, align 8, !dbg !40
+  %4 = load i32, ptr %3, align 4, !dbg !41
+  %5 = add nsw i32 %4, 1, !dbg !42
+  ret i32 %5, !dbg !43
 }
 
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
 declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_0(ptr noundef %0) #0 !dbg !33 !pallas.exprWrapper !37 {
+define dso_local zeroext i1 @PALLAS_SPEC_0(ptr noundef %0) #0 !dbg !29 !pallas.exprWrapper !44 {
   %2 = alloca %pallas.fracT, align 8
-  call void @llvm.dbg.value(metadata ptr %0, metadata !38, metadata !DIExpression()), !dbg !39
-  %3 = icmp ne ptr %0, null, !dbg !40
-  br i1 %3, label %4, label %6, !dbg !41
+  call void @llvm.dbg.value(metadata ptr %0, metadata !28, metadata !DIExpression()), !dbg !45
+  %3 = icmp ne ptr %0, null, !dbg !46
+  br i1 %3, label %4, label %6, !dbg !47
 
 4:                                                ; preds = %1
-  call void @pallas.fracOf(ptr sret(%pallas.fracT) %2, i32 noundef 1, i32 noundef 1), !dbg !42
-  %5 = call i1 @pallas.perm(ptr noundef %0, ptr noundef byval(%pallas.fracT) %2), !dbg !43
+  call void @pallas.fracOf(ptr sret(%pallas.fracT) %2, i32 noundef 1, i32 noundef 1), !dbg !48
+  %5 = call i1 @pallas.perm(ptr noundef %0, ptr noundef byval(%pallas.fracT) %2), !dbg !49
   br label %6
 
 6:                                                ; preds = %4, %1
-  %7 = phi i1 [ false, %1 ], [ %5, %4 ], !dbg !39
-  ret i1 %7, !dbg !39
+  %7 = phi i1 [ false, %1 ], [ %5, %4 ], !dbg !45
+  ret i1 %7, !dbg !45
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_1(ptr noundef %0) #0 !dbg !44 !pallas.exprWrapper !37 {
+define dso_local zeroext i1 @PALLAS_SPEC_1(ptr noundef %0) #0 !dbg !38 !pallas.exprWrapper !44 {
   %2 = alloca %pallas.fracT, align 8
   %3 = alloca %pallas.fracT, align 8
-  call void @llvm.dbg.value(metadata ptr %0, metadata !45, metadata !DIExpression()), !dbg !46
-  call void @pallas.fracOf(ptr sret(%pallas.fracT) %2, i32 noundef 2, i32 noundef 3), !dbg !47
-  %4 = call i1 @pallas.perm(ptr noundef %0, ptr noundef byval(%pallas.fracT) %2), !dbg !48
-  call void @pallas.fracOf(ptr sret(%pallas.fracT) %3, i32 noundef 2, i32 noundef 3), !dbg !49
-  %5 = call i1 @pallas.perm(ptr noundef %0, ptr noundef byval(%pallas.fracT) %3), !dbg !50
-  %6 = call i1 @pallas.sepConj(i1 %4, i1 %5), !dbg !51
-  ret i1 %6, !dbg !46
+  call void @llvm.dbg.value(metadata ptr %0, metadata !37, metadata !DIExpression()), !dbg !50
+  call void @pallas.fracOf(ptr sret(%pallas.fracT) %2, i32 noundef 2, i32 noundef 3), !dbg !51
+  %4 = call i1 @pallas.perm(ptr noundef %0, ptr noundef byval(%pallas.fracT) %2), !dbg !52
+  call void @pallas.fracOf(ptr sret(%pallas.fracT) %3, i32 noundef 2, i32 noundef 3), !dbg !53
+  %5 = call i1 @pallas.perm(ptr noundef %0, ptr noundef byval(%pallas.fracT) %3), !dbg !54
+  %6 = call i1 @pallas.sepConj(i1 %4, i1 %5), !dbg !55
+  ret i1 %6, !dbg !50
 }
 
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
 declare void @llvm.dbg.value(metadata, metadata, metadata) #1
 
-declare !pallas.specLib !52 i1 @pallas.sepConj(i1, i1)
+declare !pallas.specLib !56 i1 @pallas.sepConj(i1, i1)
 
-declare !pallas.specLib !53 i1 @pallas.perm(ptr noundef, ptr noundef byval(%pallas.fracT))
+declare !pallas.specLib !57 i1 @pallas.perm(ptr noundef, ptr noundef byval(%pallas.fracT))
 
-declare !pallas.specLib !54 void @pallas.fracOf(ptr sret(%pallas.fracT), i32 noundef, i32 noundef)
+declare !pallas.specLib !58 void @pallas.fracOf(ptr sret(%pallas.fracT), i32 noundef, i32 noundef)
 
 attributes #0 = { noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
@@ -87,38 +87,42 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !17 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
 !18 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !17, size: 64)
 !19 = !{}
-!20 = !{!21, i1 false, i1 false, !23, !26}
+!20 = !{!21, i1 false, i1 false, !19, !19, !23, !33}
 !21 = !{!"pallas.srcLoc", i64 2, i64 1, i64 5, i64 1, !22}
 !22 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_perm_fail_3.c", directory: "", checksumkind: CSK_MD5, checksum: "f4230a7fb4eaa07f45d248e201af7902")
-!23 = !{!"pallas.requires", !24, ptr @PALLAS_SPEC_0, !25}
+!23 = !{!"pallas.requires", !24, ptr @PALLAS_SPEC_0, !19, !19, !25}
 !24 = !{!"pallas.srcLoc", i64 3, i64 1, i64 3, i64 52, !22}
-!25 = !DILocalVariable(name: "iPtr", arg: 1, scope: !14, file: !1, line: 6, type: !18)
-!26 = !{!"pallas.ensures", !27, ptr @PALLAS_SPEC_1, !25}
-!27 = !{!"pallas.srcLoc", i64 4, i64 1, i64 4, i64 67, !22}
-!28 = !DILocation(line: 6, column: 14, scope: !14)
-!29 = !DILocation(line: 7, column: 13, scope: !14)
-!30 = !DILocation(line: 7, column: 12, scope: !14)
-!31 = !DILocation(line: 7, column: 18, scope: !14)
-!32 = !DILocation(line: 7, column: 5, scope: !14)
-!33 = distinct !DISubprogram(name: "PALLAS_SPEC_0", scope: !1, file: !1, line: 3, type: !34, scopeLine: 3, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
-!34 = !DISubroutineType(types: !35)
-!35 = !{!36, !18}
-!36 = !DIBasicType(name: "_Bool", size: 8, encoding: DW_ATE_boolean)
-!37 = !{!""}
-!38 = !DILocalVariable(name: "iPtr", arg: 1, scope: !33, file: !1, line: 3, type: !18)
-!39 = !DILocation(line: 0, scope: !33)
-!40 = !DILocation(line: 3, column: 15, scope: !33)
-!41 = !DILocation(line: 3, column: 23, scope: !33)
-!42 = !DILocation(line: 3, column: 38, scope: !33)
-!43 = !DILocation(line: 3, column: 26, scope: !33)
-!44 = distinct !DISubprogram(name: "PALLAS_SPEC_1", scope: !1, file: !1, line: 4, type: !34, scopeLine: 4, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
-!45 = !DILocalVariable(name: "iPtr", arg: 1, scope: !44, file: !1, line: 4, type: !18)
-!46 = !DILocation(line: 0, scope: !44)
-!47 = !DILocation(line: 4, column: 26, scope: !44)
-!48 = !DILocation(line: 4, column: 14, scope: !44)
-!49 = !DILocation(line: 4, column: 53, scope: !44)
-!50 = !DILocation(line: 4, column: 41, scope: !44)
-!51 = !DILocation(line: 4, column: 9, scope: !44)
-!52 = !{!"pallas.sepConj"}
-!53 = !{!"pallas.perm"}
-!54 = !{!"pallas.fracOf"}
+!25 = !{!26}
+!26 = !{!27, !28}
+!27 = !DILocalVariable(name: "iPtr", arg: 1, scope: !14, file: !1, line: 6, type: !18)
+!28 = !DILocalVariable(name: "iPtr", arg: 1, scope: !29, file: !1, line: 3, type: !18)
+!29 = distinct !DISubprogram(name: "PALLAS_SPEC_0", scope: !1, file: !1, line: 3, type: !30, scopeLine: 3, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
+!30 = !DISubroutineType(types: !31)
+!31 = !{!32, !18}
+!32 = !DIBasicType(name: "_Bool", size: 8, encoding: DW_ATE_boolean)
+!33 = !{!"pallas.ensures", !34, ptr @PALLAS_SPEC_1, !19, !19, !35}
+!34 = !{!"pallas.srcLoc", i64 4, i64 1, i64 4, i64 67, !22}
+!35 = !{!36}
+!36 = !{!27, !37}
+!37 = !DILocalVariable(name: "iPtr", arg: 1, scope: !38, file: !1, line: 4, type: !18)
+!38 = distinct !DISubprogram(name: "PALLAS_SPEC_1", scope: !1, file: !1, line: 4, type: !30, scopeLine: 4, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !19)
+!39 = !DILocation(line: 6, column: 14, scope: !14)
+!40 = !DILocation(line: 7, column: 13, scope: !14)
+!41 = !DILocation(line: 7, column: 12, scope: !14)
+!42 = !DILocation(line: 7, column: 18, scope: !14)
+!43 = !DILocation(line: 7, column: 5, scope: !14)
+!44 = !{!""}
+!45 = !DILocation(line: 0, scope: !29)
+!46 = !DILocation(line: 3, column: 15, scope: !29)
+!47 = !DILocation(line: 3, column: 23, scope: !29)
+!48 = !DILocation(line: 3, column: 38, scope: !29)
+!49 = !DILocation(line: 3, column: 26, scope: !29)
+!50 = !DILocation(line: 0, scope: !38)
+!51 = !DILocation(line: 4, column: 26, scope: !38)
+!52 = !DILocation(line: 4, column: 14, scope: !38)
+!53 = !DILocation(line: 4, column: 53, scope: !38)
+!54 = !DILocation(line: 4, column: 41, scope: !38)
+!55 = !DILocation(line: 4, column: 9, scope: !38)
+!56 = !{!"pallas.sepConj"}
+!57 = !{!"pallas.perm"}
+!58 = !{!"pallas.fracOf"}
