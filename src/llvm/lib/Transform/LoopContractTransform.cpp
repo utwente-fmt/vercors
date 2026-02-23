@@ -40,12 +40,15 @@ void addError(llvm::Metadata &md, std::string msg) {
 void llvm2col::transformLoopContract(llvm::Loop &llvmLoop,
                                      col::LoopContract &colContract,
                                      pallas::FunctionCursor &functionCursor) {
-    auto irContract = pallas::irspec::getLoopContract(
-        pallas::irspec::getLoopContractMD(llvmLoop));
-    if (!irContract.has_value()) {
+    auto *loopContrMD = pallas::irspec::getLoopContractMD(llvmLoop);
+    if (loopContrMD == nullptr) {
         initializeEmptyLoopContract(colContract);
         return;
     }
+
+    auto irContract = pallas::irspec::getLoopContract(loopContrMD);
+    if (!irContract.has_value())
+        return;
 
     col::LlvmLoopContract *colInvariant =
         colContract.mutable_llvm_loop_contract();
