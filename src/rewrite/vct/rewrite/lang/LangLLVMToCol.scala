@@ -1407,6 +1407,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case (LLVMTInt(_), LLVMTInt(_)) => rw.dispatch(zext.value)
       case (TBool(), LLVMTInt(_)) =>
         Select(rw.dispatch(zext.value), const(1), const(0))
+      case (TBool(), TBool()) => rw.dispatch(zext.value)
       case (_, _) => throw UnsupportedZeroExtension(zext)
     }
   }

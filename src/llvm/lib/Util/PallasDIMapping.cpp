@@ -137,6 +137,20 @@ llvm::Argument *mapDIVarToArg(llvm::Function &f, llvm::DIVariable &diVar) {
             auto *arg = dyn_cast_if_present<Argument>(valIntr->getValue());
             if (arg != nullptr && arg->getParent() == &f)
                 return arg;
+            // TODO: De-duplicate with PallasWrapperUtils::buildArgExprFromDbgValue
+            // Booleans are often extended to larger bitwidths and the 
+            // debug-intrinsc is attached to the extended value. In this case, 
+            // we must 'skip' the zext-instruction.
+            intr->dump();
+            if (valIntr->getValue()->getType()->isIntegerTy() &&
+                !valIntr->getValue()->getType()->isIntegerTy(1) &&
+                llvm::isa<llvm::ZExtInst>(valIntr->getValue())) {
+                // Attempt to skip zext
+                auto *zext = llvm::cast<llvm::ZExtInst>(valIntr->getValue());
+                if (zext->getSrcTy()->isIntegerTy(1) &&
+                    llvm::isa<llvm::Argument>(zext->getOperand(0)))
+                    return llvm::cast<llvm::Argument>(zext->getOperand(0));
+            }
         }
     }
 

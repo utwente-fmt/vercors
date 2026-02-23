@@ -73,7 +73,8 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
         auto *mappedArg = utils::mapDIVarToArg(clause.getWrapper(), *diVar);
         if (mappedArg == nullptr) {
             std::string err =
-                "Failed to get type for ghost-arg " + gArgDef->name;
+                "Failed to get type for ghost-arg " + gArgDef->name + 
+                " based on wrapper function " + clause.getWrapper().getName().str();
             ErrorReporter::addError(SOURCE_LOC, err, f);
             return nullptr;
         }
