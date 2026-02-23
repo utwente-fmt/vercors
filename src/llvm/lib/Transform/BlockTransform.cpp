@@ -54,7 +54,7 @@ void llvm2col::transformInstruction(pallas::FunctionCursor &funcCursor,
                                     col::LlvmBasicBlock &colBodyBlock) {
     // Check if specifications are attached to the instruction
     if (llvm::MDNode *specMD =
-            pallas::utils::getSpecStmntBlock(llvmInstruction)) {
+            pallas::irspec::getStmntBlockMD(llvmInstruction)) {
         llvm2col::transformSpecStmntBlock(*specMD, llvmInstruction,
                                           colBodyBlock, funcCursor);
     }

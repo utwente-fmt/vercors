@@ -348,7 +348,7 @@ void llvm2col::transformCallExpr(llvm::CallInst &callInstruction,
 
     // If it is a call to a function from the pallas specification library,
     // we transform it into the appropriate col-node.
-    if (pallas::utils::isPallasSpecLib(*callInstruction.getCalledFunction())) {
+    if (pallas::irspec::isPallasSpecLib(*callInstruction.getCalledFunction())) {
         transformPallasSpecLibCall(callInstruction, colBlock, funcCursor);
         return;
     }
@@ -480,7 +480,7 @@ void llvm2col::transformPallasSpecLibCall(llvm::CallInst &callInstruction,
                                           col::LlvmBasicBlock &colBlock,
                                           pallas::FunctionCursor &funcCursor) {
     auto specLibType =
-        pallas::utils::isPallasSpecLib(*callInstruction.getCalledFunction())
+        pallas::irspec::isPallasSpecLib(*callInstruction.getCalledFunction())
             .value();
 
     if (specLibType == pallas::constants::PALLAS_SPEC_RESULT) {

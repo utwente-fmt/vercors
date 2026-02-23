@@ -1,5 +1,6 @@
 #include "Passes/Function/PureAssigner.h"
 
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
@@ -44,7 +45,7 @@ PreservedAnalyses PureAssignerPass::run(Function &F,
     }
 
     // Check if the function is annotated with a pallas function contract
-    if (auto *contractMDNode = utils::getPallasContract(F)) {
+    if (auto *contractMDNode = irspec::getPallasContract(F)) {
         pureAnnotationCount++;
         if (!isPallasPureWellformed(*contractMDNode, F))
             return PreservedAnalyses::all();
@@ -53,11 +54,11 @@ PreservedAnalyses PureAssignerPass::run(Function &F,
     }
 
     // Check if the function is marked as a pallas wrapper-function
-    if (utils::isPallasExprWrapper(F)) {
+    if (irspec::isPallasExprWrapper(F)) {
         pureAnnotationCount++;
         isPure = true;
     }
-    if (utils::isPallasGhostWrapper(F)) {
+    if (irspec::isPallasGhostWrapper(F)) {
         pureAnnotationCount++;
         isPure = true;
     }

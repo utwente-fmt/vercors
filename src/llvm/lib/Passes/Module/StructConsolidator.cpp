@@ -1,4 +1,5 @@
 #include "Passes/Module/StructConsolidator.h"
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
 #include "Util/PallasMD.h"
@@ -215,11 +216,9 @@ StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
             GetElementPtrInst::Create(
                 AllocST, V,
                 ArrayRef(
-                    new Value *[] {
+                    new Value *[]{
                         ConstantInt::get(ST.getContext(), APInt(32, 0)),
-                            ConstantInt::get(ST.getContext(),
-                                             APInt(32, InnerIdx))
-                    },
+                        ConstantInt::get(ST.getContext(), APInt(32, InnerIdx))},
                     2)),
             Twine("insertedLoad"), false, Align());
         const TypeSize FieldSize =
@@ -397,11 +396,10 @@ StructConsolidatorPass::DigToFieldResult StructConsolidatorPass::digToField(
                 GetElementPtrInst::Create(
                     &ST, SrcI,
                     ArrayRef(
-                        new Value *[] {
+                        new Value *[]{
                             ConstantInt::get(ST.getContext(), APInt(32, 0)),
-                                ConstantInt::get(ST.getContext(),
-                                                 APInt(32, FieldIdx))
-                        },
+                            ConstantInt::get(ST.getContext(),
+                                             APInt(32, FieldIdx))},
                         2)),
                 Twine("insertedLoad"), false, Align());
         }
@@ -562,13 +560,11 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
                 const auto &[Idx, Field] = Source;
                 auto *GEP = GetElementPtrInst::CreateInBounds(
                     Set.Alloc->getAllocatedType(), AllocA,
-                    ArrayRef(
-                        new Value *[] {
-                            ConstantInt::get(NewF->getContext(), APInt(32, 0)),
-                                ConstantInt::get(NewF->getContext(),
-                                                 APInt(32, Idx))
-                        },
-                        2),
+                    ArrayRef(new Value *[]{ConstantInt::get(NewF->getContext(),
+                                                            APInt(32, 0)),
+                                           ConstantInt::get(NewF->getContext(),
+                                                            APInt(32, Idx))},
+                             2),
                     Twine("InsertedCallerGEP"), Call);
                 if (Field == NULL) {
                     break;
@@ -926,7 +922,7 @@ void StructConsolidatorPass::replaceWrapperCalls(
                   First.equalsStr(constants::PALLAS_FOLD) ||
                   First.equalsStr(constants::PALLAS_UNFOLD))) {
         auto *Loc = dyn_cast_if_present<MDNode>(MD->getOperand(1).get());
-        if (!Loc || !utils::isWellformedPallasLocation(Loc))
+        if (!Loc || !irspec::isWellformedPallasLocation(Loc))
             return;
         if (MD->getOperand(2).get() != MF)
             return;
@@ -936,7 +932,7 @@ void StructConsolidatorPass::replaceWrapperCalls(
     } else {
         // Loop invariant
         auto *Loc = dyn_cast_if_present<MDNode>(First.get());
-        if (!Loc || !utils::isWellformedPallasLocation(Loc))
+        if (!Loc || !irspec::isWellformedPallasLocation(Loc))
             return;
         if (MD->getOperand(1).get() != MF)
             return;

@@ -41,7 +41,7 @@ AnalysisKey ExprWrapperMapper::Key;
 
 ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
                                                  FunctionAnalysisManager &FAM) {
-    if (!(utils::isPallasExprWrapper(F) || utils::isPallasGhostWrapper(F)))
+    if (!(irspec::isPallasExprWrapper(F) || irspec::isPallasGhostWrapper(F)))
         return EWMResult(nullptr);
     auto *llvmModule = F.getParent();
 
@@ -49,14 +49,14 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
     // wrapper-function in a specification.
     for (Function &parentF : llvmModule->functions()) {
         // Skip wrapper-functions and intrinsics
-        if (utils::isPallasExprWrapper(parentF) ||
-            utils::isPallasGhostWrapper(parentF) || parentF.isIntrinsic() ||
-            utils::isPallasSpecLib(parentF)) {
+        if (irspec::isPallasExprWrapper(parentF) ||
+            irspec::isPallasGhostWrapper(parentF) || parentF.isIntrinsic() ||
+            irspec::isPallasSpecLib(parentF)) {
             continue;
         }
 
         // If the function has a pallas-contract, check all clauses
-        if (auto *contrMD = utils::getPallasContract(parentF)) {
+        if (auto *contrMD = irspec::getPallasContract(parentF)) {
             auto contract = irspec::getContract(contrMD);
 
             for (auto &clause : contract->clauses) {
@@ -75,7 +75,7 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
             if (loop == nullptr)
                 continue;
             // Get loop-contract
-            auto *contractMD = pallas::utils::getPallasLoopContract(*loop);
+            auto *contractMD = irspec::getLoopContractMD(*loop);
             if (contractMD == nullptr)
                 continue;
             // Check all invariants
@@ -95,7 +95,7 @@ ExprWrapperMapper::Result ExprWrapperMapper::run(Function &F,
             llvm::Instruction *inst = &*it;
 
             // Check blocks of specification-statements
-            if (auto *specBlockMD = pallas::utils::getSpecStmntBlock(*inst)) {
+            if (auto *specBlockMD = irspec::getStmntBlockMD(*inst)) {
                 auto stmntBlock = irspec::getSpecStatementBlock(specBlockMD);
                 if (!stmntBlock.has_value())
                     return EWMResult(nullptr);

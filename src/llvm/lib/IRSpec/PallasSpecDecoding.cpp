@@ -252,8 +252,8 @@ std::optional<ContractClause> getContractClause(const llvm::MDNode *md) {
         return std::nullopt;
     }
     auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
-    if (wFunc == nullptr || !(utils::isPallasExprWrapper(*wFunc) ||
-                              utils::isPallasGhostWrapper(*wFunc))) {
+    if (wFunc == nullptr ||
+        !(isPallasExprWrapper(*wFunc) || isPallasGhostWrapper(*wFunc))) {
         addError(
             "Third operand of contract clause must point to wrapper function.",
             md);
@@ -448,8 +448,8 @@ getLoopInvariantClause(const llvm::MDNode *md) {
         return std::nullopt;
     }
     auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
-    if (wFunc == nullptr || !(utils::isPallasExprWrapper(*wFunc) ||
-                              utils::isPallasGhostWrapper(*wFunc))) {
+    if (wFunc == nullptr ||
+        !(isPallasExprWrapper(*wFunc) || isPallasGhostWrapper(*wFunc))) {
         addError("Second operand of loop invariant clause must point to "
                  "wrapper function.",
                  md);
@@ -587,8 +587,8 @@ std::optional<SpecStatement> getSpecStatement(const llvm::MDNode *md) {
         return std::nullopt;
     }
     auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
-    if (wFunc == nullptr || !(utils::isPallasExprWrapper(*wFunc) ||
-                              utils::isPallasGhostWrapper(*wFunc))) {
+    if (wFunc == nullptr ||
+        !(isPallasExprWrapper(*wFunc) || isPallasGhostWrapper(*wFunc))) {
         addError("Third operand of specification statement must point to "
                  "wrapper function.",
                  md);
@@ -779,7 +779,7 @@ std::optional<GivenBinding> getGivenBinding(const llvm::MDNode *md) {
         return std::nullopt;
     }
     auto *wFunc = llvm::dyn_cast_or_null<llvm::Function>(wFuncMD->getValue());
-    if (wFunc == nullptr || !utils::isPallasGhostWrapper(*wFunc)) {
+    if (wFunc == nullptr || !irspec::isPallasGhostWrapper(*wFunc)) {
         addError("Third operand of assignment to ghost variable must point to "
                  "ghost wrapper function.",
                  md);
@@ -838,12 +838,98 @@ std::optional<GivenBindingBlock> getGivenBindingBlock(const llvm::MDNode *md) {
     return std::make_optional(block);
 }
 
+llvm::MDNode *getLoopContractMD(const llvm::Loop &llvmLoop) {
+    // Extract the LoopID
+    llvm::MDNode *loopID = llvmLoop.getLoopID();
+    if (loopID == nullptr)
+        return nullptr;
+
+    for (const llvm::MDOperand &op : loopID->operands()) {
+        auto *opNode = llvm::dyn_cast_if_present<llvm::MDNode>(op.get());
+        // Check that the first operand is a MDString identifier for a
+        // loop contract
+        if (opNode != nullptr && opNode->getNumOperands() >= 2) {
+            auto *idStr = llvm::dyn_cast_if_present<llvm::MDString>(
+                opNode->getOperand(0).get());
+            if (idStr != nullptr &&
+                idStr->getString().str() ==
+                    pallas::constants::PALLAS_LOOP_CONTR_ID) {
+                return opNode;
+            }
+        }
+    }
+    return nullptr;
+}
+
+llvm::MDNode *getStmntBlockMD(llvm::Instruction &instr) {
+    return instr.getMetadata(pallas::constants::PALLAS_SPEC_STMNT_BLOCK);
+}
+
 llvm::MDNode *getGivenBindingBlockMD(llvm::Instruction &instr) {
     return instr.getMetadata(pallas::constants::PALLAS_GIVEN_BINDING_BLOCK);
 }
 
 llvm::MDNode *getYieldsBindingBlockMD(llvm::Instruction &instr) {
     return instr.getMetadata(pallas::constants::PALLAS_YIELDS_BINDING_BLOCK);
+}
+
+std::optional<std::string> isPallasSpecLib(const llvm::Function &f) {
+
+    auto *mdMarker = f.getMetadata(constants::PALLAS_SPEC_LIB_MARKER);
+    if (mdMarker == nullptr || mdMarker->getNumOperands() != 1)
+        return {};
+
+    auto *mdTypeStr =
+        llvm::dyn_cast<llvm::MDString>(mdMarker->getOperand(0).get());
+    if (mdTypeStr == nullptr)
+        return {};
+
+    return mdTypeStr->getString().str();
+}
+
+bool hasPallasContract(const llvm::Function &f) {
+    return f.hasMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
+}
+
+llvm::MDNode *getPallasContract(const llvm::Function &f) {
+    if (hasPallasContract(f)) {
+        return f.getMetadata(pallas::constants::PALLAS_FUNC_CONTRACT);
+    }
+    if (hasExternalPallasContract(f)) {
+        return f.getMetadata(pallas::constants::PALLAS_EXT_CONTRACT);
+    }
+    return nullptr;
+}
+
+bool hasExternalPallasContract(const llvm::Function &f) {
+    return f.hasMetadata(pallas::constants::PALLAS_EXT_CONTRACT);
+}
+
+bool isPallasExprWrapper(const llvm::Function &f) {
+    return f.hasMetadata(pallas::constants::PALLAS_WRAPPER_FUNC);
+}
+
+bool isPallasGhostWrapper(const llvm::Function &f) {
+    return f.hasMetadata(pallas::constants::PALLAS_GHOST_WRAPPER_FUNC);
+}
+
+bool isPallasPredDef(const llvm::Function &f) {
+    return f.hasMetadata(pallas::constants::PALLAS_PRED_DEF);
+}
+
+std::optional<bool> isPallasPredInline(const llvm::Function &f) {
+    if (!isPallasPredDef(f))
+        return std::nullopt;
+    auto *predDefMD = f.getMetadata(pallas::constants::PALLAS_PRED_DEF);
+    if (predDefMD->getNumOperands() != 1)
+        return std::nullopt;
+    auto *inlineConst = llvm::dyn_cast<llvm::ConstantAsMetadata>(
+        predDefMD->getOperand(0).get());
+    auto *inlineVal =
+        llvm::dyn_cast_if_present<llvm::ConstantInt>(inlineConst->getValue());
+    if (inlineVal == nullptr || (inlineVal->getBitWidth() != 1))
+        return std::nullopt;
+    return std::make_optional(inlineVal->isOne());
 }
 
 } // namespace pallas::irspec

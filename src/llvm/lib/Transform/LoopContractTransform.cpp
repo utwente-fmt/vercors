@@ -41,7 +41,7 @@ void llvm2col::transformLoopContract(llvm::Loop &llvmLoop,
                                      col::LoopContract &colContract,
                                      pallas::FunctionCursor &functionCursor) {
     auto irContract = pallas::irspec::getLoopContract(
-        pallas::utils::getPallasLoopContract(llvmLoop));
+        pallas::irspec::getLoopContractMD(llvmLoop));
     if (!irContract.has_value()) {
         initializeEmptyLoopContract(colContract);
         return;

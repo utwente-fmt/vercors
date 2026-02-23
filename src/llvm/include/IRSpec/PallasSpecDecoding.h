@@ -5,6 +5,7 @@
 
 #include <optional>
 
+#include <llvm/Analysis/LoopInfo.h>
 #include <llvm/IR/Metadata.h>
 
 /**
@@ -151,6 +152,20 @@ std::optional<GivenBinding> getGivenBinding(const llvm::MDNode *md);
 std::optional<GivenBindingBlock> getGivenBindingBlock(const llvm::MDNode *md);
 
 /**
+ * If the given loop has a loop-contract, a pointer to the MDNode
+ * that represents the contract is returned.
+ * If no loop contract is present, a nullptr is returned.
+ */
+llvm::MDNode *getLoopContractMD(const llvm::Loop &llvmLoop);
+
+/**
+ * Checks if a block if specification-statements is attached to the given
+ * instruction and returns it if it is present. Otherwise, a nullpointer is
+ * returned
+ */
+llvm::MDNode *getStmntBlockMD(llvm::Instruction &instr);
+
+/**
  * Checks if a block of given-bindings is is attached to the given
  * instruction and returns it if it is present. Otherwise, a nullpointer is
  * returned
@@ -163,6 +178,55 @@ llvm::MDNode *getGivenBindingBlockMD(llvm::Instruction &instr);
  * returned
  */
 llvm::MDNode *getYieldsBindingBlockMD(llvm::Instruction &instr);
+
+/**
+ * Checks if the given function is labeled as a function from the pallas
+ * specification-library.
+ * If so, returns an optinal that contains the string-identifier of the 
+ * spec-lib function. Otherwise, an empty optional is returned.
+ */
+std::optional<std::string> isPallasSpecLib(const llvm::Function &f);
+
+/**
+ * Checks if the given function has a metadata-node that is labeled as a
+ * Pallas function contract.
+ */
+bool hasPallasContract(const llvm::Function &f);
+
+/**
+ * Checks if the given function has a metadata-node that is labeled as an
+ * external Pallas contract.
+ */
+bool hasExternalPallasContract(const llvm::Function &f);
+
+/**
+ * If f has an external or a normal pallas-contract, return this contract.
+ */
+llvm::MDNode *getPallasContract(const llvm::Function &f);
+
+/**
+ * Checks if the given llvm function is marked as an expression wrapper of a
+ * pallas specification.
+ */
+bool isPallasExprWrapper(const llvm::Function &f);
+
+/**
+ * Checks if the given llvm function is marked as ghost wrapper.
+ */
+bool isPallasGhostWrapper(const llvm::Function &f);
+
+/**
+ * Checks if the given llvm function is marked as a predicate definition.
+ */
+bool isPallasPredDef(const llvm::Function &f);
+
+/**
+ * Checks if the given function that represents a pallas predicate definition
+ * is marked as inline or not.
+ * If the function is not a valid predicate or if the metadata is malformed,
+ * a nullopt is returned.
+ */
+std::optional<bool> isPallasPredInline(const llvm::Function &f);
 
 } // namespace pallas::irspec
 
