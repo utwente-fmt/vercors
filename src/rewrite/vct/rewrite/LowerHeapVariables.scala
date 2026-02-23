@@ -163,10 +163,11 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         System.identityHashCode(hl)
     }
     val nakedHeapGlobals = program.collect {
-      case hl @ DerefHeapVariable(Ref(v))
+      case hl @ DerefHeapVariable(
+            Ref(WithExactType(v, _: TNonNullPointer[Pre]))
+          )
           // We check for TNonNullPointer here to distinguish between PVL/Java and C/C++/LLVM (where the latter group should encode all global heap variables as TNonNullPointer
-          if !dereferencedHeapGlobals.contains(System.identityHashCode(hl)) &&
-            v.t.isInstanceOf[TNonNullPointer[Pre]] =>
+          if !dereferencedHeapGlobals.contains(System.identityHashCode(hl)) =>
         v
     }
     VerificationError.withContext(CurrentRewriteProgramContext(program)) {
@@ -178,9 +179,8 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
             new Variable[Post](dispatch(v.t.asPointer.get.element))(v.o)
         )
         program.collect {
-          case DerefHeapVariable(Ref(v))
-              if !nakedHeapGlobals.contains(v) &&
-                v.t.isInstanceOf[TNonNullPointer[Pre]] =>
+          case DerefHeapVariable(Ref(WithExactType(v, _: TNonNullPointer[Pre])))
+              if !nakedHeapGlobals.contains(v) =>
             v
         }.foreach(v =>
           globalStripped(v) =

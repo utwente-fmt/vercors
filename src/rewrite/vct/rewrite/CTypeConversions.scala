@@ -4,6 +4,7 @@ import hre.util.ScopedStack
 import vct.col.ast.`type`.typeclass.TFloats
 import vct.col.ast._
 import vct.col.origin.{Blame, Origin, PanicBlame, UnsafeCoercion}
+import vct.col.rewrite.error.ExtraNode
 import vct.col.rewrite.{Generation, RewriterBuilder, RewriterBuilderArg2}
 import vct.col.typerules.{CoercingRewriter, CoercionUtils, TypeSize}
 import vct.col.util.AstBuildHelpers._
@@ -11,10 +12,10 @@ import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.annotation.tailrec
 
-case object CFloatIntCoercion extends RewriterBuilderArg2[Boolean, Boolean] {
-  override def key: String = "CFloatIntCoercion"
+case object CTypeConversions extends RewriterBuilderArg2[Boolean, Boolean] {
+  override def key: String = "cTypeConversions"
   override def desc: String =
-    "Places cast from ints and floats from the C backend."
+    "Casts from integers to and from floats, booleans, and pointers"
 
   case class MinimalSize() extends UserError {
     override def code: String = "incompleteSizeInformation"
@@ -38,11 +39,11 @@ case object CFloatIntCoercion extends RewriterBuilderArg2[Boolean, Boolean] {
   }
 }
 
-case class CFloatIntCoercion[Pre <: Generation](
+case class CTypeConversions[Pre <: Generation](
     checkIntegerBounds: Boolean,
     unsetTarget: Boolean,
 ) extends CoercingRewriter[Pre] {
-  import CFloatIntCoercion._
+  import CTypeConversions._
 
   private val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
   private val returnContext: ScopedStack[Type[Pre]] = ScopedStack()
@@ -62,9 +63,16 @@ case class CFloatIntCoercion[Pre <: Generation](
       case CoerceCFloatCInt(_) => CastFloat(e, TInt())
       case CoerceCIntCFloat(target) => CastFloat(e, dispatch(target))
       case CoerceDecreasePrecision(_, target) => CastFloat(e, dispatch(target))
-      // TODO: Technically these boolean conversions should only happen in the same cases as the integer conversions I believe
       case CoerceCIntBool() => Neq(e, const(0))
       case CoerceBoolCInt(_) => Select(e, const(1), const(0))
+      case CoercePointerBool(t) =>
+        t match {
+          case pt: PointerType[Pre] if pt.isNonNull => ff
+          case pt: PointerArrayType[Pre] if pt.isNonNull => ff
+          case _: PointerType[Pre] | _: PointerArrayType[Pre] =>
+            PointerNeq(e, Null(), const(0))
+          case _ => throw ExtraNode
+        }
       case c if ignoreMappedCoercion(c) => e
       case other => super.applyCoercion(e, other)
     }
@@ -580,8 +588,11 @@ case class CFloatIntCoercion[Pre <: Generation](
         AmbiguousNeq(dispatch(a), dispatch(b), TInt(), size.map(dispatch))(e.o)
       case Cast(v, tv @ TypeValue(t @ TCInt())) =>
         Cast(applyCast(v, t), TypeValue(dispatch(t))(tv.o))(e.o)
-      case Cast(v, tv @ TypeValue(TBool())) if v.t.isInstanceOf[TCInt[Pre]] =>
+      case Cast(WithExactType(v, TCInt()), tv @ TypeValue(TBool())) =>
         Neq(dispatch(v), const(0)(v.o))(v.o)
+      case Cast(v, tv @ TypeValue(TBool())) if v.t.asPointer.isDefined =>
+        if (v.t.asPointer.get.isNonNull) { ff }
+        else { PointerNeq(dispatch(v), Null()(e.o), const(0)(e.o))(e.o) }
       case CIntegerValue(v, i @ TCInt())
           if inPure.isEmpty && checkIntegerBounds && !unsetTarget =>
         i.storedBits match {

@@ -466,7 +466,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   private def isInt(t: Type[Pre]): Boolean =
     getBaseType(t) match {
-      case _: IntType[Pre] => true
+      // TBool handled in CTypeConversions
+      case _: IntType[Pre] | TBool() => true
       case _ => false
     }
 
@@ -641,7 +642,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def cast(c: CCast[Pre]): Expr[Post] =
     c match {
       case CCast(e, t) if castIsId(e.t, t) => rw.dispatch(c.expr)
-      case CCast(e, t @ TCInt()) if isInt(e.t) =>
+      case CCast(e, t) if isInt(e.t) && isInt(t) =>
         Cast(rw.dispatch(e), TypeValue(rw.dispatch(t))(c.o))(c.o)
       case CCast(e, t)
           if (isFloat(t) && isRatFloatOrInt(e.t)) ||
@@ -718,6 +719,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           TPointer(rw.dispatch(innerType), None),
           getStride(innerType, c.o),
         )(c.o)
+      // Handled in CTypeConversions
+      case CCast(e, t @ TBool()) if e.t.asPointer.isDefined =>
+        Cast(rw.dispatch(e), TypeValue(rw.dispatch(t))(c.o))(c.o)
       case _ => throw UnsupportedCast(c)
     }
 

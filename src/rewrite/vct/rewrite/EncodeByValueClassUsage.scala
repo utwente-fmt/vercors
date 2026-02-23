@@ -199,9 +199,19 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
       case AutoValue(ByValueClassLocation(e)) =>
         unwrapClassPerm(dispatch(e), AutoValue(_), e.t.asByValueClass.get)
       // Only doing this for TNonNullPointer pointers since those originate from the frontend and users can define heap variables of the normal TPointer pointer type
-      case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p)
-          if v.t.isInstanceOf[TNonNullPointer[Pre]] ||
-            v.t.isInstanceOf[TNonNullConstPointer[Pre]] =>
+      case Perm(
+            pl @ PointerLocation(
+              dhv @ DerefHeapVariable(
+                Ref(
+                  WithExactType(
+                    v,
+                    _: TNonNullPointer[Pre] | _: TNonNullConstPointer[Pre],
+                  )
+                )
+              )
+            ),
+            p,
+          ) =>
         val t = v.t.asPointer.get
         if (t.element.asByValueClass.isDefined) {
           val newV: Ref[Post, HeapVariable[Post]] = succ(v)

@@ -516,8 +516,7 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
           ArraySubscript[Post](notInlined(arr), notInlined(index))(sub.blame)(
             target.o
           )
-        case PointerSubscript(arr, index)
-            if arr.t.isInstanceOf[TConstPointer[_]] =>
+        case PointerSubscript(WithExactType(arr, _: TConstPointer[_]), index) =>
           throw DisallowedAssignmentTarget(target)
         case sub @ PointerSubscript(arr, index) =>
           PointerSubscript[Post](notInlined(arr), notInlined(index))(sub.blame)(

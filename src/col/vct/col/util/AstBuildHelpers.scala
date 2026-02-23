@@ -16,6 +16,13 @@ object AstBuildHelpers {
   val ZERO: BigInt = BigInt(0)
   val ONE: BigInt = BigInt(1)
 
+  object WithExactType {
+    def unapply[G](e: Expr[G]): Option[(Expr[G], Type[G])] = Some((e, e.t))
+    def unapply[G](v: Variable[G]): Option[(Variable[G], Type[G])] =
+      Some((v, v.t))
+    def unapply[G](v: HeapVariable[G]): Option[(HeapVariable[G], Type[G])] =
+      Some((v, v.t))
+  }
   case class NumericDividingError(left: Expr[_], right: Expr[_])
       extends UserError {
     override def text: String =
