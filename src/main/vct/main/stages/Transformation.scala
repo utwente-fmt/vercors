@@ -30,6 +30,7 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
   CTypeConversions,
+  CollectLocalDeclarations,
   DisambiguateLocation,
   DisambiguatePredicateExpression,
   EncodeAssuming,
@@ -48,6 +49,7 @@ import vct.rewrite.{
   LowerHeapVariables,
   MakeUniqueMethodCopies,
   MonomorphizeClass,
+  PrettifyBlocks,
   SmtlibToProverTypes,
   TypeQualifierCoercion,
   VariableToPointer,
