@@ -187,6 +187,13 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
 
       case extract @ Extract(body, decreases) =>
         body match {
+          // Move scope outside
+          case scope: Scope[Pre] =>
+            dispatch(
+              scope.copy(body =
+                Extract(scope.body, decreases)(extract.blame)(extract.o)
+              )(scope.o)
+            )
           case Loop(init, cond, _, blame @ LoopInvariant(invariant, _), _) =>
             val targetValuePair =
               init match {

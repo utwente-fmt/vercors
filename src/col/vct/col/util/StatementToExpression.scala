@@ -81,6 +81,7 @@ case class StatementToExpression[Pre <: Generation, Post <: Generation](
             case _ => None
           }
         x
+      case Scope(_, body) => countAssignments(v, body)
       case Branch(conds) =>
         val assignmentCounts = conds.map(_._2).map(countAssignments(v, _))
           .collect {

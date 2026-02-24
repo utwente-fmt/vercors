@@ -1475,7 +1475,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val kernelRunner =
       new RunMethod[Post](
         body = Some(
-          ParStatement[Post](kernelParBlock)(kernelDeclaration.body.o)
+          Scope(
+            Nil,
+            ParStatement[Post](kernelParBlock)(kernelDeclaration.body.o),
+          )(kernelDeclaration.body.o)
         ),
         contract = kernelRunnerContract,
       )(KernelLambdaRunMethodBlame(kernelDeclaration))(commandGroup.o)

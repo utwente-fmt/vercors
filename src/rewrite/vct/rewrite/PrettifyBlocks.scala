@@ -2,6 +2,7 @@ package vct.rewrite
 
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.result.VerificationError.Unreachable
 
 object PrettifyBlocks extends RewriterBuilder {
   override def key: String = "prettifyBlocks"
@@ -33,9 +34,13 @@ case class PrettifyBlocks[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
-      case ScopedExpr(locals, body) =>
+      case ScopedExpr(locals, body) if variables.nonEmpty =>
         locals.foreach(dispatch)
         dispatch(body)
+      case ScopedExpr(_, _) =>
+        throw Unreachable(
+          s"Got to this scoped expression (`$e`) but there is no outer scope. Every function/method body should start with a Scope node"
+        )
       case _ => super.dispatch(e)
     }
 }
