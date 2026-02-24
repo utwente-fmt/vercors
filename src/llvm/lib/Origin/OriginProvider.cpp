@@ -7,6 +7,7 @@
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Support/Path.h>
 
 #include "Origin/ContextDeriver.h"
 #include "Origin/PreferredNameDeriver.h"
@@ -142,6 +143,12 @@ void generateSourceRangeOrigin(col::Origin *origin, const llvm::DIScope &scope,
     auto *file = scope.getFile();
     llvm::StringRef filename = file->getFilename();
     llvm::StringRef directory = file->getDirectory();
+    // The compilers sometimes put an absolute-path into the filename which
+    // then duplicates the directory.
+    if (llvm::sys::path::is_absolute(filename)) {
+        directory = "";
+    }
+
     auto checksumOpt = file->getChecksum();
     col::OriginContent *readableOriginContent = origin->add_content();
     col::ReadableOrigin *readableOrigin = new col::ReadableOrigin();
