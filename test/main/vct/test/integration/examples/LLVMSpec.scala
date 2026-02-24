@@ -59,13 +59,16 @@ class LLVMSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/llvm/pallas/pallas_c_loop_unused.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_ghost_func.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_c_ghost_arg.ll"
 
   // C++
   vercors should verify using silicon example "concepts/llvm/pallas/extContracts/pallas_cpp_extContr.ll"
   vercors should fail withCode "preFailed:false" using silicon example "concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/extContracts/pallas_cpp_genContr.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.ll"
 
   // Swift
   vercors should verify using silicon flags("--pallas-sroa") example "concepts/llvm/pallas/pallas_swift_fib.ll"
   vercors should fail withCode "invariantNotEstablished:false" using silicon flags("--pallas-sroa") example "concepts/llvm/pallas/pallas_swift_fib_fail.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_swift_ghost.ll"
 }

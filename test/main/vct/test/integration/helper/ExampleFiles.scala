@@ -63,6 +63,9 @@ case object ExampleFiles {
     "examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.c",
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.cpp",
     "examples/concepts/llvm/pallas/ghost/pallas_ghost_func.c",
+    "examples/concepts/llvm/pallas/ghost/pallas_c_ghost_arg.c",
+    "examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.cpp",
+    "examples/concepts/llvm/pallas/ghost/pallas_swift_ghost.swift",
     "examples/concepts/llvm/pointer_casts.c",
     "examples/concepts/llvm/structs.c"
   ).map(_.replaceAll("/", File.separator))
