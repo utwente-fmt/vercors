@@ -4,7 +4,8 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
 import hre.progress.Progress
 import vct.col.ast.Node
-import vct.col.origin.AccountedDirection
+import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
+import vct.col.ref.Ref
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.{SystemError, TimeOut}
 import viper.api.SilverTreeCompare
@@ -33,7 +34,6 @@ import viper.silver.{ast => silver}
 
 import java.nio.file.{Files, Path}
 import scala.reflect.ClassTag
-import scala.util.matching.Regex
 import scala.util.{Try, Using}
 
 trait SilverBackend
@@ -202,8 +202,19 @@ trait SilverBackend
             ))
           case PreconditionInAppFalse(node, reason, _) =>
             val invocation = get[col.FunctionInvocation[_]](node)
+            val offendingArgs = node.args.zipWithIndex.collect {
+              case (a, i)
+                  if System.identityHashCode(a) ==
+                    System.identityHashCode(reason.offendingNode) =>
+                i
+            }
+            // Using collectFirst here, not sure how you would realistically get more than one here, but I guess if there's multiple they're probably identical
+            val offendingPath = offendingArgs.map(invocation.ref.decl.args(_))
+              .collectFirst(Function.unlift(
+                argToPath(invocation.ref.decl.contract.requires, _)
+              )).getOrElse(path(reason.offendingNode))
             invocation.blame.blame(blame.PreconditionFailed(
-              path(reason.offendingNode),
+              offendingPath,
               getFailure(reason),
               invocation,
             ))
@@ -483,5 +494,24 @@ trait SilverBackend
         throw NotSupported(
           s"Viper returned an error reason that VerCors does not recognize: $other"
         )
+    }
+
+  private def argInExpr(e: col.Expr[_], arg: col.Variable[_]): Boolean =
+    e match {
+      case col.Local(Ref(v)) => v == arg
+      case col.And(l, r) => argInExpr(l, arg) || argInExpr(r, arg)
+      case col.Star(l, r) => argInExpr(l, arg) || argInExpr(r, arg)
+      case _ => false
+    }
+  private def argToPath(
+      p: col.AccountedPredicate[_],
+      arg: col.Variable[_],
+  ): Option[Seq[AccountedDirection]] =
+    p match {
+      case col.UnitAccountedPredicate(e) if argInExpr(e, arg) => Some(Nil)
+      case col.UnitAccountedPredicate(_) => None
+      case col.SplitAccountedPredicate(left, right) =>
+        argToPath(left, arg).map(FailLeft +: _)
+          .orElse(argToPath(right, arg).map(FailRight +: _))
     }
 }
