@@ -47,8 +47,14 @@ void smartsum(sycl::queue q, int T, int N, int* fx) {
         int laneId = sg.get_local_id();
         int d1 = 1;
 
+        //@ ghost int gsgid = 0;
+        //@ ghost gsgid = gid+d1;
+        //@ ghost gsgid = gsgid;
+        //@ ghost gsgid = gsgid+gid+d2;
+        //@ ghost gsgid = gsgid;
+
         fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], d1)
-          /*@ sub_group_inv { \sg_val == gid + sum(fxGs()[\gtid..\gtid+d1]) } */;
+          /*@ sub_group_inv { \sg_val == gid + sg.get_local_id() + sum(fxGs()[\gtid..\gtid+d1]) } */;
 
         /*@ assert lemmaSumOverConcat(fxGs()[gid .. gid+d1],fxGs()[gid+d1 .. gid+d1+d1]);
             assert lemmaSumOverABBCisAC(fxGs(), gid, gid+d1, gid+d1+d1);
