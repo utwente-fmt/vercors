@@ -156,26 +156,35 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
               from(v) <= Local[Post](succ(v)) && Local[Post](succ(v)) < to(v)
             ).reduceOption[Expr[Post]](And(_, _)).getOrElse(tt)
 
-            e match {
-              case Forall(bindings, Nil, body) =>
-                Forall(
-                  variables.dispatch(bindings ++ quantVars),
-                  Nil,
-                  range ==> scale(dispatch(body)),
-                )(body.o)
-              case s @ Starall(bindings, Nil, body) =>
-                Starall(
-                  variables.dispatch(bindings ++ quantVars),
-                  Nil,
-                  range ==> scale(dispatch(body)),
-                )(s.blame)(body.o)
-              case other =>
-                Starall(
-                  variables.dispatch(quantVars),
-                  Nil,
-                  range ==> scale(dispatch(other)),
-                )(ParBlockNotInjective(block, other))(other.o)
-            }
+            val (body, implies) =
+              e match {
+                case i @ Implies(ant, b) if depVars(vars, ant).isEmpty =>
+                  (b, Some(ant, i.o))
+                case _ => (e, None)
+              }
+
+            val res =
+              body match {
+                case Forall(bindings, Nil, body) =>
+                  Forall(
+                    variables.dispatch(bindings ++ quantVars),
+                    Nil,
+                    range ==> scale(dispatch(body)),
+                  )(body.o)
+                case s @ Starall(bindings, Nil, body) =>
+                  Starall(
+                    variables.dispatch(bindings ++ quantVars),
+                    Nil,
+                    range ==> scale(dispatch(body)),
+                  )(s.blame)(body.o)
+                case other =>
+                  Starall(
+                    variables.dispatch(quantVars),
+                    Nil,
+                    range ==> scale(dispatch(other)),
+                  )(ParBlockNotInjective(block, other))(other.o)
+              }
+            implies.map(i => Implies(dispatch(i._1), res)(i._2)).getOrElse(res)
           }
         }
     })

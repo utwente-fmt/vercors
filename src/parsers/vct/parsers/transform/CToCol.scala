@@ -111,7 +111,8 @@ case class CToCol[G](
           contract =>
             new CFunctionDefinition(
               contract.consumeApplicableContract(blame(funcDef)),
-              convert(declSpecs),
+              convert(declSpecs) ++
+                contract.consumeOpt(contract.extract_gpu_body),
               convert(declarator),
               convert(body),
             )(blame(funcDef)),
@@ -220,7 +221,6 @@ case class CToCol[G](
           case "_Bool" => CBool()
           case _ => ??(typeSpec)
         }
-//    case TypeSpecifier1(_, _, _, _) => ??(typeSpec)
       case TypeSpecifier1(valType) => CSpecificationType(convert(valType))
       case TypeSpecifier2(_) => ??(typeSpec)
       case TypeSpecifier3(struct) => convert(struct)
@@ -373,7 +373,6 @@ case class CToCol[G](
   def convert(implicit list: GccAttributeContext): Option[CTypeExtensions[G]] =
     list match {
       case GccAttribute0(name, args) =>
-//      Some(CTypeAttribute(name, args.map(convert(_)).getOrElse(Seq())))
         Some(
           CTypeAttribute(convert(name), args.map(convert(_)).getOrElse(Seq()))
         )
@@ -1159,6 +1158,11 @@ case class CToCol[G](
   ): Unit =
     contract match {
       case ValEmbedContract0(blocks) => blocks.foreach(convert(_, collector))
+      case ValEmbedContract1(_, extract, clauses, _, blocks) =>
+        clauses.foreach(convert(_, collector))
+        blocks.foreach(convert(_, collector))
+        collector.extract_gpu_body +=
+          ((contract, CExtractGPUKernelBody()(OriginProvider(contract))))
     }
 
   def convert(
@@ -1496,6 +1500,34 @@ case class CToCol[G](
             decreases,
             _,
             clauses,
+            _,
+            _,
+            body,
+            _,
+            _,
+            _,
+          ) =>
+        Extract(
+          withContract(
+            clauses,
+            contract => {
+              FramedProof(
+                AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+                Block(body.map(convert(_))),
+                AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+              )(blame(block))
+            },
+          ),
+          decreases.map(convert(_)),
+        )(blame(block))
+      case ValEmbedStatementBlock5(
+            _,
+            _,
+            decreases,
+            _,
+            _,
+            clauses,
+            _,
             _,
             _,
             body,

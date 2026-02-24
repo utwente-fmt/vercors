@@ -12,6 +12,8 @@ import vct.col.ast.{
   TAnyValue,
   TBool,
   TCInt,
+  TCheckedInt,
+  TConst,
   TInt,
   TProcess,
   TRational,
@@ -24,6 +26,9 @@ import vct.col.origin.Origin
 import vct.col.resolve.lang.C
 import vct.col.typerules.{CoercionUtils, TypeSize, Types}
 import vct.result.VerificationError
+import vct.result.VerificationError.Unreachable
+
+import scala.annotation.tailrec
 
 object BinOperatorTypes {
   def isCIntOp[G](lt: Type[G], rt: Type[G]): Boolean =
@@ -104,7 +109,17 @@ object BinOperatorTypes {
       case TypeSize.Minimally(_) => 0
     }
 
-  def getNumericType[G](lt: Type[G], rt: Type[G], o: Origin): Type[G] = {
+  @tailrec
+  def stripTypeAnnotations[G](t: Type[G]): Type[G] =
+    t match {
+      case TConst(it) => stripTypeAnnotations(it)
+      case TUnique(it, _) => stripTypeAnnotations(it)
+      case _ => t
+    }
+
+  def getNumericType[G](ltt: Type[G], rtt: Type[G], o: Origin): Type[G] = {
+    val lt = stripTypeAnnotations(ltt)
+    val rt = stripTypeAnnotations(rtt)
     if (isCIntOp(lt, rt))
       (lt, rt) match {
         case (l: BitwiseType[G], r: BitwiseType[G])
@@ -143,20 +158,34 @@ object BinOperatorTypes {
       }
     else if (isLLVMIntOp(lt, rt))
       Types.leastCommonSuperType(lt, rt).asInstanceOf[LLVMTInt[G]]
-    else if (isIntOp(lt, rt))
-      TInt[G]()
+    else if (isIntOp(lt, rt)) {
+      (lt, rt) match {
+        case (l @ TCheckedInt(gteL, ltL), TCheckedInt(gteR, ltR)) =>
+          if (gteL == gteR && ltL == ltR)
+            TCheckedInt[G](gteL, ltL)(l.blame)
+          // Refer to section 6.3.1 of the C standard for discussion on integer type rankings and type promotions
+          else
+            throw Unreachable("What to do when the checked ints conflict?")
+        case (TCheckedInt(_, _), _) | (_, TCheckedInt(_, _)) =>
+          // If one int is not a checked int, then it is a mathematical integer
+          TInt[G]()
+        case _ => TInt[G]()
+      }
+    }
     // TODO (AS): This TAnyValue check is because we do not yet have the correct types for pointer variables during
     //            LangLLVMToCol therefore querying the type of a binary operator which has operands whose values derive
     //            from the type of these pointers will yield the NumericBinError below. By making the dereference of
     //            these pointers return TAnyValue() and checking for it here we delay this check until a later pass.
     else if (lt == TAnyValue[G]() || rt == TAnyValue[G]())
       TAnyValue[G]()
-    else
+    else {
+
       getFloatMax[G](lt, rt) getOrElse
         (if (isRationalOp(lt, rt))
            TRational[G]()
          else
            throw NumericBinError(lt, rt, o))
+    }
   }
 }
 

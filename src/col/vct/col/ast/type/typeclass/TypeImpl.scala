@@ -80,7 +80,13 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
       override def dispatch(t: Type[G]): Type[G] =
         t match {
           case TVar(Ref(v)) => substitutions(v)
-          case other => rewriteDefault(other)
+          case old @ TCInt() =>
+            val cint = TCInt[G]()
+            cint.storedBits = old.storedBits
+            cint.signed = old.signed
+            cint.rank = old.rank
+            cint
+          case other => super.dispatch(other)
         }
     }
     Particularize.dispatch(this)

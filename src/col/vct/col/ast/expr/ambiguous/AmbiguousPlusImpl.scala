@@ -64,18 +64,6 @@ trait AmbiguousPlusImpl[G]
       getCustomPlusOpType().get
     else
       getNumericType
-    if (isProcessOp)
-      TProcess()
-    else if (isSeqOp || isBagOp || isSetOp || isVectorOp)
-      Types.leastCommonSuperType(left.t, right.t)
-    else if (isPointerOp)
-      left.t
-    else if (isStringOp)
-      TString()
-    else if (getCustomPlusOpType().isDefined)
-      getCustomPlusOpType().get
-    else
-      getNumericType
   }
 
   override def precedence: Int = Precedence.ADDITIVE

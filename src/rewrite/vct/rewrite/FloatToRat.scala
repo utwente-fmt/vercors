@@ -127,13 +127,13 @@ case class FloatToRat[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
       case CastFloat(e, t) if e.t == t => dispatch(e)
-      case CastFloat(e, t: TFloat[Pre]) if e.t.isInstanceOf[TFloat[Pre]] =>
+      case CastFloat(WithExactType(e, _: TFloat[Pre]), t: TFloat[Pre]) =>
         dispatch(e)
       case c @ CastFloat(e, t: TFloat[Pre])
           if CoercionUtils.getCoercion(e.t, TInt()).isDefined =>
         implicit val o: Origin = c.o
         dispatch(e) /:/ const(1)
-      case c @ CastFloat(e, t: TInt[Pre]) if e.t.isInstanceOf[TFloat[Pre]] =>
+      case c @ CastFloat(WithExactType(e, _: TFloat[Pre]), t: TInt[Pre]) =>
         SmtlibToInt[Post](dispatch(e))(CastFuncOrigin("to_int"))
       case CastFloat(_, _) => ???
       case f @ FloatValue(num, _) =>

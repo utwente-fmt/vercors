@@ -259,6 +259,9 @@ case object Options {
       ).text(
         "Optimizes runtime at the cost of progress logging and readability of error messages. Implies --dev-no-sat."
       ),
+      opt[Unit]("dev-time-backend").maybeHidden()
+        .action((_, c) => c.copy(devTimeBackend = true))
+        .text("Will display the time spend during the back end verification."),
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -330,6 +333,10 @@ case object Options {
       ).text(
         "Replace bitwise operations (&, |, ^, <<, >>, ~) with opaque functions"
       ),
+      opt[Unit]("check-integer-bounds")
+        .action((_, c) => c.copy(checkIntegerBounds = true)).text(
+          "Check for integer bounds, currently only C is supported. Make sure to set the target so that sizes are known"
+        ),
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
@@ -513,6 +520,7 @@ case class Options(
     generatePermissions: Boolean = false,
     targetString: Option[String] = None,
     opaqueBitwiseOperators: Boolean = false,
+    checkIntegerBounds: Boolean = false,
 
     // Verify options - hidden
     devParserReportAmbiguities: Boolean = false,
@@ -537,6 +545,7 @@ case class Options(
     devCarbonBoogieLogFile: Option[Path] = None,
     devViperProverLogFile: Option[Path] = None,
     devUnsafeOptimization: Boolean = false,
+    devTimeBackend: Boolean = false,
 
     // VeyMont options
     veymontOutput: Option[Path] = None,
