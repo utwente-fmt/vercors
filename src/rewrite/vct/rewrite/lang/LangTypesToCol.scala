@@ -257,6 +257,7 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
         val cint = TCInt[Post]()
         cint.storedBits = t.storedBits
         cint.signed = t.signed
+        cint.rank = t.rank
         cint
       case t: LLVMTStruct[Pre] => super.dispatch(structTypeMap(t))
       case other =>

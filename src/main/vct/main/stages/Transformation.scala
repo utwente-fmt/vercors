@@ -29,10 +29,12 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
+  CTypeConversions,
   DisambiguateLocation,
   DisambiguatePredicateExpression,
   EncodeAssuming,
   EncodeAutoValue,
+  EncodeBoundsChecks,
   EncodeByValueClassUsage,
   EncodeIntegerPointerCast,
   EncodePointerArrays,
@@ -183,6 +185,8 @@ object Transformation extends LazyLogging {
           veymontPermissionStratificationMode =
             options.veymontPermissionStratificationMode,
           opaqueBitwiseOperators = options.opaqueBitwiseOperators,
+          checkIntegerBounds = options.checkIntegerBounds,
+          unsetTarget = options.targetString.isEmpty,
         )
     }
 
@@ -361,10 +365,13 @@ case class SilverTransformation(
     veymontPermissionStratificationMode: PermissionStratificationMode =
       PermissionStratificationMode.Wrap,
     opaqueBitwiseOperators: Boolean = false,
+    checkIntegerBounds: Boolean = false,
+    unsetTarget: Boolean = true,
 ) extends Transformation(
       onPassEvent,
       Seq(
-        CFloatIntCoercion,
+        CTypeConversions.withArg(checkIntegerBounds, unsetTarget),
+        EncodeBoundsChecks,
         // Replace leftover SYCL types
         ReplaceSYCLTypes,
         TypeQualifierCoercion,
@@ -458,6 +465,8 @@ case class SilverTransformation(
       ) ++ simplifyAfterRelations ++ Seq(
         UntupledQuantifiers,
 
+        // Resolve scale before encoding proof helpers, for easier access to annotation info.
+        ResolveScale,
         // Encode proof helpers
         EncodeProofHelpers.withArg(inferHeapContextIntoFrame),
         ImportSetCompat.withArg(adtImporter),
@@ -472,7 +481,6 @@ case class SilverTransformation(
         ResolveExpressionSideChecks,
         ResolveExpressionSideEffects,
         EncodeTryThrowSignals,
-        ResolveScale,
         MonomorphizeClass,
         // No more classes
         ClassToRef,

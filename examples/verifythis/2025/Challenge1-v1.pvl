@@ -1,0 +1,100 @@
+requires (\forall int i; i in xs; {: i in ys :});
+ensures |xs| <= |ys|;
+ensures \result;
+opaque pure boolean pigeon(set<int> xs, set<int> ys) =
+    |xs| > 0 
+        ? pigeon(xs - {\choose(xs)}, ys - {\choose(xs)})
+        : true;
+
+ensures (\forall int i; {:1:i in xs:} == {:2:i in \result:});
+ensures |xs| >= |\result|;
+opaque pure set<int> toSet(seq<int> xs) = |xs| == 0 ? set<int> {} : {xs.head} + toSet(xs.tail);
+
+requires xs != null ** Perm(xs[*], 1);
+pure boolean inArr(int x, int[] xs) = inArr(x, xs, 0, xs.length);
+
+requires xs != null ** Perm(xs[*], 1);
+requires i in {0 .. xs.length + 1};
+pure boolean inArr(int x, int[] xs, int i) = inArr(x, xs, i, xs.length);
+
+requires xs != null ** Perm(xs[*], 1);
+requires l in {0 .. xs.length + 1} ** h in {0 .. xs.length + 1};
+pure boolean inArr(int x, int[] xs, int l, int h) = (\exists int i = l .. h; xs[i] == x);
+
+requires xs != null ** Perm(xs[*], 1);
+requires i in {0 .. xs.length + 1};
+ensures (\forall int k; {:1:inArr(k, xs, i):} == {:2:k in \result:});
+ensures |\result| <= xs.length - i;
+pure set<int> toSet(int[] xs, int i) = i == xs.length ? set<int> {} : {xs[i]} + toSet(xs, i + 1);
+
+requires xs != null ** Perm(xs[*], 1);
+ensures (\forall int k; {:1:inArr(k, xs):} == {:2:k in \result:});
+ensures |\result| <= xs.length;
+opaque pure set<int> toSet(int[] xs) = toSet(xs, 0);
+
+requires sub <= super;
+requires |sub| == |super|;
+ensures sub == super;
+ensures \result;
+pure boolean equalLengthSubsetIsEqual(set<int> sub, set<int> super) = |super - sub| > 0 ? \choose(super - sub) in sub : true;
+
+// TODO: try formulation without inArr, just toSet?
+
+// TODO: This could be a par block!!!
+given rational P;
+context 0 < P && P < 1;
+context a != null ** Perm(a[*], P) ** seen != null ** Perm(seen[*], P) ** a.length == seen.length;
+requires i in {0 .. a.length} ** j in {0 .. a.length + 1} ** a[i] == x;
+requires (\forall int k = j .. a.length; k != x; seen[k] == inArr(k, a, 0, i));
+ensures (\forall int k = j .. a.length; k != x; seen[k] == inArr(k, a, 0, i+1));
+void incrementSeenInArr(int[] a, boolean[] seen, int i, int j, int x) {
+    if (j == a.length) {
+        // done
+    } else {
+        if (x != j) {
+            assert seen[j] == inArr(j, a, 0, i);
+            assert a[i] != j;
+            assert seen[j] == inArr(j, a, 0, i + 1);
+        }
+        assert x != j ==> seen[j] == inArr(j, a, 0, i + 1);
+        incrementSeenInArr(a, seen, i, j + 1, x) given { P = P \ 2 };
+        assert (\forall int k = j + 1 .. a.length; k != x; seen[k] == inArr(k, a, 0, i + 1));
+        assert (\forall int k = j .. a.length; k != x; seen[k] == inArr(k, a, 0, i + 1));
+    }
+}
+
+requires a != null ** Perm(a[*], 1\2);
+ensures Perm(a[*], 1\2);
+ensures \result in {0 .. a.length + 1};
+ensures !inArr(\result, a);
+ensures (∀int k = 0 .. \result; {: inArr(k, a) :});
+int mex1(int[] a) {
+    int n = a.length;
+    boolean[] seen = new boolean[n];
+
+    loop_invariant Perm(a[*], 1\3) ** Perm(seen[*], 1);
+    loop_invariant (\forall int k = 0 .. n; {: seen[k] :} == {: inArr(k, a, 0, i) :});
+    for (int i = 0 .. n) {
+        int x = a[i];
+        if (0 <= x && x < n) {
+            seen[x] = true;
+        }
+        incrementSeenInArr(a, seen, i, 0, x) given { P = 1\100 };
+    }
+
+    int r = 0;
+    loop_invariant Perm(a[*], 1\3) ** Perm(seen[*], 1\2);
+    loop_invariant (\forall int k = 0 .. n; seen[k] == inArr(k, a));
+    loop_invariant r in {0 .. n + 1};
+    loop_invariant toSet(a).intersect({0 .. r}) == {0 .. r};
+    while (r < n && seen[r]) {
+        r++;
+    }
+
+    if (r == n) {
+        pigeon({0 .. n}, toSet(a));
+        assert equalLengthSubsetIsEqual({0 .. n}, toSet(a));
+    }
+
+    return r;
+}

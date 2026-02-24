@@ -574,7 +574,7 @@ case class LangSpecificToCol[Pre <: Generation](
 
       case cmp: AmbiguousComparison[Pre] => c.rewriteComparison(cmp)
       case ord: AmbiguousOrderOp[Pre] => c.rewriteComparison(ord)
-
+      case old: Old[Pre] if c.inRequiresOfKernel => dispatch(old.expr)
       case other => super.dispatch(other)
     }
 
@@ -600,6 +600,7 @@ case class LangSpecificToCol[Pre <: Generation](
         case t: TCInt[Pre] =>
           val cint = t.rewriteDefault()
           cint.signed = t.signed
+          cint.rank = t.rank
           cint
         case t: CTArray[Pre] => c.arrayType(t)
         case t: CTStruct[Pre] => c.structType(t)

@@ -11,11 +11,12 @@ class PermissionSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/permissions/IncrFail.java"
   vercors should verify using silicon example "concepts/permissions/IncrPass.java"
   vercors should verify using silicon example "concepts/permissions/MultiIncrement.java"
-  vercors should verify using silicon example "concepts/permissions/RosterFixed.java"
+  vercors should verify using silicon example "concepts/permissions/Roster.java"
   vercors should verify using silicon example "concepts/permissions/SwapIntegerFail.java"
   vercors should verify using silicon example "concepts/permissions/SwapIntegerPass.java"
   vercors should verify using silicon example "concepts/permissions/SwapLong.java"
   vercors should verify using silicon example "concepts/permissions/SwapLongTwice.java"
   vercors should verify using silicon example "concepts/permissions/SwapLongWrong.java"
   vercors should verify using silicon example "concepts/permissions/frame_error_1.pvl"
+  vercors should verify using silicon example "concepts/permissions/DwLock.pvl"
 }
