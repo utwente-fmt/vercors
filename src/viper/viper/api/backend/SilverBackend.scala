@@ -244,6 +244,7 @@ trait SilverBackend
                 case reasons.MagicWandChunkNotFound(n) => n
                 case reasons.AssertionFalse(n) => n
                 case reasons.NegativePermission(n) => n
+                case reasons.QPAssertionNotInjective(n) => n
               }
             val (bl, assert) = info(offNode).asserting.map(n => (n.blame, n))
               .getOrElse[(blame.Blame[blame.AssertFailed], Node[_])](
