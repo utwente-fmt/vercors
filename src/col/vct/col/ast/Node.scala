@@ -3929,10 +3929,17 @@ final class LLVMGlobalVariable[G](
 sealed trait LLVMFunctionType[G]
     extends NodeFamily[G] with LLVMFunctionTypeImpl[G]
 
+// Regular function
 final case class NormalFunction[G]()(implicit val o: Origin)
     extends LLVMFunctionType[G] with NormalFunctionImpl[G]
+// Wrapper function that is used to encode specifications
 final case class WrapperFunction[G]()(implicit val o: Origin)
     extends LLVMFunctionType[G] with WrapperFunctionImpl[G]
+// Wrapper function that is used to encode ghost values
+// (i.e. does not necissarily return a resource. )
+final case class GhostWrapperFunction[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with GhostWrapperFunctionImpl[G]
+// Function that encodes the definition of a predicate
 final case class PredicateDefinition[G](val inlined: Boolean)(
     implicit val o: Origin
 ) extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]

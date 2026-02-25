@@ -11,6 +11,8 @@
 #pragma GCC diagnostic pop
 #endif // __GNUC__
 
+#include "IRSpec/PallasIRSpec.h"
+
 #include <memory>
 
 #include <llvm/IR/Function.h>
@@ -96,46 +98,15 @@ class PallasFunctionContractDeclarerPass
      * true otherwise. In case of an error, an error is added to the
      * ErrorReporter.
      * parentFunc is the function to which the contract is attached.
+     * The flag 'implicitArgs' indicates if the arguments of the
+     * parent function are implicitly encoded in the contract (i.e. in external
+     * or ghost contracts).
      */
     bool addClauseToContract(col::ApplicableContract &contract,
-                             Metadata *clauseOperand,
+                             const irspec::FunctionContract &irContract,
+                             unsigned int clauseIdx,
                              FunctionAnalysisManager &fam, Function &parentFunc,
-                             unsigned int clauseNum,
-                             const MDNode &contractSrcLoc,
                              const bool isExternal);
-
-    /**
-     * Tries to extract the wrapper-function from the given metadata-node that
-     * represents a clause of a Pallas contract (i.e. the operand at index 2
-     * is expected to point to a function).
-     * Also checks, if the function is marked as a wrapper-function.
-     * Returns a nullptr id the function could not be extracted.
-     * ctxFunc is used to build error messages.
-     */
-    Function *getWrapperFuncFromClause(MDNode &clause, Function &ctxFunc);
-
-    /**
-     * Resolve the DIVariables from a given MD-nodes that encodes a contract-
-     * clause into col-variables.
-     */
-    std::optional<SmallVector<col::Variable *, 8>>
-    getContractArgs(const MDNode &clause, Function &parentFunc,
-                    FunctionAnalysisManager &fam);
-
-    /**
-     * Get the arguments for a call to a wrapper-function that is part of the
-     * given parent-function's contract.
-     */
-    std::optional<SmallVector<col::Variable *, 8>>
-    getExternalContractArgs(Function &parentFunc, FunctionAnalysisManager &fam);
-
-    /**
-     * Takes a function and a DIVariable that describes an argument of
-     * the original source-function and attempts to map the DIVariable
-     * to the corresponding argument of the llvm-function.
-     * If the mapping isnot possible, a nullptr is returned.
-     */
-    Argument *mapDIVarToArg(Function &f, DIVariable &diVar);
 
     /**
      * Initializes the given predicate 'newPred' such that it represents a split
@@ -155,6 +126,24 @@ class PallasFunctionContractDeclarerPass
      * and true is returned. Otherwise, false is returned.
      */
     bool hasConflictingContract(Function &f);
+
+    /**
+     * Determine the type of a ghost argument's definition.
+     * isGivenArg = true  --> Assumed to be given-arg
+     * isGivenArg = false --> Assumed to be yields-arg
+     * If the type cannot be determined, returns nullptr and adds error.
+     */
+    llvm::Type *getGhostArgType(const irspec::FunctionContract &contract,
+                                const llvm::MDNode &gArgMD, llvm::Function &f,
+                                bool isGivenArg);
+
+    /**
+     * Initializes the given col-variable (colVar) based on theg given
+     * ghost argument definition (gArgDef).
+     */
+    void transformGhostArg(const irspec::GhostArgDef &gArgDef,
+                           col::Variable *colVar, llvm::Type &type,
+                           llvm::Function &parentFunc);
 };
 } // namespace pallas
 #endif // PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H

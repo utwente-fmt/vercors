@@ -5,7 +5,7 @@ add_library(Util STATIC
     PallasMD.cpp
     PallasWrapperUtils.cpp
 )
-target_link_libraries(Util Transform COL Origin)
+target_link_libraries(Util Transform COL Origin IRSpec)
 target_include_directories(Util PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
 )

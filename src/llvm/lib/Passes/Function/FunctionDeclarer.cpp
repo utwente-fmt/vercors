@@ -1,4 +1,5 @@
 #include "Passes/Function/FunctionDeclarer.h"
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Passes/Function/ExprWrapperMapper.h"
 
 #include "Origin/OriginProvider.h"
@@ -145,17 +146,25 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
     }
 
     // Set type-flag of the function
+    int numTypeDefs = 0;
+    numTypeDefs += irspec::isPallasExprWrapper(F) ? 1 : 0;
+    numTypeDefs += irspec::isPallasGhostWrapper(F) ? 1 : 0;
+    numTypeDefs += irspec::isPallasPredDef(F) ? 1 : 0;
+
     auto *fType = llvmFuncDef->mutable_function_type();
-    if (utils::isPallasExprWrapper(F) && utils::isPallasPredDef(F)) {
+    if (numTypeDefs > 1) {
         std::stringstream errorStream;
-        errorStream << "Functions may not be marked as both "
+        errorStream << "Functions may not be marked as both"
                     << " a wrapper AND a predicate definition!";
         pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
-    } else if (utils::isPallasExprWrapper(F)) {
+    } else if (irspec::isPallasExprWrapper(F)) {
         fType->mutable_wrapper_function()->set_allocated_origin(
             llvm2col::generateFuncDefOrigin(F));
-    } else if (utils::isPallasPredDef(F)) {
-        auto isInline = utils::isPallasPredInline(F);
+    } else if (irspec::isPallasGhostWrapper(F)) {
+        fType->mutable_ghost_wrapper_function()->set_allocated_origin(
+            llvm2col::generateFuncDefOrigin(F));
+    } else if (irspec::isPallasPredDef(F)) {
+        auto isInline = irspec::isPallasPredInline(F);
         if (isInline.has_value()) {
             auto *predTy = fType->mutable_predicate_definition();
             predTy->set_allocated_origin(llvm2col::generateFuncDefOrigin(F));
@@ -169,7 +178,7 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
             llvm2col::generateFuncDefOrigin(F));
     }
 
-    if (utils::isPallasExprWrapper(F)) {
+    if (irspec::isPallasExprWrapper(F) || irspec::isPallasGhostWrapper(F)) {
         auto mapperResult = FAM.getResult<pallas::ExprWrapperMapper>(F);
         auto *wrapperParent = mapperResult.getParentFunc();
         if (wrapperParent == nullptr) {

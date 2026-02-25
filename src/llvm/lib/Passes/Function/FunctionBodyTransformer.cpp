@@ -113,6 +113,10 @@ FDResult &FunctionCursor::getFDResult(Function &otherLLVMFunction) {
     return FAM.getResult<FunctionDeclarer>(otherLLVMFunction);
 }
 
+FDCResult &FunctionCursor::getFDCResult(llvm::Function &otherLLVMFunction) {
+    return FAM.getResult<FunctionContractDeclarer>(otherLLVMFunction);
+}
+
 col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction,
                                                Type *llvmPointerType) {
     col::Variable *varDecl;

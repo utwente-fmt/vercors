@@ -7,7 +7,7 @@ target triple = "x86_64-unknown-linux-gnu"
 
 @"\01l_entry_point" = private constant { i32, i32 } { i32 trunc (i64 sub (i64 ptrtoint (ptr @main to i64), i64 ptrtoint (ptr @"\01l_entry_point" to i64)) to i32), i32 0 }, section "swift5_entry", align 4
 @_swift1_autolink_entries = private constant [102 x i8] c"-lswiftSwiftOnoneSupport\00-lswiftCore\00-lswift_Concurrency\00-lswift_StringProcessing\00-lswift_RegexParser\00", section ".swift1_autolink_entries", no_sanitize_address, align 8
-@llvm.used = appending global [12 x ptr] [ptr @main, ptr @"$s13tmp_ir_source6fibRecyS2iF", ptr @"$s13tmp_ir_source5fibItyS2iF", ptr @"\01l_entry_point", ptr @__swift_reflection_version, ptr @_swift1_autolink_entries, ptr @"$s13tmp_ir_source13PALLAS_SPEC_01nSbSi_tF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_11nSbSi_tF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_21nSbSi_tF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_51n7prevRes3res1iSbSi_S3itF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_41n7prevRes3res1iSbSi_S3itF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_31n7prevRes3res1iSbSi_S3itF"], section "llvm.metadata"
+@llvm.used = appending global [12 x ptr] [ptr @main, ptr @"$s13tmp_ir_source6fibRecyS2iF", ptr @"$s13tmp_ir_source5fibItyS2iF", ptr @"\01l_entry_point", ptr @__swift_reflection_version, ptr @_swift1_autolink_entries, ptr @"$s13tmp_ir_source13PALLAS_SPEC_01nSbSi_tF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_11nSbSi_tF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_21nSbSi_tF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_41n7prevRes3res1iSbSi_S3itF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_31n7prevRes3res1iSbSi_S3itF", ptr @"$s13tmp_ir_source13PALLAS_SPEC_51n7prevRes3res1iSbSi_S3itF"], section "llvm.metadata"
 @".str.35.tmp_ir_source/source_wrappers.swift" = private unnamed_addr constant [36 x i8] c"tmp_ir_source/source_wrappers.swift\00"
 @".str.11.Fatal error" = private unnamed_addr constant [12 x i8] c"Fatal error\00"
 @__swift_reflection_version = linkonce_odr hidden constant i16 3
@@ -19,61 +19,61 @@ entry:
 
 define hidden swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %0) #0 !dbg !53 !pallas.fcontract !62 {
 entry:
-  call void @llvm.dbg.value(metadata i64 %0, metadata !60, metadata !DIExpression()), !dbg !67
-  %1 = icmp eq i64 %0, 0, !dbg !68
-  br i1 %1, label %2, label %3, !dbg !68
+  call void @llvm.dbg.value(metadata i64 %0, metadata !60, metadata !DIExpression()), !dbg !74
+  %1 = icmp eq i64 %0, 0, !dbg !75
+  br i1 %1, label %2, label %3, !dbg !75
 
 2:                                                ; preds = %entry
-  br label %24, !dbg !70
+  br label %24, !dbg !77
 
 3:                                                ; preds = %entry
-  %4 = icmp eq i64 %0, 1, !dbg !72
-  br i1 %4, label %5, label %6, !dbg !72
+  %4 = icmp eq i64 %0, 1, !dbg !79
+  br i1 %4, label %5, label %6, !dbg !79
 
 5:                                                ; preds = %3
-  br label %24, !dbg !74
+  br label %24, !dbg !81
 
 6:                                                ; preds = %3
-  %7 = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %0, i64 1), !dbg !76
-  %8 = extractvalue { i64, i1 } %7, 0, !dbg !76
-  %9 = extractvalue { i64, i1 } %7, 1, !dbg !76
-  %10 = call i1 @llvm.expect.i1(i1 %9, i1 false), !dbg !76
-  br i1 %10, label %26, label %11, !dbg !76
+  %7 = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %0, i64 1), !dbg !83
+  %8 = extractvalue { i64, i1 } %7, 0, !dbg !83
+  %9 = extractvalue { i64, i1 } %7, 1, !dbg !83
+  %10 = call i1 @llvm.expect.i1(i1 %9, i1 false), !dbg !83
+  br i1 %10, label %26, label %11, !dbg !83
 
 11:                                               ; preds = %6
-  %12 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %8), !dbg !78
-  %13 = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %0, i64 2), !dbg !79
-  %14 = extractvalue { i64, i1 } %13, 0, !dbg !79
-  %15 = extractvalue { i64, i1 } %13, 1, !dbg !79
-  %16 = call i1 @llvm.expect.i1(i1 %15, i1 false), !dbg !79
-  br i1 %16, label %27, label %17, !dbg !79
+  %12 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %8), !dbg !85
+  %13 = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %0, i64 2), !dbg !86
+  %14 = extractvalue { i64, i1 } %13, 0, !dbg !86
+  %15 = extractvalue { i64, i1 } %13, 1, !dbg !86
+  %16 = call i1 @llvm.expect.i1(i1 %15, i1 false), !dbg !86
+  br i1 %16, label %27, label %17, !dbg !86
 
 17:                                               ; preds = %11
-  %18 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %14), !dbg !80
-  %19 = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %12, i64 %18), !dbg !81
-  %20 = extractvalue { i64, i1 } %19, 0, !dbg !81
-  %21 = extractvalue { i64, i1 } %19, 1, !dbg !81
-  %22 = call i1 @llvm.expect.i1(i1 %21, i1 false), !dbg !81
-  br i1 %22, label %28, label %23, !dbg !81
+  %18 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %14), !dbg !87
+  %19 = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %12, i64 %18), !dbg !88
+  %20 = extractvalue { i64, i1 } %19, 0, !dbg !88
+  %21 = extractvalue { i64, i1 } %19, 1, !dbg !88
+  %22 = call i1 @llvm.expect.i1(i1 %21, i1 false), !dbg !88
+  br i1 %22, label %28, label %23, !dbg !88
 
 23:                                               ; preds = %17
-  br label %24, !dbg !82
+  br label %24, !dbg !89
 
 24:                                               ; preds = %23, %5, %2
-  %25 = phi i64 [ %20, %23 ], [ 1, %5 ], [ 0, %2 ], !dbg !83
-  ret i64 %25, !dbg !83
+  %25 = phi i64 [ %20, %23 ], [ 1, %5 ], [ 0, %2 ], !dbg !90
+  ret i64 %25, !dbg !90
 
 26:                                               ; preds = %6
-  call void @llvm.trap(), !dbg !84
-  unreachable, !dbg !84
+  call void @llvm.trap(), !dbg !91
+  unreachable, !dbg !91
 
 27:                                               ; preds = %11
-  call void @llvm.trap(), !dbg !87
-  unreachable, !dbg !87
+  call void @llvm.trap(), !dbg !94
+  unreachable, !dbg !94
 
 28:                                               ; preds = %17
-  call void @llvm.trap(), !dbg !88
-  unreachable, !dbg !88
+  call void @llvm.trap(), !dbg !95
+  unreachable, !dbg !95
 }
 
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
@@ -91,101 +91,101 @@ declare void @llvm.trap() #3
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
 declare { i64, i1 } @llvm.sadd.with.overflow.i64(i64, i64) #1
 
-define hidden swiftcc i64 @"$s13tmp_ir_source5fibItyS2iF"(i64 %0) #0 !dbg !89 !pallas.fcontract !102 {
+define hidden swiftcc i64 @"$s13tmp_ir_source5fibItyS2iF"(i64 %0) #0 !dbg !96 !pallas.fcontract !109 {
 entry:
   %1 = alloca %TSi, align 8
-  call void @llvm.dbg.declare(metadata ptr %1, metadata !92, metadata !DIExpression()), !dbg !108
+  call void @llvm.dbg.declare(metadata ptr %1, metadata !99, metadata !DIExpression()), !dbg !123
   call void @llvm.memset.p0.i64(ptr align 8 %1, i8 0, i64 8, i1 false)
   %2 = alloca %TSi, align 8
-  call void @llvm.dbg.declare(metadata ptr %2, metadata !94, metadata !DIExpression()), !dbg !109
+  call void @llvm.dbg.declare(metadata ptr %2, metadata !101, metadata !DIExpression()), !dbg !124
   call void @llvm.memset.p0.i64(ptr align 8 %2, i8 0, i64 8, i1 false)
   %3 = alloca %TSi, align 8
-  call void @llvm.dbg.declare(metadata ptr %3, metadata !96, metadata !DIExpression()), !dbg !110
+  call void @llvm.dbg.declare(metadata ptr %3, metadata !103, metadata !DIExpression()), !dbg !125
   call void @llvm.memset.p0.i64(ptr align 8 %3, i8 0, i64 8, i1 false)
-  call void @llvm.dbg.value(metadata i64 %0, metadata !91, metadata !DIExpression()), !dbg !111
-  %4 = icmp eq i64 %0, 0, !dbg !112
-  br i1 %4, label %5, label %6, !dbg !112
+  call void @llvm.dbg.value(metadata i64 %0, metadata !98, metadata !DIExpression()), !dbg !126
+  %4 = icmp eq i64 %0, 0, !dbg !127
+  br i1 %4, label %5, label %6, !dbg !127
 
 5:                                                ; preds = %entry
-  br label %31, !dbg !114
+  br label %31, !dbg !129
 
 6:                                                ; preds = %entry
-  %7 = icmp eq i64 %0, 1, !dbg !116
-  br i1 %7, label %8, label %9, !dbg !116
+  %7 = icmp eq i64 %0, 1, !dbg !131
+  br i1 %7, label %8, label %9, !dbg !131
 
 8:                                                ; preds = %6
-  br label %31, !dbg !118
+  br label %31, !dbg !133
 
 9:                                                ; preds = %6
-  call void @llvm.lifetime.start.p0(i64 8, ptr %1), !dbg !120
-  %._value = getelementptr inbounds %TSi, ptr %1, i32 0, i32 0, !dbg !122
-  store i64 0, ptr %._value, align 8, !dbg !122
-  call void @llvm.lifetime.start.p0(i64 8, ptr %2), !dbg !124
-  %._value1 = getelementptr inbounds %TSi, ptr %2, i32 0, i32 0, !dbg !126
-  store i64 1, ptr %._value1, align 8, !dbg !126
-  call void @llvm.lifetime.start.p0(i64 8, ptr %3), !dbg !128
-  %._value2 = getelementptr inbounds %TSi, ptr %3, i32 0, i32 0, !dbg !130
-  store i64 2, ptr %._value2, align 8, !dbg !130
-  br label %10, !dbg !132
+  call void @llvm.lifetime.start.p0(i64 8, ptr %1), !dbg !135
+  %._value = getelementptr inbounds %TSi, ptr %1, i32 0, i32 0, !dbg !137
+  store i64 0, ptr %._value, align 8, !dbg !137
+  call void @llvm.lifetime.start.p0(i64 8, ptr %2), !dbg !139
+  %._value1 = getelementptr inbounds %TSi, ptr %2, i32 0, i32 0, !dbg !141
+  store i64 1, ptr %._value1, align 8, !dbg !141
+  call void @llvm.lifetime.start.p0(i64 8, ptr %3), !dbg !143
+  %._value2 = getelementptr inbounds %TSi, ptr %3, i32 0, i32 0, !dbg !145
+  store i64 2, ptr %._value2, align 8, !dbg !145
+  br label %10, !dbg !147
 
 10:                                               ; preds = %28, %9
-  %._value3 = getelementptr inbounds %TSi, ptr %3, i32 0, i32 0, !dbg !132
-  %11 = load i64, ptr %._value3, align 8, !dbg !132
-  %12 = icmp slt i64 %0, %11, !dbg !133
-  %13 = xor i1 %12, true, !dbg !133
-  br i1 %13, label %14, label %29, !dbg !133
+  %._value3 = getelementptr inbounds %TSi, ptr %3, i32 0, i32 0, !dbg !147
+  %11 = load i64, ptr %._value3, align 8, !dbg !147
+  %12 = icmp slt i64 %0, %11, !dbg !148
+  %13 = xor i1 %12, true, !dbg !148
+  br i1 %13, label %14, label %29, !dbg !148
 
 14:                                               ; preds = %10
-  %._value5 = getelementptr inbounds %TSi, ptr %1, i32 0, i32 0, !dbg !134
-  %15 = load i64, ptr %._value5, align 8, !dbg !134
-  %._value6 = getelementptr inbounds %TSi, ptr %2, i32 0, i32 0, !dbg !134
-  %16 = load i64, ptr %._value6, align 8, !dbg !134
-  %17 = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %15, i64 %16), !dbg !135
-  %18 = extractvalue { i64, i1 } %17, 0, !dbg !135
-  %19 = extractvalue { i64, i1 } %17, 1, !dbg !135
-  %20 = call i1 @llvm.expect.i1(i1 %19, i1 false), !dbg !135
-  br i1 %20, label %33, label %21, !dbg !135
+  %._value5 = getelementptr inbounds %TSi, ptr %1, i32 0, i32 0, !dbg !149
+  %15 = load i64, ptr %._value5, align 8, !dbg !149
+  %._value6 = getelementptr inbounds %TSi, ptr %2, i32 0, i32 0, !dbg !149
+  %16 = load i64, ptr %._value6, align 8, !dbg !149
+  %17 = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %15, i64 %16), !dbg !150
+  %18 = extractvalue { i64, i1 } %17, 0, !dbg !150
+  %19 = extractvalue { i64, i1 } %17, 1, !dbg !150
+  %20 = call i1 @llvm.expect.i1(i1 %19, i1 false), !dbg !150
+  br i1 %20, label %33, label %21, !dbg !150
 
 21:                                               ; preds = %14
-  call void @llvm.dbg.value(metadata i64 %18, metadata !98, metadata !DIExpression()), !dbg !137
-  %._value7 = getelementptr inbounds %TSi, ptr %2, i32 0, i32 0, !dbg !138
-  %22 = load i64, ptr %._value7, align 8, !dbg !138
-  %._value8 = getelementptr inbounds %TSi, ptr %1, i32 0, i32 0, !dbg !138
-  store i64 %22, ptr %._value8, align 8, !dbg !138
-  %._value9 = getelementptr inbounds %TSi, ptr %2, i32 0, i32 0, !dbg !139
-  store i64 %18, ptr %._value9, align 8, !dbg !139
-  %._value10 = getelementptr inbounds %TSi, ptr %3, i32 0, i32 0, !dbg !140
-  %23 = load i64, ptr %._value10, align 8, !dbg !140
-  %24 = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %23, i64 1), !dbg !140
-  %25 = extractvalue { i64, i1 } %24, 0, !dbg !140
-  %26 = extractvalue { i64, i1 } %24, 1, !dbg !140
-  %27 = call i1 @llvm.expect.i1(i1 %26, i1 false), !dbg !140
-  br i1 %27, label %34, label %28, !dbg !140
+  call void @llvm.dbg.value(metadata i64 %18, metadata !105, metadata !DIExpression()), !dbg !152
+  %._value7 = getelementptr inbounds %TSi, ptr %2, i32 0, i32 0, !dbg !153
+  %22 = load i64, ptr %._value7, align 8, !dbg !153
+  %._value8 = getelementptr inbounds %TSi, ptr %1, i32 0, i32 0, !dbg !153
+  store i64 %22, ptr %._value8, align 8, !dbg !153
+  %._value9 = getelementptr inbounds %TSi, ptr %2, i32 0, i32 0, !dbg !154
+  store i64 %18, ptr %._value9, align 8, !dbg !154
+  %._value10 = getelementptr inbounds %TSi, ptr %3, i32 0, i32 0, !dbg !155
+  %23 = load i64, ptr %._value10, align 8, !dbg !155
+  %24 = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %23, i64 1), !dbg !155
+  %25 = extractvalue { i64, i1 } %24, 0, !dbg !155
+  %26 = extractvalue { i64, i1 } %24, 1, !dbg !155
+  %27 = call i1 @llvm.expect.i1(i1 %26, i1 false), !dbg !155
+  br i1 %27, label %34, label %28, !dbg !155
 
 28:                                               ; preds = %21
-  %._value11 = getelementptr inbounds %TSi, ptr %3, i32 0, i32 0, !dbg !140
-  store i64 %25, ptr %._value11, align 8, !dbg !140
-  br label %10, !dbg !141, !llvm.loop !142
+  %._value11 = getelementptr inbounds %TSi, ptr %3, i32 0, i32 0, !dbg !155
+  store i64 %25, ptr %._value11, align 8, !dbg !155
+  br label %10, !dbg !156, !llvm.loop !157
 
 29:                                               ; preds = %10
-  %._value4 = getelementptr inbounds %TSi, ptr %2, i32 0, i32 0, !dbg !151
-  %30 = load i64, ptr %._value4, align 8, !dbg !151
-  call void @llvm.lifetime.end.p0(i64 8, ptr %3), !dbg !152
-  call void @llvm.lifetime.end.p0(i64 8, ptr %2), !dbg !152
-  call void @llvm.lifetime.end.p0(i64 8, ptr %1), !dbg !152
-  br label %31, !dbg !152
+  %._value4 = getelementptr inbounds %TSi, ptr %2, i32 0, i32 0, !dbg !198
+  %30 = load i64, ptr %._value4, align 8, !dbg !198
+  call void @llvm.lifetime.end.p0(i64 8, ptr %3), !dbg !199
+  call void @llvm.lifetime.end.p0(i64 8, ptr %2), !dbg !199
+  call void @llvm.lifetime.end.p0(i64 8, ptr %1), !dbg !199
+  br label %31, !dbg !199
 
 31:                                               ; preds = %29, %8, %5
-  %32 = phi i64 [ %30, %29 ], [ 1, %8 ], [ 0, %5 ], !dbg !153
-  ret i64 %32, !dbg !153
+  %32 = phi i64 [ %30, %29 ], [ 1, %8 ], [ 0, %5 ], !dbg !200
+  ret i64 %32, !dbg !200
 
 33:                                               ; preds = %14
-  call void @llvm.trap(), !dbg !154
-  unreachable, !dbg !154
+  call void @llvm.trap(), !dbg !201
+  unreachable, !dbg !201
 
 34:                                               ; preds = %21
-  call void @llvm.trap(), !dbg !155
-  unreachable, !dbg !155
+  call void @llvm.trap(), !dbg !202
+  unreachable, !dbg !202
 }
 
 ; Function Attrs: nocallback nofree nosync nounwind willreturn memory(argmem: readwrite)
@@ -200,110 +200,110 @@ declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 ; Function Attrs: nocallback nofree nosync nounwind willreturn memory(argmem: readwrite)
 declare void @llvm.lifetime.end.p0(i64 immarg, ptr nocapture) #4
 
-define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_01nSbSi_tF"(i64 %0) #0 !dbg !156 !pallas.exprWrapper !160 {
+define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_01nSbSi_tF"(i64 %0) #0 !dbg !70 !pallas.exprWrapper !203 {
 entry:
-  call void @llvm.dbg.value(metadata i64 %0, metadata !161, metadata !DIExpression()), !dbg !162
-  %1 = icmp slt i64 %0, 0, !dbg !163
-  %2 = xor i1 %1, true, !dbg !163
-  ret i1 %2, !dbg !162
+  call void @llvm.dbg.value(metadata i64 %0, metadata !69, metadata !DIExpression()), !dbg !204
+  %1 = icmp slt i64 %0, 0, !dbg !205
+  %2 = xor i1 %1, true, !dbg !205
+  ret i1 %2, !dbg !204
 }
 
-define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_11nSbSi_tF"(i64 %0) #0 !dbg !164 !pallas.exprWrapper !160 {
+define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_11nSbSi_tF"(i64 %0) #0 !dbg !116 !pallas.exprWrapper !203 {
 entry:
-  call void @llvm.dbg.value(metadata i64 %0, metadata !165, metadata !DIExpression()), !dbg !166
-  %1 = icmp slt i64 %0, 0, !dbg !167
-  %2 = xor i1 %1, true, !dbg !167
-  ret i1 %2, !dbg !166
+  call void @llvm.dbg.value(metadata i64 %0, metadata !115, metadata !DIExpression()), !dbg !206
+  %1 = icmp slt i64 %0, 0, !dbg !207
+  %2 = xor i1 %1, true, !dbg !207
+  ret i1 %2, !dbg !206
 }
 
-define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_21nSbSi_tF"(i64 %0) #0 !dbg !168 !pallas.exprWrapper !160 {
+define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_21nSbSi_tF"(i64 %0) #0 !dbg !122 !pallas.exprWrapper !203 {
 entry:
-  call void @llvm.dbg.value(metadata i64 %0, metadata !169, metadata !DIExpression()), !dbg !170
-  %1 = call i64 @"pallas.result i64"(), !dbg !171
-  %2 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %0), !dbg !172
-  %3 = icmp eq i64 %1, %2, !dbg !173
-  ret i1 %3, !dbg !170
+  call void @llvm.dbg.value(metadata i64 %0, metadata !121, metadata !DIExpression()), !dbg !208
+  %1 = call i64 @"pallas.result i64"(), !dbg !209
+  %2 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %0), !dbg !210
+  %3 = icmp eq i64 %1, %2, !dbg !211
+  ret i1 %3, !dbg !208
 }
 
-define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_51n7prevRes3res1iSbSi_S3itF"(i64 %0, i64 %1, i64 %2, i64 %3) #0 !dbg !174 !pallas.exprWrapper !160 {
+define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_41n7prevRes3res1iSbSi_S3itF"(i64 %0, i64 %1, i64 %2, i64 %3) #0 !dbg !179 !pallas.exprWrapper !203 {
 entry:
-  call void @llvm.dbg.value(metadata i64 %0, metadata !177, metadata !DIExpression()), !dbg !178
-  call void @llvm.dbg.value(metadata i64 %1, metadata !179, metadata !DIExpression()), !dbg !178
-  call void @llvm.dbg.value(metadata i64 %2, metadata !180, metadata !DIExpression()), !dbg !178
-  call void @llvm.dbg.value(metadata i64 %3, metadata !181, metadata !DIExpression()), !dbg !178
-  %4 = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %3, i64 1), !dbg !182
-  %5 = extractvalue { i64, i1 } %4, 0, !dbg !182
-  %6 = extractvalue { i64, i1 } %4, 1, !dbg !182
-  %7 = call i1 @llvm.expect.i1(i1 %6, i1 false), !dbg !182
-  br i1 %7, label %11, label %8, !dbg !182
+  call void @llvm.dbg.value(metadata i64 %0, metadata !178, metadata !DIExpression()), !dbg !212
+  call void @llvm.dbg.value(metadata i64 %1, metadata !181, metadata !DIExpression()), !dbg !212
+  call void @llvm.dbg.value(metadata i64 %2, metadata !183, metadata !DIExpression()), !dbg !212
+  call void @llvm.dbg.value(metadata i64 %3, metadata !185, metadata !DIExpression()), !dbg !212
+  %4 = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %3, i64 2), !dbg !213
+  %5 = extractvalue { i64, i1 } %4, 0, !dbg !213
+  %6 = extractvalue { i64, i1 } %4, 1, !dbg !213
+  %7 = call i1 @llvm.expect.i1(i1 %6, i1 false), !dbg !213
+  br i1 %7, label %11, label %8, !dbg !213
 
 8:                                                ; preds = %entry
-  %9 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %5), !dbg !183
-  %10 = icmp eq i64 %1, %9, !dbg !184
-  ret i1 %10, !dbg !178
+  %9 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %5), !dbg !214
+  %10 = icmp eq i64 %2, %9, !dbg !215
+  ret i1 %10, !dbg !212
 
 11:                                               ; preds = %entry
-  call void @llvm.trap(), !dbg !185
-  unreachable, !dbg !185
+  call void @llvm.trap(), !dbg !216
+  unreachable, !dbg !216
 }
 
-define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_41n7prevRes3res1iSbSi_S3itF"(i64 %0, i64 %1, i64 %2, i64 %3) #0 !dbg !187 !pallas.exprWrapper !160 {
+define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_31n7prevRes3res1iSbSi_S3itF"(i64 %0, i64 %1, i64 %2, i64 %3) #0 !dbg !165 !pallas.exprWrapper !203 {
 entry:
-  call void @llvm.dbg.value(metadata i64 %0, metadata !188, metadata !DIExpression()), !dbg !189
-  call void @llvm.dbg.value(metadata i64 %1, metadata !190, metadata !DIExpression()), !dbg !189
-  call void @llvm.dbg.value(metadata i64 %2, metadata !191, metadata !DIExpression()), !dbg !189
-  call void @llvm.dbg.value(metadata i64 %3, metadata !192, metadata !DIExpression()), !dbg !189
-  %4 = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %3, i64 2), !dbg !193
-  %5 = extractvalue { i64, i1 } %4, 0, !dbg !193
-  %6 = extractvalue { i64, i1 } %4, 1, !dbg !193
-  %7 = call i1 @llvm.expect.i1(i1 %6, i1 false), !dbg !193
-  br i1 %7, label %11, label %8, !dbg !193
-
-8:                                                ; preds = %entry
-  %9 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %5), !dbg !194
-  %10 = icmp eq i64 %2, %9, !dbg !195
-  ret i1 %10, !dbg !189
-
-11:                                               ; preds = %entry
-  call void @llvm.trap(), !dbg !196
-  unreachable, !dbg !196
-}
-
-define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_31n7prevRes3res1iSbSi_S3itF"(i64 %0, i64 %1, i64 %2, i64 %3) #0 !dbg !197 !pallas.exprWrapper !160 {
-entry:
-  call void @llvm.dbg.value(metadata i64 %0, metadata !198, metadata !DIExpression()), !dbg !199
-  call void @llvm.dbg.value(metadata i64 %1, metadata !200, metadata !DIExpression()), !dbg !199
-  call void @llvm.dbg.value(metadata i64 %2, metadata !201, metadata !DIExpression()), !dbg !199
-  call void @llvm.dbg.value(metadata i64 %3, metadata !202, metadata !DIExpression()), !dbg !199
-  %4 = icmp slt i64 %3, 2, !dbg !203
-  %5 = xor i1 %4, true, !dbg !203
-  %6 = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %0, i64 1), !dbg !204
-  %7 = extractvalue { i64, i1 } %6, 0, !dbg !204
-  %8 = extractvalue { i64, i1 } %6, 1, !dbg !204
-  %9 = call i1 @llvm.expect.i1(i1 %8, i1 false), !dbg !204
-  br i1 %9, label %14, label %10, !dbg !204
+  call void @llvm.dbg.value(metadata i64 %0, metadata !164, metadata !DIExpression()), !dbg !218
+  call void @llvm.dbg.value(metadata i64 %1, metadata !169, metadata !DIExpression()), !dbg !218
+  call void @llvm.dbg.value(metadata i64 %2, metadata !171, metadata !DIExpression()), !dbg !218
+  call void @llvm.dbg.value(metadata i64 %3, metadata !173, metadata !DIExpression()), !dbg !218
+  %4 = icmp slt i64 %3, 2, !dbg !219
+  %5 = xor i1 %4, true, !dbg !219
+  %6 = call { i64, i1 } @llvm.sadd.with.overflow.i64(i64 %0, i64 1), !dbg !220
+  %7 = extractvalue { i64, i1 } %6, 0, !dbg !220
+  %8 = extractvalue { i64, i1 } %6, 1, !dbg !220
+  %9 = call i1 @llvm.expect.i1(i1 %8, i1 false), !dbg !220
+  br i1 %9, label %14, label %10, !dbg !220
 
 10:                                               ; preds = %entry
-  %11 = icmp slt i64 %7, %3, !dbg !205
-  %12 = xor i1 %11, true, !dbg !205
-  %13 = call i1 @pallas.scAnd(i1 %5, i1 %12), !dbg !206
-  ret i1 %13, !dbg !199
+  %11 = icmp slt i64 %7, %3, !dbg !221
+  %12 = xor i1 %11, true, !dbg !221
+  %13 = call i1 @pallas.scAnd(i1 %5, i1 %12), !dbg !222
+  ret i1 %13, !dbg !218
 
 14:                                               ; preds = %entry
-  call void @llvm.trap(), !dbg !207
-  unreachable, !dbg !207
+  call void @llvm.trap(), !dbg !223
+  unreachable, !dbg !223
 }
 
-define linkonce_odr hidden swiftcc { i64, ptr } @"$ss10fatalError_4file4lines5NeverOSSyXK_s12StaticStringVSutFfA_SSycfu_"() #0 !dbg !208 {
+define hidden swiftcc i1 @"$s13tmp_ir_source13PALLAS_SPEC_51n7prevRes3res1iSbSi_S3itF"(i64 %0, i64 %1, i64 %2, i64 %3) #0 !dbg !191 !pallas.exprWrapper !203 {
+entry:
+  call void @llvm.dbg.value(metadata i64 %0, metadata !190, metadata !DIExpression()), !dbg !224
+  call void @llvm.dbg.value(metadata i64 %1, metadata !193, metadata !DIExpression()), !dbg !224
+  call void @llvm.dbg.value(metadata i64 %2, metadata !195, metadata !DIExpression()), !dbg !224
+  call void @llvm.dbg.value(metadata i64 %3, metadata !197, metadata !DIExpression()), !dbg !224
+  %4 = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 %3, i64 1), !dbg !225
+  %5 = extractvalue { i64, i1 } %4, 0, !dbg !225
+  %6 = extractvalue { i64, i1 } %4, 1, !dbg !225
+  %7 = call i1 @llvm.expect.i1(i1 %6, i1 false), !dbg !225
+  br i1 %7, label %11, label %8, !dbg !225
+
+8:                                                ; preds = %entry
+  %9 = call swiftcc i64 @"$s13tmp_ir_source6fibRecyS2iF"(i64 %5), !dbg !226
+  %10 = icmp eq i64 %1, %9, !dbg !227
+  ret i1 %10, !dbg !224
+
+11:                                               ; preds = %entry
+  call void @llvm.trap(), !dbg !228
+  unreachable, !dbg !228
+}
+
+define linkonce_odr hidden swiftcc { i64, ptr } @"$ss10fatalError_4file4lines5NeverOSSyXK_s12StaticStringVSutFfA_SSycfu_"() #0 !dbg !229 {
 entry:
   %bitcast = alloca i64, align 8
-  call void @llvm.lifetime.start.p0(i64 8, ptr %bitcast), !dbg !212
-  store i64 -2305843009213693952, ptr %bitcast, align 8, !dbg !212
-  %0 = load ptr, ptr %bitcast, align 8, !dbg !212
-  call void @llvm.lifetime.end.p0(i64 8, ptr %bitcast), !dbg !212
-  %1 = call ptr @swift_bridgeObjectRetain(ptr returned %0) #7, !dbg !212
-  %2 = insertvalue { i64, ptr } { i64 0, ptr undef }, ptr %0, 1, !dbg !212
-  ret { i64, ptr } %2, !dbg !212
+  call void @llvm.lifetime.start.p0(i64 8, ptr %bitcast), !dbg !233
+  store i64 -2305843009213693952, ptr %bitcast, align 8, !dbg !233
+  %0 = load ptr, ptr %bitcast, align 8, !dbg !233
+  call void @llvm.lifetime.end.p0(i64 8, ptr %bitcast), !dbg !233
+  %1 = call ptr @swift_bridgeObjectRetain(ptr returned %0) #7, !dbg !233
+  %2 = insertvalue { i64, ptr } { i64 0, ptr undef }, ptr %0, 1, !dbg !233
+  ret { i64, ptr } %2, !dbg !233
 }
 
 ; Function Attrs: noinline
@@ -312,9 +312,9 @@ declare swiftcc void @"$ss17_assertionFailure__4file4line5flagss5NeverOs12Static
 ; Function Attrs: nounwind
 declare ptr @swift_bridgeObjectRetain(ptr returned) #7
 
-declare !pallas.specLib !213 i64 @"pallas.result i64"()
+declare !pallas.specLib !234 i64 @"pallas.result i64"()
 
-declare !pallas.specLib !214 i1 @pallas.scAnd(i1, i1)
+declare !pallas.specLib !235 i1 @pallas.scAnd(i1, i1)
 
 attributes #0 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx16,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
@@ -392,156 +392,177 @@ attributes #7 = { nounwind }
 !59 = !{!60}
 !60 = !DILocalVariable(name: "n", arg: 1, scope: !53, file: !1, line: 10, type: !61)
 !61 = !DIDerivedType(tag: DW_TAG_const_type, baseType: !56)
-!62 = !{!63, i1 true, i1 false, !65}
+!62 = !{!63, i1 true, i1 false, !58, !58, !65}
 !63 = !{!"pallas.srcLoc", i64 6, i64 1, i64 9, i64 1, !64}
 !64 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_swift_fib_fail.swift", directory: "", checksumkind: CSK_MD5, checksum: "da01b154c5a7b8e58e6d5a9d78d27980")
-!65 = !{!"pallas.requires", !66, ptr @"$s13tmp_ir_source13PALLAS_SPEC_01nSbSi_tF", !60}
+!65 = !{!"pallas.requires", !66, ptr @"$s13tmp_ir_source13PALLAS_SPEC_01nSbSi_tF", !58, !58, !67}
 !66 = !{!"pallas.srcLoc", i64 8, i64 1, i64 8, i64 16, !64}
-!67 = !DILocation(line: 10, column: 13, scope: !53)
-!68 = !DILocation(line: 11, column: 11, scope: !69)
-!69 = distinct !DILexicalBlock(scope: !53, file: !1, line: 11, column: 5)
-!70 = !DILocation(line: 12, column: 9, scope: !71)
-!71 = distinct !DILexicalBlock(scope: !69, file: !1, line: 11, column: 17)
-!72 = !DILocation(line: 13, column: 18, scope: !73)
-!73 = distinct !DILexicalBlock(scope: !69, file: !1, line: 13, column: 12)
-!74 = !DILocation(line: 14, column: 9, scope: !75)
-!75 = distinct !DILexicalBlock(scope: !73, file: !1, line: 13, column: 24)
-!76 = !DILocation(line: 16, column: 25, scope: !77)
-!77 = distinct !DILexicalBlock(scope: !73, file: !1, line: 15, column: 12)
-!78 = !DILocation(line: 16, column: 16, scope: !77)
-!79 = !DILocation(line: 16, column: 41, scope: !77)
-!80 = !DILocation(line: 16, column: 32, scope: !77)
-!81 = !DILocation(line: 16, column: 30, scope: !77)
-!82 = !DILocation(line: 16, column: 9, scope: !77)
-!83 = !DILocation(line: 18, column: 1, scope: !77)
-!84 = !DILocation(line: 0, scope: !85, inlinedAt: !76)
-!85 = distinct !DISubprogram(name: "Swift runtime failure: arithmetic overflow", scope: !52, file: !52, type: !86, flags: DIFlagArtificial, spFlags: DISPFlagDefinition, unit: !0)
-!86 = !DISubroutineType(types: null)
-!87 = !DILocation(line: 0, scope: !85, inlinedAt: !79)
-!88 = !DILocation(line: 0, scope: !85, inlinedAt: !81)
-!89 = distinct !DISubprogram(name: "fibIt", linkageName: "$s13tmp_ir_source5fibItyS2iF", scope: !4, file: !1, line: 25, type: !54, scopeLine: 25, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !90)
-!90 = !{!91, !92, !94, !96, !98}
-!91 = !DILocalVariable(name: "n", arg: 1, scope: !89, file: !1, line: 25, type: !61)
-!92 = !DILocalVariable(name: "prevRes", scope: !93, file: !1, line: 32, type: !56)
-!93 = distinct !DILexicalBlock(scope: !89, file: !1, line: 32, column: 9)
-!94 = !DILocalVariable(name: "res", scope: !95, file: !1, line: 33, type: !56)
-!95 = distinct !DILexicalBlock(scope: !93, file: !1, line: 33, column: 9)
-!96 = !DILocalVariable(name: "i", scope: !97, file: !1, line: 34, type: !56)
-!97 = distinct !DILexicalBlock(scope: !95, file: !1, line: 34, column: 9)
-!98 = !DILocalVariable(name: "tmp", scope: !99, file: !1, line: 42, type: !61)
-!99 = distinct !DILexicalBlock(scope: !100, file: !1, line: 42, column: 13)
-!100 = distinct !DILexicalBlock(scope: !101, file: !1, line: 41, column: 18)
-!101 = distinct !DILexicalBlock(scope: !97, file: !1, line: 41, column: 5)
-!102 = !{!103, i1 false, i1 false, !104, !106}
-!103 = !{!"pallas.srcLoc", i64 21, i64 1, i64 24, i64 1, !64}
-!104 = !{!"pallas.requires", !105, ptr @"$s13tmp_ir_source13PALLAS_SPEC_11nSbSi_tF", !91}
-!105 = !{!"pallas.srcLoc", i64 22, i64 1, i64 22, i64 16, !64}
-!106 = !{!"pallas.ensures", !107, ptr @"$s13tmp_ir_source13PALLAS_SPEC_21nSbSi_tF", !91}
-!107 = !{!"pallas.srcLoc", i64 23, i64 1, i64 23, i64 31, !64}
-!108 = !DILocation(line: 32, column: 9, scope: !93)
-!109 = !DILocation(line: 33, column: 9, scope: !95)
-!110 = !DILocation(line: 34, column: 9, scope: !97)
-!111 = !DILocation(line: 25, column: 12, scope: !89)
-!112 = !DILocation(line: 26, column: 12, scope: !113)
-!113 = distinct !DILexicalBlock(scope: !89, file: !1, line: 26, column: 6)
-!114 = !DILocation(line: 27, column: 9, scope: !115)
-!115 = distinct !DILexicalBlock(scope: !113, file: !1, line: 26, column: 18)
-!116 = !DILocation(line: 28, column: 20, scope: !117)
-!117 = distinct !DILexicalBlock(scope: !113, file: !1, line: 28, column: 14)
-!118 = !DILocation(line: 29, column: 9, scope: !119)
-!119 = distinct !DILexicalBlock(scope: !117, file: !1, line: 28, column: 26)
-!120 = !DILocation(line: 0, scope: !121)
-!121 = !DILexicalBlockFile(scope: !93, discriminator: 0)
-!122 = !DILocation(line: 32, column: 19, scope: !123)
-!123 = distinct !DILexicalBlock(scope: !89, file: !1, line: 32, column: 19)
-!124 = !DILocation(line: 0, scope: !125)
-!125 = !DILexicalBlockFile(scope: !95, discriminator: 0)
-!126 = !DILocation(line: 33, column: 15, scope: !127)
-!127 = distinct !DILexicalBlock(scope: !93, file: !1, line: 33, column: 15)
-!128 = !DILocation(line: 0, scope: !129)
-!129 = !DILexicalBlockFile(scope: !97, discriminator: 0)
-!130 = !DILocation(line: 34, column: 13, scope: !131)
-!131 = distinct !DILexicalBlock(scope: !95, file: !1, line: 34, column: 13)
-!132 = !DILocation(line: 41, column: 5, scope: !101)
-!133 = !DILocation(line: 41, column: 13, scope: !101)
-!134 = !DILocation(line: 0, scope: !100)
-!135 = !DILocation(line: 42, column: 27, scope: !136)
-!136 = distinct !DILexicalBlock(scope: !100, file: !1, line: 42, column: 19)
-!137 = !DILocation(line: 42, column: 13, scope: !99)
-!138 = !DILocation(line: 43, column: 17, scope: !99)
-!139 = !DILocation(line: 44, column: 13, scope: !99)
-!140 = !DILocation(line: 45, column: 11, scope: !99)
-!141 = !DILocation(line: 46, column: 5, scope: !99)
-!142 = distinct !{!142, !132, !132, !143}
-!143 = !{!"pallas.loopInv", !144, !145, !147, !149}
-!144 = !{!"pallas.srcLoc", i64 36, i64 5, i64 40, i64 5, !64}
-!145 = !{!146, ptr @"$s13tmp_ir_source13PALLAS_SPEC_31n7prevRes3res1iSbSi_S3itF", !91, !92, !94, !96}
-!146 = !{!"pallas.srcLoc", i64 37, i64 5, i64 37, i64 39, !64}
-!147 = !{!148, ptr @"$s13tmp_ir_source13PALLAS_SPEC_41n7prevRes3res1iSbSi_S3itF", !91, !92, !94, !96}
-!148 = !{!"pallas.srcLoc", i64 38, i64 5, i64 38, i64 38, !64}
-!149 = !{!150, ptr @"$s13tmp_ir_source13PALLAS_SPEC_51n7prevRes3res1iSbSi_S3itF", !91, !92, !94, !96}
-!150 = !{!"pallas.srcLoc", i64 39, i64 5, i64 39, i64 42, !64}
-!151 = !DILocation(line: 0, scope: !99)
-!152 = !DILocation(line: 47, column: 5, scope: !97)
-!153 = !DILocation(line: 48, column: 1, scope: !97)
-!154 = !DILocation(line: 0, scope: !85, inlinedAt: !135)
-!155 = !DILocation(line: 0, scope: !85, inlinedAt: !140)
-!156 = distinct !DISubprogram(name: "PALLAS_SPEC_0", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_01nSbSi_tF", scope: !4, file: !1, line: 8, type: !157, scopeLine: 8, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
-!157 = !DISubroutineType(types: !158)
-!158 = !{!159, !56}
-!159 = !DICompositeType(tag: DW_TAG_structure_type, name: "$sSbD", scope: !6, flags: DIFlagFwdDecl, runtimeLang: DW_LANG_Swift)
-!160 = !{!""}
-!161 = !DILocalVariable(name: "n", arg: 1, scope: !156, file: !1, line: 8, type: !61)
-!162 = !DILocation(line: 0, scope: !156)
-!163 = !DILocation(line: 8, column: 12, scope: !156)
-!164 = distinct !DISubprogram(name: "PALLAS_SPEC_1", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_11nSbSi_tF", scope: !4, file: !1, line: 22, type: !157, scopeLine: 22, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
-!165 = !DILocalVariable(name: "n", arg: 1, scope: !164, file: !1, line: 22, type: !61)
-!166 = !DILocation(line: 0, scope: !164)
-!167 = !DILocation(line: 22, column: 12, scope: !164)
-!168 = distinct !DISubprogram(name: "PALLAS_SPEC_2", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_21nSbSi_tF", scope: !4, file: !1, line: 23, type: !157, scopeLine: 23, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
-!169 = !DILocalVariable(name: "n", arg: 1, scope: !168, file: !1, line: 23, type: !61)
-!170 = !DILocation(line: 0, scope: !168)
-!171 = !DILocation(line: 23, column: 9, scope: !168)
-!172 = !DILocation(line: 23, column: 22, scope: !168)
-!173 = !DILocation(line: 23, column: 19, scope: !168)
-!174 = distinct !DISubprogram(name: "PALLAS_SPEC_5", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_51n7prevRes3res1iSbSi_S3itF", scope: !4, file: !1, line: 39, type: !175, scopeLine: 39, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
-!175 = !DISubroutineType(types: !176)
-!176 = !{!159, !56, !56, !56, !56}
-!177 = !DILocalVariable(name: "n", arg: 1, scope: !174, file: !1, line: 39, type: !61)
-!178 = !DILocation(line: 0, scope: !174)
-!179 = !DILocalVariable(name: "prevRes", arg: 2, scope: !174, file: !1, line: 39, type: !61)
-!180 = !DILocalVariable(name: "res", arg: 3, scope: !174, file: !1, line: 39, type: !61)
-!181 = !DILocalVariable(name: "i", arg: 4, scope: !174, file: !1, line: 39, type: !61)
-!182 = !DILocation(line: 39, column: 39, scope: !174)
-!183 = !DILocation(line: 39, column: 31, scope: !174)
-!184 = !DILocation(line: 39, column: 28, scope: !174)
-!185 = !DILocation(line: 0, scope: !186, inlinedAt: !182)
-!186 = distinct !DISubprogram(name: "Swift runtime failure: arithmetic overflow", scope: !52, file: !52, type: !86, flags: DIFlagArtificial, spFlags: DISPFlagDefinition, unit: !19)
-!187 = distinct !DISubprogram(name: "PALLAS_SPEC_4", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_41n7prevRes3res1iSbSi_S3itF", scope: !4, file: !1, line: 38, type: !175, scopeLine: 38, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
-!188 = !DILocalVariable(name: "n", arg: 1, scope: !187, file: !1, line: 38, type: !61)
-!189 = !DILocation(line: 0, scope: !187)
-!190 = !DILocalVariable(name: "prevRes", arg: 2, scope: !187, file: !1, line: 38, type: !61)
-!191 = !DILocalVariable(name: "res", arg: 3, scope: !187, file: !1, line: 38, type: !61)
-!192 = !DILocalVariable(name: "i", arg: 4, scope: !187, file: !1, line: 38, type: !61)
-!193 = !DILocation(line: 38, column: 35, scope: !187)
-!194 = !DILocation(line: 38, column: 27, scope: !187)
-!195 = !DILocation(line: 38, column: 24, scope: !187)
-!196 = !DILocation(line: 0, scope: !186, inlinedAt: !193)
-!197 = distinct !DISubprogram(name: "PALLAS_SPEC_3", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_31n7prevRes3res1iSbSi_S3itF", scope: !4, file: !1, line: 37, type: !175, scopeLine: 37, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
-!198 = !DILocalVariable(name: "n", arg: 1, scope: !197, file: !1, line: 37, type: !61)
-!199 = !DILocation(line: 0, scope: !197)
-!200 = !DILocalVariable(name: "prevRes", arg: 2, scope: !197, file: !1, line: 37, type: !61)
-!201 = !DILocalVariable(name: "res", arg: 3, scope: !197, file: !1, line: 37, type: !61)
-!202 = !DILocalVariable(name: "i", arg: 4, scope: !197, file: !1, line: 37, type: !61)
-!203 = !DILocation(line: 37, column: 22, scope: !197)
-!204 = !DILocation(line: 37, column: 37, scope: !197)
-!205 = !DILocation(line: 37, column: 33, scope: !197)
-!206 = !DILocation(line: 37, column: 27, scope: !197)
-!207 = !DILocation(line: 0, scope: !186, inlinedAt: !204)
-!208 = distinct !DISubprogram(linkageName: "$ss10fatalError_4file4lines5NeverOSSyXK_s12StaticStringVSutFfA_SSycfu_", scope: !23, file: !52, type: !209, flags: DIFlagArtificial, spFlags: DISPFlagDefinition, unit: !19)
-!209 = !DISubroutineType(types: !210)
-!210 = !{!211}
-!211 = !DICompositeType(tag: DW_TAG_structure_type, name: "$sSSD", scope: !6, flags: DIFlagFwdDecl, runtimeLang: DW_LANG_Swift)
-!212 = !DILocation(line: 0, scope: !208)
-!213 = !{!"pallas.result"}
-!214 = !{!"pallas.scAnd"}
+!67 = !{!68}
+!68 = !{!60, !69}
+!69 = !DILocalVariable(name: "n", arg: 1, scope: !70, file: !1, line: 8, type: !61)
+!70 = distinct !DISubprogram(name: "PALLAS_SPEC_0", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_01nSbSi_tF", scope: !4, file: !1, line: 8, type: !71, scopeLine: 8, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
+!71 = !DISubroutineType(types: !72)
+!72 = !{!73, !56}
+!73 = !DICompositeType(tag: DW_TAG_structure_type, name: "$sSbD", scope: !6, flags: DIFlagFwdDecl, runtimeLang: DW_LANG_Swift)
+!74 = !DILocation(line: 10, column: 13, scope: !53)
+!75 = !DILocation(line: 11, column: 11, scope: !76)
+!76 = distinct !DILexicalBlock(scope: !53, file: !1, line: 11, column: 5)
+!77 = !DILocation(line: 12, column: 9, scope: !78)
+!78 = distinct !DILexicalBlock(scope: !76, file: !1, line: 11, column: 17)
+!79 = !DILocation(line: 13, column: 18, scope: !80)
+!80 = distinct !DILexicalBlock(scope: !76, file: !1, line: 13, column: 12)
+!81 = !DILocation(line: 14, column: 9, scope: !82)
+!82 = distinct !DILexicalBlock(scope: !80, file: !1, line: 13, column: 24)
+!83 = !DILocation(line: 16, column: 25, scope: !84)
+!84 = distinct !DILexicalBlock(scope: !80, file: !1, line: 15, column: 12)
+!85 = !DILocation(line: 16, column: 16, scope: !84)
+!86 = !DILocation(line: 16, column: 41, scope: !84)
+!87 = !DILocation(line: 16, column: 32, scope: !84)
+!88 = !DILocation(line: 16, column: 30, scope: !84)
+!89 = !DILocation(line: 16, column: 9, scope: !84)
+!90 = !DILocation(line: 18, column: 1, scope: !84)
+!91 = !DILocation(line: 0, scope: !92, inlinedAt: !83)
+!92 = distinct !DISubprogram(name: "Swift runtime failure: arithmetic overflow", scope: !52, file: !52, type: !93, flags: DIFlagArtificial, spFlags: DISPFlagDefinition, unit: !0)
+!93 = !DISubroutineType(types: null)
+!94 = !DILocation(line: 0, scope: !92, inlinedAt: !86)
+!95 = !DILocation(line: 0, scope: !92, inlinedAt: !88)
+!96 = distinct !DISubprogram(name: "fibIt", linkageName: "$s13tmp_ir_source5fibItyS2iF", scope: !4, file: !1, line: 25, type: !54, scopeLine: 25, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !97)
+!97 = !{!98, !99, !101, !103, !105}
+!98 = !DILocalVariable(name: "n", arg: 1, scope: !96, file: !1, line: 25, type: !61)
+!99 = !DILocalVariable(name: "prevRes", scope: !100, file: !1, line: 32, type: !56)
+!100 = distinct !DILexicalBlock(scope: !96, file: !1, line: 32, column: 9)
+!101 = !DILocalVariable(name: "res", scope: !102, file: !1, line: 33, type: !56)
+!102 = distinct !DILexicalBlock(scope: !100, file: !1, line: 33, column: 9)
+!103 = !DILocalVariable(name: "i", scope: !104, file: !1, line: 34, type: !56)
+!104 = distinct !DILexicalBlock(scope: !102, file: !1, line: 34, column: 9)
+!105 = !DILocalVariable(name: "tmp", scope: !106, file: !1, line: 42, type: !61)
+!106 = distinct !DILexicalBlock(scope: !107, file: !1, line: 42, column: 13)
+!107 = distinct !DILexicalBlock(scope: !108, file: !1, line: 41, column: 18)
+!108 = distinct !DILexicalBlock(scope: !104, file: !1, line: 41, column: 5)
+!109 = !{!110, i1 false, i1 false, !58, !58, !111, !117}
+!110 = !{!"pallas.srcLoc", i64 21, i64 1, i64 24, i64 1, !64}
+!111 = !{!"pallas.requires", !112, ptr @"$s13tmp_ir_source13PALLAS_SPEC_11nSbSi_tF", !58, !58, !113}
+!112 = !{!"pallas.srcLoc", i64 22, i64 1, i64 22, i64 16, !64}
+!113 = !{!114}
+!114 = !{!98, !115}
+!115 = !DILocalVariable(name: "n", arg: 1, scope: !116, file: !1, line: 22, type: !61)
+!116 = distinct !DISubprogram(name: "PALLAS_SPEC_1", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_11nSbSi_tF", scope: !4, file: !1, line: 22, type: !71, scopeLine: 22, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
+!117 = !{!"pallas.ensures", !118, ptr @"$s13tmp_ir_source13PALLAS_SPEC_21nSbSi_tF", !58, !58, !119}
+!118 = !{!"pallas.srcLoc", i64 23, i64 1, i64 23, i64 31, !64}
+!119 = !{!120}
+!120 = !{!98, !121}
+!121 = !DILocalVariable(name: "n", arg: 1, scope: !122, file: !1, line: 23, type: !61)
+!122 = distinct !DISubprogram(name: "PALLAS_SPEC_2", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_21nSbSi_tF", scope: !4, file: !1, line: 23, type: !71, scopeLine: 23, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
+!123 = !DILocation(line: 32, column: 9, scope: !100)
+!124 = !DILocation(line: 33, column: 9, scope: !102)
+!125 = !DILocation(line: 34, column: 9, scope: !104)
+!126 = !DILocation(line: 25, column: 12, scope: !96)
+!127 = !DILocation(line: 26, column: 12, scope: !128)
+!128 = distinct !DILexicalBlock(scope: !96, file: !1, line: 26, column: 6)
+!129 = !DILocation(line: 27, column: 9, scope: !130)
+!130 = distinct !DILexicalBlock(scope: !128, file: !1, line: 26, column: 18)
+!131 = !DILocation(line: 28, column: 20, scope: !132)
+!132 = distinct !DILexicalBlock(scope: !128, file: !1, line: 28, column: 14)
+!133 = !DILocation(line: 29, column: 9, scope: !134)
+!134 = distinct !DILexicalBlock(scope: !132, file: !1, line: 28, column: 26)
+!135 = !DILocation(line: 0, scope: !136)
+!136 = !DILexicalBlockFile(scope: !100, discriminator: 0)
+!137 = !DILocation(line: 32, column: 19, scope: !138)
+!138 = distinct !DILexicalBlock(scope: !96, file: !1, line: 32, column: 19)
+!139 = !DILocation(line: 0, scope: !140)
+!140 = !DILexicalBlockFile(scope: !102, discriminator: 0)
+!141 = !DILocation(line: 33, column: 15, scope: !142)
+!142 = distinct !DILexicalBlock(scope: !100, file: !1, line: 33, column: 15)
+!143 = !DILocation(line: 0, scope: !144)
+!144 = !DILexicalBlockFile(scope: !104, discriminator: 0)
+!145 = !DILocation(line: 34, column: 13, scope: !146)
+!146 = distinct !DILexicalBlock(scope: !102, file: !1, line: 34, column: 13)
+!147 = !DILocation(line: 41, column: 5, scope: !108)
+!148 = !DILocation(line: 41, column: 13, scope: !108)
+!149 = !DILocation(line: 0, scope: !107)
+!150 = !DILocation(line: 42, column: 27, scope: !151)
+!151 = distinct !DILexicalBlock(scope: !107, file: !1, line: 42, column: 19)
+!152 = !DILocation(line: 42, column: 13, scope: !106)
+!153 = !DILocation(line: 43, column: 17, scope: !106)
+!154 = !DILocation(line: 44, column: 13, scope: !106)
+!155 = !DILocation(line: 45, column: 11, scope: !106)
+!156 = !DILocation(line: 46, column: 5, scope: !106)
+!157 = distinct !{!157, !147, !147, !158}
+!158 = !{!"pallas.loopInvBlock", !159, !160, !174, !186}
+!159 = !{!"pallas.srcLoc", i64 36, i64 5, i64 40, i64 5, !64}
+!160 = !{!"pallas.loopInv", !161, ptr @"$s13tmp_ir_source13PALLAS_SPEC_31n7prevRes3res1iSbSi_S3itF", !58, !58, !162}
+!161 = !{!"pallas.srcLoc", i64 37, i64 5, i64 37, i64 39, !64}
+!162 = !{!163, !168, !170, !172}
+!163 = !{!98, !164}
+!164 = !DILocalVariable(name: "n", arg: 1, scope: !165, file: !1, line: 37, type: !61)
+!165 = distinct !DISubprogram(name: "PALLAS_SPEC_3", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_31n7prevRes3res1iSbSi_S3itF", scope: !4, file: !1, line: 37, type: !166, scopeLine: 37, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
+!166 = !DISubroutineType(types: !167)
+!167 = !{!73, !56, !56, !56, !56}
+!168 = !{!99, !169}
+!169 = !DILocalVariable(name: "prevRes", arg: 2, scope: !165, file: !1, line: 37, type: !61)
+!170 = !{!101, !171}
+!171 = !DILocalVariable(name: "res", arg: 3, scope: !165, file: !1, line: 37, type: !61)
+!172 = !{!103, !173}
+!173 = !DILocalVariable(name: "i", arg: 4, scope: !165, file: !1, line: 37, type: !61)
+!174 = !{!"pallas.loopInv", !175, ptr @"$s13tmp_ir_source13PALLAS_SPEC_41n7prevRes3res1iSbSi_S3itF", !58, !58, !176}
+!175 = !{!"pallas.srcLoc", i64 38, i64 5, i64 38, i64 38, !64}
+!176 = !{!177, !180, !182, !184}
+!177 = !{!98, !178}
+!178 = !DILocalVariable(name: "n", arg: 1, scope: !179, file: !1, line: 38, type: !61)
+!179 = distinct !DISubprogram(name: "PALLAS_SPEC_4", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_41n7prevRes3res1iSbSi_S3itF", scope: !4, file: !1, line: 38, type: !166, scopeLine: 38, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
+!180 = !{!99, !181}
+!181 = !DILocalVariable(name: "prevRes", arg: 2, scope: !179, file: !1, line: 38, type: !61)
+!182 = !{!101, !183}
+!183 = !DILocalVariable(name: "res", arg: 3, scope: !179, file: !1, line: 38, type: !61)
+!184 = !{!103, !185}
+!185 = !DILocalVariable(name: "i", arg: 4, scope: !179, file: !1, line: 38, type: !61)
+!186 = !{!"pallas.loopInv", !187, ptr @"$s13tmp_ir_source13PALLAS_SPEC_51n7prevRes3res1iSbSi_S3itF", !58, !58, !188}
+!187 = !{!"pallas.srcLoc", i64 39, i64 5, i64 39, i64 42, !64}
+!188 = !{!189, !192, !194, !196}
+!189 = !{!98, !190}
+!190 = !DILocalVariable(name: "n", arg: 1, scope: !191, file: !1, line: 39, type: !61)
+!191 = distinct !DISubprogram(name: "PALLAS_SPEC_5", linkageName: "$s13tmp_ir_source13PALLAS_SPEC_51n7prevRes3res1iSbSi_S3itF", scope: !4, file: !1, line: 39, type: !166, scopeLine: 39, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !58)
+!192 = !{!99, !193}
+!193 = !DILocalVariable(name: "prevRes", arg: 2, scope: !191, file: !1, line: 39, type: !61)
+!194 = !{!101, !195}
+!195 = !DILocalVariable(name: "res", arg: 3, scope: !191, file: !1, line: 39, type: !61)
+!196 = !{!103, !197}
+!197 = !DILocalVariable(name: "i", arg: 4, scope: !191, file: !1, line: 39, type: !61)
+!198 = !DILocation(line: 0, scope: !106)
+!199 = !DILocation(line: 47, column: 5, scope: !104)
+!200 = !DILocation(line: 48, column: 1, scope: !104)
+!201 = !DILocation(line: 0, scope: !92, inlinedAt: !150)
+!202 = !DILocation(line: 0, scope: !92, inlinedAt: !155)
+!203 = !{!""}
+!204 = !DILocation(line: 0, scope: !70)
+!205 = !DILocation(line: 8, column: 12, scope: !70)
+!206 = !DILocation(line: 0, scope: !116)
+!207 = !DILocation(line: 22, column: 12, scope: !116)
+!208 = !DILocation(line: 0, scope: !122)
+!209 = !DILocation(line: 23, column: 9, scope: !122)
+!210 = !DILocation(line: 23, column: 22, scope: !122)
+!211 = !DILocation(line: 23, column: 19, scope: !122)
+!212 = !DILocation(line: 0, scope: !179)
+!213 = !DILocation(line: 38, column: 35, scope: !179)
+!214 = !DILocation(line: 38, column: 27, scope: !179)
+!215 = !DILocation(line: 38, column: 24, scope: !179)
+!216 = !DILocation(line: 0, scope: !217, inlinedAt: !213)
+!217 = distinct !DISubprogram(name: "Swift runtime failure: arithmetic overflow", scope: !52, file: !52, type: !93, flags: DIFlagArtificial, spFlags: DISPFlagDefinition, unit: !19)
+!218 = !DILocation(line: 0, scope: !165)
+!219 = !DILocation(line: 37, column: 22, scope: !165)
+!220 = !DILocation(line: 37, column: 37, scope: !165)
+!221 = !DILocation(line: 37, column: 33, scope: !165)
+!222 = !DILocation(line: 37, column: 27, scope: !165)
+!223 = !DILocation(line: 0, scope: !217, inlinedAt: !220)
+!224 = !DILocation(line: 0, scope: !191)
+!225 = !DILocation(line: 39, column: 39, scope: !191)
+!226 = !DILocation(line: 39, column: 31, scope: !191)
+!227 = !DILocation(line: 39, column: 28, scope: !191)
+!228 = !DILocation(line: 0, scope: !217, inlinedAt: !225)
+!229 = distinct !DISubprogram(linkageName: "$ss10fatalError_4file4lines5NeverOSSyXK_s12StaticStringVSutFfA_SSycfu_", scope: !23, file: !52, type: !230, flags: DIFlagArtificial, spFlags: DISPFlagDefinition, unit: !19)
+!230 = !DISubroutineType(types: !231)
+!231 = !{!232}
+!232 = !DICompositeType(tag: DW_TAG_structure_type, name: "$sSSD", scope: !6, flags: DIFlagFwdDecl, runtimeLang: DW_LANG_Swift)
+!233 = !DILocation(line: 0, scope: !229)
+!234 = !{!"pallas.result"}
+!235 = !{!"pallas.scAnd"}
