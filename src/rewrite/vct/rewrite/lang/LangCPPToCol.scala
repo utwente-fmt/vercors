@@ -22,6 +22,7 @@ import vct.rewrite.lang.LangSpecificToCol.NotAValue
 
 import scala.Seq
 import scala.collection.mutable
+import scala.runtime.BoxedUnit
 
 case object LangCPPToCol {
 
@@ -34,11 +35,19 @@ case object LangCPPToCol {
   }
 
   private case class UnexpectedCPPTypeError(declType: Type[_], init: Expr[_])
-      extends UserError {
+    extends UserError {
     override def code: String = "unexpectedCPPTypeError"
     override def text: String =
       init.o.messageInContext(
         s"Expected the type of this expression to be `$declType`, but got ${init.t}"
+      )
+  }
+
+  private case class SYCLSubGroupInvDependsOnTheId(sgInv: Expr[_]) extends UserError {
+    override def code: String = "subGroupInvDependsOnId"
+    override def text: String =
+      sgInv.o.messageInContext(
+        s"The subgroup invariant depends (directly or indirectly) on one of the SYCL id functions"
       )
   }
 
@@ -3013,67 +3022,9 @@ ScopedStack()
     )
 
 
-    val tmp = visitedKernelStatements.dropRight(1).flatMap {
-      case decl: CPPLocalDeclaration[Pre] => decl.decl.inits.map(d => (d.decl,d.init))
-      case ass: PreAssignExpression[Pre] => Seq((ass.target, Some(ass.value)))
-      case _ => Seq()
-    }.groupBy(_._1).map(t => (t._1, t._2.map(_._2).filter(_.nonEmpty).map(_.get)))
 
-    val valval = tmp.map(
-      tmps => (tmps._1, tmps._2.flatMap {
-        _.collect {
-          case cppCMOFA: CPPClassMethodOrFieldAccess[Pre] => cppCMOFA
-//          case inv: CPPInvocation[Pre] => inv
-          case local: CPPLocal[Pre] if !local.ref.get.isInstanceOf[RefFunction[Pre]] => local
-    }}.toSet))
-      .map{
-        case (name: CPPName[Pre],vals) => (name.name, vals)
-        case (local: CPPLocal[Pre],vals) => (local.name, vals)
-        case (a,b) => (a,b)
-      }
+    if (dependsOnSYCLIdFunctions(sgInv)) { throw SYCLSubGroupInvDependsOnTheId(sgInv) }
 
-    val tokensInInv = sgInv.collect {
-//      case cppCMOFA: CPPClassMethodOrFieldAccess[Pre] => cppCMOFA
-      case inv: CPPInvocation[Pre] if !inv.ref.get.isInstanceOf[RefFunction[Pre]] => inv
-      case local: CPPLocal[Pre] if !local.ref.get.isInstanceOf[RefFunction[Pre]] => local
-    }
-
-    val tmp2 = tokensInInv.toSet.flatMap { e: CPPExpr[Pre] =>
-      e match {
-        case local: CPPLocal[Pre] => {
-          val found = valval.find {
-            case (name: String, _) => local.name == name
-            case _ => false
-          }
-          if (found.nonEmpty) {
-            found.get._2
-          } else {
-            Set()
-          }
-        }
-        case rest => Set(rest)
-      }
-    }
-
-    val tmp3 = tmp2.filterNot {
-      case morf:CPPClassMethodOrFieldAccess[Pre] => morf.methodOrFieldName == "get_sub_group"
-      case local: CPPLocal[Pre] if local.ref.nonEmpty && local.ref.get.isInstanceOf[RefCPPParam[Pre]] =>
-        local.ref.get.asInstanceOf[RefCPPParam[Pre]].decl.collect{
-          case t: SYCLTNDItem[Pre] => t
-          case t: SYCLTItem[Pre] => t
-        }.nonEmpty
-      case _ => false
-    }
-
-    val tmp4 = tmp3.exists {
-      case morf:CPPClassMethodOrFieldAccess[Pre] => morf.methodOrFieldName.endsWith("id")
-      case inv: CPPInvocation[Pre] if inv.applicable.isInstanceOf[CPPClassMethodOrFieldAccess[Pre]] => inv.applicable.asInstanceOf[CPPClassMethodOrFieldAccess[Pre]].methodOrFieldName.endsWith("id")
-      case _ => false
-    }
-
-    if (tmp4) {
-
-    }
     val sg = new Variable[Post](TSeq(TCInt()))(o.where(name = "sg"))
     val value = new Variable[Post](TCInt())(o.where(name = "value"))
     val delta = new Variable[Post](TCInt())(o.where(name = "delta"))
@@ -3138,6 +3089,94 @@ ScopedStack()
 
 
     result
+  }
+
+  private def dependsOnSYCLIdFunctions(sgInv: Expr[Pre]) = {
+    val assignmentsInKernel = visitedKernelStatements.dropRight(1).flatMap {
+      case decl: CPPLocalDeclaration[Pre] => decl.decl.inits.map(d => (d.decl, d.init))
+      case ass: PreAssignExpression[Pre] => Seq((ass.target, Some(ass.value)))
+      case _ => Seq()
+    }.groupBy(_._1).map(t => (t._1, t._2.map(_._2).filter(_.nonEmpty).map(_.get)))
+
+    val collectNames = assignmentsInKernel
+      .map { case (target, value) =>
+        val valueSet = value.flatMap {
+          _.collect {
+            case cppCMOFA: CPPClassMethodOrFieldAccess[Pre] if cppCMOFA.methodOrFieldName != "get_sub_group" => cppCMOFA
+            case local: CPPLocal[Pre] if local.ref.nonEmpty && local.ref.get.isInstanceOf[RefCPPParam[Pre]] &&
+              local.ref.get.asInstanceOf[RefCPPParam[Pre]].decl.collect {
+                case t: SYCLTNDItem[Pre] => t
+                case t: SYCLTItem[Pre] => t
+                case t: SYCLTSubGroup[Pre] => t
+              }.isEmpty
+            =>
+              local
+            case local: CPPLocal[Pre] if local.ref.nonEmpty && !local.ref.get.isInstanceOf[RefFunction[Pre]] => local
+          }
+        }.toSet
+        (target, valueSet)
+      }.toSeq
+    // A map of String names of variables -> a set of nodes representing the variables it refers to
+    val varToNames: Map[Object, Set[CPPExpr[Pre]]] = collectNames.map { // Convert the different nodes into their String names for easier lookup
+      case (name: CPPName[Pre], vals) => (name.name, vals)
+      case (local: CPPLocal[Pre], vals) => (local.name, vals)
+      case (a, b) => (a, b)
+    }.groupBy(_._1).map(t => (t._1, t._2.flatMap(_._2).toSet))
+
+
+    val tokensInInv: Seq[CPPExpr[Pre]] = sgInv.collect {
+      case inv: CPPInvocation[Pre] if !inv.ref.get.isInstanceOf[RefFunction[Pre]] => inv
+      case local: CPPLocal[Pre] if !local.ref.get.isInstanceOf[RefFunction[Pre]] => local
+    }
+
+    var tokensInInvCopy = tokensInInv
+    var visitedNodes: mutable.Set[CPPExpr[Pre]] = mutable.Set()
+    var replacedTokens = tokensInInvCopy.flatMap { e: CPPExpr[Pre] =>
+      e match {
+        case local: CPPLocal[Pre] =>
+          val found = varToNames.find {
+            case (name: String, _) => local.name == name
+            case _ => false
+          }
+          if (found.nonEmpty) {
+            val setWithoutVisitedNodes = found.get._2 -- visitedNodes
+            visitedNodes = visitedNodes.union(found.get._2)
+            setWithoutVisitedNodes
+          } else {
+            Seq()
+          }
+        case rest => Seq(rest)
+      }
+    }.distinct
+
+
+    while (tokensInInvCopy != replacedTokens) {
+      tokensInInvCopy = replacedTokens
+      replacedTokens = tokensInInvCopy.flatMap { e: CPPExpr[Pre] =>
+        e match {
+          case local: CPPLocal[Pre] =>
+            val found = varToNames.find {
+              case (name: String, _) => local.name == name
+              case _ => false
+            }
+            if (found.nonEmpty) {
+              val setWithoutVisitedNodes = found.get._2 -- visitedNodes
+              visitedNodes = visitedNodes.union(found.get._2)
+              setWithoutVisitedNodes
+            } else {
+              Seq()
+            }
+          case rest => Seq(rest)
+        }
+      }.distinct
+    }
+
+    val containsIdFunction = replacedTokens.exists {
+      case morf: CPPClassMethodOrFieldAccess[Pre] => morf.methodOrFieldName.endsWith("id")
+      case inv: CPPInvocation[Pre] if inv.applicable.isInstanceOf[CPPClassMethodOrFieldAccess[Pre]] => inv.applicable.asInstanceOf[CPPClassMethodOrFieldAccess[Pre]].methodOrFieldName.endsWith("id")
+      case _ => false
+    }
+    containsIdFunction
   }
 
   def shiftGroupRightProcedure(inv: CPPInvocation[Pre]): Expr[Post] = {
