@@ -3,6 +3,7 @@ package vct.col.ast.family.loopcontract
 import vct.col.ast.LoopInvariant
 import vct.col.print._
 import vct.col.ast.ops.LoopInvariantOps
+import vct.col.check.CheckContext
 
 trait LoopInvariantImpl[G] extends LoopInvariantOps[G] {
   this: LoopInvariant[G] =>
@@ -18,4 +19,9 @@ trait LoopInvariantImpl[G] extends LoopInvariantOps[G] {
       ),
     )))
   }
+
+  // Count loop invariants as postconditions for checks (allowed to contain old and not allowed to have perm/forperm without \polarity_dependent)
+  override def enterCheckContextInPostCondition(
+      context: CheckContext[G]
+  ): Boolean = true
 }

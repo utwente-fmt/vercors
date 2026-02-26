@@ -2,7 +2,8 @@ package vct.col.ast.expr.resource
 
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.ops.AssertingOps
-import vct.col.ast.{Type, Asserting}
+import vct.col.ast.{Asserting, Node, Type}
+import vct.col.check.CheckContext
 import vct.col.print._
 
 trait AssertingImpl[G] extends NodeFamilyImpl[G] with AssertingOps[G] {
@@ -31,4 +32,11 @@ trait AssertingImpl[G] extends NodeFamilyImpl[G] with AssertingOps[G] {
       case Ctx.Java => layoutJava
       case _ => layoutSpec
     }
+
+  override def checkContextRecursor[T](
+      context: CheckContext[G],
+      f: (CheckContext[G], Node[G]) => T,
+  ): Seq[T] = {
+    Seq(f(context.withPolarExpression, condition), f(context, body))
+  }
 }

@@ -3,6 +3,7 @@ package vct.col.ast.statement.terminal
 import vct.col.ast.{Exhale, Expr}
 import vct.col.print.{Ctx, Doc, Nest, Show, Text}
 import vct.col.ast.ops.ExhaleOps
+import vct.col.check.CheckContext
 
 trait ExhaleImpl[G] extends ExhaleOps[G] {
   this: Exhale[G] =>
@@ -18,4 +19,8 @@ trait ExhaleImpl[G] extends ExhaleOps[G] {
     }
 
   override def expr: Expr[G] = this.res
+
+  override def enterCheckContextInPolarExpression(
+      context: CheckContext[G]
+  ): Boolean = true
 }

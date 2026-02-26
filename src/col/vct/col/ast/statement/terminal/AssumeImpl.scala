@@ -3,6 +3,7 @@ package vct.col.ast.statement.terminal
 import vct.col.ast.{Assume, Expr}
 import vct.col.print.{Ctx, Doc, Nest, Show, Text}
 import vct.col.ast.ops.AssumeOps
+import vct.col.check.CheckContext
 
 trait AssumeImpl[G] extends AssumeOps[G] {
   this: Assume[G] =>
@@ -18,4 +19,8 @@ trait AssumeImpl[G] extends AssumeOps[G] {
     }
 
   override def expr: Expr[G] = this.assn
+
+  override def enterCheckContextInPolarExpression(
+      context: CheckContext[G]
+  ): Boolean = true
 }

@@ -1,8 +1,9 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.{Assert, Expr}
+import vct.col.ast.{Assert, Expr, Node}
 import vct.col.print.{Ctx, Doc, Nest, Show, Text}
 import vct.col.ast.ops.AssertOps
+import vct.col.check.CheckContext
 
 trait AssertImpl[G] extends AssertOps[G] {
   this: Assert[G] =>
@@ -18,4 +19,8 @@ trait AssertImpl[G] extends AssertOps[G] {
     }
 
   override def expr: Expr[G] = this.res
+
+  override def enterCheckContextInPolarExpression(
+      context: CheckContext[G]
+  ): Boolean = true
 }
