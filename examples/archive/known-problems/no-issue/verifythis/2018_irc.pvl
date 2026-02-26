@@ -1,0 +1,131 @@
+/** VerifyThis 2018
+    Register Allocation 
+*/
+
+class Irc {
+
+  final int K;
+  final int SPILL;
+
+  map<int, set<int>> G;
+  map<int, int> A;
+
+  requires Perm(G, 1);
+  ensures Perm(G, 1);
+  ensures !(v in G);
+  ensures (∀int u; u in G; !(v in G[u]));
+  ensures (∀int u; u != v; u in G == u in \old(G));
+  ensures (∀int u, int w; u in G && w in \old(G)[u] && w != v; w in G[u]);
+  void remove(int v) {
+    map<int, set<int>> newG = G.remove(v);
+    set<int> keys = G.keys;
+    loop_invariant Perm(G, 1);
+    loop_invariant !(v in newG);
+    loop_invariant newG.keys == \old(G.keys) - {v};
+    loop_invariant
+      (∀int u; u in \old(G) && !(u in keys) && u != v; newG[u] == \old(G[u] - {v}));
+    loop_invariant
+      (∀int u; u in \old(G) && u in keys && u != v; newG[u] == \old(G[u]));
+    while (|keys| > 0) {
+      int u = \choose(keys);
+      keys = keys - {u};
+      if (u in newG.keys) { // TODO: Remove the false branch
+        newG = newG.add(u, newG[u] - {v});
+        assert
+          (∀int u; u in \old(G) && !(u in keys) && u != v; newG[u] == \old(G[u] - {v}));
+      } else {
+        assert
+          (∀int u; u in \old(G) && !(u in keys) && u != v; newG[u] == \old(G[u] - {v}));
+      }
+    }
+    
+    G = newG;
+  }
+
+  requires Perm(G, 1);
+  requires u != v;
+  ensures Perm(G, 1);
+  ensures G.keys == \old(G.keys);
+  ensures (∀int w; w in \old(G) && !(u in \old(G[w])); G[w]==\old(G[w]));
+  ensures (∀int w; w in \old(G) && u in \old(G[w]); !(u in G[w]) && v in G[w]);
+  ensures (∀int w, int x; w in G && x != u && x != v; x in G[w] == x in \old(G[w]));
+  void replace(int u, int v) {
+    set<int> keys = G.keys;
+    loop_invariant Perm(G, 1);
+    loop_invariant keys <= G.keys;
+    loop_invariant G.keys == \old(G.keys);
+    loop_invariant (∀int w; w in G && w in keys; G[w] == \old(G[w]));
+    loop_invariant (∀int w; w in G && !(u in \old(G[w])); G[w]==\old(G[w]));
+    loop_invariant (∀int w; !(w in keys) && w in G && u in \old(G[w]); !(u in G[w]) && v in G[w]);
+    loop_invariant (∀int w, int x; !(w in keys) && w in G && x != u && x != v; x in G[w] == x in \old(G[w]));
+    while (|keys| > 0) {
+      int w = \choose(keys);
+      keys = keys - {w};
+      if (u in G[w]) {
+        G = G.add(w, G[w] - {u} + {v});
+        assert !(w in keys) && w in G && u in \old(G[w]) && !(u in G[w]) && v in G[w];
+        assert (∀int w; !(w in keys) && w in G && u in \old(G[w]); !({: u in G[w] :}) && {: v in G[w] :});
+        assert (∀int w, int x; !(w in keys) && w in G && x != u && x != v; x in G[w] == x in \old(G[w]));
+      }
+    }
+  }
+
+  requires Perm(G, 1);
+  requires u in G && v in G && u!=v && !(v in G[u]);
+  ensures Perm(G, 1);
+  ensures G.keys == \old(G.keys - {v});
+  // ensures G[u]==\old(G[u]+G[v]); // TODO: breaks, maybe because replace does not specify reflexive case if v in G[v]
+  ensures (\forall int w; w in G && w!=u && w!=v && v in \old(G[w]); G[w] == \old(G[w]-{v}+{u}));
+  ensures (\forall int w; w in G && w!=u && w!=v && !(v in \old(G[w])); G[w] == \old(G[w]));
+  void myMerge(int v, int u) {
+    replace(v, u);
+    G = G.add(u, G[u] + G[v]);
+    G = G.remove(v);
+  }
+
+  // A: Var -> Reg ∨ Spill
+  // return: v s.t. v ∉ A[S] ∧ v < K
+  requires Perm(A, 1\2);
+  requires S <= A.keys;
+  requires SPILL == -1;
+  requires (∀int k; k in A.keys; k >= 0);
+  ensures Perm(A, 1\2) ** A == \old(A);
+  ensures \result != SPILL ==> \result in {0..K} && (∀int i; i in S; A[i] != \result);
+  ensures \result == SPILL ==> true; // TODO
+  int available(set<int> S) {
+    loop_invariant Perm(A, 1\4);
+    loop_invariant S <= A.keys;
+    loop_invariant (∀int k; k in A.keys; k >= 0);
+    for (int i = 0 .. K) {
+      set<int> remainingVars = S;
+      int usedVar = -1;
+      loop_invariant Perm(A, 1\8);
+      loop_invariant (∀int k; k in A.keys; k >= 0);
+      loop_invariant S <= A.keys;
+      loop_invariant remainingVars <= S;
+      loop_invariant usedVar != -1 ==> (usedVar in S && A[usedVar] == i);
+      loop_invariant usedVar == -1 ==> (∀int j; j in S && !(j in remainingVars); A[j] != i);
+      while (|remainingVars| > 0) {
+        int var = \choose(remainingVars);
+        remainingVars = remainingVars - {var};
+
+        if (A[var] == i) {
+          usedVar = var;
+        }
+      }
+      
+      if (usedVar == -1) {
+        return i;
+      }
+    }
+
+    return SPILL;
+  }
+
+  requires Perm(G, 1\2);
+  requires Perm(A, 1\2);
+  void available(set<int> S) {
+
+  }
+
+}
