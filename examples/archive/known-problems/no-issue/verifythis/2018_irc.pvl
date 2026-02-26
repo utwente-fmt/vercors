@@ -10,37 +10,28 @@ class Irc {
   map<int, set<int>> G;
   map<int, int> A;
 
+
   requires Perm(G, 1);
   ensures Perm(G, 1);
-  ensures !(v in G);
-  ensures (∀int u; u in G; !(v in G[u]));
-  ensures (∀int u; u != v; u in G == u in \old(G));
-  ensures (∀int u, int w; u in G && w in \old(G)[u] && w != v; w in G[u]);
+  ensures G.keys == \old(G.keys) - { v };
+  ensures (∀int w; w in G; G[w] == \old(G[w] - { v }));
   void remove(int v) {
-    map<int, set<int>> newG = G.remove(v);
+    G = G.remove(v);
     set<int> keys = G.keys;
     loop_invariant Perm(G, 1);
-    loop_invariant !(v in newG);
-    loop_invariant newG.keys == \old(G.keys) - {v};
-    loop_invariant
-      (∀int u; u in \old(G) && !(u in keys) && u != v; newG[u] == \old(G[u] - {v}));
-    loop_invariant
-      (∀int u; u in \old(G) && u in keys && u != v; newG[u] == \old(G[u]));
+    loop_invariant !(v in G);
+    loop_invariant G.keys == \old(G.keys) - {v};
+    loop_invariant keys <= G.keys;
+    loop_invariant (∀int u; u in \old(G) && !(u in keys) && u != v; G[u] == \old(G[u] - {v}));
+    loop_invariant (∀int u; u in \old(G) && u in keys && u != v; G[u] == \old(G[u]));
     while (|keys| > 0) {
       int u = \choose(keys);
       keys = keys - {u};
-      if (u in newG.keys) { // TODO: Remove the false branch
-        newG = newG.add(u, newG[u] - {v});
-        assert
-          (∀int u; u in \old(G) && !(u in keys) && u != v; newG[u] == \old(G[u] - {v}));
-      } else {
-        assert
-          (∀int u; u in \old(G) && !(u in keys) && u != v; newG[u] == \old(G[u] - {v}));
-      }
+      G = G.add(u, G[u] - {v});
+      assert (∀int u; u in \old(G) && !(u in keys) && u != v; G[u] == \old(G[u] - {v}));
     }
-    
-    G = newG;
   }
+
 
   requires Perm(G, 1);
   requires u != v;
