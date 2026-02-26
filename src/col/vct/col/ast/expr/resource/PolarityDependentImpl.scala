@@ -4,6 +4,7 @@ import vct.col.ast.{PolarityDependent, Type}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.typerules.Types
 import vct.col.ast.ops.PolarityDependentOps
+import vct.col.check.CheckContext
 
 trait PolarityDependentImpl[G] extends PolarityDependentOps[G] {
   this: PolarityDependent[G] =>
@@ -15,4 +16,8 @@ trait PolarityDependentImpl[G] extends PolarityDependentOps[G] {
     Group(
       Text("\\polarity_dependent(") <> Doc.args(Seq(onInhale, onExhale)) <> ")"
     )
+
+  override def enterCheckContextInPolarExpression(
+      context: CheckContext[G]
+  ): Boolean = true
 }
