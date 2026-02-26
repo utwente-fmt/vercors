@@ -19,9 +19,6 @@ trait ForPermWithValueImpl[G]
 
   override def check(context: CheckContext[G]): Seq[CheckError] =
     super.check(context) ++
-      (if (
-         context.inPolarExpression ||
-         (!context.inPreCondition && !context.inPostCondition)
-       ) { Nil }
-       else { Seq(MustBeInPolarityDependent(this)) })
+      (if (context.inPolarExpression) { Seq(MustBeInPolarityDependent(this)) }
+       else { Nil })
 }

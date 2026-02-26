@@ -20,8 +20,7 @@ trait LoopInvariantImpl[G] extends LoopInvariantOps[G] {
     )))
   }
 
-  // Count loop invariants as postconditions for checks (allowed to contain old and not allowed to have perm/forperm without \polarity_dependent)
-  override def enterCheckContextInPostCondition(
+  override def enterCheckContextInPolarExpression(
       context: CheckContext[G]
   ): Boolean = true
 }

@@ -19,5 +19,5 @@ trait PolarityDependentImpl[G] extends PolarityDependentOps[G] {
 
   override def enterCheckContextInPolarExpression(
       context: CheckContext[G]
-  ): Boolean = true
+  ): Boolean = false
 }
