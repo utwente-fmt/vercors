@@ -33,6 +33,14 @@ case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
   override def inlineDescCompletion: String =
     s"${node.o.inlineContextText} may be a negative permission amount"
 }
+case class NotWellDefined(node: Node[_], inner: VerificationFailure)
+    extends ContractFailure {
+  override def code: String = inner.code
+  override def descCompletion =
+    s"the contract is not well-defined:\n${inner.desc}"
+  override def inlineDescCompletion =
+    s"in ${node.o.inlineContextText} the contract is not well-defined: ${inner.inlineDesc}"
+}
 
 trait VerificationFailure {
   def code: String
