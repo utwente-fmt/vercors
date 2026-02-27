@@ -704,7 +704,15 @@ case class ChannelInvariantNotEstablished(
     s"The channel invariant at `$node` cannot be established, since $failure"
 }
 
-sealed trait DerefInsufficientPermission extends FrontendDerefError
+sealed trait ClassDerefError extends FrontendDerefError
+case class ClassNull(node: HeapDeref[_])
+    extends ClassDerefError with NodeVerificationFailure {
+  override def code: String = "classNull"
+  override def descInContext: String = "This class may be null."
+  override def inlineDescWithSource(source: String): String =
+    s"This class may be null: `$source`."
+}
+sealed trait DerefInsufficientPermission extends ClassDerefError
 case class InsufficientPermission(node: HeapDeref[_])
     extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "perm"
