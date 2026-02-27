@@ -121,9 +121,13 @@ case object LangLLVMToCol {
 
   private final case class PointerSubscriptToInsufficientPermissionBlame(
       blame: Blame[PointerSubscriptError]
-  ) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit =
-      blame.blame(PointerInsufficientPermission(error.node))
+  ) extends Blame[ClassDerefError] {
+    override def blame(error: ClassDerefError): Unit = {
+      blame.blame(PointerInsufficientPermission(error match {
+        case ClassNull(node) => node
+        case InsufficientPermission(node) => node
+      }))
+    }
   }
 
   private val pallasResArgPermOrigin: Origin = Origin(Seq(
@@ -1136,7 +1140,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       pointer: Expr[Post],
       t: Type[Pre],
       indices: Seq[Expr[Pre]],
-      blame: Blame[InsufficientPermission],
+      blame: Blame[ClassDerefError],
   )(implicit o: Origin): Expr[Post] = {
     if (indices.isEmpty) { return pointer }
     t match {
@@ -1350,7 +1354,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       value: Expr[Post],
       t: Type[Pre],
       indices: Seq[Int],
-      blame: Blame[InsufficientPermission],
+      blame: Blame[ClassDerefError],
   )(implicit o: Origin): Expr[Post] = {
     if (indices.isEmpty) { return value }
     t match {

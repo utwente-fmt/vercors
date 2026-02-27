@@ -413,6 +413,40 @@ trait SilverBackend
           .NegativePermissionValue(
             info(p).permissionValuePermissionNode.get
           ) // need to fetch access
+      // Keep in sync with defer()
+      case reasons.DivisionByZero(e) =>
+        val division = info(e).dividingExpr.get
+        blame.NotWellDefined(division, blame.ScalarDivByZero(division))
+      case reasons.InsufficientPermission(f @ silver.FieldAccess(_, _)) =>
+        val deref = get[col.SilverDeref[_]](f)
+        blame.NotWellDefined(deref, blame.InsufficientPermission(deref))
+      case reasons.InsufficientPermission(p @ silver.PredicateAccess(_, _)) =>
+        val unfolding = info(p).unfolding.get
+        blame.NotWellDefined(unfolding, blame.UnfoldFailed(unfolding))
+      case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
+        val starall = info(access).starall.get
+        blame.NotWellDefined(
+          starall,
+          blame.ReceiverNotInjective(starall, get(access)),
+        )
+      case reasons.LabelledStateNotReached(expr) =>
+        val old = get[col.Old[_]](expr)
+        blame.NotWellDefined(old, blame.LabelNotReached(old))
+      case reasons.SeqIndexNegative(_, idx) =>
+        val subscript = info(idx).seqIndexSubscriptNode.get
+        blame.NotWellDefined(subscript, blame.SeqBoundNegative(subscript))
+      case reasons.SeqIndexExceedsLength(_, idx) =>
+        val subscript = info(idx).seqIndexSubscriptNode.get
+        blame.NotWellDefined(subscript, blame.SeqBoundExceedsLength(subscript))
+      case reasons.MapKeyNotContained(_, key) =>
+        val get = info(key).mapGet.get
+        blame.NotWellDefined(get, blame.MapKeyError(get))
+      case reasons.AssertionFalse(expr) =>
+        val asserting = info(expr).asserting.get
+        blame.NotWellDefined(
+          asserting,
+          blame.AssertFailed(getFailure(reason), asserting),
+        )
       case r => throw new NotImplementedError("Missing: " + r)
     }
 
@@ -462,6 +496,7 @@ trait SilverBackend
         )
     }
 
+  // Keep in sync with getFailure
   def defer(reason: ErrorReason): Unit =
     reason match {
       case reasons.DivisionByZero(e) =>
