@@ -2,6 +2,8 @@
     Register Allocation 
 */
 
+pure boolean irreflexive(map<int, set<int>> R) = (∀int x; x in R; !(x in R[x]));
+
 class Irc {
 
   final int K;
@@ -62,17 +64,22 @@ class Irc {
   }
 
   requires Perm(G, 1);
+  requires irreflexive(G);
   requires u in G && v in G && u!=v && !(v in G[u]);
   ensures Perm(G, 1);
   ensures G.keys == \old(G.keys - {v});
-  // ensures G[u]==\old(G[u]+G[v]); // TODO: breaks, maybe because replace does not specify reflexive case if v in G[v]
+  ensures G[u]==\old(G[u]+G[v]);
   ensures (\forall int w; w in G && w!=u && w!=v && v in \old(G[w]); G[w] == \old(G[w]-{v}+{u}));
   ensures (\forall int w; w in G && w!=u && w!=v && !(v in \old(G[w])); G[w] == \old(G[w]));
   void myMerge(int v, int u) {
     replace(v, u);
+    assert G[u] == \old(G[u]);
     G = G.add(u, G[u] + G[v]);
     G = G.remove(v);
   }
+
+
+  pure boolean hasInterferingVar(map<int, int> A, int reg) = (∃int v; v in A; A[v] == reg);
 
   // A: Var -> Reg ∨ Spill
   // return: v s.t. v ∉ A[S] ∧ v < K
@@ -82,11 +89,12 @@ class Irc {
   requires (∀int k; k in A.keys; k >= 0);
   ensures Perm(A, 1\2) ** A == \old(A);
   ensures \result != SPILL ==> \result in {0..K} && (∀int i; i in S; A[i] != \result);
-  ensures \result == SPILL ==> true; // TODO
+  ensures \result == SPILL ==> (∀int reg = 0 .. K; hasInterferingVar(A, reg));
   int available(set<int> S) {
     loop_invariant Perm(A, 1\4);
     loop_invariant S <= A.keys;
     loop_invariant (∀int k; k in A.keys; k >= 0);
+    loop_invariant (∀int j = 0 .. i; hasInterferingVar(A, j));
     for (int i = 0 .. K) {
       set<int> remainingVars = S;
       int usedVar = -1;
