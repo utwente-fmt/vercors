@@ -21,10 +21,10 @@
 void smartsum(sycl::queue q, int T, int N, int* fx) {
   //@ label bK;
   //@ assume |fxGs()| == Tf() && (\forall int i=0 .. Tf(); fxGs()[i] == \old[bK](fx[i]));
-  //@ refute false;
+  //@ assert true;
 
   sycl::buffer<int, 1> fxBuf = sycl::buffer(fx, sycl::range<1>(T));
-  //@ refute false;
+  //@ assert true;
 
   sycl::event e0 = q.submit([&](sycl::handler& h)
     {
@@ -40,32 +40,36 @@ void smartsum(sycl::queue q, int T, int N, int* fx) {
       [=](sycl::nd_item<1> it)
         [[sycl::reqd_sub_group_size(32)]]
             {
-        //@ refute false;
+        //@ assert true;
         sycl::sub_group sg = it.get_sub_group();
         int gid = it.get_global_id(0);
         int laneId = sg.get_local_id();
         int d1 = 1;
 
-        //@ ghost int gsgid = 0;
-        //@ ghost gsgid = gid+d1;
-        //@ ghost gsgid = gsgid;
-        //@ ghost gsgid = gsgid+gid+d2;
-        //@ ghost gsgid = gsgid;
-
         fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], d1)
-          /*@ sub_group_inv { \sg_val == sum(fxGs()[\gtid..\gtid+d1]) } */;
+          /*@ sub_group_inv { \gtid+d1 <= |fxGs()| ==> \sg_val == sum(fxGs()[\gtid .. \gtid+d1]) } */;
+
 
         /*@ assert lemmaSumOverConcat(fxGs()[gid .. gid+d1],fxGs()[gid+d1 .. gid+d1+d1]);
             assert lemmaSumOverABBCisAC(fxGs(), gid, gid+d1, gid+d1+d1);
-            refute false; */
+            assert true; */
 
         int d2 = 2;
+        //@ assert sg.get_local_id() + d1 < sg.get_local_range(0) ==> gid+d2 <= |fxGs()| ==> fxAcc[gid] == sum(fxGs()[gid .. gid+d2]);
+
         fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], d2)
-          /*@ sub_group_inv { \sg_val == sum(fxGs()[\gtid..\gtid+d2]) } */;
+          /*@ sub_group_inv { sg.get_local_id() + d1 < sg.get_local_range(0) ==> \gtid+d2 <= |fxGs()| ==> \sg_val == sum(fxGs()[\gtid..\gtid+d2]) } */;
 
         /*@ assert lemmaSumOverConcat(fxGs()[gid .. gid+d2],fxGs()[gid+d2 .. gid+d2+d2]);
             assert lemmaSumOverABBCisAC(fxGs(), gid, gid+d2, gid+d2+d2);
-            refute false;*/
+            assert true;*/
+
+        /*@ assert sg.get_local_id() + d2 < sg.get_local_range(0) ==>
+
+                            gid+d2+d2 <= |fxGs()| ==> fxAcc[gid] == sum(fxGs()[gid .. gid+d2+d2]);
+        */
+
+        //@ assert false;
 
         int dk = 4;
         //@ ghost int k1 = 2;
@@ -82,18 +86,18 @@ void smartsum(sycl::queue q, int T, int N, int* fx) {
         */
         for (int dk = 4; dk < sg.get_local_range(0); dk = dk * 2) {
           fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], dk)
-            /*@ sub_group_inv { \sg_val == sum(fxGs()[\gtid..\gtid+dk]) } */;
+            /*@ sub_group_inv { \gtid+dk <= |fxGs()| ==> \sg_val == sum(fxGs()[\gtid..\gtid+dk]) } */;
 
           /*@ assert lemmaSumOverConcat(fxGs()[gid .. gid+dk],fxGs()[gid+dk .. gid+dk+dk]);
               assert lemmaSumOverABBCisAC(fxGs(), gid, gid+dk, gid+dk+dk);
               ghost k1=k1+1; */
         }
-        //@ refute false;
+        //@ assert true;
     });
   });
-  //@ refute false;
+  //@ assert true;
   e0.wait();
-  //@ refute false;
+  //@ assert true;
 }
 
 /////////////////////////////////////////

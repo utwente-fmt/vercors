@@ -426,6 +426,17 @@ case class SubGroupFunctionPreconditionFailed(inv: CPPInvocation[_])
       throw AccessorPermInsufficientError(error)
   }
 
+  private case class SYCLWarpSizeNotDefinedError(inv: CPPInvocation[_])
+    extends UserError {
+    override def code: String = "syclBufferConstructionFailed"
+
+    override def text: String =
+      inv.o.messageInContext(
+        "This buffer cannot be constructed because there is insufficient permission to copy and exclusively claim the hostData. " +
+          "Write permission to the hostData over the entire bufferRange is required."
+      )
+  }
+
 
   private case class SYCLBufferConstructionFailed(inv: CPPInvocation[_])
       extends UserError {
@@ -763,6 +774,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   val syclRangeVariableToInitializer: mutable.Map[Variable[Post], Expr[Post]] =
     mutable.Map.empty
 
+  val syclSubgroupDeltaSuccessors
+  : ScopedStack[Expr[Post]] = ScopedStack()
+
+
   val syclSubgroupInvSuccessors
   : ScopedStack[mutable.Map[Expr[Pre], Expr[Post]]] =
 ScopedStack()
@@ -823,7 +838,7 @@ ScopedStack()
         Local[Post](params(i).ref) >= c_const(0)
       }))(RangeDimensionCheckOrigin(rangeO))
 
-      // TODO move over the error messages from (SYCLKernelRangeInvalidBlame) to here by generating the asssertion here.
+      // TODO ÖS move over the error messages from (SYCLKernelRangeInvalidBlame) to here by generating the asssertion here.
     }
 
     override def getRangeParamAssignments(
@@ -873,7 +888,7 @@ ScopedStack()
             Local[Post](rangeFields(i + 1).ref),
             Local[Post](params(i + 1).ref),
           ),
-          // TODO Do I somehow need to assert this or not?
+          // TODO ÖS Do I somehow need to assert this or not?
           //            Local[Post](rangeFields(i).ref) * Local[Post](rangeFields(i + 1).ref) === Local[Post](params(i).ref),
         )
       })
@@ -1278,33 +1293,65 @@ ScopedStack()
 
     e.name match {
       case "sycl::item::get_id" if args.length == 1 =>
-        getSimpleWorkItemId(inv, GlobalScope())
+        if (syclSubgroupDeltaSuccessors.nonEmpty) {
+          getSimpleWorkItemId(inv, GlobalScope())+syclSubgroupDeltaSuccessors.top
+        } else {
+          getSimpleWorkItemId(inv, GlobalScope())
+        }
       case "sycl::item::get_range" if args.length == 1 =>
         getSimpleWorkItemRange(inv, GlobalScope())
       case "sycl::item::get_linear_id" =>
-        getSimpleWorkItemLinearId(inv, GlobalScope())
+        if (syclSubgroupDeltaSuccessors.nonEmpty) {
+          getSimpleWorkItemLinearId(inv, GlobalScope())+syclSubgroupDeltaSuccessors.top
+        } else {
+          getSimpleWorkItemLinearId(inv, GlobalScope())
+        }
       case "sycl::nd_item::get_local_id" if args.length == 1 =>
-        getSimpleWorkItemId(inv, LocalScope())
+        if (syclSubgroupDeltaSuccessors.nonEmpty) {
+          getSimpleWorkItemId(inv, LocalScope())+syclSubgroupDeltaSuccessors.top
+        } else {
+          getSimpleWorkItemId(inv, LocalScope())
+        }
       case "sycl::nd_item::get_local_range" if args.length == 1 =>
         getSimpleWorkItemRange(inv, LocalScope())
       case "sycl::nd_item::get_local_linear_id" =>
-        getSimpleWorkItemLinearId(inv, LocalScope())
+        if (syclSubgroupDeltaSuccessors.nonEmpty) {
+          getSimpleWorkItemLinearId(inv, LocalScope())+syclSubgroupDeltaSuccessors.top
+        } else {
+          getSimpleWorkItemLinearId(inv, LocalScope())
+        }
       case "sycl::nd_item::get_group" if args.length == 1 =>
         getSimpleWorkItemId(inv, GroupScope())
       case "sycl::nd_item::get_group_range" if args.length == 1 =>
         getSimpleWorkItemRange(inv, GroupScope())
       case "sycl::nd_item::get_group_linear_id" =>
-        getSimpleWorkItemLinearId(inv, GroupScope())
+        if (syclSubgroupDeltaSuccessors.nonEmpty) {
+          getSimpleWorkItemLinearId(inv, GroupScope())+syclSubgroupDeltaSuccessors.top
+        } else {
+          getSimpleWorkItemLinearId(inv, GroupScope())
+        }
       case "sycl::nd_item::get_global_id" if args.length == 1 =>
-        getGlobalWorkItemId(inv)
+        if (syclSubgroupDeltaSuccessors.nonEmpty) {
+          getGlobalWorkItemId(inv)+syclSubgroupDeltaSuccessors.top
+        } else {
+          getGlobalWorkItemId(inv)
+        }
       case "sycl::nd_item::get_global_range" if args.length == 1 =>
         getGlobalWorkItemRange(inv)
       case "sycl::nd_item::get_global_linear_id" =>
-        getGlobalWorkItemLinearId(inv)
+        if (syclSubgroupDeltaSuccessors.nonEmpty) {
+          getGlobalWorkItemLinearId(inv)+syclSubgroupDeltaSuccessors.top
+        } else {
+          getGlobalWorkItemLinearId(inv)
+        }
       case "sycl::sub_group::get_local_id" =>
         classInstance match {
           case Some(lref) =>
-                  SeqSubscript[Post](lref,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
+            if (syclSubgroupDeltaSuccessors.nonEmpty) {
+              SeqSubscript[Post](lref,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))+syclSubgroupDeltaSuccessors.top
+            } else {
+              SeqSubscript[Post](lref,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
+            }
           case _ => throw NotApplicable(inv)
         }
       case "sycl::sub_group::get_group_id" =>
@@ -1314,11 +1361,11 @@ ScopedStack()
           case _ => throw NotApplicable(inv)
         }
       case "sycl::sub_group::get_local_range" if args.length == 1 =>
-        val warpsize = syclWarpSize.getOrElse(???) // TODO Replace ??? With proper error
+        val warpsize = syclWarpSize.getOrElse(throw new SYCLWarpSizeNotDefinedError(inv))
         Local(warpsize.ref)
       case "sycl::sub_group::get_group_range" => ???
       case "sycl::nd_item::get_sub_group" => {
-        val warpsize = syclWarpSize.getOrElse(???) // TODO Replace ??? With proper error
+        val warpsize = syclWarpSize.getOrElse(throw new SYCLWarpSizeNotDefinedError(inv))
         val laneId = AmbiguousMod(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen")) // lane ID
         val warpId = AmbiguousDiv(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen")) // warp ID
         LiteralSeq(TCInt(), Seq(laneId,warpId))
@@ -2885,7 +2932,7 @@ ScopedStack()
     currentlyRunningKernels.remove(variable)
     Block(
       Seq(Inhale(kernelRunnerPostCondition.pred)(kernelRunnerPostCondition.o))
-      // TODO I need to do something related to readonly accessors. I am currently exhaling all permission, maybe that should only happen if it read/write.
+      // TODO ÖS I need to do something related to readonly accessors. I am currently exhaling all permission, maybe that should only happen if it read/write.
     )
   }
 
@@ -2997,33 +3044,40 @@ ScopedStack()
     val laneid = SeqSubscript[Post](sgArg,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
 
 
-    val exhalePred: Expr[Post] = syclSubgroupInvSuccessors.having(
+    val exhalePred: Expr[Post] =
+      syclSubgroupInvSuccessors.having(
       mutable.Map(
         GlobalThreadId[Pre]() -> getGlobalWorkItemLinearId(inv),
         SubGroupFuncValue[Pre]() -> valToSend,
       )
     ) { rw.dispatch(sgInv) }
-    val inhalePred: Expr[Post] = syclSubgroupInvSuccessors.having(
-      mutable.Map(
-        GlobalThreadId[Pre]() -> Plus(getGlobalWorkItemLinearId(inv),d),
-        SubGroupFuncValue[Pre]() ->  Local(sglResult.ref),
-      )
-    ) { rw.dispatch(sgInv) }
-
-    val warpsize = syclWarpSize.getOrElse(???) // TODO Replace ??? with an error that the warpsize has to be defined here.
+    val inhalePred: Expr[Post] = syclSubgroupDeltaSuccessors.having(d) {
+      syclSubgroupInvSuccessors.having(
+        mutable.Map(
+          GlobalThreadId[Pre]() -> Plus(getGlobalWorkItemLinearId(inv), d),
+          SubGroupFuncValue[Pre]() -> Local(sglResult.ref),
+        )
+      ) {
+        rw.dispatch(sgInv)
+      }
+    }
+    val warpsize = syclWarpSize.getOrElse(throw new SYCLWarpSizeNotDefinedError(inv))
 
     val predToExhale = Implies(
-      LessEq(Plus(laneid, d), Local[Post](warpsize.ref)),
+      And(//0 <= min(wid,dk) && min(wid,dk) < min(N,dk)
+        LessEq(c_const(0), laneid-d),
+        tt[Post]
+//        Less(laneid-d, Local[Post](warpsize.ref))
+      ),
       exhalePred
     )
-    val predToInhale = Implies(
-      LessEq(Plus(laneid, Plus(d,d)), Local[Post](warpsize.ref)),
+    val predToInhale = Implies(//plus(wid,dk) < N
+      Less(laneid+d, Local[Post](warpsize.ref)),
       inhalePred
     )
 
 
-
-    if (dependsOnSYCLIdFunctions(sgInv)) { throw SYCLSubGroupInvDependsOnTheId(sgInv) }
+    if (dependsIndirectlyOnSYCLIdFunctions(sgInv)) { throw SYCLSubGroupInvDependsOnTheId(sgInv) }
 
     val sg = new Variable[Post](TSeq(TCInt()))(o.where(name = "sg"))
     val value = new Variable[Post](TCInt())(o.where(name = "value"))
@@ -3091,7 +3145,7 @@ ScopedStack()
     result
   }
 
-  private def dependsOnSYCLIdFunctions(sgInv: Expr[Pre]) = {
+  private def dependsIndirectlyOnSYCLIdFunctions(sgInv: Expr[Pre]) = {
     val assignmentsInKernel = visitedKernelStatements.dropRight(1).flatMap {
       case decl: CPPLocalDeclaration[Pre] => decl.decl.inits.map(d => (d.decl, d.init))
       case ass: PreAssignExpression[Pre] => Seq((ass.target, Some(ass.value)))
@@ -3125,7 +3179,7 @@ ScopedStack()
 
 
     val tokensInInv: Seq[CPPExpr[Pre]] = sgInv.collect {
-      case inv: CPPInvocation[Pre] if !inv.ref.get.isInstanceOf[RefFunction[Pre]] => inv
+//      case inv: CPPInvocation[Pre] if !inv.ref.get.isInstanceOf[RefFunction[Pre]] => inv
       case local: CPPLocal[Pre] if !local.ref.get.isInstanceOf[RefFunction[Pre]] => local
     }
 
