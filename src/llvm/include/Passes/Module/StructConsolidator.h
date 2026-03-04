@@ -1,7 +1,7 @@
 #ifndef PALLAS_STRUCTCONSOLIDATOR_H
 #define PALLAS_STRUCTCONSOLIDATOR_H
 
-#include "IRSpec/PallasIRSpec.h";
+#include "IRSpec/PallasIRSpec.h"
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Dominators.h>

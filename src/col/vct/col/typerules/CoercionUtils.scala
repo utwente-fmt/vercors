@@ -3,6 +3,7 @@ package vct.col.typerules
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.ref.Ref
 import vct.col.resolve.lang.{C, CPP}
 import vct.col.resolve.lang.CPP.getBaseTypeFromSpecs
 
@@ -772,8 +773,8 @@ case object CoercionUtils {
           firstElementIsType(field.t, innerType)
         }.getOrElse(false)
       case TArray(element) => firstElementIsType(element, innerType)
-      case LLVMTStruct(_, _, _, elements, _) =>
-        firstElementIsType(elements.head.t, innerType)
+      case sType: LLVMTStruct[G] =>
+        firstElementIsType(sType.ref.decl.elements.head.t, innerType)
       case LLVMTArray(numElements, elementType) =>
         numElements > 0 && firstElementIsType(elementType, innerType)
       case LLVMTVector(_, _) => false // TODO: Should this be possible?

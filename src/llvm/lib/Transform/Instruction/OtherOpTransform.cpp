@@ -11,6 +11,7 @@
 #include "IRSpec/PallasSpecDecoding.h"
 #include "Passes/Function/ExprWrapperMapper.h"
 #include "Passes/Function/FunctionContractDeclarer.h"
+#include "Passes/Module/StructTDeclarer.h"
 #include "Transform/BlockTransform.h"
 #include "Transform/Instruction/IntrinsicsTransform.h"
 #include "Transform/SpecStatementTransform.h"
@@ -265,7 +266,13 @@ void llvm2col::transformCmpExpr(llvm::CmpInst &cmpInstruction,
 void llvm2col::transformExtractValueInst(
     llvm::ExtractValueInst &llvmInstruction, col::LlvmBasicBlock &colBlock,
     pallas::FunctionCursor &funcCursor) {
-    const auto &dataLayout = llvmInstruction.getModule()->getDataLayout();
+    auto *pFunc = llvmInstruction.getFunction();
+    auto &mamProxy =
+        funcCursor.getFunctionAnalysisManager()
+            .getResult<llvm::ModuleAnalysisManagerFunctionProxy>(*pFunc);
+    auto *sdRes =
+        mamProxy.getCachedResult<pallas::StructTDeclarer>(*pFunc->getParent());
+    assert(sdRes != nullptr);
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(llvmInstruction, colBlock);
     col::LlvmExtractValue *extrVal =
@@ -276,10 +283,10 @@ void llvm2col::transformExtractValueInst(
     // Aggregate type
     llvm2col::transformAndSetValueType(
         *llvmInstruction.getAggregateOperand(), nullptr,
-        *extrVal->mutable_aggregate_type(), dataLayout);
+        *extrVal->mutable_aggregate_type(), *sdRes);
     // Result type
-    llvm2col::transformAndSetValueType(
-        llvmInstruction, nullptr, *extrVal->mutable_result_type(), dataLayout);
+    llvm2col::transformAndSetValueType(llvmInstruction, nullptr,
+                                       *extrVal->mutable_result_type(), *sdRes);
     // Value
     llvm2col::transformAndSetExpr(funcCursor, llvmInstruction,
                                   *llvmInstruction.getAggregateOperand(),
@@ -464,7 +471,8 @@ void llvm2col::transformCallExpr(llvm::CallInst &callInstruction,
             targetLoc->mutable_ref()->set_id(targetVar->id());
 
             // Yields var from called function
-            auto *yieldsVar = calledContrRes.getGhostArgMapEntry(y.getYieldsArg());
+            auto *yieldsVar =
+                calledContrRes.getGhostArgMapEntry(y.getYieldsArg());
             if (targetVar == nullptr) {
                 pallas::ErrorReporter::addError(
                     SOURCE_LOC, "Unable to get yields arg from called function",
@@ -907,6 +915,7 @@ void llvm2col::transformPallasBoundVar(llvm::CallInst &callInstruction,
 
     // "Normal" return.
     if (llvmSpecFunc->arg_size() == 1 && isRegularReturn) {
+        auto &sdRes = getSDResult(funcCursor, callInstruction);
         auto *type = llvmSpecFunc->getReturnType();
         col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
             callInstruction, colBlock);
@@ -937,11 +946,10 @@ void llvm2col::transformPallasBoundVar(llvm::CallInst &callInstruction,
                 subProgram->getType()->getTypeArray()->getOperand(0));
             llvm2col::transformAndSetTypeWithDebugInfo(
                 llvmSpecFunc->getReturnType(), diType, *bv->mutable_var_type(),
-                callInstruction.getModule()->getDataLayout());
+                sdRes);
         } else {
-            llvm2col::transformAndSetType(
-                *type, *bv->mutable_var_type(),
-                callInstruction.getModule()->getDataLayout());
+            llvm2col::transformAndSetType(*type, *bv->mutable_var_type(),
+                                          sdRes);
         }
     } else {
         pallas::ErrorReporter::addError(

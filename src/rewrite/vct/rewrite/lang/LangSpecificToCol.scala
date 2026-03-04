@@ -263,6 +263,7 @@ case class LangSpecificToCol[Pre <: Generation](
       }
 
       case func: LLVMFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
+      case sDecl: LLVMStructDeclaration[Pre] => llvm.rewriteStructDecl(sDecl)
       case global: LLVMGlobalSpecification[Pre] => llvm.rewriteGlobal(global)
       case global: LLVMGlobalVariable[Pre] => llvm.rewriteGlobalVariable(global)
 

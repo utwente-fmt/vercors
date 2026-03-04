@@ -12,6 +12,7 @@ add_library(Passes STATIC
     Module/ProtobufPrinter.cpp
     Module/RootContainer.cpp
     Module/StructConsolidator.cpp
+    Module/StructTDeclarer.cpp
 )
 
 target_link_libraries(Passes COL IRSpec)

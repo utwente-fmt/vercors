@@ -42,10 +42,10 @@ void llvm2col::transformAllocA(llvm::AllocaInst &allocAInstruction,
     allocA->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(allocAInstruction));
 
-    const auto &dataLayout = allocAInstruction.getModule()->getDataLayout();
     llvm2col::transformAndSetValueType(
         allocAInstruction, allocAInstruction.getAllocatedType(),
-        *allocA->mutable_return_type(), dataLayout);
+        *allocA->mutable_return_type(), 
+        getSDResult(funcCursor, allocAInstruction));
     col::Variable &varDecl = funcCursor.declareVariable(
         allocAInstruction, allocAInstruction.getAllocatedType());
     allocA->mutable_variable()->set_id(varDecl.id());
@@ -104,7 +104,7 @@ void llvm2col::transformLoad(llvm::LoadInst &loadInstruction,
     load->mutable_variable()->set_id(varDecl.id());
     llvm2col::transformAndSetValueType(
         loadInstruction, nullptr, *load->mutable_load_type(),
-        loadInstruction.getModule()->getDataLayout());
+        getSDResult(funcCursor, loadInstruction));
     llvm2col::transformAndSetExpr(funcCursor, loadInstruction,
                                   *loadInstruction.getPointerOperand(),
                                   *load->mutable_pointer());
@@ -135,7 +135,7 @@ void llvm2col::transformGetElementPtr(llvm::GetElementPtrInst &gepInstruction,
                                       col::LlvmBasicBlock &colBlock,
                                       pallas::FunctionCursor &funcCursor) {
 
-    const auto &dataLayout = gepInstruction.getModule()->getDataLayout();
+    auto &sdRes = getSDResult(funcCursor, gepInstruction);
     col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
         gepInstruction, colBlock, gepInstruction.getResultElementType());
     col::Expr *gepExpr = assignment.mutable_value();
@@ -147,9 +147,9 @@ void llvm2col::transformGetElementPtr(llvm::GetElementPtrInst &gepInstruction,
     // Not using metadata info here since there is basically never a dbg.value
     // or dbg.declare that refers to a GEP
     llvm2col::transformAndSetType(*gepInstruction.getSourceElementType(),
-                                  *gep->mutable_structure_type(), dataLayout);
+                                  *gep->mutable_structure_type(), sdRes);
     llvm2col::transformAndSetType(*gepInstruction.getResultElementType(),
-                                  *gep->mutable_result_type(), dataLayout);
+                                  *gep->mutable_result_type(), sdRes);
     llvm2col::transformAndSetExpr(funcCursor, gepInstruction,
                                   *gepInstruction.getPointerOperand(),
                                   *gep->mutable_pointer());

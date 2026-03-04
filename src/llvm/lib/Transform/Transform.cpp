@@ -1,9 +1,11 @@
 #include "Transform/Transform.h"
 #include "Origin/OriginProvider.h"
 #include "Passes/Function/FunctionBodyTransformer.h"
+#include "Passes/Module/StructTDeclarer.h"
 #include "Util/Exceptions.h"
 #include "Util/PallasDIMapping.h"
 #include "vct/col/ast/col.pb.h"
+#include <Passes/Module/RootContainer.h>
 
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/BinaryFormat/Dwarf.h>
@@ -33,15 +35,14 @@ const std::string SOURCE_LOC = "Transform::Transform";
 
 void llvm2col::transformAndSetPointerType(llvm::Type &llvmType,
                                           col::Type &colType,
-                                          const llvm::DataLayout &dataLayout) {
+                                          pallas::SDResult &sdRes) {
     col::LlvmtPointer *pointerType = colType.mutable_llvmt_pointer();
     pointerType->set_allocated_origin(generateTypeOrigin(llvmType));
     llvm2col::transformAndSetType(llvmType, *pointerType->mutable_inner_type(),
-                                  dataLayout);
+                                  sdRes);
 }
 bool llvm2col::transformAndSetBasicTypeWithDebugInfo(
-    llvm::Type *llvmType, llvm::DIBasicType &basicType, col::Type &colType,
-    const llvm::DataLayout &dataLayout) {
+    llvm::Type *llvmType, llvm::DIBasicType &basicType, col::Type &colType) {
     switch (basicType.getEncoding()) {
     case llvm::dwarf::DW_ATE_boolean:
         if (llvmType != nullptr &&
@@ -254,7 +255,7 @@ bool llvm2col::transformAndSetBasicTypeWithDebugInfo(
 }
 bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
     llvm::Type *llvmType, llvm::DICompositeType &compositeType,
-    col::Type &colType, const llvm::DataLayout &dataLayout) {
+    col::Type &colType, pallas::SDResult &sdRes) {
     switch (compositeType.getTag()) {
     case llvm::dwarf::DW_TAG_array_type: {
         if (llvmType != nullptr &&
@@ -301,19 +302,37 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
 
         transformAndSetTypeWithDebugInfo(childType, compositeType.getBaseType(),
                                          *colArray->mutable_element_type(),
-                                         dataLayout);
+                                         sdRes);
         colArray->set_num_elements(
             count.get<llvm::ConstantInt *>()->getLimitedValue());
         return true;
     }
     case llvm::dwarf::DW_TAG_class_type:
     case llvm::dwarf::DW_TAG_structure_type: {
+        /*
+        if (llvmType != nullptr && !llvm::isa<llvm::StructType>(llvmType)) {
+            return false;
+        }
+        auto *structType = llvm::cast_if_present<llvm::StructType>(llvmType);
+        if (structType == nullptr) {
+        //    assert(false);
+            return false;
+        }
+        */
+        auto sDeclID = sdRes.getStructDeclId({llvmType, &compositeType});
+        auto *sType = colType.mutable_llvmt_struct();
+        if (!sDeclID.has_value())
+            return false;
+        sType->mutable_ref()->set_id(sDeclID.value());
+        sType->set_allocated_origin(generateDITypeOrigin(compositeType));
+        /*
         col::LlvmtStruct *colStruct = colType.mutable_llvmt_struct();
         colStruct->set_allocated_origin(generateDITypeOrigin(compositeType));
         colStruct->add_name(compositeType.getName().str());
         colStruct->set_size_in_bits(compositeType.getSizeInBits());
         colStruct->set_is_literal(false);
-        // TODO: Fix packed vs unpacked, try to detect based on size or get rid
+        // TODO: Fix packed vs unpacked, try to detect based on size or get
+        rid
         // of packed as a thing entirely!
         colStruct->set_packed(false);
         if (llvmType == nullptr) {
@@ -328,7 +347,8 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
 
             llvm::sort(elements,
                        [&](llvm::DIDerivedType *a, llvm::DIDerivedType *b) {
-                           return a->getOffsetInBits() <= b->getOffsetInBits();
+                           return a->getOffsetInBits() <=
+        b->getOffsetInBits();
                        });
 
             for (auto *member : elements) {
@@ -339,6 +359,7 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
                         ->getSizeInBits());
                 field->set_allocated_origin(
                     generateStructMemberOrigin(*member));
+                // TODO: No worky when recursive
                 llvm2col::transformAndSetTypeWithDebugInfo(
                     nullptr, member->getBaseType(), *field->mutable_t(),
                     dataLayout);
@@ -359,14 +380,13 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
         if (structType->hasName()) {
             colStruct->add_name(structType->getName().str());
         }
-        std::vector<std::tuple<uint64_t, llvm::DIDerivedType *, llvm::Type *>>
-            elements;
-        elements.reserve(structType->getNumElements());
+        std::vector<std::tuple<uint64_t, llvm::DIDerivedType *, llvm::Type
+        *>> elements; elements.reserve(structType->getNumElements());
 
         const llvm::StructLayout *structLayout =
             dataLayout.getStructLayout(structType);
-        for (size_t i = 0, end = structType->getNumElements(); i < end; ++i) {
-            elements.push_back({structLayout->getElementOffsetInBits(i),
+        for (size_t i = 0, end = structType->getNumElements(); i < end; ++i)
+        { elements.push_back({structLayout->getElementOffsetInBits(i),
                                 nullptr, structType->getElementType(i)});
         }
 
@@ -387,7 +407,8 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
                     }
                 }
                 assert(i != elements.size() ||
-                       member->getOffsetInBits() == std::get<0>(elements[i]));
+                       member->getOffsetInBits() ==
+        std::get<0>(elements[i]));
             }
         }
 
@@ -401,12 +422,13 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
                 field->set_allocated_origin(
                     generateStructMemberOrigin(*diMember));
             }
+            // TODO: No worky when recursive!
             llvm2col::transformAndSetTypeWithDebugInfo(
                 llvmMember,
                 diMember == nullptr ? nullptr : diMember->getBaseType(),
                 *field->mutable_t(), dataLayout);
         }
-
+        */
         return true;
     }
     case llvm::dwarf::DW_TAG_inheritance:
@@ -438,7 +460,7 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
 }
 bool llvm2col::transformAndSetDerivedTypeWithDebugInfo(
     llvm::Type *llvmType, llvm::DIDerivedType &derivedType, col::Type &colType,
-    const llvm::DataLayout &dataLayout) {
+    pallas::SDResult &sdRes) {
     switch (derivedType.getTag()) {
     case llvm::dwarf::DW_TAG_pointer_type:
     case llvm::dwarf::DW_TAG_reference_type: {
@@ -455,7 +477,7 @@ bool llvm2col::transformAndSetDerivedTypeWithDebugInfo(
         if (derivedType.getBaseType() != nullptr) {
             transformAndSetTypeWithDebugInfo(nullptr, derivedType.getBaseType(),
                                              *colPointer->mutable_inner_type(),
-                                             dataLayout);
+                                             sdRes);
         }
 
         return true;
@@ -467,7 +489,7 @@ bool llvm2col::transformAndSetDerivedTypeWithDebugInfo(
     case llvm::dwarf::DW_TAG_atomic_type:
     case llvm::dwarf::DW_TAG_immutable_type:
         transformAndSetTypeWithDebugInfo(llvmType, derivedType.getBaseType(),
-                                         colType, dataLayout);
+                                         colType, sdRes);
         return true;
     default:
         WARN_DI_TYPE_MISSING_SUPPORT("derived type with unknown tag",
@@ -476,9 +498,15 @@ bool llvm2col::transformAndSetDerivedTypeWithDebugInfo(
     }
 }
 
-void llvm2col::transformAndSetTypeWithDebugInfo(
-    llvm::Type *llvmType, llvm::DIType *debugType, col::Type &colType,
-    const llvm::DataLayout &dataLayout) {
+void llvm2col::transformAndSetTypeWithDebugInfo(llvm::Type *llvmType,
+                                                llvm::DIType *debugType,
+                                                col::Type &colType,
+                                                pallas::SDResult &sdRes) {
+
+    // TODO: Keep map types that are already transformed / are currently being
+    // transformed to avoid ininite recursion! Needs to be consistent with the
+    // 'Non-Debug-info' of the transformation!
+
     if (debugType == nullptr) {
         if (llvmType == nullptr ||
             llvmType->getTypeID() == llvm::Type::VoidTyID) {
@@ -489,19 +517,21 @@ void llvm2col::transformAndSetTypeWithDebugInfo(
             SOURCE_LOC, "Debug type mismatch with LLVM type (null != void), "
                         "falling back to LLVM type");
     } else if (auto *basicType = dyn_cast<llvm::DIBasicType>(debugType)) {
-        if (transformAndSetBasicTypeWithDebugInfo(llvmType, *basicType, colType,
-                                                  dataLayout))
+        if (transformAndSetBasicTypeWithDebugInfo(llvmType, *basicType,
+                                                  colType))
             return;
     } else if (auto *compositeType =
                    dyn_cast<llvm::DICompositeType>(debugType)) {
         if (transformAndSetCompositeTypeWithDebugInfo(llvmType, *compositeType,
-                                                      colType, dataLayout))
+                                                      colType, sdRes))
             return;
-    } else if (auto *derivedType = dyn_cast<llvm::DIDerivedType>(debugType)) {
+    } else if (auto *derivedType =
+                   dyn_cast<llvm::DIDerivedType>(debugType)) {
         if (transformAndSetDerivedTypeWithDebugInfo(llvmType, *derivedType,
-                                                    colType, dataLayout))
+                                                    colType, sdRes))
             return;
-    } else if (auto *stringType = dyn_cast<llvm::DIStringType>(debugType)) {
+    } else if (auto *stringType =
+                   dyn_cast<llvm::DIStringType>(debugType)) {
     } else if (auto *subroutineType =
                    dyn_cast<llvm::DISubroutineType>(debugType)) {
         // } else if (auto *subrangeType =
@@ -518,37 +548,38 @@ void llvm2col::transformAndSetTypeWithDebugInfo(
         pallas::ErrorReporter::addError(
             SOURCE_LOC, "Fallback failed there is no LLVM type available here");
     } else {
-        transformAndSetType(*llvmType, colType, dataLayout);
+        transformAndSetType(*llvmType, colType, sdRes);
     }
 }
 
 void llvm2col::transformAndSetValueType(llvm::Value &value,
                                         llvm::Type *pointerType,
                                         col::Type &colType,
-                                        const llvm::DataLayout &dataLayout) {
+                                        pallas::SDResult &sdRes) {
     if (auto *diType = pallas::utils::getDITypeForValue(value)) {
         if (pointerType != nullptr &&
             diType->getTag() == llvm::dwarf::DW_TAG_pointer_type) {
             col::LlvmtPointer *colPointer = colType.mutable_llvmt_pointer();
             colPointer->set_allocated_origin(generateDITypeOrigin(*diType));
             transformAndSetTypeWithDebugInfo(
-                pointerType, cast<llvm::DIDerivedType>(diType)->getBaseType(),
-                *colPointer->mutable_inner_type(), dataLayout);
+                pointerType,
+                cast<llvm::DIDerivedType>(diType)->getBaseType(),
+                *colPointer->mutable_inner_type(), sdRes);
         } else {
             transformAndSetTypeWithDebugInfo(value.getType(), diType, colType,
-                                             dataLayout);
+                                             sdRes);
         }
     } else {
         if (pointerType == nullptr) {
-            transformAndSetType(*value.getType(), colType, dataLayout);
+            transformAndSetType(*value.getType(), colType, sdRes);
         } else {
-            transformAndSetPointerType(*pointerType, colType, dataLayout);
+            transformAndSetPointerType(*pointerType, colType, sdRes);
         }
     }
 }
 
 void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType,
-                                   const llvm::DataLayout &dataLayout) {
+                                   pallas::SDResult &sdRes) {
     switch (llvmType.getTypeID()) {
     case llvm::Type::IntegerTyID:
         if (llvmType.getIntegerBitWidth() == 1) {
@@ -623,24 +654,42 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType,
             generateTypeOrigin(llvmType));
         break;
     case llvm::Type::StructTyID: {
+        auto sDeclID = sdRes.getStructDeclId({&llvmType, nullptr});
+        assert(sDeclID.has_value());
+        auto *sType = colType.mutable_llvmt_struct();
+        sType->mutable_ref()->set_id(sDeclID.value());
+        sType->set_allocated_origin(generateTypeOrigin(llvmType));
+
+        /*
         llvm::StructType &structType = llvm::cast<llvm::StructType>(llvmType);
-        col::LlvmtStruct *colStruct = colType.mutable_llvmt_struct();
-        colStruct->set_allocated_origin(generateTypeOrigin(llvmType));
+        // col::LlvmtStruct *colStruct = colType.mutable_llvmt_struct();
+        // TODO: No not make a new declaration every time the type is
+        transformed. auto &mamProxy =
+        fam.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(ctxFunc); auto
+        *colProg =
+        mamProxy.getCachedResult<pallas::RootContainer>(*ctxFunc.getParent())->program.get();
+
+        auto *sDecl =
+        colProg->add_declarations()->mutable_llvm_struct_declaration();
+        sDecl->set_id(reinterpret_cast<int64_t>(&structType));
+        // TODO: Set id
+        sDecl->set_allocated_origin(generateTypeOrigin(llvmType));
         if (!structType.isLiteral()) {
             // TODO: Instead of storing the name do we want keep only a single
             // instance of the col::LLVMTStruct per non-literal struct type?
             // XXX: This name can be the empty string for unnamed types, and it
             // won't be set for literal types
-            colStruct->add_name(structType.getName().str());
+            sDecl->add_name(structType.getName().str());
         }
-        colStruct->set_size_in_bits(
+        sDecl->set_size_in_bits(
+            ctxFunc.getM
             dataLayout.getTypeAllocSizeInBits(&structType));
-        colStruct->set_is_literal(structType.isLiteral());
-        colStruct->set_packed(structType.isPacked());
+        sDecl->set_is_literal(structType.isLiteral());
+        sDecl->set_packed(structType.isPacked());
         const llvm::StructLayout *structLayout =
             dataLayout.getStructLayout(&structType);
-        for (size_t i = 0, end = structType.getNumElements(); i < end; ++i) {
-            llvm::Type *element = structType.getElementType(i);
+        for (size_t i = 0, end = structType.getNumElements(); i < end; ++i)
+        { llvm::Type *element = structType.getElementType(i);
             col::LlvmFieldDefinition *field = colStruct->add_elements();
             field->set_offset(structLayout->getElementOffsetInBits(i));
             field->set_size(dataLayout.getTypeSizeInBits(element));
@@ -648,6 +697,7 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType,
             llvm2col::transformAndSetType(*element, *field->mutable_t(),
                                           dataLayout);
         }
+        */
         break;
     }
     case llvm::Type::ArrayTyID: {
@@ -655,8 +705,7 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType,
         col::LlvmtArray *colArray = colType.mutable_llvmt_array();
         colArray->set_allocated_origin(generateTypeOrigin(llvmType));
         llvm2col::transformAndSetType(*arrayType.getElementType(),
-                                      *colArray->mutable_element_type(),
-                                      dataLayout);
+                                      *colArray->mutable_element_type(), sdRes);
         colArray->set_num_elements(arrayType.getNumElements());
         break;
     }
@@ -667,7 +716,7 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType,
         colVector->set_allocated_origin(generateTypeOrigin(llvmType));
         llvm2col::transformAndSetType(*vectorType.getElementType(),
                                       *colVector->mutable_element_type(),
-                                      dataLayout);
+                                      sdRes);
         colVector->set_num_elements(
             vectorType.getElementCount().getKnownMinValue());
         break;
@@ -682,12 +731,19 @@ void llvm2col::transformAndSetExpr(pallas::FunctionCursor &functionCursor,
                                    llvm::Instruction &llvmInstruction,
                                    llvm::Value &llvmOperand,
                                    col::Expr &colExpr) {
+    auto *parentF = llvmInstruction.getFunction();
+    assert(parentF != nullptr);
+    auto &mamProxy =
+        functionCursor.getFunctionAnalysisManager()
+            .getResult<llvm::ModuleAnalysisManagerFunctionProxy>(*parentF);
+    auto *sDeclRes = mamProxy.getCachedResult<pallas::StructTDeclarer>(
+        *parentF->getParent());
+    assert(sDeclRes != nullptr);
     col::Origin *origin = generateOperandOrigin(llvmInstruction, llvmOperand);
     if (llvm::isa<llvm::Constant>(llvmOperand)) {
         transformAndSetConstExpr(
             functionCursor.getFunctionAnalysisManager(), origin,
-            llvm::cast<llvm::Constant>(llvmOperand), colExpr,
-            llvmInstruction.getModule()->getDataLayout());
+            llvm::cast<llvm::Constant>(llvmOperand), colExpr, *sDeclRes);
     } else {
         transformAndSetVarExpr(functionCursor, origin,
                                llvmInstruction.getOpcode() ==
@@ -711,15 +767,14 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                                         col::Origin *origin,
                                         llvm::Constant &llvmConstant,
                                         col::Expr &colExpr,
-                                        const llvm::DataLayout &dataLayout) {
+                                        pallas::SDResult &sdRes) {
     if (llvm::isa<llvm::ConstantAggregateZero>(llvmConstant)) {
         col::LlvmZeroedAggregateValue *colZero =
             colExpr.mutable_llvm_zeroed_aggregate_value();
 
         colZero->set_allocated_origin(origin);
-        llvm2col::transformAndSetType(*llvmConstant.getType(),
-                                      *colZero->mutable_aggregate_type(),
-                                      dataLayout);
+        llvm2col::transformAndSetType(
+            *llvmConstant.getType(), *colZero->mutable_aggregate_type(), sdRes);
         return;
     }
     llvm::Type *constType = llvmConstant.getType();
@@ -863,12 +918,11 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
             llvm2col::transformAndSetConstExpr(
                 FAM, llvm2col::deepenOperandOrigin(*origin, *operand.get()),
                 llvm::cast<llvm::Constant>(*operand.get()),
-                *colStruct->add_value(), dataLayout);
+                *colStruct->add_value(), sdRes);
         }
         colStruct->set_allocated_origin(origin);
         llvm2col::transformAndSetType(*llvmStruct.getType(),
-                                      *colStruct->mutable_struct_type(),
-                                      dataLayout);
+                                      *colStruct->mutable_struct_type(), sdRes);
 
         break;
     }
@@ -882,12 +936,11 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                 llvm2col::transformAndSetConstExpr(
                     FAM, llvm2col::deepenOperandOrigin(*origin, *operand.get()),
                     llvm::cast<llvm::Constant>(*operand.get()),
-                    *colArray->add_value(), dataLayout);
+                    *colArray->add_value(), sdRes);
             }
             colArray->set_allocated_origin(origin);
-            llvm2col::transformAndSetType(*llvmArray.getType(),
-                                          *colArray->mutable_array_type(),
-                                          dataLayout);
+            llvm2col::transformAndSetType(
+                *llvmArray.getType(), *colArray->mutable_array_type(), sdRes);
         } else {
             llvm::ConstantDataArray &llvmArray =
                 llvm::cast<llvm::ConstantDataArray>(llvmConstant);
@@ -901,9 +954,8 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
             colArray->set_allocated_origin(origin);
             llvm::errs() << "Array constant " << llvmArray << " has type "
                          << *llvmArray.getType() << "\n";
-            llvm2col::transformAndSetType(*llvmArray.getType(),
-                                          *colArray->mutable_array_type(),
-                                          dataLayout);
+            llvm2col::transformAndSetType(
+                *llvmArray.getType(), *colArray->mutable_array_type(), sdRes);
         }
 
         break;
@@ -919,12 +971,12 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                 llvm2col::transformAndSetConstExpr(
                     FAM, llvm2col::deepenOperandOrigin(*origin, *operand.get()),
                     llvm::cast<llvm::Constant>(*operand.get()),
-                    *colVector->add_value(), dataLayout);
+                    *colVector->add_value(), sdRes);
             }
             colVector->set_allocated_origin(origin);
             llvm2col::transformAndSetType(*llvmVector.getType(),
                                           *colVector->mutable_vector_type(),
-                                          dataLayout);
+                                          sdRes);
         } else {
             llvm::ConstantDataVector &llvmVector =
                 llvm::cast<llvm::ConstantDataVector>(llvmConstant);
@@ -938,7 +990,7 @@ void llvm2col::transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
             colVector->set_allocated_origin(origin);
             llvm2col::transformAndSetType(*llvmVector.getType(),
                                           *colVector->mutable_vector_type(),
-                                          dataLayout);
+                                          sdRes);
         }
 
         break;
@@ -971,4 +1023,15 @@ std::string llvm2col::getValueName(llvm::Value &llvmValue) {
     llvm::raw_string_ostream contextStream = llvm::raw_string_ostream(name);
     llvmValue.printAsOperand(contextStream, false);
     return name;
+}
+
+pallas::SDResult &llvm2col::getSDResult(pallas::FunctionCursor &funcCursor,
+                                        llvm::Instruction &inst) {
+    auto &mamProxy = funcCursor.getFunctionAnalysisManager()
+                         .getResult<llvm::ModuleAnalysisManagerFunctionProxy>(
+                             *inst.getFunction());
+    auto *sdRes = mamProxy.getCachedResult<pallas::StructTDeclarer>(
+        *inst.getFunction()->getParent());
+    assert(sdRes != nullptr);
+    return *sdRes;
 }

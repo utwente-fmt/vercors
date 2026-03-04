@@ -2698,6 +2698,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case synchronization: BipTransitionSynchronization[Pre] => synchronization
       case definition: LLVMFunctionDefinition[Pre] => definition
       case llvmPred: LLVMPredicateDefinition[Pre] => llvmPred
+      case llvmSDecl: LLVMStructDeclaration[Pre] => llvmSDecl
       case typ: ProverType[Pre] => typ
       case func: ProverFunction[Pre] => func
       case function: LLVMSpecFunction[Pre] =>

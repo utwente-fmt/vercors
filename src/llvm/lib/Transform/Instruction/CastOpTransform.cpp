@@ -41,6 +41,13 @@ void llvm2col::transformCastOp(llvm::Instruction &llvmInstruction,
 void llvm2col::transformSExt(llvm::SExtInst &sextInstruction,
                              col::LlvmBasicBlock &colBlock,
                              pallas::FunctionCursor &funcCursor) {
+    auto &mamProxy = funcCursor.getFunctionAnalysisManager()
+                         .getResult<llvm::ModuleAnalysisManagerFunctionProxy>(
+                             *sextInstruction.getFunction());
+    auto *sdRes = mamProxy.getCachedResult<pallas::StructTDeclarer>(
+        *sextInstruction.getFunction()->getParent());
+    assert(sdRes != nullptr);
+
     const auto &dataLayout = sextInstruction.getModule()->getDataLayout();
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(sextInstruction, colBlock);
@@ -49,9 +56,9 @@ void llvm2col::transformSExt(llvm::SExtInst &sextInstruction,
     sext->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(sextInstruction));
     llvm2col::transformAndSetValueType(*sextInstruction.getOperand(0), nullptr,
-                                       *sext->mutable_input_type(), dataLayout);
-    llvm2col::transformAndSetValueType(
-        sextInstruction, nullptr, *sext->mutable_output_type(), dataLayout);
+                                       *sext->mutable_input_type(), *sdRes);
+    llvm2col::transformAndSetValueType(sextInstruction, nullptr,
+                                       *sext->mutable_output_type(), *sdRes);
     llvm2col::transformAndSetExpr(funcCursor, sextInstruction,
                                   *sextInstruction.getOperand(0),
                                   *sext->mutable_value());
@@ -60,7 +67,7 @@ void llvm2col::transformSExt(llvm::SExtInst &sextInstruction,
 void llvm2col::transformZExt(llvm::ZExtInst &zextInstruction,
                              col::LlvmBasicBlock &colBlock,
                              pallas::FunctionCursor &funcCursor) {
-    const auto &dataLayout = zextInstruction.getModule()->getDataLayout();
+    auto &sdRes = getSDResult(funcCursor, zextInstruction);
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(zextInstruction, colBlock);
     col::Expr *zextExpr = assignment.mutable_value();
@@ -68,9 +75,9 @@ void llvm2col::transformZExt(llvm::ZExtInst &zextInstruction,
     zext->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(zextInstruction));
     llvm2col::transformAndSetValueType(*zextInstruction.getOperand(0), nullptr,
-                                       *zext->mutable_input_type(), dataLayout);
-    llvm2col::transformAndSetValueType(
-        zextInstruction, nullptr, *zext->mutable_output_type(), dataLayout);
+                                       *zext->mutable_input_type(), sdRes);
+    llvm2col::transformAndSetValueType(zextInstruction, nullptr,
+                                       *zext->mutable_output_type(), sdRes);
     llvm2col::transformAndSetExpr(funcCursor, zextInstruction,
                                   *zextInstruction.getOperand(0),
                                   *zext->mutable_value());
@@ -79,7 +86,7 @@ void llvm2col::transformZExt(llvm::ZExtInst &zextInstruction,
 void llvm2col::transformTrunc(llvm::TruncInst &truncInstruction,
                               col::LlvmBasicBlock &colBlock,
                               pallas::FunctionCursor &funcCursor) {
-    const auto &dataLayout = truncInstruction.getModule()->getDataLayout();
+    auto &sdRes = getSDResult(funcCursor, truncInstruction);
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(truncInstruction, colBlock);
     col::Expr *truncExpr = assignment.mutable_value();
@@ -87,10 +94,9 @@ void llvm2col::transformTrunc(llvm::TruncInst &truncInstruction,
     trunc->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(truncInstruction));
     llvm2col::transformAndSetValueType(*truncInstruction.getOperand(0), nullptr,
-                                       *trunc->mutable_input_type(),
-                                       dataLayout);
-    llvm2col::transformAndSetValueType(
-        truncInstruction, nullptr, *trunc->mutable_output_type(), dataLayout);
+                                       *trunc->mutable_input_type(), sdRes);
+    llvm2col::transformAndSetValueType(truncInstruction, nullptr,
+                                       *trunc->mutable_output_type(), sdRes);
     llvm2col::transformAndSetExpr(funcCursor, truncInstruction,
                                   *truncInstruction.getOperand(0),
                                   *trunc->mutable_value());
@@ -99,7 +105,7 @@ void llvm2col::transformTrunc(llvm::TruncInst &truncInstruction,
 void llvm2col::transformFPExt(llvm::FPExtInst &fpextInstruction,
                               col::LlvmBasicBlock &colBlock,
                               pallas::FunctionCursor &funcCursor) {
-    const auto &dataLayout = fpextInstruction.getModule()->getDataLayout();
+    auto &sdRes = getSDResult(funcCursor, fpextInstruction);
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(fpextInstruction, colBlock);
     col::Expr *fpextExpr = assignment.mutable_value();
@@ -107,10 +113,9 @@ void llvm2col::transformFPExt(llvm::FPExtInst &fpextInstruction,
     fpext->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(fpextInstruction));
     llvm2col::transformAndSetValueType(*fpextInstruction.getOperand(0), nullptr,
-                                       *fpext->mutable_input_type(),
-                                       dataLayout);
-    llvm2col::transformAndSetValueType(
-        fpextInstruction, nullptr, *fpext->mutable_output_type(), dataLayout);
+                                       *fpext->mutable_input_type(), sdRes);
+    llvm2col::transformAndSetValueType(fpextInstruction, nullptr,
+                                       *fpext->mutable_output_type(), sdRes);
     llvm2col::transformAndSetExpr(funcCursor, fpextInstruction,
                                   *fpextInstruction.getOperand(0),
                                   *fpext->mutable_value());
@@ -119,7 +124,7 @@ void llvm2col::transformFPExt(llvm::FPExtInst &fpextInstruction,
 void llvm2col::transformPtrToInt(llvm::PtrToIntInst &ptoiInstruction,
                                  col::LlvmBasicBlock &colBlock,
                                  pallas::FunctionCursor &funcCursor) {
-    const auto &dataLayout = ptoiInstruction.getModule()->getDataLayout();
+    auto &sdRes = getSDResult(funcCursor, ptoiInstruction);
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(ptoiInstruction, colBlock);
     col::Expr *castExpr = assignment.mutable_value();
@@ -128,9 +133,9 @@ void llvm2col::transformPtrToInt(llvm::PtrToIntInst &ptoiInstruction,
     cast->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(ptoiInstruction));
     llvm2col::transformAndSetValueType(*ptoiInstruction.getOperand(0), nullptr,
-                                       *cast->mutable_input_type(), dataLayout);
-    llvm2col::transformAndSetValueType(
-        ptoiInstruction, nullptr, *cast->mutable_output_type(), dataLayout);
+                                       *cast->mutable_input_type(), sdRes);
+    llvm2col::transformAndSetValueType(ptoiInstruction, nullptr,
+                                       *cast->mutable_output_type(), sdRes);
     llvm2col::transformAndSetExpr(funcCursor, ptoiInstruction,
                                   *ptoiInstruction.getOperand(0),
                                   *cast->mutable_value());
@@ -139,7 +144,7 @@ void llvm2col::transformPtrToInt(llvm::PtrToIntInst &ptoiInstruction,
 void llvm2col::transformIntToPtr(llvm::IntToPtrInst &itopInstruction,
                                  col::LlvmBasicBlock &colBlock,
                                  pallas::FunctionCursor &funcCursor) {
-    const auto &dataLayout = itopInstruction.getModule()->getDataLayout();
+    auto &sdRes = getSDResult(funcCursor, itopInstruction);
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(itopInstruction, colBlock);
     col::Expr *castExpr = assignment.mutable_value();
@@ -148,9 +153,9 @@ void llvm2col::transformIntToPtr(llvm::IntToPtrInst &itopInstruction,
     cast->set_allocated_origin(
         llvm2col::generateSingleStatementOrigin(itopInstruction));
     llvm2col::transformAndSetValueType(*itopInstruction.getOperand(0), nullptr,
-                                       *cast->mutable_input_type(), dataLayout);
-    llvm2col::transformAndSetValueType(
-        itopInstruction, nullptr, *cast->mutable_output_type(), dataLayout);
+                                       *cast->mutable_input_type(), sdRes);
+    llvm2col::transformAndSetValueType(itopInstruction, nullptr,
+                                       *cast->mutable_output_type(), sdRes);
     llvm2col::transformAndSetExpr(funcCursor, itopInstruction,
                                   *itopInstruction.getOperand(0),
                                   *cast->mutable_value());
