@@ -355,7 +355,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
     }
 
-    // TODO: This should be removed once the support for mixing PVL and LLVM is no longer needed
+    // TODO: This should be simplified once the support for mixing PVL and LLVM is no longer needed
     // Defines which LLVM and PVL types are considered equal when LLVM and PVL are mixed
     def pvlLLVMEqual(a: Type[Pre], b: Type[Pre]): Boolean = {
       def isVoidPtr(t: Type[Pre]): Boolean = {
@@ -369,6 +369,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
       (a, b) match {
         case (t1, t2) if t1 == t2 => true
+        case (LLVMTStruct(Ref(s1)), LLVMTStruct(Ref(s2))) =>
+          s1 ==
+            s2 // Required because equality is false if refs are not evaluated
         case (TInt(), LLVMTInt(_)) => true
         case (LLVMTInt(_), TInt()) => true
         case (TChar(), LLVMTInt(_)) => true
@@ -406,7 +409,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
 
     def findAcceptable(types: mutable.ArrayBuffer[Type[Pre]]): Type[Pre] = {
-      types.reduce { (a, b) =>
+      types.reduceLeft { (a, b) =>
         findSuperType(a, b).getOrElse(
           throw Unreachable(
             s"Failed to find super type of '$a' and '$b' even though both sides should be pointers"
