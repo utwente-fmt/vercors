@@ -1370,8 +1370,8 @@ ScopedStack()
         val warpId = AmbiguousDiv(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen")) // warp ID
         LiteralSeq(TCInt(), Seq(laneId,warpId))
       }
-      case "sycl::shift_group_left" if args.length == 3 => shiftGroupLeftProcedure(inv)
-      case "sycl::shift_group_right" if args.length == 3 => shiftGroupRightProcedure(inv)
+      case "sycl::shift_group_left" if args.length == 3 => shiftGroupLeftRightProcedure(inv, leftOrRight = true)
+      case "sycl::shift_group_right" if args.length == 3 => shiftGroupLeftRightProcedure(inv, leftOrRight = false)
       case "sycl::group_broadcast" if args.length == 3 => groupBroadCastProcedure(inv)
       case "sycl::accessor::get_range" =>
         classInstance match {
@@ -3033,15 +3033,15 @@ ScopedStack()
 
   def subgroupToSeq(t: SYCLTSubGroup[Pre]): Type[Post] = TSeq(TCInt())(t.o)
 
-  def shiftGroupLeftProcedure(inv: CPPInvocation[Pre]): Expr[Post] = {
+  def shiftGroupLeftRightProcedure(inv: CPPInvocation[Pre], leftOrRight: Boolean): Expr[Post] = {
     implicit val o = inv.o
     val sgInv = inv.subgroup_inv.getOrElse(tt[Pre])
     val sgArg = rw.dispatch(inv.args.head) //Assumes |args| == 3
     val valToSend = rw.dispatch(inv.args(1)) //Assumes |args| == 3
-    val d = rw.dispatch(inv.args(2)) //Assumes |args| == 3
+    val d: Expr[Post] = rw.dispatch(inv.args(2)) //Assumes |args| == 3
     val sglResult = new Variable[Post](TCInt())(o.where(name = "sgl_result"))
 
-    val laneid = SeqSubscript[Post](sgArg,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
+    val laneid: Expr[Post] = SeqSubscript[Post](sgArg,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
 
 
     val exhalePred: Expr[Post] =
@@ -3063,26 +3063,31 @@ ScopedStack()
     }
     val warpsize = syclWarpSize.getOrElse(throw new SYCLWarpSizeNotDefinedError(inv))
 
-    val predToExhale = Implies(
-      And(//0 <= min(wid,dk) && min(wid,dk) < min(N,dk)
-        LessEq(c_const(0), laneid-d),
-        tt[Post]
-//        Less(laneid-d, Local[Post](warpsize.ref))
-      ),
-      exhalePred
-    )
-    val predToInhale = Implies(//plus(wid,dk) < N
-      Less(laneid+d, Local[Post](warpsize.ref)),
-      inhalePred
-    )
 
+
+    val predToExhale: Expr[Post] =
+      if (leftOrRight) {
+        (c_const[Post](0) <= (laneid-d)) ==> exhalePred
+      } else {
+        ???
+        tt[Post] ==> exhalePred//TODO right case
+      }
+
+    val predToInhale =
+      if (leftOrRight) {
+        (laneid+d) < warpsize.get ==> inhalePred
+      } else {
+        ???
+        tt[Post] ==> inhalePred//TODO right case
+      }
 
     if (dependsIndirectlyOnSYCLIdFunctions(sgInv)) { throw SYCLSubGroupInvDependsOnTheId(sgInv) }
 
     val sg = new Variable[Post](TSeq(TCInt()))(o.where(name = "sg"))
     val value = new Variable[Post](TCInt())(o.where(name = "value"))
     val delta = new Variable[Post](TCInt())(o.where(name = "delta"))
-    val shiftGroupLeftBlame = PanicBlame("The call to shift_group_left should never fail")
+    val funcName = if (leftOrRight) "shift_group_left" else "shift_group_right"
+    val shiftGroupBlame = PanicBlame(s"The call to $funcName should never fail")
 
     val procedure = withResult((result: Result[Post]) => {
       new Procedure[Post](
@@ -3103,8 +3108,8 @@ ScopedStack()
             givenArgs = Nil,
             yieldsArgs = Nil,
             decreases = None,
-          )(shiftGroupLeftBlame),
-      )(shiftGroupLeftBlame)(o.where(name="shift_group_left"))
+          )(shiftGroupBlame),
+      )(shiftGroupBlame)(o.where(name=funcName))
     })
 
     rw.globalDeclarations.declare(procedure)
@@ -3231,10 +3236,6 @@ ScopedStack()
       case _ => false
     }
     containsIdFunction
-  }
-
-  def shiftGroupRightProcedure(inv: CPPInvocation[Pre]): Expr[Post] = {
-    ???
   }
 
   def groupBroadCastProcedure(inv: CPPInvocation[Pre]): Expr[Post] = {

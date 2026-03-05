@@ -21,10 +21,10 @@
 void smartsum(sycl::queue q, int T, int N, int* fx) {
   //@ label bK;
   //@ assume |fxGs()| == Tf() && (\forall int i=0 .. Tf(); fxGs()[i] == \old[bK](fx[i]));
-  //@ assert true;
-  {
+  //@ refute false;
+
   sycl::buffer<int, 1> fxBuf = sycl::buffer(fx, sycl::range<1>(T));
-  //@ assert true;
+  //@ refute false;
 
   sycl::event e0 = q.submit([&](sycl::handler& h)
     {
@@ -45,7 +45,7 @@ void smartsum(sycl::queue q, int T, int N, int* fx) {
       [=](sycl::nd_item<1> it)
         [[sycl::reqd_sub_group_size(32)]]
             {
-        //@ assert true;
+        //@ refute false;
         sycl::sub_group sg = it.get_sub_group();
         int gid = it.get_global_id(0);
         int laneId = sg.get_local_id();
@@ -57,7 +57,7 @@ void smartsum(sycl::queue q, int T, int N, int* fx) {
 
     /*@ assert lemmaSumOverConcat(fxGs()[gid .. gid+d1],fxGs()[gid+d1 .. gid+d1+d1]);
         assert lemmaSumOverABBCisAC(fxGs(), gid, gid+d1, gid+d1+d1);
-        assert true; */
+        refute false; */
 
         int d2 = 2;
     //@ assert sg.get_local_id() + d1 < sg.get_local_range(0) ==> gid+d2 <= |fxGs()| ==> fxAcc[gid] == sum(fxGs()[gid .. gid+d2]);
@@ -67,7 +67,7 @@ void smartsum(sycl::queue q, int T, int N, int* fx) {
 
     /*@ assert lemmaSumOverConcat(fxGs()[gid .. gid+d2],fxGs()[gid+d2 .. gid+d2+d2]);
         assert lemmaSumOverABBCisAC(fxGs(), gid, gid+d2, gid+d2+d2);
-        assert true;*/
+        refute false;*/
 
     /*@ assert sg.get_local_id() + d2 + d1 < sg.get_local_range(0) ==>
                         gid+d2+d2 <= |fxGs()| ==> fxAcc[gid] == sum(fxGs()[gid .. gid+d2+d2]);*/
@@ -95,33 +95,15 @@ void smartsum(sycl::queue q, int T, int N, int* fx) {
 
       /*@ assert lemmaSumOverConcat(fxGs()[gid .. gid+dk],fxGs()[gid+dk .. gid+dk+dk]);
           assert lemmaSumOverABBCisAC(fxGs(), gid, gid+dk, gid+dk+dk);
-          assert true;*/
+          refute false;*/
 
       /*@ ghost k1=k1+1; */
         }
     });
   });
-  //@ assert true;
+  //@ refute false;
   e0.wait();
-  //@ assert true;
-  }
-  /*@
-  assert (\forall int lid3=0 .. N, int gid3=0 .. T%N;
-    lid3 % 32 + 32 <= 32 ==>
-    sycl::linearize2(lid3, gid3, N, T) + 32 <= |fxGs()| ==>
-          fx[{:sycl::linearize2(lid3, gid3, N,T):}] == sum(fxGs()[sycl::linearize2(lid3, gid3, N,T)..sycl::linearize2(lid3, gid3, N,T) + 32])
-    );
-  */
-  //@ assert false;
-  int result = 0;
-  int lid = 0;
-  int gid = 0;
-
-
-  for (gid=0; gid < T%N; gid++){
-      for (lid=0; lid < N; lid++){
-      }
-  }
+  //@ refute false;
 }
 
 /////////////////////////////////////////
@@ -167,18 +149,3 @@ pure bool NBound(int N) =
     (N == 32 && sycl::h::exp(2,5) == 32) ||
     (N == 64 && sycl::h::exp(2,6) == 64);
 */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
