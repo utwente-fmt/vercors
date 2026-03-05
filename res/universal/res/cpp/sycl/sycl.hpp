@@ -3,13 +3,11 @@ namespace sycl {
   namespace h {
     /*@
       ensures (a>0 && b>0) ==> \result > 0;
-      ensures \result == a*b;
       ensures \result == sycl::h::mul(b,a);
       decreases assume;
       pure int mul(int a, int b) = a*b;
 
       ensures (a>0 && b>0) ==> \result > 0;
-      ensures \result == a+b;
       ensures \result == sycl::h::add(b,a);
       decreases assume;
       pure int add(int a, int b) = a+b;

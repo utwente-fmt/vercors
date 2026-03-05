@@ -659,6 +659,7 @@ object AstBuildHelpers {
       decreases: Option[DecreasesClause[G]] = None,
       inline: Boolean = false,
       pure: Boolean = false,
+      opaque: Boolean = false,
   )(implicit o: Origin): Procedure[G] =
     new Procedure(
       returnType,

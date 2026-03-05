@@ -13,16 +13,14 @@ import vct.col.resolve.NotApplicable
 import vct.col.resolve.ctx._
 import vct.col.resolve.lang.CPP
 import vct.col.rewrite.ParBlockEncoder.ParBlockNotInjective
-import vct.col.rewrite.{Generation, ParBlockEncoder, Rewriter, Rewritten, SimplifyNestedQuantifiers}
+import vct.col.rewrite.{Generation, ParBlockEncoder, Rewritten}
 import vct.col.util.AstBuildHelpers.{assignLocal, _}
-import vct.col.util.{AstBuildHelpers, Substitute, SuccessionMap}
+import vct.col.util.{AstBuildHelpers, SuccessionMap}
 import vct.result.Message
 import vct.result.VerificationError.{Unreachable, UserError}
 import vct.rewrite.lang.LangSpecificToCol.NotAValue
 
-import scala.Seq
 import scala.collection.mutable
-import scala.runtime.BoxedUnit
 
 case object LangCPPToCol {
 
@@ -214,13 +212,7 @@ case object LangCPPToCol {
       inv.blame.blame(SYCLItemMethodPreconditionFailed(error.node))
   }
 
-  private case class SYCLMulMethodInvocationBlame()
-      extends CPPInvocationBlame("SYCL item methods") {
-    override def preconditionFailed(error: PreconditionFailed): Unit =
-      PanicBlame(
-        "The mul helper method doesn't have preconditions. This should not happen."
-      ).blame(error)
-  }
+  def SYCLMulMethodInvocationBlame = PanicBlame("The mul helper method doesn't have preconditions. This should not happen.")
 
   private case class SYCLItemMethodSeqBoundFailureBlame(inv: CPPInvocation[_])
       extends Blame[SeqBoundFailure] {
@@ -846,7 +838,7 @@ ScopedStack()
     ): Seq[Assign[Post]] =
       params.indices.map(i => {
         implicit val o: Origin = params(i).o
-        assignLocal(Local[Post](rangeFields(i).ref), Local[Post](params(i).ref))
+        assignLocal(rangeFields(i), Local[Post](params(i).ref))
       })
   }
   private case class NDRangeKernel(
@@ -861,9 +853,9 @@ ScopedStack()
       // Order of params is global0, local0, global1, local1, ...
       foldStar(Seq.range(0, params.size, 2).map(i => {
         implicit val o: Origin = NDRangeDimensionCheckOrigin(rangeO, Some(i))
-        (Local[Post](params(i).ref) >= c_const(0)) &&
-        (Local[Post](params(i + 1).ref) > c_const(0)) &&
-        (Mod(Local[Post](params(i).ref), Local[Post](params(i + 1).ref))(
+        (params(i).get >= c_const(0)) &&
+        (params(i + 1).get > c_const(0)) &&
+        (Mod(params(i).get, Local[Post](params(i + 1).ref))(
           ImpossibleDivByZeroBlame()
         ) === c_const(0))
       }))(NDRangeDimensionCheckOrigin(rangeO))
@@ -880,13 +872,13 @@ ScopedStack()
           assignLocal(
             Local[Post](rangeFields(i).ref),
             AmbiguousDiv(
-              Local[Post](params(i).ref),
-              Local[Post](params(i + 1).ref),
+              params(i).get,
+              params(i + 1).get,
             )(ImpossibleDivByZeroBlame()),
           ),
           assignLocal(
             Local[Post](rangeFields(i + 1).ref),
-            Local[Post](params(i + 1).ref),
+            params(i + 1).get,
           ),
           // TODO ÖS Do I somehow need to assert this or not?
           //            Local[Post](rangeFields(i).ref) * Local[Post](rangeFields(i + 1).ref) === Local[Post](params(i).ref),
@@ -1366,8 +1358,8 @@ ScopedStack()
       case "sycl::sub_group::get_group_range" => ???
       case "sycl::nd_item::get_sub_group" => {
         val warpsize = syclWarpSize.getOrElse(throw new SYCLWarpSizeNotDefinedError(inv))
-        val laneId = AmbiguousMod(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen")) // lane ID
-        val warpId = AmbiguousDiv(getSimpleWorkItemLinearId(inv, LocalScope()), Local[Post](warpsize.ref))(PanicBlame("should never happen")) // warp ID
+        val laneId = AmbiguousMod(getSimpleWorkItemLinearId(inv, LocalScope()), warpsize.get)(PanicBlame("should never happen")) // lane ID
+        val warpId = AmbiguousDiv(getSimpleWorkItemLinearId(inv, LocalScope()), warpsize.get)(PanicBlame("should never happen")) // warp ID
         LiteralSeq(TCInt(), Seq(laneId,warpId))
       }
       case "sycl::shift_group_left" if args.length == 3 => shiftGroupLeftRightProcedure(inv, leftOrRight = true)
@@ -1544,64 +1536,55 @@ ScopedStack()
 
         val defineWarpSize = maybeWarpSize match {
           case Some(ws) => (
-            Assign(Local[Post](syclWarpSize.get.ref)(ws.o), ws.args.head)(PanicBlame("The assignment of the warpsize should never fail"))(ws.o.where(name="warpSize")),
-            Eq(Local[Post](syclWarpSize.get.ref)(ws.o), ws.args.head)(ws.o),
+            assignLocal(syclWarpSize.get.get(ws.o), ws.args.head)(ws.o.where(name="warpSize")),
+            Eq(syclWarpSize.get.get(ws.o), ws.args.head)(ws.o),
           )
           case None =>
             implicit val o: Origin = invocation.o
-            val wrpsizVar = new Variable[Post](TCInt())(o.where(name="warpSize"))
             val wrpsizeProcedure = withResult((result: Result[Post]) => {
-                new Procedure[Post](
-                  returnType = TCInt(),
-                  args = Seq(),
-                  outArgs = Nil,
-                  typeArgs = Nil,
-                  body = None,
-                  contract = ApplicableContract(
-                    requires = UnitAccountedPredicate(tt),
-                    ensures = UnitAccountedPredicate(
-                      Or(
-                          Or(
-                            And(
-                              Eq[Post](result, c_const(16)),
-                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(4)), SYCLMulMethodInvocationBlame(), o), c_const(16))
-                            ),
-                            And(
-                              Eq[Post](result, c_const(32)),
-                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(5)), SYCLMulMethodInvocationBlame(), o), c_const(32))
-                            )
+              procedure(
+                returnType = TCInt(),
+                pure = true,
+                ensures = UnitAccountedPredicate(
+                    Or(
+                        Or(
+                          And(
+                            Eq[Post](result, c_const(16)),
+                            Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(4)), SYCLMulMethodInvocationBlame, o), c_const(16))
                           ),
-                            And(
-                              Eq[Post](result, c_const(64)),
-                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(6)), SYCLMulMethodInvocationBlame(), o), c_const(64))
+                          And(
+                            Eq[Post](result, c_const(32)),
+                            Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(5)), SYCLMulMethodInvocationBlame, o), c_const(32))
                           )
-                      )
-                    ),
-                    contextEverywhere = tt,
-                    kernelInvariant = tt,
-                    signals = Nil,
-                    givenArgs = Nil,
-                    yieldsArgs = Nil,
-                    decreases = None,
-                  )(PanicBlame("There are no preconditions"))(invocation.o),
-                  inline = false,
-                  pure = true,
-                  opaque = false,
-                )(PanicBlame("Should never fail"))(o.where(name = "warpSizeFunc"))
+                        ),
+                          And(
+                            Eq[Post](result, c_const(64)),
+                            Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(6)), SYCLMulMethodInvocationBlame, o), c_const(64))
+                        )
+                    )
+                  ),
+                  inline = true,
+                  contractBlame = PanicBlame("There are no preconditions"),
+                  blame = PanicBlame("Should never fail"))(o.where(name = "warpSizeFunc"),
+                )
               })
 
               rw.globalDeclarations.declare(wrpsizeProcedure)
-              val callToWrpsizeProcedure = new ProcedureInvocation[Post](
+              val callToWrpsizeProcedure = {
+                procedureInvocation[Post](
+                  blame = PanicBlame("Should never fail"),
                   ref = wrpsizeProcedure.ref,
                   args = Seq(),
-                  outArgs = Nil,              //: Seq[Expr[G]],
-                  typeArgs = Nil,             //: Seq[Type[G]],
-                  givenMap = Nil,             //: Seq[(Ref[G, Variable[G]], Expr[G])],
-                  yields = Nil,             //: Seq[(Expr[G], Ref[G, Variable[G]])],
-              )(PanicBlame("Should never fail"))
+                  outArgs = Nil,
+                  typeArgs = Nil,
+                  givenMap = Nil,
+                  yields = Nil,
+              )
+              }
 
-            (Assign(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), callToWrpsizeProcedure)(PanicBlame("The assignment of the warpsize should never fail"))(kernelDeclaration.o.where(name="warpSize")),
-            Eq(Local[Post](syclWarpSize.get.ref)(kernelDeclaration.o), callToWrpsizeProcedure)(kernelDeclaration.o.where(name="warpSize"))
+            (
+              assignLocal(syclWarpSize.get.get, callToWrpsizeProcedure),
+            Eq(syclWarpSize.get.get, callToWrpsizeProcedure)(kernelDeclaration.o.where(name="warpSize"))
             )
         }
         Some(defineWarpSize)
@@ -1627,22 +1610,15 @@ ScopedStack()
       implicit val o = accRef.decls.o
       val indexVar = new Variable[Post](TCInt())(o.where(name = "i"))
       val blame = PanicBlame("Should never fail. Please report if it does fail")
-      Starall(
-            bindings = Seq(indexVar),
-            triggers = Seq(
-              Seq(
-                ArraySubscript(
-                  Local[Post](buff.ref),
-                  Local[Post](indexVar.ref)
-                )(blame)
-              )
-            ),
-            body = (Local[Post](indexVar.ref) >= c_const(0)  &&
-                Local[Post](indexVar.ref) < Length(Local[Post](buff.ref))(PanicBlame("Should never be null")))
-            ==> Perm(
-              AmbiguousLocation(ArraySubscript(Local[Post](buff.ref),Local[Post](indexVar.ref))(blame)),
-              ReadPerm())(buff.o)
-      )(blame)
+      starall(
+        blame = blame,
+        t = TCInt(),
+        triggers = { indexVar: Local[Post] => Seq(Seq(ArraySubscript(buff.get, indexVar)(blame)))},
+        body = { indexVar: Local[Post] =>
+          (indexVar >= c_const(0) && indexVar < Length(buff.get)(PanicBlame("Should never be null"))) ==>
+            Value(AmbiguousLocation(ArraySubscript(buff.get, indexVar)(blame)))(buff.o)
+        }
+      )
     }
 
 // Create a block of code for the kernel body based on what type of kernel it is
@@ -1844,8 +1820,8 @@ ScopedStack()
 
     val idLimits = currentDimensionIterVars(GlobalScope()).map(iterVar => {
       implicit val o: Origin = iterVar.o
-      Local[Post](iterVar.variable.ref) >= c_const(0) &&
-      Local[Post](iterVar.variable.ref) < iterVar.to
+      iterVar.variable.get >= c_const(0) &&
+      iterVar.variable.get < iterVar.to
     })
     implicit val o: Origin = kernelDeclaration.o
 
@@ -1903,7 +1879,7 @@ ScopedStack()
           .where(name = s"group_range$index")
         val grange = globalRange(index)
         val grangeVar = new Variable[Post](TCInt())
-        val grangeLocal = new Local[Post](grangeVar.ref)
+        val grangeLocal = grangeVar.get
         rangeFields.append(grangeLocal)
         val groupIterVar = createRangeIterVar(GroupScope(), index, grangeLocal)
         currentDimensionIterVars(GroupScope()).append(groupIterVar)
@@ -1913,7 +1889,7 @@ ScopedStack()
           .where(name = s"local_range$index")
         val lrange = globalRange(index)
         val lrangeVar = new Variable[Post](TCInt())
-        val lrangeLocal = new Local[Post](lrangeVar.ref)
+        val lrangeLocal = lrangeVar.get
         rangeFields.append(lrangeLocal)
 
         val localIterVar = createRangeIterVar(LocalScope(), index, lrangeLocal)
@@ -1947,13 +1923,13 @@ ScopedStack()
 
     val localIdLimits = currentDimensionIterVars(LocalScope()).map(iterVar => {
       implicit val o: Origin = iterVar.o
-      Local[Post](iterVar.variable.ref) >= c_const(0) &&
-      Local[Post](iterVar.variable.ref) < iterVar.to
+      iterVar.variable.get >= c_const(0) &&
+      iterVar.variable.get < iterVar.to
     })
     val groupIdLimits = currentDimensionIterVars(GroupScope()).map(iterVar => {
       implicit val o: Origin = iterVar.o
-      Local[Post](iterVar.variable.ref) >= c_const(0) &&
-      Local[Post](iterVar.variable.ref) < iterVar.to
+      iterVar.variable.get >= c_const(0) &&
+      iterVar.variable.get < iterVar.to
     })
 
     implicit val o: Origin = kernelDeclaration.o
@@ -2178,18 +2154,20 @@ ScopedStack()
       }
 
     (
-      foldStar(Seq(
+//      foldStar(
+//        Seq(
         ValidArray(
           acc.local,
           acc.rangeLocals.reduce[Expr[Post]] { (e1, e2) =>
             syclHelperFunctions("sycl_:_:h_:_:mul")(
               Seq(e1, e2),
-              SYCLMulMethodInvocationBlame(),
+              SYCLMulMethodInvocationBlame,
               acc.local.o,
             )
           },
-        )(acc.local.o)
-      ))(acc.local.o),
+        )(acc.local.o),
+//      )
+//      )(acc.local.o),
       Perm(
         ArrayLocation(
           acc.local,
@@ -2276,8 +2254,8 @@ ScopedStack()
         rw.variables.scope {
           rw.localHeapVariables.scope {
             val range = quantVars.map(v =>
-              rangesMap(v)._1 <= Local[Post](v.ref) &&
-                Local[Post](v.ref) < rangesMap(v)._2
+              rangesMap(v)._1 <= v.get &&
+                v.get < rangesMap(v)._2
             ).reduceOption[Expr[Post]](And(_, _)).getOrElse(tt)
 
             cond match {
@@ -2575,7 +2553,7 @@ ScopedStack()
           )
 
           val rangeRelations = Seq.range(0, vars.size).map(i =>
-            Eq[Post](Local[Post](vars(i).ref), r.dimensions(i))
+            Eq[Post](vars(i).get, r.dimensions(i))
           )
 
           (updatedR, dimdecls, rangeRelations)
@@ -3041,16 +3019,18 @@ ScopedStack()
     val d: Expr[Post] = rw.dispatch(inv.args(2)) //Assumes |args| == 3
     val sglResult = new Variable[Post](TCInt())(o.where(name = "sgl_result"))
 
-    val laneid: Expr[Post] = SeqSubscript[Post](sgArg,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
+    val laneid: Expr[Post] = SeqSubscript[Post](sgArg, c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
 
 
     val exhalePred: Expr[Post] =
       syclSubgroupInvSuccessors.having(
-      mutable.Map(
-        GlobalThreadId[Pre]() -> getGlobalWorkItemLinearId(inv),
-        SubGroupFuncValue[Pre]() -> valToSend,
-      )
-    ) { rw.dispatch(sgInv) }
+        mutable.Map(
+          GlobalThreadId[Pre]() -> getGlobalWorkItemLinearId(inv),
+          SubGroupFuncValue[Pre]() -> valToSend,
+        )
+      ) {
+        rw.dispatch(sgInv)
+      }
     val inhalePred: Expr[Post] = syclSubgroupDeltaSuccessors.having(d) {
       syclSubgroupInvSuccessors.having(
         mutable.Map(
@@ -3064,24 +3044,25 @@ ScopedStack()
     val warpsize = syclWarpSize.getOrElse(throw new SYCLWarpSizeNotDefinedError(inv))
 
 
-
     val predToExhale: Expr[Post] =
       if (leftOrRight) {
-        (c_const[Post](0) <= (laneid-d)) ==> exhalePred
+        (c_const[Post](0) <= (laneid - d)) ==> exhalePred
       } else {
         ???
-        tt[Post] ==> exhalePred//TODO right case
+        tt[Post] ==> exhalePred //TODO right case
       }
 
     val predToInhale =
       if (leftOrRight) {
-        (laneid+d) < warpsize.get ==> inhalePred
+        (laneid + d) < warpsize.get ==> inhalePred
       } else {
         ???
-        tt[Post] ==> inhalePred//TODO right case
+        tt[Post] ==> inhalePred //TODO right case
       }
 
-    if (dependsIndirectlyOnSYCLIdFunctions(sgInv)) { throw SYCLSubGroupInvDependsOnTheId(sgInv) }
+    if (dependsIndirectlyOnSYCLIdFunctions(sgInv)) {
+      throw SYCLSubGroupInvDependsOnTheId(sgInv)
+    }
 
     val sg = new Variable[Post](TSeq(TCInt()))(o.where(name = "sg"))
     val value = new Variable[Post](TCInt())(o.where(name = "value"))
@@ -3089,27 +3070,18 @@ ScopedStack()
     val funcName = if (leftOrRight) "shift_group_left" else "shift_group_right"
     val shiftGroupBlame = PanicBlame(s"The call to $funcName should never fail")
 
+
     val procedure = withResult((result: Result[Post]) => {
-      new Procedure[Post](
+      AstBuildHelpers.procedure(
+        contractBlame = shiftGroupBlame,
+        blame = shiftGroupBlame,
         returnType = TCInt(),
         args = Seq(sg, value, delta),
-        outArgs = Nil,
-        typeArgs = Nil,
-        body = None,
-        contract = ApplicableContract(
-            requires = UnitAccountedPredicate(Star(
-                Greater(Local[Post](delta.ref), c_const(0)),
-                tt
-              )),
-            ensures = UnitAccountedPredicate(tt),
-            contextEverywhere = tt,
-            kernelInvariant = tt,
-            signals = Nil,
-            givenArgs = Nil,
-            yieldsArgs = Nil,
-            decreases = None,
-          )(shiftGroupBlame),
-      )(shiftGroupBlame)(o.where(name=funcName))
+        requires = UnitAccountedPredicate(Star(
+          Greater(delta.get, c_const(0)),
+          tt
+        ))
+      )(o.where(name = funcName))
     })
 
     rw.globalDeclarations.declare(procedure)
@@ -3120,15 +3092,12 @@ ScopedStack()
         Seq(sglResult),
         Then(
           PreAssignExpression(
-            Local[Post](sglResult.ref),
-            ProcedureInvocation[Post](
-              procedure.ref,
-              inv.args.map(rw.dispatch),
-              Nil,
-              Nil,
-              Nil, // Cannot accept givenArgs, are ignored
-              Nil, // Cannot accept givenArgs, are ignored
-            )(inv.blame)
+            sglResult.get,
+            procedureInvocation[Post](
+              blame = inv.blame,
+              ref = procedure.ref,
+              args = inv.args.map(rw.dispatch),
+            )
           )(PanicBlame("Assignment to temporary variable should never fail.")),
           Inhale(predToInhale),
         )
@@ -3176,10 +3145,9 @@ ScopedStack()
         (target, valueSet)
       }.toSeq
     // A map of String names of variables -> a set of nodes representing the variables it refers to
-    val varToNames: Map[Object, Set[CPPExpr[Pre]]] = collectNames.map { // Convert the different nodes into their String names for easier lookup
+    val varToNames: Map[String, Set[CPPExpr[Pre]]] = collectNames.collect { // Convert the different nodes into their String names for easier lookup
       case (name: CPPName[Pre], vals) => (name.name, vals)
       case (local: CPPLocal[Pre], vals) => (local.name, vals)
-      case (a, b) => (a, b)
     }.groupBy(_._1).map(t => (t._1, t._2.flatMap(_._2).toSet))
 
 

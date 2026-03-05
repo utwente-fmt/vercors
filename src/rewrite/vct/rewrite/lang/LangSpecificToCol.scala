@@ -425,11 +425,11 @@ case class LangSpecificToCol[Pre <: Generation](
       case kernel: GpgpuCudaKernelInvocation[Pre] =>
         c.cudaKernelInvocation(kernel)
       case local: LocalThreadId[Pre] => c.cudaLocalThreadId(local)
-      case global: GlobalThreadId[Pre] if !cpp.syclSubgroupInvSuccessors.isEmpty && cpp.syclSubgroupInvSuccessors.top.contains(global) =>
+      case global: GlobalThreadId[Pre] if cpp.syclSubgroupInvSuccessors.exists(_.contains(global)) =>
         cpp.syclSubgroupInvSuccessors.top(global)
-      case global: GlobalThreadId[Pre] => {
-        c.cudaGlobalThreadId(global)}
-      case sgfv: SubGroupFuncValue[Pre] if !cpp.syclSubgroupInvSuccessors.isEmpty && cpp.syclSubgroupInvSuccessors.top.contains(sgfv) =>
+      case global: GlobalThreadId[Pre] =>
+        c.cudaGlobalThreadId(global)
+      case sgfv: SubGroupFuncValue[Pre] if cpp.syclSubgroupInvSuccessors.exists(_.contains(sgfv)) =>
         cpp.syclSubgroupInvSuccessors.top(sgfv)
       case cast: CCast[Pre] => c.cast(cast)
       case sizeof: SizeOf[Pre] => c.sizeOf(sizeof.tname, sizeof.o)

@@ -6,7 +6,6 @@ import hre.stages.Stage
 import vct.col.ast.{ApplicableContract, Expr, Function, GlobalDeclaration, LLVMGlobalSpecification, Program, VCLLVMFunctionContract, Verification, VerificationContext}
 import vct.col.check.CheckError
 import vct.col.origin.{FileSpanningOrigin, Origin, ReadableOrigin}
-import vct.col.print.Ctx
 import vct.col.resolve.{Resolve, ResolveReferences, ResolveTypes}
 import vct.col.rewrite.{Generation, Rewritten}
 import vct.col.rewrite.bip.IsolateBipGlue
@@ -25,7 +24,7 @@ import vct.result.VerificationError.UserError
 
 import java.io.{InputStreamReader, OutputStreamWriter, StringReader, StringWriter}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
 
 case object Resolution {
   case class InputResolutionError(errors: Seq[CheckError]) extends UserError {
