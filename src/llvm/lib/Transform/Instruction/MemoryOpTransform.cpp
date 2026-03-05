@@ -44,7 +44,7 @@ void llvm2col::transformAllocA(llvm::AllocaInst &allocAInstruction,
 
     llvm2col::transformAndSetValueType(
         allocAInstruction, allocAInstruction.getAllocatedType(),
-        *allocA->mutable_return_type(), 
+        *allocA->mutable_return_type(),
         getSDResult(funcCursor, allocAInstruction));
     col::Variable &varDecl = funcCursor.declareVariable(
         allocAInstruction, allocAInstruction.getAllocatedType());

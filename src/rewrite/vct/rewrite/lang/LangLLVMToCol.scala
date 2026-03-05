@@ -1099,39 +1099,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     )
   }
 
-  /*
-  def rewriteStruct(t: LLVMTStruct[Pre]): Unit = {
-    val LLVMTStruct(name, packed, literal, elements, size) = t
-    val newStruct =
-      new ByValueClass[Post](
-        Seq(),
-        rw.classDeclarations.collect {
-          elements.zipWithIndex.foreach { case (field, idx) =>
-            structFieldMap((t, idx)) =
-              new InstanceField(rw.dispatch(field.t), Nil)(field.o)
-            rw.classDeclarations.declare(structFieldMap((t, idx)))
-          }
-        }._1,
-        t.packed,
-        rw.c.sizeOf(t, t.o),
-        elements.collect { field => rw.c.sizeOf(field.t, field.o) },
-      )(
-        t.o.withContent(TypeName("struct"))
-          .where(name = name.headOption.getOrElse("unknown"))
-      )
-
-    rw.globalDeclarations.declare(newStruct)
-    structMap(t) = newStruct
-  }
-   */
-
   def rewriteGlobalVariable(decl: LLVMGlobalVariable[Pre]): Unit = {
     // TODO: Handle the initializer
     // TODO: Include array and vector bounds somehow
     val (newT, newInit) =
       globalVariableInferredType.getOrElse(decl, decl.variableType) match {
         case struct: LLVMTStruct[Pre] =>
-          // rewriteStruct(struct)
           (
             new TNonNullPointer[Post](
               new TByValueClass[Post](

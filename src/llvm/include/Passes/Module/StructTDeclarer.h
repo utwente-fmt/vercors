@@ -58,15 +58,13 @@ class SDResult {
      * Initialize struct declaration based on the given llvm-type alone
      * (i.e. without considering debug-info).
      */
-    void transformSDecl(col::LlvmStructDeclaration &decl,
-                        llvm::Type &llvmType);
+    void transformSDecl(col::LlvmStructDeclaration &decl, llvm::Type &llvmType);
 
     /**
      * Initialize struct declaratio based on the given llvm- and dbg-type.
      */
     bool transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
-                                  llvm::Type *llvmType,
-                                  llvm::DIType &diType);
+                                  llvm::Type *llvmType, llvm::DIType &diType);
 
     int64_t getId(StructTyID &typeID);
 };

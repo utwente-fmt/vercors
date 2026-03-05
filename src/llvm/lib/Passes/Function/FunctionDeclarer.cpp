@@ -118,8 +118,8 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
             pointerType = llvmArg.getAttribute(llvm::Attribute::ElementType)
                               .getValueAsType();
         try {
-            llvm2col::transformAndSetValueType(
-                llvmArg, pointerType, *colArg->mutable_t(), *sdRes);
+            llvm2col::transformAndSetValueType(llvmArg, pointerType,
+                                               *colArg->mutable_t(), *sdRes);
         } catch (pallas::UnsupportedTypeException &e) {
             std::stringstream errorStream;
             errorStream << e.what() << " in argument #" << llvmArg.getArgNo();
@@ -193,15 +193,13 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         if (F.getParamStructRetType(0) != nullptr) {
             auto retIdxT = llvmFuncDef->mutable_return_in_param();
             retIdxT->set_v1(0);
-            llvm2col::transformAndSetPointerType(*F.getParamStructRetType(0),
-                                                 *retIdxT->mutable_v2(),
-                                                 *sdRes);
+            llvm2col::transformAndSetPointerType(
+                *F.getParamStructRetType(0), *retIdxT->mutable_v2(), *sdRes);
         } else if (F.getParamStructRetType(1) != nullptr) {
             auto retIdxT = llvmFuncDef->mutable_return_in_param();
             retIdxT->set_v1(1);
-            llvm2col::transformAndSetPointerType(*F.getParamStructRetType(1),
-                                                 *retIdxT->mutable_v2(),
-                                                 *sdRes);
+            llvm2col::transformAndSetPointerType(
+                *F.getParamStructRetType(1), *retIdxT->mutable_v2(), *sdRes);
         }
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;

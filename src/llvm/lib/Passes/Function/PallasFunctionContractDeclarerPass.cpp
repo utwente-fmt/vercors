@@ -103,8 +103,10 @@ void PallasFunctionContractDeclarerPass::transformGhostArg(
     const irspec::GhostArgDef &gArgDef, col::Variable *colVar, llvm::Type &type,
     llvm::Function &parentFunc, FunctionAnalysisManager &fam) {
 
-    auto &mamProxy = fam.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(parentFunc);
-    auto *sdRes = mamProxy.getCachedResult<StructTDeclarer>(*parentFunc.getParent());
+    auto &mamProxy =
+        fam.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(parentFunc);
+    auto *sdRes =
+        mamProxy.getCachedResult<StructTDeclarer>(*parentFunc.getParent());
     assert(sdRes != nullptr);
     colVar->set_allocated_origin(
         llvm2col::generatePallasSpecOrigin(gArgDef.loc, gArgDef.name));

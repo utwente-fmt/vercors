@@ -309,126 +309,12 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
     }
     case llvm::dwarf::DW_TAG_class_type:
     case llvm::dwarf::DW_TAG_structure_type: {
-        /*
-        if (llvmType != nullptr && !llvm::isa<llvm::StructType>(llvmType)) {
-            return false;
-        }
-        auto *structType = llvm::cast_if_present<llvm::StructType>(llvmType);
-        if (structType == nullptr) {
-        //    assert(false);
-            return false;
-        }
-        */
         auto sDeclID = sdRes.getStructDeclId({llvmType, &compositeType});
         auto *sType = colType.mutable_llvmt_struct();
         if (!sDeclID.has_value())
             return false;
         sType->mutable_ref()->set_id(sDeclID.value());
         sType->set_allocated_origin(generateDITypeOrigin(compositeType));
-        /*
-        col::LlvmtStruct *colStruct = colType.mutable_llvmt_struct();
-        colStruct->set_allocated_origin(generateDITypeOrigin(compositeType));
-        colStruct->add_name(compositeType.getName().str());
-        colStruct->set_size_in_bits(compositeType.getSizeInBits());
-        colStruct->set_is_literal(false);
-        // TODO: Fix packed vs unpacked, try to detect based on size or get
-        rid
-        // of packed as a thing entirely!
-        colStruct->set_packed(false);
-        if (llvmType == nullptr) {
-            std::vector<llvm::DIDerivedType *> elements;
-            elements.reserve(compositeType.getElements().size());
-            for (auto *element : compositeType.getElements()) {
-                assert(llvm::isa<llvm::DIDerivedType>(element));
-                if (element->getTag() == llvm::dwarf::DW_TAG_member) {
-                    elements.push_back(cast<llvm::DIDerivedType>(element));
-                }
-            }
-
-            llvm::sort(elements,
-                       [&](llvm::DIDerivedType *a, llvm::DIDerivedType *b) {
-                           return a->getOffsetInBits() <=
-        b->getOffsetInBits();
-                       });
-
-            for (auto *member : elements) {
-                col::LlvmFieldDefinition *field = colStruct->add_elements();
-                field->set_offset(member->getOffsetInBits());
-                field->set_size(
-                    pallas::utils::stripIgnored(member->getBaseType())
-                        ->getSizeInBits());
-                field->set_allocated_origin(
-                    generateStructMemberOrigin(*member));
-                // TODO: No worky when recursive
-                llvm2col::transformAndSetTypeWithDebugInfo(
-                    nullptr, member->getBaseType(), *field->mutable_t(),
-                    dataLayout);
-            }
-
-            return true;
-        }
-
-        if (llvmType->getTypeID() != llvm::Type::StructTyID) {
-            llvmType->dump();
-            compositeType.dump();
-            WARN_DI_TYPE_MISMATCH("struct != struct",
-                                  compositeType.getName().str());
-            return false;
-        }
-
-        auto structType = cast<llvm::StructType>(llvmType);
-        if (structType->hasName()) {
-            colStruct->add_name(structType->getName().str());
-        }
-        std::vector<std::tuple<uint64_t, llvm::DIDerivedType *, llvm::Type
-        *>> elements; elements.reserve(structType->getNumElements());
-
-        const llvm::StructLayout *structLayout =
-            dataLayout.getStructLayout(structType);
-        for (size_t i = 0, end = structType->getNumElements(); i < end; ++i)
-        { elements.push_back({structLayout->getElementOffsetInBits(i),
-                                nullptr, structType->getElementType(i)});
-        }
-
-        for (auto *element : compositeType.getElements()) {
-            assert(llvm::isa<llvm::DIDerivedType>(element));
-            if (element->getTag() == llvm::dwarf::DW_TAG_member) {
-                auto *member = cast<llvm::DIDerivedType>(element);
-                size_t i = 0;
-                for (size_t end = elements.size(); i < end; ++i) {
-                    auto &[offset, diMember, _llvmMember] = elements[i];
-                    assert(member->getOffsetInBits() >= offset &&
-                           "DIStruct member type at offset not in original "
-                           "struct!");
-                    if (member->getOffsetInBits() == offset) {
-                        assert(diMember == nullptr);
-                        diMember = member;
-                        break;
-                    }
-                }
-                assert(i != elements.size() ||
-                       member->getOffsetInBits() ==
-        std::get<0>(elements[i]));
-            }
-        }
-
-        for (auto &[offset, diMember, llvmMember] : elements) {
-            col::LlvmFieldDefinition *field = colStruct->add_elements();
-            field->set_offset(offset);
-            field->set_size(dataLayout.getTypeSizeInBits(llvmMember));
-            if (diMember == nullptr) {
-                field->set_allocated_origin(generateTypeOrigin(*llvmMember));
-            } else {
-                field->set_allocated_origin(
-                    generateStructMemberOrigin(*diMember));
-            }
-            // TODO: No worky when recursive!
-            llvm2col::transformAndSetTypeWithDebugInfo(
-                llvmMember,
-                diMember == nullptr ? nullptr : diMember->getBaseType(),
-                *field->mutable_t(), dataLayout);
-        }
-        */
         return true;
     }
     case llvm::dwarf::DW_TAG_inheritance:
@@ -502,11 +388,6 @@ void llvm2col::transformAndSetTypeWithDebugInfo(llvm::Type *llvmType,
                                                 llvm::DIType *debugType,
                                                 col::Type &colType,
                                                 pallas::SDResult &sdRes) {
-
-    // TODO: Keep map types that are already transformed / are currently being
-    // transformed to avoid ininite recursion! Needs to be consistent with the
-    // 'Non-Debug-info' of the transformation!
-
     if (debugType == nullptr) {
         if (llvmType == nullptr ||
             llvmType->getTypeID() == llvm::Type::VoidTyID) {
@@ -525,13 +406,11 @@ void llvm2col::transformAndSetTypeWithDebugInfo(llvm::Type *llvmType,
         if (transformAndSetCompositeTypeWithDebugInfo(llvmType, *compositeType,
                                                       colType, sdRes))
             return;
-    } else if (auto *derivedType =
-                   dyn_cast<llvm::DIDerivedType>(debugType)) {
+    } else if (auto *derivedType = dyn_cast<llvm::DIDerivedType>(debugType)) {
         if (transformAndSetDerivedTypeWithDebugInfo(llvmType, *derivedType,
                                                     colType, sdRes))
             return;
-    } else if (auto *stringType =
-                   dyn_cast<llvm::DIStringType>(debugType)) {
+    } else if (auto *stringType = dyn_cast<llvm::DIStringType>(debugType)) {
     } else if (auto *subroutineType =
                    dyn_cast<llvm::DISubroutineType>(debugType)) {
         // } else if (auto *subrangeType =
@@ -562,8 +441,7 @@ void llvm2col::transformAndSetValueType(llvm::Value &value,
             col::LlvmtPointer *colPointer = colType.mutable_llvmt_pointer();
             colPointer->set_allocated_origin(generateDITypeOrigin(*diType));
             transformAndSetTypeWithDebugInfo(
-                pointerType,
-                cast<llvm::DIDerivedType>(diType)->getBaseType(),
+                pointerType, cast<llvm::DIDerivedType>(diType)->getBaseType(),
                 *colPointer->mutable_inner_type(), sdRes);
         } else {
             transformAndSetTypeWithDebugInfo(value.getType(), diType, colType,
@@ -659,45 +537,6 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType,
         auto *sType = colType.mutable_llvmt_struct();
         sType->mutable_ref()->set_id(sDeclID.value());
         sType->set_allocated_origin(generateTypeOrigin(llvmType));
-
-        /*
-        llvm::StructType &structType = llvm::cast<llvm::StructType>(llvmType);
-        // col::LlvmtStruct *colStruct = colType.mutable_llvmt_struct();
-        // TODO: No not make a new declaration every time the type is
-        transformed. auto &mamProxy =
-        fam.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(ctxFunc); auto
-        *colProg =
-        mamProxy.getCachedResult<pallas::RootContainer>(*ctxFunc.getParent())->program.get();
-
-        auto *sDecl =
-        colProg->add_declarations()->mutable_llvm_struct_declaration();
-        sDecl->set_id(reinterpret_cast<int64_t>(&structType));
-        // TODO: Set id
-        sDecl->set_allocated_origin(generateTypeOrigin(llvmType));
-        if (!structType.isLiteral()) {
-            // TODO: Instead of storing the name do we want keep only a single
-            // instance of the col::LLVMTStruct per non-literal struct type?
-            // XXX: This name can be the empty string for unnamed types, and it
-            // won't be set for literal types
-            sDecl->add_name(structType.getName().str());
-        }
-        sDecl->set_size_in_bits(
-            ctxFunc.getM
-            dataLayout.getTypeAllocSizeInBits(&structType));
-        sDecl->set_is_literal(structType.isLiteral());
-        sDecl->set_packed(structType.isPacked());
-        const llvm::StructLayout *structLayout =
-            dataLayout.getStructLayout(&structType);
-        for (size_t i = 0, end = structType.getNumElements(); i < end; ++i)
-        { llvm::Type *element = structType.getElementType(i);
-            col::LlvmFieldDefinition *field = colStruct->add_elements();
-            field->set_offset(structLayout->getElementOffsetInBits(i));
-            field->set_size(dataLayout.getTypeSizeInBits(element));
-            field->set_allocated_origin(generateTypeOrigin(llvmType));
-            llvm2col::transformAndSetType(*element, *field->mutable_t(),
-                                          dataLayout);
-        }
-        */
         break;
     }
     case llvm::Type::ArrayTyID: {

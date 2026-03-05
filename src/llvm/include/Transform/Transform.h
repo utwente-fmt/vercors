@@ -31,13 +31,14 @@ bool transformAndSetBasicTypeWithDebugInfo(llvm::Type *llvmType,
                                            llvm::DIBasicType &debugType,
                                            col::Type &colType);
 
-bool transformAndSetCompositeTypeWithDebugInfo(
-    llvm::Type *llvmType, llvm::DICompositeType &debugType, col::Type &colType,
-    pallas::SDResult &sdRes);
+bool transformAndSetCompositeTypeWithDebugInfo(llvm::Type *llvmType,
+                                               llvm::DICompositeType &debugType,
+                                               col::Type &colType,
+                                               pallas::SDResult &sdRes);
 
 bool transformAndSetDerivedTypeWithDebugInfo(llvm::Type *llvmType,
                                              llvm::DIDerivedType &debugType,
-                                             col::Type &colType, 
+                                             col::Type &colType,
                                              pallas::SDResult &sdRes);
 
 void transformAndSetTypeWithDebugInfo(llvm::Type *llvmType,
