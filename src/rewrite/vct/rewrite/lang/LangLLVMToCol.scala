@@ -293,6 +293,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def gatherTypeHints(program: Program[Pre]): Unit = {
+
+    // Touch all references to struct declarations within LLVMTStruct-types.
+    // Otherwise, the type-equality does not work because the LazyRef might not have been resolved.
+    program.collect { case sType: LLVMTStruct[Pre] => sType.ref.decl }
+
     // TODO: We also need to do something where we only keep structurally distinct types
     // Returns if self is more specific than other
     def moreSpecific(self: Type[Pre], other: Type[Pre]): Boolean = {
