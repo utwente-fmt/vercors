@@ -55,6 +55,12 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
         } else {
             local = wrapperCall.add_args()->mutable_local();
         }
+    } else if (llvm::isa<llvm::ArrayType>(llvmAlloca.getAllocatedType()) &&
+               llvm::isa<llvm::PointerType>(expectedTy)) {
+        // When passing an array-type to the wrapper, we skip the dereference
+        // because the array decays into a pointer in the signature of the
+        // wrapper.
+        local = wrapperCall.add_args()->mutable_local();
     } else {
         // Ptr deref
         auto *ptrDeref = wrapperCall.add_args()->mutable_deref_pointer();

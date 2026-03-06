@@ -59,16 +59,28 @@ bool SDResult::transformDecl(StructTyID typeID) {
     // (I.e. if the same type is used in two places with different names)
 
     // Transform new StructDeclaration
-    // TODO: Do we need to remove the col-decl if the function returns false?!
-    auto *sDecl = colProg.add_declarations()->mutable_llvm_struct_declaration();
+    // We manually annotate this first because we need to remove the declaration
+    // from the program again if the transformation fails.
+    auto globalDecl = new col::GlobalDeclaration;
+    auto *sDecl = globalDecl->mutable_llvm_struct_declaration();
     sDecl->set_id(getId(typeID));
 
+    bool ok = true;
     if (typeID.second == nullptr) {
         transformSDecl(*sDecl, *typeID.first);
-        return true;
     } else {
-        return transformSDeclWithDiType(*sDecl, typeID.first, *typeID.second);
+        ok = transformSDeclWithDiType(*sDecl, typeID.first, *typeID.second);
     }
+
+    if (ok) {
+        // Transfer allocated declaration to col-program
+        colProg.mutable_declarations()->AddAllocated(globalDecl);
+    } else {
+        // Clear up allocated declaration
+        delete globalDecl;
+    }
+
+    return ok;
 }
 
 void SDResult::transformSDecl(col::LlvmStructDeclaration &decl,
@@ -140,8 +152,6 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
     }
 
     if (llvmType->getTypeID() != llvm::Type::StructTyID) {
-        llvmType->dump();
-        compositeDiType.dump();
         WARN_DI_TYPE_MISMATCH("struct != struct",
                               compositeDiType.getName().str());
         return false;
