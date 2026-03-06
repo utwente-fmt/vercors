@@ -96,9 +96,31 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
       case RefVariable(decl) => TVar[Post](succ(decl))
     }
 
+  private def assumedEquivalent(
+      d1: LLVMStructDeclaration[Pre],
+      d2: LLVMStructDeclaration[Pre],
+      assumptions: Seq[Set[LLVMStructDeclaration[Pre]]],
+  ): Boolean = {
+    assumptions.filter(s => s.contains(d1) && s.contains(d2)).size > 0
+  }
+
+  // Add Set {d1, d2} to the equivalences and merges sets that contain d1 or d2
+  private def addAssumedEquivalence(
+      d1: LLVMStructDeclaration[Pre],
+      d2: LLVMStructDeclaration[Pre],
+      assumptions: Seq[Set[LLVMStructDeclaration[Pre]]],
+  ): Seq[Set[LLVMStructDeclaration[Pre]]] = {
+    val containsD1 = assumptions.find(s => s.contains(d1)).getOrElse(Set())
+    val containsD2 = assumptions.find(s => s.contains(d2)).getOrElse(Set())
+    val containNeither = assumptions
+      .filter(s => (!s.contains(d1)) && (!s.contains(d2)))
+    containNeither :+ (containsD1 union containsD2 union Set(d1, d2))
+  }
+
   private def structEq(
       s: LLVMStructDeclaration[Pre],
       o: LLVMStructDeclaration[Pre],
+      assumptions: Seq[Set[LLVMStructDeclaration[Pre]]] = Seq(),
   ): Boolean = {
     // TODO: Might have to get rid of packed since we don't have that in the DIType
     s.isLiteral ==
@@ -115,9 +137,11 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
                   LLVMTPointer(Some(LLVMTStruct(Ref(sa)))),
                   LLVMTPointer(Some(LLVMTStruct(Ref(sb)))),
                 ) =>
-              structEq(sa, sb)
+              assumedEquivalent(sa, sb, assumptions) ||
+              structEq(sa, sb, addAssumedEquivalence(sa, sb, assumptions))
             case (LLVMTStruct(Ref(sa)), LLVMTStruct(Ref(sb))) =>
-              structEq(sa, sb)
+              assumedEquivalent(sa, sb, assumptions) ||
+              structEq(sa, sb, addAssumedEquivalence(sa, sb, assumptions))
             case (LLVMTInt(_), TBool()) | (TBool(), LLVMTInt(_)) => true
             case _ => false
           }))
