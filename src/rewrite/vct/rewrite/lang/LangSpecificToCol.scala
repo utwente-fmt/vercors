@@ -112,7 +112,7 @@ case class LangSpecificToCol[Pre <: Generation](
   def specLocal(
       target: SpecNameTarget[Pre],
       e: Expr[Pre],
-      blame: Blame[DerefInsufficientPermission],
+      blame: Blame[ClassDerefError],
   ): Expr[Post] =
     target match {
       case RefAxiomaticDataType(_) => throw NotAValue(e)
@@ -129,7 +129,7 @@ case class LangSpecificToCol[Pre <: Generation](
       obj: Expr[Pre],
       target: SpecDerefTarget[Pre],
       e: Expr[Pre],
-      blame: Blame[DerefInsufficientPermission],
+      blame: Blame[ClassDerefError],
   ): Expr[Post] =
     target match {
       case RefEnumConstant(enum, decl) =>

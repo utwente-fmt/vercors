@@ -1590,11 +1590,11 @@ final case class DerefHeapVariable[G](ref: Ref[G, HeapVariable[G]])(
 )(implicit val o: Origin)
     extends Expr[G] with HeapDeref[G] with DerefHeapVariableImpl[G]
 final case class Deref[G](obj: Expr[G], ref: Ref[G, InstanceField[G]])(
-    val blame: Blame[InsufficientPermission]
+    val blame: Blame[ClassDerefError]
 )(implicit val o: Origin)
     extends Expr[G] with HeapDeref[G] with DerefImpl[G]
 final case class ModelDeref[G](obj: Expr[G], ref: Ref[G, ModelField[G]])(
-    val blame: Blame[ModelInsufficientPermission]
+    val blame: Blame[ClassDerefError]
 )(implicit val o: Origin)
     extends Expr[G] with ModelDerefImpl[G]
 final case class DerefPointer[G](pointer: Expr[G])(
@@ -3394,7 +3394,7 @@ sealed trait CPPExpr[G] extends Expr[G] with CPPExprImpl[G]
 final case class CPPLocal[G](
     name: String,
     genericArgs: Seq[CPPExprOrTypeSpecifier[G]],
-)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin)
+)(val blame: Blame[ClassDerefError])(implicit val o: Origin)
     extends CPPExpr[G] with CPPLocalImpl[G] {
   var ref: Option[CPPNameTarget[G]] = None
 }
@@ -3694,10 +3694,9 @@ final case class JavaWildcard[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends JavaType[G] with JavaWildcardImpl[G]
 
 sealed trait JavaExpr[G] extends Expr[G] with JavaExprImpl[G]
-final case class JavaLocal[G](name: String)(
-    val blame: Blame[DerefInsufficientPermission]
-)(implicit val o: Origin)
-    extends JavaExpr[G] with JavaLocalImpl[G] {
+final case class JavaLocal[G](name: String)(val blame: Blame[ClassDerefError])(
+    implicit val o: Origin
+) extends JavaExpr[G] with JavaLocalImpl[G] {
   var ref: Option[JavaNameTarget[G]] = None
 }
 final case class JavaDeref[G](obj: Expr[G], field: String)(
@@ -4102,7 +4101,7 @@ final case class LLVMExtractValue[G](
     resultType: Type[G],
     value: Expr[G],
     indices: Seq[Int],
-)(val blame: Blame[InsufficientPermission])(implicit val o: Origin)
+)(val blame: Blame[ClassDerefError])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMExtractValueImpl[G]
 
 final case class LLVMSignExtend[G](
@@ -4368,10 +4367,9 @@ final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(
 }
 
 sealed trait PVLExpr[G] extends Expr[G] with PVLExprImpl[G]
-final case class PVLLocal[G](name: String)(
-    val blame: Blame[DerefInsufficientPermission]
-)(implicit val o: Origin)
-    extends PVLExpr[G] with PVLLocalImpl[G] {
+final case class PVLLocal[G](name: String)(val blame: Blame[ClassDerefError])(
+    implicit val o: Origin
+) extends PVLExpr[G] with PVLLocalImpl[G] {
   var ref: Option[PVLNameTarget[G]] = None
 }
 final case class PVLDeref[G](obj: Expr[G], field: String)(

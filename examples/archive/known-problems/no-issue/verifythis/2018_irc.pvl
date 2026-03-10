@@ -2,21 +2,40 @@
     Register Allocation 
 */
 
-pure boolean irreflexive(map<int, set<int>> R) = (∀int x; x in R; !(x in R[x]));
+pure boolean irreflexive(map<int, set<int>> R) = (∀int x; x in R; !({: x in R[x] :}));
+pure boolean closed(map<int, set<int>> R) = (∀int x; x in R; {: R[x] :} <= R.keys);
+pure boolean symmetric(map<int, set<int>> R) = (∀int x, int y; x in R && {: y in R[x] :}; y in R && {: x in R[y] :});
 
 class Irc {
 
+  final int N;
   final int K;
   final int SPILL;
+
+  pure boolean var(int v) = v in {0 .. N};
+  pure boolean reg(int r) = r in {0 .. K};
+  pure boolean alloc(int a) = a == SPILL || reg(a);
+
+  pure boolean defs() = N > 0 && K > 0 && SPILL == -1;
+  
+  requires Perm(G, 1\2);
+  pure boolean assmsG() = 
+    (∀int v; v in G; var(v)) &&
+    (∀int v, int u; v in G && {: u in G[v] :}; var(u)) &&
+    irreflexive(G) && closed(G) && symmetric(G);
+
+  requires Perm(A, 1\2);
+  pure boolean assmsA() = 
+    (∀int v; v in A; var(v) && alloc(A[v]));
 
   map<int, set<int>> G;
   map<int, int> A;
 
-
   requires Perm(G, 1);
   ensures Perm(G, 1);
   ensures G.keys == \old(G.keys) - { v };
-  ensures (∀int w; w in G; G[w] == \old(G[w] - { v }));
+  ensures (∀int w; w in G; {: G[w] :} == \old(G[w] - { v }));
+  decreases;
   void remove(int v) {
     G = G.remove(v);
     set<int> keys = G.keys;
@@ -26,6 +45,7 @@ class Irc {
     loop_invariant keys <= G.keys;
     loop_invariant (∀int u; u in \old(G) && !(u in keys) && u != v; G[u] == \old(G[u] - {v}));
     loop_invariant (∀int u; u in \old(G) && u in keys && u != v; G[u] == \old(G[u]));
+    decreases |keys|;
     while (|keys| > 0) {
       int u = \choose(keys);
       keys = keys - {u};
@@ -81,20 +101,21 @@ class Irc {
 
   pure boolean hasInterferingVar(map<int, int> A, int reg) = (∃int v; v in A; A[v] == reg);
 
-  // A: Var -> Reg ∨ Spill
-  // return: v s.t. v ∉ A[S] ∧ v < K
   requires Perm(A, 1\2);
   requires S <= A.keys;
   requires SPILL == -1;
   requires (∀int k; k in A.keys; k >= 0);
   ensures Perm(A, 1\2) ** A == \old(A);
-  ensures \result != SPILL ==> \result in {0..K} && (∀int i; i in S; A[i] != \result);
+  ensures alloc(\result);
+  ensures \result != SPILL ==> (∀int v; v in S; A[v] != \result);
   ensures \result == SPILL ==> (∀int reg = 0 .. K; hasInterferingVar(A, reg));
+  decreases;
   int available(set<int> S) {
     loop_invariant Perm(A, 1\4);
     loop_invariant S <= A.keys;
     loop_invariant (∀int k; k in A.keys; k >= 0);
     loop_invariant (∀int j = 0 .. i; hasInterferingVar(A, j));
+    decreases K - i;
     for (int i = 0 .. K) {
       set<int> remainingVars = S;
       int usedVar = -1;
@@ -104,6 +125,7 @@ class Irc {
       loop_invariant remainingVars <= S;
       loop_invariant usedVar != -1 ==> (usedVar in S && A[usedVar] == i);
       loop_invariant usedVar == -1 ==> (∀int j; j in S && !(j in remainingVars); A[j] != i);
+      decreases |remainingVars|;
       while (|remainingVars| > 0) {
         int var = \choose(remainingVars);
         remainingVars = remainingVars - {var};
@@ -121,10 +143,61 @@ class Irc {
     return SPILL;
   }
 
-  requires Perm(G, 1\2);
-  requires Perm(A, 1\2);
-  void available(set<int> S) {
+  requires Perm(G, 1\2) ** Perm(A, 1\2);
+  ensures \result == None ==> (∀int v; v in G; v in A);
+  ensures \result != None ==> (\result.get in G && !(\result.get in A));
+  pure option<int> pick();
 
+  requires Perm(G, 1\2);
+  ensures \result == None ==> (∀int u; u != v && u in G; v in G[u]);
+  ensures \result != None ==> \result.get != v && \result.get in G && !(v in G[\result.get]);
+  pure option<int> coalesce(int v);
+
+  requires Perm(G, 1\2);
+  requires var(u) && var(v);
+  pure boolean interfere(int u, int v) = v in G && u in G && u in G[v] && v in G[u];
+  
+  requires Perm(A, 1\2);
+  pure option<int> assignment(int v) = v in A ? Some(A[v]) : None;
+  
+  pure boolean compatible(option<int> alloc1, option<int> alloc2) = 
+    alloc1 == Some(SPILL) || alloc2 == Some(SPILL) || 
+    alloc1 == None || alloc2 == None ||
+    alloc1 != alloc2;
+
+  context Perm(G, 1) ** Perm(A, 1);
+  requires defs() && assmsG() && assmsA();
+  requires A.keys <= G.keys;
+  requires (∀int u, int v; var(u) && var(v) && {: interfere(u, v) :}; compatible(assignment(u), assignment(v)));
+  ensures assmsG() && assmsA();
+  ensures A.keys == \old(G.keys);
+  ensures (∀int v; var(v) && v in \old(A); v in A && A[v] == \old(A[v]));
+  decreases |G.keys - A.keys|;
+  // TODO: Last postcondition doesn't work yet
+  // ensures (∀int u, int v; var(u) && var(v) && {: \old(interfere(u, v)) :}; compatible(assignment(u), assignment(v)));
+  void IRCLite() {
+    option<int> vOpt = pick();
+    if (vOpt == None) {
+      return;
+    }
+    int v = vOpt.get;
+    set<int> S = G[v];
+    label beforeRemove;
+    remove(v);
+    assert 
+      (∀int u, int w;
+        var(u) && var(w) && u != v && w != v && \old[beforeRemove](interfere(u, w));
+        {: interfere(u, w) :});
+    IRCLite();
+
+    int r = available(S);
+    A = A.add(v, r);
+
+    assert r != SPILL ==> (∀int v; v in S; A[v] != r);
+    assert (∀int u; u in S; {: var(u) :});
+    assert (∀int u; var(u); u in S == \old(interfere(u, v)));
+    assert (∀int u; var(u) && \old(interfere(u, v)); u in S);
+    assert (∀int u; var(u) && \old(interfere(u, v)); compatible(assignment(u), Some(r)));
   }
 
 }
