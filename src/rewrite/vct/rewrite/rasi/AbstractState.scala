@@ -1023,7 +1023,7 @@ case class AbstractState[G](
         UncertainSequence(
           UncertainIntegerValue.single(values.size),
           elements,
-          elements.map(t => t._1)
+          elements.map(t => t._2)
             .fold(UncertainSingleValue.uncertain_of(element))((v1, v2) =>
               v1.union(v2).asInstanceOf[UncertainSingleValue]
             ),
@@ -1039,7 +1039,7 @@ case class AbstractState[G](
         UncertainSequence(
           UncertainIntegerValue.single(values.size),
           elements,
-          elements.map(t => t._1)
+          elements.map(t => t._2)
             .fold(UncertainSingleValue.uncertain_of(values.head.t))((v1, v2) =>
               v1.union(v2).asInstanceOf[UncertainSingleValue]
             ),
