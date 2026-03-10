@@ -57,6 +57,7 @@ case object ExampleFiles {
     "examples/concepts/llvm/pallas/pallas_swift_assert.swift",
     "examples/concepts/llvm/pallas/pallas_c_loop_unused.c",
     "examples/concepts/llvm/pallas/pallas_c_assume.c",
+    "examples/concepts/llvm/pallas/pallas_c_linked_list.c",
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.h",
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.cpp",
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.h",
