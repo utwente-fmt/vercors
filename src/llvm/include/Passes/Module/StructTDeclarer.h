@@ -52,6 +52,12 @@ class SDResult {
     // (required to avoid infinite recursion)
     std::set<StructTyID> transformedDecls;
 
+    // Map StructTyID to the internally used IDs
+    std::map<StructTyID, int64_t> internalIDMap;
+
+    // Counter to issue unique ids
+    int64_t nextID = 1;
+
     bool transformDecl(StructTyID typeID);
 
     /**

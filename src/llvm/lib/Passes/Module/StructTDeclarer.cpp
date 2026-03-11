@@ -22,7 +22,7 @@ using namespace llvm;
  */
 
 SDResult::SDResult(llvm::Module &m, col::Program &colProg)
-    : m(m), colProg(colProg) {}
+    : m(m), colProg(colProg), internalIDMap() {}
 
 bool SDResult::invalidate(Module &M, const PreservedAnalyses &PA,
                           ModuleAnalysisManager::Invalidator &) {
@@ -45,13 +45,24 @@ std::optional<int64_t> SDResult::getStructDeclId(StructTyID typeID) {
 }
 
 int64_t SDResult::getId(StructTyID &typeID) {
-    if (typeID.second != nullptr) {
-        // Use MD-Type for ID
-        return reinterpret_cast<int64_t>(typeID.second);
-    } else {
-        // Use LLVM-Type for ID
-        return reinterpret_cast<int64_t>(typeID.first);
+
+    // Check if an ID has already been assigned to thi TypeID
+    if (internalIDMap.find(typeID) != internalIDMap.end()) {
+        return internalIDMap.at(typeID);
     }
+
+    // Generate a new, unique ID for this typeID. 
+    // In other places we use the value of pointers as the id. In this case this 
+    // does not work because the id must depend on both, the llvm-type and the 
+    // debug-type. 
+    // We keep the last bit of the generated id at 1 avoid conflicts with other 
+    // ids (because those pointers are typically aligned, so the last bit is 0)
+
+    int64_t new_id = nextID;
+    nextID += 2;
+
+    internalIDMap.insert({typeID, new_id});
+    return new_id;
 }
 
 bool SDResult::transformDecl(StructTyID typeID) {
