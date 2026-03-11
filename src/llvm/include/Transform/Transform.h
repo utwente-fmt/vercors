@@ -8,6 +8,7 @@
 
 #include "Origin/OriginProvider.h"
 #include "Passes/Function/FunctionBodyTransformer.h"
+#include "Passes/Module/StructTDeclarer.h"
 
 /**
  * General helper functions for transformations
@@ -18,29 +19,32 @@ namespace col = vct::col::ast;
 
 // type transformers
 void transformAndSetPointerType(llvm::Type &llvmType, col::Type &colType,
-                                const llvm::DataLayout &dataLayout);
+                                pallas::SDResult &sdRes);
 
 void transformAndSetValueType(llvm::Value &value, llvm::Type *pointerType,
-                              col::Type &colType,
-                              const llvm::DataLayout &dataLayout);
+                              col::Type &colType, pallas::SDResult &sdRes);
 
 void transformAndSetType(llvm::Type &llvmType, col::Type &colType,
-                         const llvm::DataLayout &dataLayout);
+                         pallas::SDResult &sdRes);
 
 bool transformAndSetBasicTypeWithDebugInfo(llvm::Type *llvmType,
                                            llvm::DIBasicType &debugType,
-                                           col::Type &colType,
-                                           const llvm::DataLayout &dataLayout);
-bool transformAndSetCompositeTypeWithDebugInfo(
-    llvm::Type *llvmType, llvm::DICompositeType &debugType, col::Type &colType,
-    const llvm::DataLayout &dataLayout);
-bool transformAndSetDerivedTypeWithDebugInfo(
-    llvm::Type *llvmType, llvm::DIDerivedType &debugType, col::Type &colType,
-    const llvm::DataLayout &dataLayout);
+                                           col::Type &colType);
+
+bool transformAndSetCompositeTypeWithDebugInfo(llvm::Type *llvmType,
+                                               llvm::DICompositeType &debugType,
+                                               col::Type &colType,
+                                               pallas::SDResult &sdRes);
+
+bool transformAndSetDerivedTypeWithDebugInfo(llvm::Type *llvmType,
+                                             llvm::DIDerivedType &debugType,
+                                             col::Type &colType,
+                                             pallas::SDResult &sdRes);
+
 void transformAndSetTypeWithDebugInfo(llvm::Type *llvmType,
                                       llvm::DIType *debugType,
                                       col::Type &colType,
-                                      const llvm::DataLayout &dataLayout);
+                                      pallas::SDResult &sdRes);
 
 /**
  * ATTEMPTS to convert any integer constant to a BigInt representation.
@@ -69,8 +73,7 @@ void transformAndSetExpr(pallas::FunctionCursor &functionCursor,
  */
 void transformAndSetConstExpr(llvm::FunctionAnalysisManager &FAM,
                               col::Origin *origin, llvm::Constant &llvmConstant,
-                              col::Expr &colExpr,
-                              const llvm::DataLayout &dataLayout);
+                              col::Expr &colExpr, pallas::SDResult &sdRes);
 
 /**
  * Used by TransformAndSetExpr
@@ -122,5 +125,12 @@ template <class IDNode> int64_t setColNodeId(IDNode &idNode) {
  * @return
  */
 std::string getValueName(llvm::Value &llvmValue);
+
+/**
+ * Utility function to get the SDResult.
+ */
+pallas::SDResult &getSDResult(pallas::FunctionCursor &funcCursor,
+                              llvm::Instruction &inst);
+
 } // namespace llvm2col
 #endif // PALLAS_TRANSFORM_H

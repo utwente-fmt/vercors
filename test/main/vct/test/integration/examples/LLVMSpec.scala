@@ -60,6 +60,7 @@ class LLVMSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_ghost_func.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_c_ghost_arg.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/pallas_c_linked_list.ll"
 
   // C++
   vercors should verify using silicon example "concepts/llvm/pallas/extContracts/pallas_cpp_extContr.ll"

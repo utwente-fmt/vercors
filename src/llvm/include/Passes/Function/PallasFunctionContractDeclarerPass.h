@@ -143,7 +143,8 @@ class PallasFunctionContractDeclarerPass
      */
     void transformGhostArg(const irspec::GhostArgDef &gArgDef,
                            col::Variable *colVar, llvm::Type &type,
-                           llvm::Function &parentFunc);
+                           llvm::Function &parentFunc,
+                           FunctionAnalysisManager &fam);
 };
 } // namespace pallas
 #endif // PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H

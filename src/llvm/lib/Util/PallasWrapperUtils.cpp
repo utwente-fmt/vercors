@@ -50,11 +50,17 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
                 llvm2col::generatePallasWrapperCallOrigin(specElem));
             llvm2col::transformAndSetPointerType(
                 *expectedTy, *tVal->mutable_value(),
-                llvmAlloca.getModule()->getDataLayout());
+                llvm2col::getSDResult(functionCursor, llvmAlloca));
             local = cast->mutable_value()->mutable_local();
         } else {
             local = wrapperCall.add_args()->mutable_local();
         }
+    } else if (llvm::isa<llvm::ArrayType>(llvmAlloca.getAllocatedType()) &&
+               llvm::isa<llvm::PointerType>(expectedTy)) {
+        // When passing an array-type to the wrapper, we skip the dereference
+        // because the array decays into a pointer in the signature of the
+        // wrapper.
+        local = wrapperCall.add_args()->mutable_local();
     } else {
         // Ptr deref
         auto *ptrDeref = wrapperCall.add_args()->mutable_deref_pointer();
@@ -100,14 +106,20 @@ bool buildArgExprFromDbgValue(
 
     // Handle the case where the debug-info references a constant value.
     auto llvmParentF = dbgVal.getFunction();
-    auto dLayout = llvmParentF->getParent()->getDataLayout();
+    auto &mamProxy =
+        functionCursor.getFunctionAnalysisManager()
+            .getResult<llvm::ModuleAnalysisManagerFunctionProxy>(*llvmParentF);
+    auto *sdRes =
+        mamProxy.getCachedResult<StructTDeclarer>(*llvmParentF->getParent());
+    assert(sdRes != nullptr);
+
     if (auto *constVal = llvm::dyn_cast<llvm::Constant>(llvmValue)) {
         auto *argExpr = wrapperCall.add_args();
         llvm2col::transformAndSetConstExpr(
             functionCursor.getFunctionAnalysisManager(),
             // TODO: Put a more precise origin here!
             llvm2col::generatePallasWrapperCallOrigin(specElem), *constVal,
-            *argExpr, dLayout);
+            *argExpr, *sdRes);
         return true;
     }
 

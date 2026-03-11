@@ -56,8 +56,9 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
     extends Rewriter[Pre] with LazyLogging {
   import LangTypesToCol._
 
-  val structTypeMap: mutable.Map[LLVMTStruct[Pre], LLVMTStruct[Pre]] = mutable
-    .Map()
+  val structDeclMap
+      : SuccessionMap[LLVMStructDeclaration[Pre], LLVMStructDeclaration[Post]] =
+    SuccessionMap()
   val cStructFieldsSuccessor: SuccessionMap[(CStructMemberDeclarator[
     Pre
   ]), CStructMemberDeclarator[Post]] = SuccessionMap()
@@ -95,7 +96,32 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
       case RefVariable(decl) => TVar[Post](succ(decl))
     }
 
-  private def structEq(s: LLVMTStruct[Pre], o: LLVMTStruct[Pre]): Boolean = {
+  private def assumedEquivalent(
+      d1: LLVMStructDeclaration[Pre],
+      d2: LLVMStructDeclaration[Pre],
+      assumptions: Seq[Set[LLVMStructDeclaration[Pre]]],
+  ): Boolean = {
+    assumptions.filter(s => s.contains(d1) && s.contains(d2)).size > 0
+  }
+
+  // Add Set {d1, d2} to the equivalences and merges sets that contain d1 or d2
+  private def addAssumedEquivalence(
+      d1: LLVMStructDeclaration[Pre],
+      d2: LLVMStructDeclaration[Pre],
+      assumptions: Seq[Set[LLVMStructDeclaration[Pre]]],
+  ): Seq[Set[LLVMStructDeclaration[Pre]]] = {
+    val containsD1 = assumptions.find(s => s.contains(d1)).getOrElse(Set())
+    val containsD2 = assumptions.find(s => s.contains(d2)).getOrElse(Set())
+    val containNeither = assumptions
+      .filter(s => (!s.contains(d1)) && (!s.contains(d2)))
+    containNeither :+ (containsD1 union containsD2 union Set(d1, d2))
+  }
+
+  private def structEq(
+      s: LLVMStructDeclaration[Pre],
+      o: LLVMStructDeclaration[Pre],
+      assumptions: Seq[Set[LLVMStructDeclaration[Pre]]] = Seq(),
+  ): Boolean = {
     // TODO: Might have to get rid of packed since we don't have that in the DIType
     s.isLiteral ==
       o.isLiteral && /*(s.name.isEmpty || s.name.intersect(o.name).nonEmpty) &&*/
@@ -108,33 +134,37 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
                 (LLVMTPointer(Some(_)), LLVMTPointer(None)) =>
               true
             case (
-                  LLVMTPointer(Some(sa: LLVMTStruct[Pre])),
-                  LLVMTPointer(Some(sb: LLVMTStruct[Pre])),
+                  LLVMTPointer(Some(LLVMTStruct(Ref(sa)))),
+                  LLVMTPointer(Some(LLVMTStruct(Ref(sb)))),
                 ) =>
-              structEq(sa, sb)
-            case (sa: LLVMTStruct[Pre], sb: LLVMTStruct[Pre]) =>
-              structEq(sa, sb)
+              assumedEquivalent(sa, sb, assumptions) ||
+              structEq(sa, sb, addAssumedEquivalence(sa, sb, assumptions))
+            case (LLVMTStruct(Ref(sa)), LLVMTStruct(Ref(sb))) =>
+              assumedEquivalent(sa, sb, assumptions) ||
+              structEq(sa, sb, addAssumedEquivalence(sa, sb, assumptions))
             case (LLVMTInt(_), TBool()) | (TBool(), LLVMTInt(_)) => true
             case _ => false
           }))
       }
   }
 
+  // This requires, structEq(s, 0) == true !!!
   private def structUnion(
-      s: LLVMTStruct[Pre],
-      o: LLVMTStruct[Pre],
-  ): LLVMTStruct[Pre] = {
+      s: LLVMStructDeclaration[Pre],
+      o: LLVMStructDeclaration[Pre],
+  ): LLVMStructDeclaration[Pre] = {
     // TODO: Merge origins
-    LLVMTStruct(
+    new LLVMStructDeclaration(
       s.name.toSet.union(o.name.toSet).toSeq,
       s.packed,
       s.isLiteral,
       s.elements.zip(o.elements).map {
         case (
+              // This only works if ´l´ & ´r´ point to the same declaration after rewriting!
               lf @ LLVMFieldDefinition(offset, size, l: LLVMTStruct[Pre]),
               rf @ LLVMFieldDefinition(_, _, r: LLVMTStruct[Pre]),
             ) =>
-          LLVMFieldDefinition(offset, size, structUnion(l, r))(
+          LLVMFieldDefinition(offset, size, l)(
             if (
               rf.o.getPreferredNameOrElse(Seq("t_struct")).snake == "t_struct"
             ) { lf.o }
@@ -166,10 +196,14 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
   }
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
-    val queue = mutable.ArrayDeque[LLVMTStruct[Pre]]()
+    val queue = mutable.ArrayDeque[LLVMStructDeclaration[Pre]]()
+    val map: mutable.LinkedHashMap[LLVMStructDeclaration[
+      Pre
+    ], LLVMStructDeclaration[Pre]] = mutable.LinkedHashMap()
+
     program.foreach {
-      case s: LLVMTStruct[Pre] =>
-        structTypeMap(s) = s
+      case s: LLVMStructDeclaration[Pre] =>
+        map(s) = s
         queue += s
       case _ =>
     }
@@ -177,27 +211,30 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
     while (queue.nonEmpty) {
       val s = queue.removeHead()
       var toBeMerged =
-        structTypeMap.filter { case (_, v) => structEq(s, v) }.flatMap {
-          case (k, v) => Seq(k, v)
+        map.filter { case (_, v) => structEq(s, v) }.flatMap { case (k, v) =>
+          Seq(k, v)
         }.toSet
       if (toBeMerged.nonEmpty) {
         toBeMerged = toBeMerged + s
         val newType = toBeMerged.reduce(structUnion)
-        toBeMerged.foreach { t => structTypeMap(t) = newType }
-        structTypeMap(newType) = newType
+        toBeMerged.foreach { t => map(t) = newType }
+        map(newType) = newType
         queue.removeAll(toBeMerged.contains)
-        if (!toBeMerged.contains(newType)) {
-          // Also add any inner structs that might've been merged
-          newType.foreach {
-            case s: LLVMTStruct[Pre] => queue += s
-            case _ =>
-          }
-        }
       }
     }
 
-    structTypeMap.foreach { case (k, v) => logger.debug(f"`$k`: `$v`") }
-    super.dispatch(program)
+    lazy val newDecls =
+      globalDeclarations.collect {
+        map.foreach { case (k, v) =>
+          logger.debug(f"`$k`: `$v`")
+          structDeclMap(k) = structDeclMap
+            .getOrElseUpdate(v, globalDeclarations.declare(v.rewriteDefault()))
+        }
+      }._1
+
+    program.rewrite(declarations =
+      newDecls ++ globalDeclarations.dispatch(program.declarations)
+    )
   }
 
   override def dispatch(t: Type[Pre]): Type[Post] = {
@@ -259,7 +296,6 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
         cint.signed = t.signed
         cint.rank = t.rank
         cint
-      case t: LLVMTStruct[Pre] => super.dispatch(structTypeMap(t))
       case other =>
         val newOther = super.dispatch(other)
         newOther.storedBits = other.storedBits
@@ -476,6 +512,8 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
         globalDeclarations
           .declare(declaration.rewrite(specs = specs, declarator = decl))
       case cls: JavaClass[Pre] => super.dispatch(cls)
+      case sDecl: LLVMStructDeclaration[Pre] =>
+        globalDeclarations.succeedOnly(sDecl, structDeclMap(sDecl))
       case other => super.dispatch(other)
     }
 

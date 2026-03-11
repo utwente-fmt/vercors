@@ -4323,6 +4323,14 @@ final case class LLVMRawVectorValue[G](value: String, vectorType: Type[G])(
 final case class LLVMZeroedAggregateValue[G](aggregateType: Type[G])(
     implicit val o: Origin
 ) extends Constant[G] with LLVMExpr[G] with LLVMZeroedAggregateValueImpl[G]
+final class LLVMStructDeclaration[G](
+    val name: Seq[String],
+    val packed: Boolean,
+    val isLiteral: Boolean,
+    val elements: Seq[LLVMFieldDefinition[G]],
+    val sizeInBits: Int, // Number of bits that are allocated for this type
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends GlobalDeclaration[G] with LLVMStructDeclarationImpl[G]
 
 final case class LLVMTInt[G](bitWidth: Int)(
     implicit val o: Origin = DiagnosticOrigin
@@ -4337,14 +4345,9 @@ final case class LLVMTPointer[G](innerType: Option[Type[G]])(
 ) extends Type[G] with LLVMTPointerImpl[G]
 final case class LLVMTMetadata[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with LLVMTMetadataImpl[G]
-final case class LLVMTStruct[G](
-    name: Seq[String],
-    packed: Boolean,
-    isLiteral: Boolean,
-    elements: Seq[LLVMFieldDefinition[G]],
-    sizeInBits: Int, // Number of bits that are allocated for this type
-)(implicit val o: Origin = DiagnosticOrigin)
-    extends Type[G] with LLVMTStructImpl[G]
+final case class LLVMTStruct[G](ref: Ref[G, LLVMStructDeclaration[G]])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Type[G] with LLVMTStructImpl[G]
 @family
 final case class LLVMFieldDefinition[G](offset: Int, size: Int, t: Type[G])(
     implicit val o: Origin = DiagnosticOrigin

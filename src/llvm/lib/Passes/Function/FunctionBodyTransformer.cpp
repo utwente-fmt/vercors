@@ -135,8 +135,15 @@ col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction,
     // set type of declaration
     try {
         const auto &dataLayout = llvmInstruction.getModule()->getDataLayout();
+        auto &mamProxy =
+            getFunctionAnalysisManager()
+                .getResult<llvm::ModuleAnalysisManagerFunctionProxy>(
+                    *llvmInstruction.getFunction());
+        auto *sdRes = mamProxy.getCachedResult<StructTDeclarer>(
+            *llvmInstruction.getModule());
+        assert(sdRes != nullptr);
         llvm2col::transformAndSetValueType(llvmInstruction, llvmPointerType,
-                                           *varDecl->mutable_t(), dataLayout);
+                                           *varDecl->mutable_t(), *sdRes);
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
         errorStream << e.what() << " in variable declaration.";

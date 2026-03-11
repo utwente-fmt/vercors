@@ -4,6 +4,7 @@
 #include "Origin/OriginProvider.h"
 #include "Passes/Function/FunctionContractDeclarer.h"
 #include "Passes/Function/FunctionDeclarer.h"
+#include "Passes/Module/StructTDeclarer.h"
 #include "Transform/Transform.h"
 #include "Transform/WrapperCallTransform.h"
 #include "Util/Constants.h"
@@ -72,9 +73,9 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
         }
         auto *mappedArg = utils::mapDIVarToArg(clause.getWrapper(), *diVar);
         if (mappedArg == nullptr) {
-            std::string err =
-                "Failed to get type for ghost-arg " + gArgDef->name + 
-                " based on wrapper function " + clause.getWrapper().getName().str();
+            std::string err = "Failed to get type for ghost-arg " +
+                              gArgDef->name + " based on wrapper function " +
+                              clause.getWrapper().getName().str();
             ErrorReporter::addError(SOURCE_LOC, err, f);
             return nullptr;
         }
@@ -100,13 +101,18 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
 
 void PallasFunctionContractDeclarerPass::transformGhostArg(
     const irspec::GhostArgDef &gArgDef, col::Variable *colVar, llvm::Type &type,
-    llvm::Function &parentFunc) {
-    const auto &dataLayout = parentFunc.getParent()->getDataLayout();
+    llvm::Function &parentFunc, FunctionAnalysisManager &fam) {
+
+    auto &mamProxy =
+        fam.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(parentFunc);
+    auto *sdRes =
+        mamProxy.getCachedResult<StructTDeclarer>(*parentFunc.getParent());
+    assert(sdRes != nullptr);
     colVar->set_allocated_origin(
         llvm2col::generatePallasSpecOrigin(gArgDef.loc, gArgDef.name));
     llvm2col::setColNodeId(colVar);
     try {
-        llvm2col::transformAndSetType(type, *colVar->mutable_t(), dataLayout);
+        llvm2col::transformAndSetType(type, *colVar->mutable_t(), *sdRes);
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
         errorStream << e.what() << " in ghost argument " << gArgDef.name;
@@ -169,7 +175,7 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
             return;
         llvm::Type *gType = getGhostArgType(*irContract, *g, f, true);
         auto *colVar = colContract->add_given_args();
-        transformGhostArg(*gDef, colVar, *gType, f);
+        transformGhostArg(*gDef, colVar, *gType, f, fam);
         cResult.addGhostArgMapEntry(*g, *colVar);
     }
 
@@ -180,7 +186,7 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
             return;
         llvm::Type *yType = getGhostArgType(*irContract, *y, f, false);
         auto *colVar = colContract->add_yields_args();
-        transformGhostArg(*yDef, colVar, *yType, f);
+        transformGhostArg(*yDef, colVar, *yType, f, fam);
         cResult.addGhostArgMapEntry(*y, *colVar);
     }
 
