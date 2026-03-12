@@ -527,7 +527,7 @@ public class ExpressionTransformer<T> {
         // Transform parameter list
         java.util.List<Expr<T>> arguments = new java.util.ArrayList<>();
         for (Expression param : expr.getParameters()) {
-            Expr<T> parameter = create_expression(param, sc_inst, obj);
+            Expr<T> parameter = create_expression(param, col_class.get_generating_instance(), col_system.THIS);
             if (parameter == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!");
             arguments.add(parameter);
         }
@@ -1480,7 +1480,7 @@ public class ExpressionTransformer<T> {
         // Transform parameter list
         java.util.List<Expr<T>> arguments = new java.util.ArrayList<>();
         for (Expression param : expr.getParameters()) {
-            Expr<T> parameter = create_expression(param, sc_inst, obj);
+            Expr<T> parameter = create_expression(param, col_class.get_generating_instance(), col_system.THIS);
             if (parameter == null) throw new ExpressionParseException("Function call parameter " + param + " could not be parsed!");
             arguments.add(parameter);
         }
