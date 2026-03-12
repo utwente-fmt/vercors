@@ -94,6 +94,18 @@ public class Transformer<T> {
 		SCTIMEUNIT min = SCTIMEUNIT.SC_ZERO_TIME;
 		for (Expression exp : expressions) {
 			if (exp instanceof TimeUnitExpression time_unit) {
+				if (exp.getParent() instanceof FunctionCallExpression fce) {
+					java.util.List<Expression> params = fce.getParameters();
+					if (params.size() == 2 && params.get(1) == time_unit && params.get(0) instanceof ConstantExpression ce && ce.getValue().equals("0")) {
+						continue;
+					}
+				}
+				if (exp.getParent() instanceof EventNotificationExpression ene) {
+					java.util.List<Expression> params = ene.getParameters();
+					if (params.size() == 2 && params.get(1) == time_unit && params.get(0) instanceof ConstantExpression ce && ce.getValue().equals("0")) {
+						continue;
+					}
+				}
 				if (time_unit.getTimeUnit().getExponent() < min.getExponent()) {
 					min = time_unit.getTimeUnit();
 				}
