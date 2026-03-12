@@ -503,11 +503,21 @@ public class ExpressionTransformer<T> {
 
         // Find appropriate COL function (or reference thereto)
         SCFunction sc_fun = expr.getFunction();
+        // Account for polymorphism due to inheritance
+        if (sc_inst != null && sc_fun.getSCClass() != sc_inst.getSCClass()) {
+            for (SCFunction fun : sc_inst.getSCClass().getMemberFunctions()) {
+                if (fun.getName().equals(sc_fun.getName())) {
+                    sc_fun = fun;
+                    break;
+                }
+            }
+        }
+        SCFunction final_fun = sc_fun;
         // If the function is a random function, generate a new one
         Ref<T, InstanceMethod<T>> col_fun = switch (sc_fun.getName()) {
             case "rand", "rand_r", "random" -> create_random_function(col_system.T_INT);
             case "srand", "sc_module" -> null;
-            default -> new LazyRef<>(() -> col_system.get_instance_method(sc_fun, sc_inst, corr_proc), Option.empty(),
+            default -> new LazyRef<>(() -> col_system.get_instance_method(final_fun, sc_inst, corr_proc), Option.empty(),
                     ClassTag$.MODULE$.apply(InstanceMethod.class));
         };
 
@@ -1446,11 +1456,21 @@ public class ExpressionTransformer<T> {
     private Expr<T> transform_function_call_expression_to_expression(FunctionCallExpression expr, SCClassInstance sc_inst, Expr<T> obj) {
         // Find appropriate COL function (or reference thereto)
         SCFunction sc_fun = expr.getFunction();
+        // Account for polymorphism due to inheritance
+        if (sc_inst != null && sc_fun.getSCClass() != sc_inst.getSCClass()) {
+            for (SCFunction fun : sc_inst.getSCClass().getMemberFunctions()) {
+                if (fun.getName().equals(sc_fun.getName())) {
+                    sc_fun = fun;
+                    break;
+                }
+            }
+        }
+        SCFunction final_fun = sc_fun;
         // If the function is a random function, generate a new one
         Ref<T, InstanceMethod<T>> col_fun = switch (sc_fun.getName()) {
             case "rand", "rand_r", "random" -> create_random_function(col_system.T_INT);
             case "srand", "sc_module" -> null;
-            default -> new LazyRef<>(() -> col_system.get_instance_method(sc_fun, sc_inst, corr_proc), Option.empty(),
+            default -> new LazyRef<>(() -> col_system.get_instance_method(final_fun, sc_inst, corr_proc), Option.empty(),
                     ClassTag$.MODULE$.apply(InstanceMethod.class));
         };
 

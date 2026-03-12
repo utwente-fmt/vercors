@@ -1,9 +1,8 @@
 package vct.parsers.transform.systemctocol.engine;
 
+import de.tub.pes.syscir.engine.util.Pair;
 import de.tub.pes.syscir.sc_model.*;
-import de.tub.pes.syscir.sc_model.expressions.Expression;
-import de.tub.pes.syscir.sc_model.expressions.FunctionCallExpression;
-import de.tub.pes.syscir.sc_model.expressions.TimeUnitExpression;
+import de.tub.pes.syscir.sc_model.expressions.*;
 import de.tub.pes.syscir.sc_model.variables.SCClassInstance;
 import de.tub.pes.syscir.sc_model.variables.SCEvent;
 import de.tub.pes.syscir.sc_model.variables.SCKnownType;
@@ -53,12 +52,12 @@ public class Transformer<T> {
 		scan_time();
 		// Calculate process and state classes to be translated
 		scan_processes();
+		// Handle port/socket connections
+		scan_port_connections();
 		// For each method in the SystemC system, find whether it waits or not
 		// TODO: Do we want to try and reduce verification effort by not duplicating non-waiting methods?
 		// Find methods that are used by multiple processes and should therefore be duplicated
 		scan_function_usages();
-		// Handle port/socket connections
-		scan_port_connections();
 		// Register enums to be translated to integer values
 		scan_enums();
 		// Create references to necessary Main class attributes
@@ -197,7 +196,18 @@ public class Transformer<T> {
 				SCFunction exploring = to_explore.removeFirst();
 
 				// Add all newly found functions, if they haven't been visited before, to the list of visited functions
-				for (SCFunction fun : explore_function_calls(exploring)) {
+				for (Pair<SCClassInstance, SCFunction> pair : explore_function_calls(exploring)) {
+					SCFunction fun = pair.getSecond();
+					SCClassInstance inst = pair.getFirst();
+					// If the function is called on an instance of a subclass, use its implementation in the subclass if available
+					if (inst != null && inst.getSCClass() != fun.getSCClass()) {
+						for (SCFunction f : inst.getSCClass().getMemberFunctions()) {
+							if (f.getName().equals(fun.getName())) {
+								fun = f;
+								break;
+							}
+						}
+					}
 					if (!related_functions.contains(fun)) {
 						related_functions.add(fun);
 						if (!to_explore.contains(fun)) {
@@ -228,11 +238,11 @@ public class Transformer<T> {
 					java.util.List<SCClassInstance> hierarchical = sc_port_inst.getModuleInstances();
 
 					// If there is a SystemC-internal channel, register it in the COL system context
-					if (primitive.size() > 0) {
+					if (!primitive.isEmpty()) {
 						col_system.add_primitive_port_connection(sc_inst, sc_port, primitive.get(0));
 					}
 					// If there is a user-defined channel, register it in the COL system context
-					else if (hierarchical.size() > 0) {
+					else if (!hierarchical.isEmpty()) {
 						col_system.add_hierarchical_port_connection(sc_inst, sc_port, hierarchical.get(0));
 					}
 					else throw new SystemCFormatException("Port " + sc_port + " has no bound primitive or hierarchical channels!");
@@ -377,13 +387,23 @@ public class Transformer<T> {
 	 * @param f Function to scan
 	 * @return A list of all functions called by <code>f</code>
 	 */
-	private java.util.List<SCFunction> explore_function_calls(SCFunction f) {
-		java.util.List<SCFunction> result = new java.util.ArrayList<>();
+	private java.util.List<Pair<SCClassInstance, SCFunction>> explore_function_calls(SCFunction f) {
+		java.util.List<Pair<SCClassInstance, SCFunction>> result = new java.util.ArrayList<>();
 		java.util.List<Expression> expressions = f.getAllExpressions();
 
 		for (Expression expression : expressions) {
 			if (expression instanceof FunctionCallExpression expr) {
-				result.add(expr.getFunction());
+				SCFunction fun = expr.getFunction();
+				SCClassInstance inst = null;
+				if (expression.getParent() instanceof AccessExpression ae) {
+					if (ae.getLeft() instanceof SCPortSCSocketExpression spsse) {
+						java.util.List<SCClassInstance> insts = f.getSCClass().getInstances();
+						if (insts.size() == 1) {
+							inst = col_system.get_hierarchical_port_connection(insts.get(0), spsse.getSCPortSCSocket());
+						}
+					}
+				}
+				result.add(new Pair<>(inst, fun));
 			}
 		}
 
