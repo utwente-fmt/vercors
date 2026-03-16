@@ -1,7 +1,6 @@
 #include <limits.h>
 
 //@ START_MARKER
-BOOL_WIDTH
 CHAR_BIT
 CHAR_WIDTH
 SCHAR_WIDTH
