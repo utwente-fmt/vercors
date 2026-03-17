@@ -12,7 +12,7 @@ struct Node {
 struct List {
     struct Node *head;
     struct Node *tail;
-    /*@ unique<3> */size_t length;
+    /*@ unique<3> */int length;
 };
 
 /*@ adt Trigger {
@@ -69,7 +69,7 @@ pure _Bool node_lemma_forward(seq<struct Node*> nodes, int link, int index, int 
 //@ requires list->length > 0;
 //@ ensures (\forall int i = 0 .. list->length + 2; \old(nodes[i]->data) == {:nodes[i]->data:});
 //@ ensures \result == nodes[index + 1];
-struct Node *find_node(struct List *list, size_t index) {
+struct Node *find_node(struct List *list, int index) {
     struct Node *node;
 
     if (index == list->length) {
@@ -86,7 +86,7 @@ struct Node *find_node(struct List *list, size_t index) {
         //@ loop_invariant prev == (uintptr_t)nodes[i+2];
         //@ loop_invariant node == nodes[i+1];
         //@ loop_invariant (\forall int i = 0 .. list->length + 2; \old(nodes[i]->data) == {:nodes[i]->data:});
-        for (size_t i = list->length - 1; i != index; i--) {
+        for (int i = list->length - 1; i != index; i--) {
             uintptr_t next = (node->link ^ prev);
             //@ assert node_lemma_backward(nodes, node->link, i, list->length, prev, next);
             prev = (uintptr_t)node;
@@ -102,7 +102,7 @@ struct Node *find_node(struct List *list, size_t index) {
         //@ loop_invariant prev == (uintptr_t)nodes[i];
         //@ loop_invariant node == nodes[i+1];
         //@ loop_invariant (\forall int i = 0 .. list->length + 2; \old(nodes[i]->data) == {:nodes[i]->data:});
-        for (size_t i = 0; i != index; i++) {
+        for (int i = 0; i != index; i++) {
             uintptr_t next = (node->link ^ prev);
             //@ assert node_lemma_forward(nodes, node->link, i, list->length, prev, next);
             prev = (uintptr_t)node;
@@ -150,7 +150,7 @@ struct List *new() {
 //@ ensures (\forall int i = index + 2 .. list->length + 1; nodes[i - 1] == {:outNodes[i]:});
 //@ ensures (\forall int i = index + 2 .. list->length + 1; \old(nodes[i - 1]->data) == {:outNodes[i]->data:});
 //@ ensures outNodes[index+1]->data == data;
-void insert(struct List *list, size_t index, int data) {
+void insert(struct List *list, int index, int data) {
     struct Node *node = (struct Node *)malloc(sizeof(struct Node));
     //@ assume node != NULL;
     node->data = data;
@@ -193,7 +193,7 @@ void insert(struct List *list, size_t index, int data) {
 //@ requires 0 <= index && index < list->length;
 //@ requires list->length > 0;
 //@ ensures \result == nodes[index + 1]->data;
-int get(struct List *list, size_t index) {
+int get(struct List *list, int index) {
     struct Node *node = find_node(list, index) /*@ given {nodes = nodes} */;
 
     return node->data;
@@ -215,7 +215,7 @@ int get(struct List *list, size_t index) {
 //@ ensures (\forall int i = index + 1 .. list->length + 1; nodes[i + 1] == {:outNodes[i]:});
 //@ ensures (\forall int i = index + 1 .. list->length + 1; \old(nodes[i + 1]->data) == {:outNodes[i]->data:});
 //@ ensures \result == \old(nodes[index + 1]->data);
-int delete(struct List *list, size_t index) {
+int delete(struct List *list, int index) {
     struct Node *prev;
     if (index == 0) {
         prev = list->head;

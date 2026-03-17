@@ -261,9 +261,16 @@ case class CTypeConversions[Pre <: Generation](
       case op @ AmbiguousMult(l, r) =>
         getConstant(l).zip(getConstant(r)).map { case (l, r) => l * r }
       case op @ AmbiguousDiv(l, r) =>
-        getConstant(l).zip(getConstant(r)).map { case (l, r) => l / r }
+        getConstant(l).zip(getConstant(r)).map { case (l, r) =>
+          l / r +
+            (if (l % r >= 0) { 0 }
+             else if (r > 0) { -1 }
+             else { 1 })
+        }
       case op @ AmbiguousMod(l, r) =>
         getConstant(l).zip(getConstant(r)).map { case (l, r) => l.mod(r) }
+      case op @ AmbiguousTruncDiv(l, r) =>
+        getConstant(l).zip(getConstant(r)).map { case (l, r) => l / r }
       case op @ AmbiguousTruncMod(l, r) =>
         getConstant(l).zip(getConstant(r)).map { case (l, r) => l % r }
       case op @ AmbiguousPlus(l, r) =>
@@ -273,6 +280,47 @@ case class CTypeConversions[Pre <: Generation](
       case CIntegerValue(v, _) => Some(v)
       case IntegerValue(v) => Some(v)
       case _ => None
+    }
+
+  private def knownUnsigned(e: Expr[Pre]): Boolean =
+    stripQualifiers(e.t) match {
+      case t @ TCInt() if !t.signed => true
+      case _ => false
+    }
+
+  // For division and modulo if we know that neither operand is negative we know the result must fit in the required space
+  private def surelyInUnsignedRange(e: Expr[Pre]): Boolean =
+    e match {
+      case op @ AmbiguousDiv(l, r) =>
+        (getConstant(l), getConstant(r)) match {
+          case (Some(l), Some(r)) if l >= 0 && r >= 0 => true
+          case (Some(l), _) if l >= 0 && knownUnsigned(r) => true
+          case (_, Some(r)) if r >= 0 && knownUnsigned(l) => true
+          case (None, None) if knownUnsigned(l) && knownUnsigned(r) => true
+          case _ => false
+        }
+      case op @ AmbiguousMod(l, r) =>
+        (getConstant(l), getConstant(r)) match {
+          case (Some(l), _) if l >= 0 && knownUnsigned(r) => true
+          case (_, Some(r)) if r >= 0 && knownUnsigned(l) => true
+          case (None, None) if knownUnsigned(l) && knownUnsigned(r) => true
+          case _ => false
+        }
+      case op @ AmbiguousTruncDiv(l, r) =>
+        (getConstant(l), getConstant(r)) match {
+          case (Some(l), _) if l >= 0 && knownUnsigned(r) => true
+          case (_, Some(r)) if r >= 0 && knownUnsigned(l) => true
+          case (None, None) if knownUnsigned(l) && knownUnsigned(r) => true
+          case _ => false
+        }
+      case op @ AmbiguousTruncMod(l, r) =>
+        (getConstant(l), getConstant(r)) match {
+          case (Some(l), _) if l >= 0 && knownUnsigned(r) => true
+          case (_, Some(r)) if r >= 0 && knownUnsigned(l) => true
+          case (None, None) if knownUnsigned(l) && knownUnsigned(r) => true
+          case _ => false
+        }
+      case _ => false
     }
 
   private def applyWrapAround(e: BinExpr[Pre]): Expr[Pre] = {
@@ -537,7 +585,8 @@ case class CTypeConversions[Pre <: Generation](
               UncheckedMath(const(
                 constant.get.mod(BigInt(2).pow(t.storedBits.getExact.intValue))
               ))
-            } else {
+            } else if (surelyInUnsignedRange(e)) { dispatch(e) }
+            else {
               UncheckedMath(
                 Mod(
                   dispatch(e),
