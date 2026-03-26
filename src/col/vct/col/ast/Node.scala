@@ -4253,6 +4253,31 @@ final case class LLVMPtrLength[G](ptr: Expr[G])(val blame: Blame[PointerNull])(
     implicit val o: Origin
 ) extends Expr[G] with LLVMPtrLengthImpl[G]
 
+final case class LLVMSeqNew[G](target: Expr[G], cType: Type[G])(
+    val blame: Blame[AssignFailed]
+)(implicit val o: Origin)
+    extends LLVMStatement[G] with LLVMSeqNewImpl[G]
+
+final case class LLVMSeqSize[G](seq: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqSizeImpl[G]
+
+final case class LLVMSeqEq[G](s1: Expr[G], s2: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqEqImpl[G]
+
+final case class LLVMSeqGet[G](seq: Expr[G], idx: Expr[G], elemType: Type[G])(
+    val blame: Blame[VerificationFailure]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqGetImpl[G]
+
+final case class LLVMSeqSlice[G](seq: Expr[G], sIdx: Expr[G], eIdx: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqSliceImpl[G]
+
 @family
 sealed trait LLVMMemoryOrdering[G]
     extends NodeFamily[G] with LLVMMemoryOrderingImpl[G]

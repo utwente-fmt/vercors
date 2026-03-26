@@ -1981,6 +1981,52 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     LLVMOld[Post](rw.dispatch(llvmOld.v))
   }
 
+  def rewriteSeqNew(seqNew: LLVMSeqNew[Pre]): Statement[Post] = {
+    requireInWrapper(seqNew)
+    implicit val o: Origin = seqNew.o
+
+    Assign[Post](
+      rw.dispatch(seqNew.target),
+      LiteralSeq[Post](rw.dispatch(seqNew.cType), Seq.empty),
+    )(seqNew.blame)
+  }
+
+  def rewriteSeqSize(seqSize: LLVMSeqSize[Pre]): Expr[Post] = {
+    requireInWrapper(seqSize)
+    implicit val o: Origin = seqSize.o
+    Size[Post](DerefPointer[Post](rw.dispatch(seqSize.seq))(seqSize.blame))
+  }
+
+  def rewriteSeqEq(seqEq: LLVMSeqEq[Pre]): Expr[Post] = {
+    requireInWrapper(seqEq)
+    implicit val o: Origin = seqEq.o
+    Eq[Post](
+      DerefPointer[Post](rw.dispatch(seqEq.s1))(seqEq.blame),
+      DerefPointer[Post](rw.dispatch(seqEq.s2))(seqEq.blame),
+    )
+  }
+
+  def rewriteSeqGet(seqGet: LLVMSeqGet[Pre]): Expr[Post] = {
+    requireInWrapper(seqGet)
+    implicit val o: Origin = seqGet.o
+
+    SeqSubscript(
+      DerefPointer(rw.dispatch(seqGet.seq))(seqGet.blame),
+      rw.dispatch(seqGet.idx),
+    )(seqGet.blame)
+  }
+
+  def rewriteSeqSlice(seqSlice: LLVMSeqSlice[Pre]): Expr[Post] = {
+    requireInWrapper(seqSlice)
+    implicit val o: Origin = seqSlice.o
+
+    Slice(
+      DerefPointer(rw.dispatch(seqSlice.seq))(seqSlice.blame),
+      rw.dispatch(seqSlice.sIdx),
+      rw.dispatch(seqSlice.eIdx),
+    )
+  }
+
   def correctPointerComparison[T <: Expr[Post]](
       left: Expr[Pre],
       right: Expr[Pre],

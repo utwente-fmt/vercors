@@ -353,6 +353,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case add: LLVMAddWithOverflow[Pre] => llvm.rewriteAddWithOverflow(add)
       case sub: LLVMSubWithOverflow[Pre] => llvm.rewriteSubWithOverflow(sub)
       case mult: LLVMMultWithOverflow[Pre] => llvm.rewriteMultWithOverflow(mult)
+      case seqNew: LLVMSeqNew[Pre] => llvm.rewriteSeqNew(seqNew)
       case other => other.rewriteDefault()
     }
 
@@ -489,6 +490,10 @@ case class LangSpecificToCol[Pre <: Generation](
       case llvmOr: LLVMOr[Pre] => llvm.rewriteOr(llvmOr)
       case llvmStar: LLVMStar[Pre] => llvm.rewriteStar(llvmStar)
       case llvmOld: LLVMOld[Pre] => llvm.rewriteOld(llvmOld)
+      case llvmSeqSize: LLVMSeqSize[Pre] => llvm.rewriteSeqSize(llvmSeqSize)
+      case llvmSeqEq: LLVMSeqEq[Pre] => llvm.rewriteSeqEq(llvmSeqEq)
+      case llvmSeqGet: LLVMSeqGet[Pre] => llvm.rewriteSeqGet(llvmSeqGet)
+      case llvmSeqSlice: LLVMSeqSlice[Pre] => llvm.rewriteSeqSlice(llvmSeqSlice)
       case eq: AmbiguousEq[Pre] =>
         llvm.correctPointerComparison(
           eq.left,

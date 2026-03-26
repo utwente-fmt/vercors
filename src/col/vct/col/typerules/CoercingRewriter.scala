@@ -2314,6 +2314,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case LLVMSepForall(_, _) => e
       case LLVMExists(_, _) => e
       case LLVMExtractValue(_, _, _, _) => e
+      case LLVMSeqSize(_) => e
+      case LLVMSeqEq(_, _) => e
+      case LLVMSeqGet(_, _, _) => e
+      case LLVMSeqSlice(_, _, _) => e
       case PVLEndpointExpr(_, _) => e
       case EndpointExpr(ref, expr) => e
       case ChorExpr(expr) => ChorExpr(bool(expr))
@@ -2435,6 +2439,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case mult: LLVMMultWithOverflow[Pre] => mult
       case memset: LLVMMemset[Pre] => memset
       case memcpy: LLVMMemcpy[Pre] => memcpy
+      case seqNew: LLVMSeqNew[Pre] => seqNew
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)

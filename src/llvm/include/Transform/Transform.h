@@ -21,6 +21,9 @@ namespace col = vct::col::ast;
 void transformAndSetPointerType(llvm::Type &llvmType, col::Type &colType,
                                 pallas::SDResult &sdRes);
 
+bool transformAndSetSequenceType(llvm::Type *llvmType, col::Type &colType,
+                                 pallas::SDResult &sdRes);
+
 void transformAndSetValueType(llvm::Value &value, llvm::Type *pointerType,
                               col::Type &colType, pallas::SDResult &sdRes);
 
@@ -125,6 +128,10 @@ template <class IDNode> int64_t setColNodeId(IDNode &idNode) {
  * @return
  */
 std::string getValueName(llvm::Value &llvmValue);
+
+bool isPallasSequenceType(const llvm::Type *llvmType);
+
+llvm::Type *getPallasSequenceContentType(const llvm::Type *seqType);
 
 /**
  * Utility function to get the SDResult.
