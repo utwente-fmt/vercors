@@ -137,6 +137,26 @@ void transformPallasUnfolding(llvm::CallInst &callInstruction,
                               col::LlvmBasicBlock &colBlock,
                               pallas::FunctionCursor &funcCursor);
 
+void transformPallasSeqNew(llvm::CallInst &callInstruction,
+                           col::LlvmBasicBlock &colBlock,
+                           pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqSize(llvm::CallInst &callInstruction,
+                            col::LlvmBasicBlock &colBlock,
+                            pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqEq(llvm::CallInst &callInstruction,
+                          col::LlvmBasicBlock &colBlock,
+                          pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqGet(llvm::CallInst &callInstruction,
+                           col::LlvmBasicBlock &colBlock,
+                           pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqSlice(llvm::CallInst &callInstruction,
+                             col::LlvmBasicBlock &colBlock,
+                             pallas::FunctionCursor &funcCursor);
+
 } // namespace llvm2col
 
 #endif // PALLAS_OTHEROPTRANSFORM_H
