@@ -16,6 +16,7 @@ import vct.result.VerificationError.{SystemError, Unreachable, UserError}
 import vct.rewrite.lang.LangSpecificToCol.InvalidPointerComparison
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 case object LangLLVMToCol {
   private final case class UnexpectedLLVMNode(node: Node[_])
@@ -177,6 +178,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       : mutable.HashMap[LLVMGlobalVariable[Pre], Type[Pre]] = mutable.HashMap()
   private val localVariableInferredType
       : mutable.HashMap[Variable[Pre], Type[Pre]] = mutable.HashMap()
+  private val inferredReturnType
+      : mutable.HashMap[LLVMFunctionDefinition[Pre], Type[Pre]] = mutable
+    .HashMap()
   private val loopBlocks: mutable.ArrayBuffer[LLVMBasicBlock[Pre]] = mutable
     .ArrayBuffer()
   private val elidedBackEdges: mutable.Set[LabelDecl[Pre]] = mutable.Set()
@@ -727,6 +731,21 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           globalVariableInferredType(v) = t.currentType
       }
     )
+
+    // For external functions that return a pointer, we try to infer their type from the provided contract.
+    program.foreach {
+      case f: LLVMFunctionDefinition[Pre]
+          if f.functionBody.isEmpty && f.returnType.asPointer.isDefined =>
+        val infTypes = program.collect {
+          case Assign(Local(Ref(tVar)), LLVMResult(Ref(f)))
+              if localVariableInferredType.contains(tVar) =>
+            localVariableInferredType(tVar)
+        }
+        // This might be too strict in some cases
+        val rType = findMostSpecific(infTypes.to(ArrayBuffer))
+        if (rType.isDefined) { inferredReturnType(f) = rType.get }
+      case _ =>
+    }
   }
 
   def gatherWrappersInAssume(program: Program[Pre]): Unit = {
@@ -819,7 +838,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           if (func.isWrapper && !wrappersInAssume.contains(func)) {
             TResource[Post]()
           } else {
-            rw.dispatch(func.importedReturnType.getOrElse(func.returnType))
+            rw.dispatch(
+              func.importedReturnType
+                .getOrElse(inferredReturnType.getOrElse(func, func.returnType))
+            )
           }
         funcRetType.having(returnT) {
           rw.globalDeclarations.declare(

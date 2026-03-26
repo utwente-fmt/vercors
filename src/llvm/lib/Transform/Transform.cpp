@@ -39,15 +39,16 @@ bool llvm2col::isPallasSequenceType(const llvm::Type *llvmType) {
     if (sType == nullptr)
         return false;
     if (sType->getNumElements() != 4)
-        return false; 
+        return false;
     return sType->getName().starts_with(
         pallas::constants::PALLAS_SPEC_SEQ_TYPE_PREFIX);
 }
 
 llvm::Type *llvm2col::getPallasSequenceContentType(const llvm::Type *seqType) {
     if (!isPallasSequenceType(seqType))
-        return nullptr; 
-    return llvm::dyn_cast_if_present<llvm::StructType>(seqType)->getElementType(0);
+        return nullptr;
+    return llvm::dyn_cast_if_present<llvm::StructType>(seqType)->getElementType(
+        0);
 }
 
 bool llvm2col::transformAndSetSequenceType(llvm::Type *llvmType,
@@ -57,7 +58,7 @@ bool llvm2col::transformAndSetSequenceType(llvm::Type *llvmType,
     // Get the content-type of the sequence (encoded in the first element)
     auto *llvmElementType = getPallasSequenceContentType(llvmType);
     if (llvmElementType == nullptr)
-        return false; 
+        return false;
 
     auto *colSeqT = colType.mutable_t_seq();
     colSeqT->set_allocated_origin(generateTypeOrigin(*llvmType));
