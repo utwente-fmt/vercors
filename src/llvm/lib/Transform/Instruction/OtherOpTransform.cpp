@@ -1179,7 +1179,7 @@ void llvm2col::transformPallasSeqEq(llvm::CallInst &callInstruction,
                                   *callInstruction.getArgOperand(0),
                                   *colEq->mutable_s1());
     llvm2col::transformAndSetExpr(funcCursor, callInstruction,
-                                  *callInstruction.getArgOperand(0),
+                                  *callInstruction.getArgOperand(1),
                                   *colEq->mutable_s2());
 }
 

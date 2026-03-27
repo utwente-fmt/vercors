@@ -474,6 +474,27 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val typeGuesses: mutable.LinkedHashMap[Object, TypeGuess] = mutable
       .LinkedHashMap()
 
+    // Given a LLVMResult, find all variables in other clauses of the correpsonding contract that
+    // are assigned the value of LLVMResult.
+    def findResultUses(expr: Expr[Pre], target: Expr[Pre]): Set[Object] = {
+      expr match {
+        case LLVMResult(Ref(pFunc)) =>
+          pFunc.contract.collect {
+            case LLVMFunctionInvocation(Ref(wF), _, _, _)
+                if (wF.isWrapper || wF.isGhostWrapper) &&
+                  wF.functionBody.isDefined =>
+              val vars = wF.functionBody.get.collect {
+                case Assign(t @ Local(Ref(tVar)), LLVMResult(_))
+                    if t != target =>
+                  tVar
+              }
+              vars
+          }.flatten.toSet
+        case _ => Set.empty
+      }
+    }
+
+    // TODO: We could extend this so that a LLVMResult requires the same type for all uses in the contract of a function!?
     def findDependencies(expr: Expr[Pre]): Set[Object] = {
       expr.collect {
         case Local(Ref(v)) => v
@@ -544,11 +565,18 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           if target.t.isInstanceOf[LLVMTPointer[Pre]] ||
             value.t.isInstanceOf[LLVMTPointer[Pre]] =>
         getVariable(target).foreach(v => {
-          val dependencies = findDependencies(value)
+          val rUses = findResultUses(value, target)
+          val dependencies = findDependencies(value).union(rUses)
           addTypeGuess(
             v,
             dependencies,
-            _ => Seq(replaceWithGuesses(value, dependencies).t, value.t),
+            _ =>
+              Seq(replaceWithGuesses(value, dependencies).t, value.t) ++
+                // When the value contains a LLVMResult, we add guesses to make
+                // sure that the type is consistent with the inferred type of
+                // other uses of LLVMResult in other contract clauses
+                rUses.filter(typeGuesses.contains)
+                  .map(v => typeGuesses.get(v).get.currentType).toSeq,
           )
         })
       case func: LLVMFunctionDefinition[Pre] =>
