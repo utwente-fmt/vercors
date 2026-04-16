@@ -89,8 +89,9 @@ case class ColToIsar[Pre <: Generation]() extends Rewriter[Pre] {
           Seq(
             "Main",
             "HOL.Rat",
-            "\"HOL-Library.FSet\"",
             "\"HOL-Library.Finite_Map\"",
+            "\"HOL-Library.FSet\"",
+            "\"HOL-Library.Multiset\"",
           ),
           commands,
         )(program.o)
