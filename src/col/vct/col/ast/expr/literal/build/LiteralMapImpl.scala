@@ -11,10 +11,10 @@ trait LiteralMapImpl[G] extends LiteralMapOps[G] {
   override def precedence: Int = Precedence.POSTFIX
 
   def layoutIsar(implicit ctx: Ctx): Doc = {
-    if (values.isEmpty) { Group(Text("Map.empty")) }
+    if (values.isEmpty) { Group(Text("fmempty")) }
     else {
-      Group(Text("[") <+> Doc.args(values.map { case (k, v) =>
-        k.show <+> "↦" <+> v
+      Group(Text("fmap_of_list [") <+> Doc.args(values.map { case (k, v) =>
+        Text("(") <> k.show <+> "," <+> v <> Text(")")
       }) <+> Text("]"))
     }
   }

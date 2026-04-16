@@ -11,7 +11,7 @@ trait MapKeySetImpl[G] extends MapKeySetOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
     ctx.syntax match {
-      case Ctx.Isar => Text("dom") <+> (map)
+      case Ctx.Isar => Text("fmdom") <+> (map)
       case _ => assoc(map) <> ".keys"
     }
 }

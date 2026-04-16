@@ -15,9 +15,11 @@ trait MapGetImpl[G] extends MapGetOps[G] {
       case Ctx.Isar =>
         k match {
           case Local(_) | _: Constant[G] =>
-            Group(Text("the (") <+> assoc(map) <+> Doc.arg(k) <> ")")
+            Group(Text("the (fmlookup") <+> assoc(map) <+> Doc.arg(k) <> ")")
           case _ =>
-            Group(Text("the (") <+> assoc(map) <+> "(" <> Doc.arg(k) <> "))")
+            Group(
+              Text("the (fmlookup") <+> assoc(map) <+> "(" <> Doc.arg(k) <> "))"
+            )
         }
 
       case _ => Group(assoc(map) <> "[" <> Doc.arg(k) <> "]")

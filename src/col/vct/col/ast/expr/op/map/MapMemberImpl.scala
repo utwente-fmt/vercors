@@ -11,7 +11,7 @@ trait MapMemberImpl[G] extends MapMemberOps[G] {
   override def precedence: Int = Precedence.RELATIONAL
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar => x.show <+> "∈" <+> Text("dom") <+> xs
+      case Ctx.Isar => x.show <+> "|∈|" <+> Text("fmdom") <+> xs
       case _ =>
         lassoc(
           x,

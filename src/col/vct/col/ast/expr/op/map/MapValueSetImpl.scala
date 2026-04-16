@@ -11,7 +11,7 @@ trait MapValueSetImpl[G] extends MapValueSetOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
     ctx.syntax match {
-      case Ctx.Isar => Text("entries") <+> assoc(map)
+      case Ctx.Isar => Text("fmran") <+> assoc(map)
       case _ => assoc(map) <> ".values"
     }
 

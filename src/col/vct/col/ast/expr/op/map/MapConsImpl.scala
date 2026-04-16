@@ -13,7 +13,7 @@ trait MapConsImpl[G] extends MapConsOps[G] {
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
       case Ctx.Isar =>
-        Group(Text("(") <> assoc(map) <> "(" <> k <> "↦" <> v <> "))")
+        Group(Text("(fmupd") <+> assoc(k) <+> assoc(v) <+> assoc(map) <> ")")
       case _ => Group(assoc(map) <> ".add(" <> Doc.args(Seq(k, v)) <> ")")
     }
   }

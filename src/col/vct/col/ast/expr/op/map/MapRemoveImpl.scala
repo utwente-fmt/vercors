@@ -12,7 +12,7 @@ trait MapRemoveImpl[G] extends MapRemoveOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar => Group(Text("delete") <+> Doc.arg(k) <+> assoc(map))
+      case Ctx.Isar => Group(Text("fmdrop") <+> Doc.arg(k) <+> assoc(map))
       case _ => Group(assoc(map) <> ".remove(" <> Doc.arg(k) <> ")")
     }
   }

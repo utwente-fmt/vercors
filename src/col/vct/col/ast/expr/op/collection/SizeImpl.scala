@@ -16,7 +16,7 @@ trait SizeImpl[G] extends SizeOps[G] {
           case TSeq(_) => Text("int(length") <+> obj <> ")"
           case TSet(_) => Text("int(card") <+> obj <> ")"
           case TBag(_) => Text("int(size_multiset") <+> obj <> ")"
-          case TMap(_, _) => Text("int( card (dom") <+> obj <> "))"
+          case TMap(_, _) => Text("int(fcard (fmdom") <+> obj <> "))"
         }
       case _ => Text("|") <> obj <> "|"
     }

@@ -11,7 +11,7 @@ trait MapItemSetImpl[G] extends MapItemSetOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar => Text("dom") <+> assoc(map)
+      case Ctx.Isar => Text("fset_of_fmap") <+> assoc(map)
       case _ => assoc(map) <> ".items"
     }
   }
