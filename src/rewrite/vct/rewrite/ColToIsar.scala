@@ -86,7 +86,12 @@ case class ColToIsar[Pre <: Generation]() extends Rewriter[Pre] {
       }
       Seq(
         new IsarTheory[Post](
-          Seq("Main", "HOL.Rat", "HOL-Library.Finite_Map"),
+          Seq(
+            "Main",
+            "HOL.Rat",
+            "\"HOL-Library.FSet\"",
+            "\"HOL-Library.Finite_Map\"",
+          ),
           commands,
         )(program.o)
       )
@@ -289,40 +294,11 @@ case class ColToIsar[Pre <: Generation]() extends Rewriter[Pre] {
             }
           }
 
-//          val dc = new IsarDefinitionCommand[Post](
-//            f.o.getPreferredName.map(_.camel).get,
-//            dt.typevars.map(_=>new Variable[Post](TAnyValue())),
-//            (f.args.map(_.t) :+ f.returnType).map(dispatch)
-//          )
-//          functionFixesMap(f) = dc
-//          isarCommands.declare(dc)
-
-//          constructors.zip(datatypeConstructors).map { case (f, c) =>
-//            functionFixesMap(f) = c
-//            ()
-//          }
-//          accessors.foreach { f =>
-//            // val d = new IsarDefinitionCommand[Post]()
-//            // isarCommands.declare(d)
-//            // functionFixesMap(f) = d
-//            ()
-//          }
-
           // NOTE type variables mapping is bound to typedef node
 
         } else {
           // typedef not required
           // NOTE type variable mapping is bound to datatype node
-
-//          constructors.zip(datatypeConstructors).map { case (fc, dc) =>
-//            functionFixesMap(fc) = dc
-//          }
-//          accessors.foreach { f =>
-//            // val d = new IsarDefinitionCommand[Post]()
-//            // isarCommands.declare(d)
-//            // functionFixesMap(f) = d
-//            ()
-//          }
         }
 
         // top-level functions
@@ -388,7 +364,6 @@ case class ColToIsar[Pre <: Generation]() extends Rewriter[Pre] {
     node match {
       case TAxiomatic(Ref(adt), args) =>
         TIsarType(adtTypeSucc.ref(adt), args.map(dispatch))
-//    case TVar(Ref(v)) => TVar[Post](typeVarSucc.ref(v))
       case _ => super.dispatch(node)
     }
 

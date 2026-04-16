@@ -14,7 +14,7 @@ trait SetMemberImpl[G] extends SetMemberOps[G] {
       x,
       ctx.syntax match {
         case Ctx.Silver => "in"
-        case Ctx.Isar => "∈"
+        case Ctx.Isar => "|∈|"
         case _ => "\\in"
       },
       xs,

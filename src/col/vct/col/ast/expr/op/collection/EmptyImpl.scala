@@ -12,12 +12,13 @@ trait EmptyImpl[G] extends EmptyOps[G] {
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
       case Ctx.Isar =>
-        obj.show <+> "=" <+> (obj.t match {
-        case TSeq(_) => Text("[]")
-        case TSet(_) => Text("{}")
-        case TBag(_) => Text("{#}")
-        case TMap(_, _) => Text("Map.empty")
-      })
+        obj.show <+> "=" <+>
+          (obj.t match {
+            case TSeq(_) => Text("[]")
+            case TSet(_) => Text("{||}")
+            case TBag(_) => Text("{#}")
+            case TMap(_, _) => Text("fmempty")
+          })
       case _ => assoc(obj) <> ".isEmpty"
     }
 

@@ -14,5 +14,5 @@ trait SetMinusImpl[G] extends SetMinusOps[G] {
   )
 
   override def precedence: Int = Precedence.ADDITIVE
-  override def layout(implicit ctx: Ctx): Doc = lassoc(xs, "-", ys)
+  override def layout(implicit ctx: Ctx): Doc = lassoc(xs, "|-|", ys)
 }

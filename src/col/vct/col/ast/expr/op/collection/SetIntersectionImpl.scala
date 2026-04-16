@@ -16,7 +16,7 @@ trait SetIntersectionImpl[G] extends SetIntersectionOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar => Group(assoc(xs) <+> Text("∩") <+> assoc(ys))
+      case Ctx.Isar => Group(assoc(xs) <+> Text("|∩|") <+> assoc(ys))
       case _ => Group(assoc(xs) <> ".intersect(" <> Doc.arg(ys) <> ")")
     }
 

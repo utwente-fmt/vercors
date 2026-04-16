@@ -7,12 +7,10 @@ import vct.col.ast.ops.TSetOps
 trait TSetImpl[G] extends TSetOps[G] {
   this: TSet[G] =>
   override def layout(implicit ctx: Ctx): Doc = {
-    Group(
-      ctx.syntax match {
-        case Ctx.Isar => open <> Doc.arg(element) <> close <+> Text("set")
-        case _ => Text("set") <> open <> Doc.arg(element) <> close
-      }
-    )
+    Group(ctx.syntax match {
+      case Ctx.Isar => open <> Doc.arg(element) <> close <+> Text("fset")
+      case _ => Text("set") <> open <> Doc.arg(element) <> close
+    })
   }
 
   val subtypes: Seq[Type[G]] = Seq(element)
