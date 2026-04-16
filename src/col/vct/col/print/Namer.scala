@@ -63,6 +63,7 @@ case class Namer[G](syntax: Ctx.Syntax) {
       case _: ScopedExpr[G] => ()
       case _: ForPerm[G] => ()
       case _: Choreography[G] => ()
+      case _: IsarCommand[G] => ()
     }
 
   private def nearestCallable =
@@ -138,7 +139,10 @@ case class Namer[G](syntax: Ctx.Syntax) {
           if (syntax == Ctx.Silver)
             Seq(3)
           else
-            nearest { case _: AxiomaticDataType[G] => () },
+            nearest {
+              case _: AxiomaticDataType[G] => ()
+              case _: IsarLocaleCommand[G] => ()
+            },
           decl,
         )
       case decl: ModelDeclaration[G] =>

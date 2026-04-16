@@ -30,6 +30,7 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
   CTypeConversions,
+  ColToIsar,
   CollectLocalDeclarations,
   DisambiguateLocation,
   DisambiguatePredicateExpression,
@@ -223,7 +224,6 @@ object Transformation extends LazyLogging {
         writeOutFunctions(before, options.outputBeforePass) ++
         writeOutFunctions(after, options.outputAfterPass)
     )
-
 
   sealed trait TransformationEvent
   case object before extends TransformationEvent
@@ -579,5 +579,5 @@ case class PvlJavaCompat(override val onPassEvent: Seq[PassEventHandler] = Nil)
       Seq(ImplicationToTernary, EncodeGlobalApplicables),
     )
 
-case class Isar(override val onPassEvent: Seq[PassEventHandler] = Nil) extends Transformation(onPassEvent,
-  Seq(Disambiguate))
+case class Isar(override val onPassEvent: Seq[PassEventHandler] = Nil)
+    extends Transformation(onPassEvent, Seq(Disambiguate, ColToIsar))
