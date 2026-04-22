@@ -14,21 +14,21 @@ trait IsarLocaleCommandImpl[G] extends IsarLocaleCommandOps[G] {
     context.withScope(this.typevars, toScan = Nil)
 
   def layout_extensions(implicit ctx: Ctx): Doc = {
+    val extensions = this.extensions
+      .map(_.decl.asInstanceOf[IsarLocaleCommand[G]].name + "_signature")
     Group(
-      Doc.foldr(
-        this.extensions.map(_.decl.asInstanceOf[IsarLocaleCommand[G]].name)
-          .map(Text)
-      )(_ <+> "+" <+> _)
+      Doc.foldr(extensions.map(Text))(_ <+> "+" <+> _) <+>
+        (if (extensions.isEmpty)
+           ""
+         else
+           "+")
     )
   }
 
   def layout_fixes(implicit ctx: Ctx): Doc = { Doc.stack(this.fixes) }
 
   def layout_assumes(implicit ctx: Ctx): Doc = {
-    Doc.stack(this.assumes.map { a =>
-      // TODO make a an ADT axiom
-      Text("assumes") <+> inner { a.show }
-    })
+    Doc.stack(this.assumes.map { a => Text("assumes") <+> inner { a.show } })
   }
 
   def layout_context(implicit ctx: Ctx): Doc = {
