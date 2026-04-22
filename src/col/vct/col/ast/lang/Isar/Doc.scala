@@ -10,6 +10,8 @@ case object IsarDoc {
     Doc.foldr(docs)(_ <+> "⇒" <+> _)
   def alternative(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
     Group(Doc.foldr(docs)(_ <+> "|" <+> _))
+  def args(docs: Iterable[Show])(implicit ctx: Ctx): Doc =
+    Group(Doc.foldr(docs)(_ <+> "(" <> _ <> ")"))
 
   def <::> = Text("::")
 

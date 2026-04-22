@@ -1,5 +1,6 @@
 package vct.col.ast.expr.apply
 
+import vct.col.ast.lang.Isar.IsarDoc
 import vct.col.ast.{ADTFunction, ADTFunctionInvocation, Type}
 import vct.col.print._
 import vct.col.ref.Ref
@@ -34,13 +35,10 @@ trait ADTFunctionInvocationImpl[G] extends ADTFunctionInvocationOps[G] {
     Group(Text(ctx.name(ref)) <> "(" <> Doc.args(args) <> ")")
 
   def layoutIsar(implicit ctx: Ctx): Doc =
-    Group(
-      (if (args.nonEmpty)
-        Text("(") <> Text(ctx.name(ref)) <+> Doc.spread(args) <> ")"
-      else
-        Text(ctx.name(ref))
-        )
-    )
+    Group((if (args.nonEmpty)
+             Text("(") <> Text(ctx.name(ref)) <+> IsarDoc.args(args) <> ")"
+           else
+             Text(ctx.name(ref))))
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
