@@ -295,11 +295,8 @@ case class ColToIsar[Pre <: Generation]() extends Rewriter[Pre] {
             }
           }
 
-          // NOTE type variables mapping is bound to typedef node
-
         } else {
           // typedef not required
-          // NOTE type variable mapping is bound to datatype node
         }
 
         // top-level functions

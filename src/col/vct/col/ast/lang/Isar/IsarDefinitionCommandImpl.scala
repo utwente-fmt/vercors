@@ -16,8 +16,6 @@ trait IsarDefinitionCommandImpl[G] extends IsarDefinitionCommandOps[G] {
     Text("definition") <+> this.name <+> <::> <+> inner {
       type_signature(this.args.map(_.t) :+ this.returnType)
     } </> where <+/> inner {
-      // TODO why is _ not printed?
-      val ignored: Iterable[Show] = this.args.map(_ => ignore)
       Text(this.name) <+> Doc.spread(this.args) <+> Text("≡") <+>
         (if (this.body.isEmpty)
            Text("undefined")

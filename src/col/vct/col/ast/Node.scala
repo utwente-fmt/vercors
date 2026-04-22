@@ -59,19 +59,7 @@ import vct.col.ast.family.parregion._
 import vct.col.ast.family.pvlcommunicate._
 import vct.col.ast.family.seqrun._
 import vct.col.ast.family.signals._
-import vct.col.ast.lang.Isar.{
-  IsarCommandImpl,
-  IsarDataConstructorImpl,
-  IsarDatatypeCommandImpl,
-  IsarDefinitionCommandImpl,
-  IsarFunctionInvocationImpl,
-  IsarInterpretationCommandImpl,
-  IsarLiftDefinitionCommandImpl,
-  IsarLocaleCommandImpl,
-  IsarPartialConstructorCommandImpl,
-  IsarTheoryImpl,
-  IsarTypedefCommandImpl,
-}
+import vct.col.ast.lang.Isar._
 import vct.col.ast.lang.c._
 import vct.col.ast.lang.cpp._
 import vct.col.ast.lang.gpgpu._
