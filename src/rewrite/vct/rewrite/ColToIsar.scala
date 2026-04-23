@@ -15,6 +15,7 @@ package vct.rewrite
 import hre.util.ScopedStack
 import vct.col.ast.{
   ADTAxiom,
+  ADTDeclaration,
   ADTFunction,
   ADTFunctionInvocation,
   AxiomaticDataType,
@@ -45,7 +46,7 @@ import vct.col.ast.{
 import vct.col.origin.Origin
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, Rewritten}
-import vct.col.util.AstBuildHelpers.foldAnd
+import vct.col.util.AstBuildHelpers.{foldAnd, function}
 import vct.col.util.SuccessionMap
 
 import scala.collection.mutable
@@ -317,7 +318,8 @@ case class ColToIsar[Pre <: Generation]() extends Rewriter[Pre] {
             }
         }
 
-        val referencedAdts =
+        // computes the lexical scope of the ADT, i.e. which other ADTs it relies on
+        val directlyReferencedAdts: Seq[AxiomaticDataType[Pre]] =
           adt.collect {
             // NOTE: an ADT may be referenced without ever using its declared functions.
             // This only happens when the type is present in a type signature,
@@ -336,7 +338,7 @@ case class ColToIsar[Pre <: Generation]() extends Rewriter[Pre] {
             val locale =
               new IsarLocaleCommand[Post](
                 adt.o.getPreferredName.map(_.camel).get,
-                referencedAdts.map(a => adtLocaleSucc.ref(a)),
+                directlyReferencedAdts.map(a => adtLocaleSucc.ref(a)),
                 variables.dispatch(adt.typeArgs),
                 adtFixes
                   .map(f => aDTDeclarations.succeedOnly(f, f.rewriteDefault())),
@@ -348,10 +350,20 @@ case class ColToIsar[Pre <: Generation]() extends Rewriter[Pre] {
           }
         }
 
+        // this computes all ADT functions in the hierarchy of ADTs as a depth-first list
+        // NOTE order of output ADTs depends on the visit order of declarations in current ADT
+        def rec(adt: AxiomaticDataType[Pre]): Seq[ADTFunction[Pre]] =
+          adt.collect { case ADTFunctionInvocation(_, Ref(f), _) =>
+            functionAdtMap(f)
+          }.filter(_ != adt).flatMap { a =>
+            rec(a) ++ a.collect { case fixes: ADTFunction[Pre] => fixes }
+          }
+        val adtHierarchyFixes = rec(adt).distinct ++ adtFixes
+
         val interpretation =
           new IsarInterpretationCommand[Post](
             locale.ref,
-            adtFixes.map { f => functionFixesMap.ref(f) },
+            adtHierarchyFixes.map { f => functionFixesMap.ref(f) },
           )
         isarCommands.declare(interpretation)
       case _ => super.dispatch(decl)
