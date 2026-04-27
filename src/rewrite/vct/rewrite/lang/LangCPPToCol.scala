@@ -1563,7 +1563,6 @@ ScopedStack()
                         )
                     )
                   ),
-                  inline = true,
                   contractBlame = PanicBlame("There are no preconditions"),
                   blame = PanicBlame("Should never fail"))(o.where(name = "warpSizeFunc"),
                 )
@@ -2417,7 +2416,7 @@ ScopedStack()
       }
 
     syclHelperFunctions("sycl_:_:linearize_2")(
-      Seq(arg0, arg1, arg2, arg3),
+      Seq(arg1, arg0, arg3, arg2),
       SYCLItemMethodInvocationBlame(inv),
       o,
     )
@@ -3048,16 +3047,14 @@ ScopedStack()
       if (leftOrRight) {
         (c_const[Post](0) <= (laneid - d)) ==> exhalePred
       } else {
-        ???
-        tt[Post] ==> exhalePred //TODO right case
+        (laneid + d) < warpsize.get ==> exhalePred
       }
 
     val predToInhale =
       if (leftOrRight) {
         (laneid + d) < warpsize.get ==> inhalePred
       } else {
-        ???
-        tt[Post] ==> inhalePred //TODO right case
+        (c_const[Post](0) <= (laneid - d))==> inhalePred
       }
 
     if (dependsIndirectlyOnSYCLIdFunctions(sgInv)) {
