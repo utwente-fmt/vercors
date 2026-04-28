@@ -1,0 +1,21 @@
+class Obj { }
+
+pure Obj obj(int i);
+
+pure boolean foo(int i);
+
+requires pred(i);
+pure int get(int i);
+
+resource pred(int i);
+
+requires N >= 2;
+requires (\forall int i, int j; i != j; obj(i) != obj(j));
+void m(int N) {
+  inhale (\forall* int i = 0 .. N - 1; Perm(pred(i), 1));
+  assume (\forall int i = 0 .. N - 1; foo({: get(i) :}));
+  label pre;
+  inhale Perm(pred(N - 1), 1);
+  assert (\forall int i = 0 .. N - 1; foo({: get(i) :}) == \old[pre](foo(get(i))));
+  assert (\forall int i = 0 .. N - 1; foo(get(i)));
+}

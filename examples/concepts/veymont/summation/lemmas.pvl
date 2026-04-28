@@ -4,6 +4,7 @@ requires 1 <= rounds && rounds <= |nodes|;
 ensures getTotal(nodes, i, rounds) == getTotal(nodes, next(i, |nodes|), rounds - 1) + nodes[i].v;
 void lemmaGetTotalHead(seq<Node> nodes, int i, int rounds) {
   // True by the definition of getTotal
+  open_getTotal();
 }
 
 context wfNodes(nodes);
@@ -11,6 +12,7 @@ requires 0 <= i && i < |nodes|;
 requires 1 <= rounds && rounds <= |nodes|;
 ensures getTotal(nodes, i, rounds) == getTotal(nodes, i, rounds - 1) + nodes[mod(i - rounds, |nodes|)].v;
 void lemmaGetTotalLast(seq<Node> nodes, int i, int rounds) {
+  open_getTotal();
   if (rounds == 1) {
       // Base case
       // Since rounds == 1, we can be sure getTotal will be unfolded for one more recursive step
@@ -38,12 +40,14 @@ context |nodes| > 2;
 context 0 <= a && a < |nodes|;
 context 0 <= b && b < |nodes|;
 context wfNodes(nodes);
+context (\forall int i, int j; i \in {0 .. |nodes|} && j \in {0 .. |nodes|} && i != j; nodes[i] != nodes[j]);
 context (\forall* int i = 0 .. |nodes|; Perm({: nodes[i].total :}, P));
 requires nodes[a].total == getTotal(nodes, a, |nodes| - 1);
 requires nodes[b].total == getTotal(nodes, b, |nodes| - 1);
 requires mod(a + 1, |nodes|) == b;
 ensures nodes[a].total == nodes[b].total;
 void lemmaTotalAB(seq<Node> nodes, int a, int b) {
+  open_getTotal();
   //////////////////////////
   // Deconstrueren voor a //
   //////////////////////////
@@ -81,6 +85,7 @@ context wfNodes(nodes);
 context 0 <= a && a < |nodes| - 1;
 ensures getTotal(nodes, a, |nodes| - 1) == getTotal(nodes, a + 1, |nodes| - 1);
 void lemmaTotalShiftRight1(seq<Node> nodes, int a) {
+  open_getTotal();
   int b = a + 1;
 
   //////////////////////////
@@ -131,6 +136,7 @@ context 0 <= a && a < |nodes|;
 context 0 <= b && b < |nodes|;
 ensures getTotal(nodes, a, |nodes| - 1) == getTotal(nodes, b, |nodes| - 1);
 void lemmaTotalShift(seq<Node> nodes, int a, int b) {
+  open_getTotal();
   if (a == b) {
     // Trivial
   } else if (|nodes| < 2) {
@@ -153,11 +159,13 @@ void lemmaTotalShift(seq<Node> nodes, int a, int b) {
 given frac P;
 context 0 < P && P < write;
 context wfNodes(nodes);
+context injective(nodes);
 context (\forall* int i = 0 .. |nodes|; Perm({: nodes[i].total :}, P));
 context (\forall int i = 0 .. |nodes|; {: nodes[i].total :} == getTotal(nodes, i, |nodes| - 1));
 requires |nodes| == 2;
 ensures (\forall int i = 0 .. |nodes|; nodes[0].total == nodes[i].total);
 void lemmaTotal2(seq<Node> nodes) {
+  open_getTotal();
   assert nodes[0].total == nodes[0].v + getTotal(nodes, 1, |nodes| - 1 - 1);
   assert nodes[0].total == nodes[0].v + nodes[1].v;
   assert nodes[1].total == nodes[1].v + getTotal(nodes, 0, |nodes| - 1 - 1);
@@ -167,6 +175,7 @@ void lemmaTotal2(seq<Node> nodes) {
 given frac P;
 context 0 < P && P < write;
 context_everywhere wfNodes(nodes);
+context_everywhere injective(nodes);
 context_everywhere (\forall* int i = 0 .. |nodes|; Perm({: nodes[i].total :}, P));
 context_everywhere (\forall int i = 0 .. |nodes|; {: nodes[i].total :} == getTotal(nodes, i, |nodes| - 1));
 ensures (\forall int i = 0 .. |nodes|; nodes[0].total == nodes[i].total);

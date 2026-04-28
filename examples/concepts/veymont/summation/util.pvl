@@ -11,6 +11,8 @@ boolean pickBoolean();
 
 int arbitraryInt();
 
+pure boolean injective(seq<Node> xs) = (\forall int i, int j; i \in {0 .. |xs|} && j \in {0 .. |xs|} && i != j; xs[i] != xs[j]);
+
 // This is the context object that allows each node to name each other node.
 // It is an axiomatized global struct containing all nodes, so it can be constructed
 // by scanning the program for all node types and adding a "get" for each group of nodes.

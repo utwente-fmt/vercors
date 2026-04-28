@@ -1,0 +1,30 @@
+class Node {
+  int frontN, backN;
+  int X;
+}
+
+choreography DS(int N) {
+  endpoint nodes[tid := 0 .. N] = Node();
+
+  run {
+    assume (\chor N >= 2);
+    inhale (\endpoint nodes[i := 0 .. N]; Perm(nodes[i].frontN, 1\2));
+    inhale (\endpoint nodes[i := 0 .. N - 1], \forall int j = i + 1; Perm(nodes[j].backN, 1\2) ** {: nodes[i].frontN :} == {: nodes[j].backN :});
+
+    label X;
+
+    inhale (\endpoint nodes[N - 1]; Perm(nodes[0].backN, 1\2) ** nodes[N - 1].frontN == nodes[0].backN);
+
+    // assert (\endpoint nodes[i := 0 .. N - 1], \forall int j = i + 1; {: nodes[j].backN :} == \old[X](nodes[j].backN));
+    assert (\endpoint nodes[i := 0 .. N - 1], \forall int j = i + 1; nodes[i].frontN == nodes[j].backN);
+  }
+}
+
+/*
+
+inhale (\forall int i = 0 .. N - 1; Perm(pred(i), 1));
+assume (\forall int i = 0 .. N - 1; foo(get(i)));
+inhale Perm(pred(N - 1), 1);
+assert (\forall int i = 0 .. N - 1; foo(get(i));
+
+*/
