@@ -2366,7 +2366,7 @@ case class CPPToCol[G](
       case ValPrimaryContext2("\\ltid") => LocalThreadId()
       case ValPrimaryContext3("\\gtid") => GlobalThreadId()
       case ValPrimaryContext4("\\sg_val") => SubGroupFuncValue()
-
+      case ValPrimaryContext5("\\sgtid") => SubGroupLaneId()
     }
 
   def convert(implicit e: ValPrimaryContext): Expr[G] =

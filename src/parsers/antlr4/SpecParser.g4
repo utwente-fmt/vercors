@@ -259,6 +259,7 @@ valPrimaryContext
  | '\\ltid'
  | '\\gtid'
  | '\\sg_val'
+ | '\\sgtid'
  ;
 
 valExpr

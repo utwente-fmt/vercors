@@ -3025,15 +3025,22 @@ ScopedStack()
       syclSubgroupInvSuccessors.having(
         mutable.Map(
           GlobalThreadId[Pre]() -> getGlobalWorkItemLinearId(inv),
+          SubGroupLaneId[Pre]() -> laneid,
           SubGroupFuncValue[Pre]() -> valToSend,
         )
       ) {
         rw.dispatch(sgInv)
       }
+
+    val plusMinDelta = (e: Expr[Post]) => if (leftOrRight) e+d else e-d
+    val gidDelta = plusMinDelta(getGlobalWorkItemLinearId(inv))
+    val laneIdDelta = plusMinDelta(laneid)
+
     val inhalePred: Expr[Post] = syclSubgroupDeltaSuccessors.having(d) {
       syclSubgroupInvSuccessors.having(
         mutable.Map(
-          GlobalThreadId[Pre]() -> Plus(getGlobalWorkItemLinearId(inv), d),
+          GlobalThreadId[Pre]() -> gidDelta,
+          SubGroupLaneId[Pre]() -> laneIdDelta,
           SubGroupFuncValue[Pre]() -> Local(sglResult.ref),
         )
       ) {
@@ -3041,7 +3048,6 @@ ScopedStack()
       }
     }
     val warpsize = syclWarpSize.getOrElse(throw new SYCLWarpSizeNotDefinedError(inv))
-
 
     val predToExhale: Expr[Post] =
       if (leftOrRight) {

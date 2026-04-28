@@ -178,6 +178,7 @@ RESULT: '\\result';
 LTID: '\\ltid';
 GTID: '\\gtid';
 SG_VAL: '\\sg_val';
+LANE_ID: '\\sgtid';
 VAL_INDEX: '\\nd_index';
 VAL_LENGTH: '\\nd_length';
 VAL_PARTIAL_INDEX: '\\nd_partial_index';

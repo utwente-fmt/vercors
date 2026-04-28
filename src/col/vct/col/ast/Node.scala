@@ -1455,6 +1455,8 @@ final case class LocalThreadId[G]()(implicit val o: Origin)
     extends Expr[G] with LocalThreadIdImpl[G]
 final case class GlobalThreadId[G]()(implicit val o: Origin)
   extends Expr[G] with GlobalThreadIdImpl[G]
+final case class SubGroupLaneId[G]()(implicit val o: Origin)
+  extends Expr[G] with SubGroupLaneIdImpl[G]
 final case class SubGroupFuncValue[G]()(implicit val o: Origin)
   extends Expr[G] with SubGroupFuncValueImpl[G]
 final case class Any[G]()(val blame: Blame[AnyStarError])(

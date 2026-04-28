@@ -1369,6 +1369,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case get @ GetRight(e) => GetRight(either(e)._1)(get.blame)
       case GlobalThreadId() => GlobalThreadId()
       case SubGroupFuncValue() => SubGroupFuncValue()
+      case SubGroupLaneId() => SubGroupLaneId()
       case e @ GpgpuCudaKernelInvocation(
             kernel,
             blocks,
