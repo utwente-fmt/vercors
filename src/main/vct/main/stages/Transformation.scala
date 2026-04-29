@@ -30,6 +30,7 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
   CTypeConversions,
+  CanonicalizeLoops,
   CollectLocalDeclarations,
   DisambiguateLocation,
   DisambiguatePredicateExpression,
@@ -417,6 +418,7 @@ case class SilverTransformation(
         // All VeyMont nodes should now be gone
 
         // Desugar high-level COL constructs
+        CanonicalizeLoops,
         EncodeRangedFor,
         EncodeString, // Encode spec string as seq<int>
         EncodeChar,

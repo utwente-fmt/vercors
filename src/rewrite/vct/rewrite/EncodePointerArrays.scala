@@ -426,7 +426,43 @@ case class EncodePointerArrays[Pre <: Generation]()
       case sub @ PointerArraySubscript(a, _)
           if a.t.asPointerArray.get.dimensions.length == 1 =>
         DerefPointer(calculatePointer(sub))(sub.blame)
-      case sub @ PointerArraySubscript(_, _) => calculatePointer(sub)
+      case sub @ PointerArraySubscript(a, _) =>
+        val t = a.t.asPointerArray.get
+        OptSome(adtFunctionInvocation[Post](
+          fromPointerSucc
+            .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
+          args = Seq(calculatePointer(sub)),
+        ))
+      case add @ PointerAdd(a, _) if a.t.asPointerArray.isDefined =>
+        val t = a.t.asPointerArray.get
+        OptSome(adtFunctionInvocation[Post](
+          fromPointerSucc
+            .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
+          args = Seq(calculatePointer(add)),
+        ))
+      case d @ DerefPointer(a)
+          if a.t.asPointerArray.isDefined &&
+            a.t.asPointerArray.get.dimensions.length == 1 =>
+        val t = a.t.asPointerArray.get
+        initialiseAdt(t.element, t.dimensions.length, t.unique, t.isConst)
+        DerefPointer(adtFunctionInvocation[Post](
+          pointerSucc
+            .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
+          args = Seq(unwrapOption(a, d.blame)),
+        ))(d.blame)
+      case d @ DerefPointer(a) if a.t.asPointerArray.isDefined =>
+        val t = a.t.asPointerArray.get
+        initialiseAdt(t.element, t.dimensions.length, t.unique, t.isConst)
+        initialiseAdt(t.element, t.dimensions.length - 1, t.unique, t.isConst)
+        OptSome(adtFunctionInvocation[Post](
+          fromPointerSucc
+            .ref((t.element, t.dimensions.length - 1, t.unique, t.isConst)),
+          args = Seq(adtFunctionInvocation[Post](
+            pointerSucc
+              .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
+            args = Seq(unwrapOption(a, d.blame)),
+          )),
+        ))
       case npa @ NewPointerArray(element, dimensions, unique) =>
         procedureInvocation(
           PointerArrayCreationFailed(npa, npa.blame),
@@ -744,6 +780,21 @@ case class EncodePointerArrays[Pre <: Generation]()
     )(CalculatedPointerAddBlame(sub.blame))
   }
 
+  private def calculatePointer(add: PointerAdd[Pre]): Expr[Post] = {
+    implicit val o: Origin = add.o
+    val arrayT = add.pointer.t.asPointerArray.get
+    val (obj, index, length) = calculateOffset(add, arrayT.dimensions.length)
+    initialiseAdt(arrayT.element, length, arrayT.unique, arrayT.isConst)
+    PointerAdd(
+      adtFunctionInvocation[Post](
+        pointerSucc
+          .ref((arrayT.element, length, arrayT.unique, arrayT.isConst)),
+        args = Seq(unwrapOption(obj, add.blame)),
+      ),
+      index,
+    )(add.blame)
+  }
+
   private def calculateOffset(
       sub: PointerArraySubscript[Pre],
       depth: Int,
@@ -755,6 +806,7 @@ case class EncodePointerArrays[Pre <: Generation]()
         case p: InlinePattern[Pre] => throw InvalidPatternLocation(p)
         case inner: PointerArraySubscript[Pre] =>
           calculateOffset(inner, depth + 1)
+        case inner: PointerAdd[Pre] => calculateOffset(inner, depth + 1)
         case other => (other, const[Post](0), arrayT.dimensions.length)
       }
     val newIndex = {
@@ -764,6 +816,31 @@ case class EncodePointerArrays[Pre <: Generation]()
           args = Seq(unwrapOption(obj, sub.blame)),
         )
       ).fold(super.dispatch(sub.index))(Mult(_, _)) + index
+    }
+    (obj, newIndex, length)
+  }
+
+  private def calculateOffset(
+      add: PointerAdd[Pre],
+      depth: Int,
+  ): (Expr[Pre], Expr[Post], Int) = {
+    implicit val o: Origin = add.o
+    val arrayT = add.pointer.t.asPointerArray.get
+    val (obj, index, length) =
+      add.pointer match {
+        case p: InlinePattern[Pre] => throw InvalidPatternLocation(p)
+        case inner: PointerArraySubscript[Pre] =>
+          calculateOffset(inner, depth + 1)
+        case inner: PointerAdd[Pre] => calculateOffset(inner, depth + 1)
+        case other => (other, const[Post](0), arrayT.dimensions.length)
+      }
+    val newIndex = {
+      Seq.range(length - depth + 1, length).map(i =>
+        adtFunctionInvocation[Post](
+          dimSucc.ref(arrayT.element, length, arrayT.unique, i, arrayT.isConst),
+          args = Seq(unwrapOption(obj, add.blame)),
+        )
+      ).fold(super.dispatch(add.offset))(Mult(_, _)) + index
     }
     (obj, newIndex, length)
   }

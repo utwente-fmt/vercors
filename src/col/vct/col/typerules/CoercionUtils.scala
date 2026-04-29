@@ -740,25 +740,13 @@ case object CoercionUtils {
       case LLVMTArray(numElements, innerType) if numElements > 0 =>
         Some((CoerceIdentity(source), TPointer(innerType, None)))
       case TPointerArray(element, dimensions, unique) =>
-        Some((
-          CoercePointerArrayPointer(element, dimensions.length, unique),
-          TPointer(element, unique),
-        ))
+        Some((CoerceIdentity(source), TPointer(element, unique)))
       case TConstPointerArray(element, dimensions) =>
-        Some((
-          CoerceConstPointerArrayPointer(element, dimensions.length),
-          TConstPointer(element),
-        ))
+        Some((CoerceIdentity(source), TConstPointer(element)))
       case TNonNullPointerArray(element, dimensions, unique) =>
-        Some((
-          CoercePointerArrayPointer(element, dimensions.length, unique),
-          TPointer(element, unique),
-        ))
+        Some((CoerceIdentity(source), TPointer(element, unique)))
       case TNonNullConstPointerArray(element, dimensions) =>
-        Some((
-          CoerceConstPointerArrayPointer(element, dimensions.length),
-          TConstPointer(element),
-        ))
+        Some((CoerceIdentity(source), TConstPointer(element)))
       case _: TNull[G] =>
         val t = TPointer[G](TAnyValue(), None)
         Some((CoerceNullPointer(t), t))
