@@ -16,14 +16,6 @@
 
 /*
 - Check that delta is the same for all.
-function truncmod(a: Int, b: Int): Int
-  requires b != 0
-  decreases
-{
-  (let i ==
-    (a % b) in
-    (a >= 0 || i == 0 ? i : i - (b > 0 ? b : -b)))
-}
 */
 
 /*@
@@ -92,23 +84,28 @@ int smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
     */
 
     int resultx = 0;
+    int resulty = 0;
+    int resultz = 0;
     int gid = 0;
-
-    /*@
-        loop_invariant T == Tf() && N == Nf() && T > N && T%N == 0 && N%32==0 && N > 0;
+ 
+    /*@ loop_invariant T == Tf() && N == Nf() && T > N && T%N == 0 && N%32==0 && N > 0;
         loop_invariant 0 <= gid && gid <= T/N;
         loop_invariant T%N==0 && N%32==0 && |fxGs()| == Tf();
         loop_invariant (gid < T/N ) ==> (0 <= sycl::linearize2(gid, 0, T/N, N) && sycl::linearize2(gid, 0, T/N, N) < Tf());
         loop_invariant \pointer(fx, T, 1\2);
-        loop_invariant (\forall int lid1=0 .. N, int gid1=0 .. T/N;
-            ({:1:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 0 ==>                      (lid1%32+32 <= 32 ==>sycl::linearize2(gid1, lid1, T/N, N)+32 <= |fxGs()| ==>fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fxGs()[sycl::linearize2(gid1, lid1, T/N, N)   .. sycl::linearize2(gid1, lid1, T/N, N)+32]))) &&
-            ({:2:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 1 ==> (0 <= lid1%32 - 1 ==> lid1%32+32-1 <= 32 ==> sycl::linearize2(gid1, lid1, T/N, N)+32-1 <= |fyGs()| ==>                             fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fyGs()[sycl::linearize2(gid1, lid1, T/N, N)-1 .. sycl::linearize2(gid1, lid1, T/N, N)+32-1]))) &&
-            ({:3:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 2 ==> (0 <= lid1%32 - 2 ==> lid1%32+32-2 <= 32 ==> sycl::linearize2(gid1, lid1, T/N, N)+32-2 <= |fzGs()| ==> fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fzGs()[sycl::linearize2(gid1, lid1, T/N, N)-2 .. sycl::linearize2(gid1, lid1, T/N, N)+32-2]))));
+        loop_invariant (\forall int lid1=0 .. N, int gid1=0 .. T/N; ({:1:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 0 ==>                      (lid1%32+32 <= 32 ==>sycl::linearize2(gid1, lid1, T/N, N)+32 <= |fxGs()| ==>fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fxGs()[sycl::linearize2(gid1, lid1, T/N, N)   .. sycl::linearize2(gid1, lid1, T/N, N)+32]))));
+        loop_invariant (\forall int lid1=0 .. N, int gid1=0 .. T/N; ({:2:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 1 ==> (0 <= lid1%32 - 1 ==> lid1%32+32-1 <= 32 ==> sycl::linearize2(gid1, lid1, T/N, N)+32-1 <= |fyGs()| ==>                             fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fyGs()[sycl::linearize2(gid1, lid1, T/N, N)-1 .. sycl::linearize2(gid1, lid1, T/N, N)+32-1]))));
+        loop_invariant (\forall int lid1=0 .. N, int gid1=0 .. T/N; ({:3:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 2 ==> (0 <= lid1%32 - 2 ==> lid1%32+32-2 <= 32 ==> sycl::linearize2(gid1, lid1, T/N, N)+32-2 <= |fzGs()| ==> fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fzGs()[sycl::linearize2(gid1, lid1, T/N, N)-2 .. sycl::linearize2(gid1, lid1, T/N, N)+32-2]))));
+
+
 
         loop_invariant (gid < T/N) ==> sycl::linearize2(gid, 0, T/N, N)%4 == 0;
-        loop_invariant (gid < T/N ) ==> resultx == sum(fxGs()[0 .. sycl::linearize2(gid, 0, T/N, N)]);
-        loop_invariant (gid == T/N ) ==> resultx == sum(fxGs()[0 .. Tf()]);
-    */
+        loop_invariant (gid < T/N ) ==>  resultx == sum(fxGs()[0 .. sycl::linearize2(gid, 0, T/N, N)]);
+        loop_invariant (gid == T/N ) ==> resultx == sum(fxGs()[0 .. Tf()]); 
+        loop_invariant (gid < T/N ) ==>  resulty == sum(fyGs()[0 .. sycl::linearize2(gid, 0, T/N, N)]);
+        loop_invariant (gid == T/N ) ==> resulty == sum(fyGs()[0 .. Tf()]);
+        loop_invariant (gid < T/N ) ==>  resultz == sum(fzGs()[0 .. sycl::linearize2(gid, 0, T/N, N)]);
+        loop_invariant (gid == T/N ) ==> resultz == sum(fzGs()[0 .. Tf()]); */
     for (gid=0; gid < T/N; gid++){
         int lid = 0;
 
@@ -119,52 +116,47 @@ int smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
             loop_invariant (lid < N ) ==> (0 <= sycl::linearize2(gid, lid, T/N, N) && sycl::linearize2(gid, lid, T/N, N) < Tf());
 
             loop_invariant \pointer(fx, T, 1\4);
-            loop_invariant (\forall int lid1=0 .. N, int gid1=0 .. T/N;
-                ({:1:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 0 ==>(lid1%32+32 <= 32 ==>sycl::linearize2(gid1, lid1, T/N, N)+32 <= |fxGs()| ==>fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fxGs()[sycl::linearize2(gid1, lid1, T/N, N)   .. sycl::linearize2(gid1, lid1, T/N, N)+32]))) &&
-                ({:2:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 1 ==> (0 <= lid1%32 - 1 ==> lid1%32+32-1 <= 32 ==> sycl::linearize2(gid1, lid1, T/N, N)+32-1 <= |fyGs()| ==>                             fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fyGs()[sycl::linearize2(gid1, lid1, T/N, N)-1 .. sycl::linearize2(gid1, lid1, T/N, N)+32-1]))) &&
-                ({:3:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 2 ==> (0 <= lid1%32 - 2 ==> lid1%32+32-2 <= 32 ==> sycl::linearize2(gid1, lid1, T/N, N)+32-2 <= |fzGs()| ==> fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fzGs()[sycl::linearize2(gid1, lid1, T/N, N)-2 .. sycl::linearize2(gid1, lid1, T/N, N)+32-2]))));
+            loop_invariant (\forall int lid1=0 .. N, int gid1=0 .. T/N; ({:1:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 0 ==>                      (lid1%32+32 <= 32 ==>sycl::linearize2(gid1, lid1, T/N, N)+32 <= |fxGs()| ==>fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fxGs()[sycl::linearize2(gid1, lid1, T/N, N)   .. sycl::linearize2(gid1, lid1, T/N, N)+32]))));
+            loop_invariant (\forall int lid1=0 .. N, int gid1=0 .. T/N; ({:2:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 1 ==> (0 <= lid1%32 - 1 ==> lid1%32+32-1 <= 32 ==> sycl::linearize2(gid1, lid1, T/N, N)+32-1 <= |fyGs()| ==>                             fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fyGs()[sycl::linearize2(gid1, lid1, T/N, N)-1 .. sycl::linearize2(gid1, lid1, T/N, N)+32-1]))));
+            loop_invariant (\forall int lid1=0 .. N, int gid1=0 .. T/N; ({:3:sycl::linearize2(gid1, lid1, T/N, N):}%4 == 2 ==> (0 <= lid1%32 - 2 ==> lid1%32+32-2 <= 32 ==> sycl::linearize2(gid1, lid1, T/N, N)+32-2 <= |fzGs()| ==> fx[sycl::linearize2(gid1, lid1, T/N, N)] == sum(fzGs()[sycl::linearize2(gid1, lid1, T/N, N)-2 .. sycl::linearize2(gid1, lid1, T/N, N)+32-2]))));
 
             
             loop_invariant (lid < N) ==> sycl::linearize2(gid, lid, T/N, N)%4 == 0;
             loop_invariant (lid < N ) ==>  resultx == sum(fxGs()[0 .. sycl::linearize2(gid, lid, T/N, N)]);
-            loop_invariant (lid == N ) ==> resultx == sum(fxGs()[0 .. sycl::linearize2(gid, N-32, T/N, N)+32]);               
+            loop_invariant (lid == N ) ==> resultx == sum(fxGs()[0 .. sycl::linearize2(gid, N-32, T/N, N)+32]);
+            loop_invariant (lid < N ) ==>  resulty == sum(fyGs()[0 .. sycl::linearize2(gid, lid, T/N, N)]);
+            loop_invariant (lid == N ) ==> resulty == sum(fyGs()[0 .. sycl::linearize2(gid, N-32, T/N, N)+32]);
+            loop_invariant (lid < N ) ==>  resultz == sum(fzGs()[0 .. sycl::linearize2(gid, lid, T/N, N)]);
+            loop_invariant (lid == N ) ==> resultz == sum(fzGs()[0 .. sycl::linearize2(gid, N-32, T/N, N)+32]);
         */
         for (lid=0; lid < N; lid=lid+32){
-            /*@
-            assert idshift(T,N,gid,lid);
-            ghost int resultBU = resultx;
-            */
-            resultx = resultx + fx[sycl::linearize2(gid, lid, T/N, N)];
-            /*@
-                assert resultx == resultBU + fx[{:sycl::linearize2(gid, lid, T/N, N):}];
-                assert lemmaSumOverConcat(
-                    fxGs()[0 .. sycl::linearize2(gid, lid, T/N, N)],
-                    fxGs()[sycl::linearize2(gid, lid, T/N, N) .. sycl::linearize2(gid, lid, T/N, N) + 32]
-                );
+            /*@ assert idshift(T,N,gid,lid); */
+            //@ ghost int lidp1 = lid+1;
+            //@ ghost int lidp2 = lid+2;
 
-                assert lemmaSumOverABBCisAC(
-                    fxGs(),
-                    0,
-                    sycl::linearize2(gid, lid, T/N, N),
-                    sycl::linearize2(gid, lid, T/N, N),
-                    sycl::linearize2(gid, lid, T/N, N)+32
-                );
-            */
+
+            resultx = resultx + fx[sycl::linearize2(gid, lid, T/N, N)];
+            /*@ assert lemmaSumOverConcat(fxGs()[0 .. sycl::linearize2(gid, lid, T/N, N)],fxGs()[sycl::linearize2(gid, lid, T/N, N) .. sycl::linearize2(gid, lid, T/N, N) + 32]);
+                assert lemmaSumOverABBCisAC(fxGs(),0,sycl::linearize2(gid, lid, T/N, N),sycl::linearize2(gid, lid, T/N, N),sycl::linearize2(gid, lid, T/N, N)+32); */
+
+            resulty = resulty + fx[sycl::linearize2(gid, lidp1, T/N, N)];
+            /*@ assert lemmaSumOverConcat(fyGs()[0 .. sycl::linearize2(gid, lid, T/N, N)],fyGs()[sycl::linearize2(gid, lidp1, T/N, N)-1 .. sycl::linearize2(gid, lidp1, T/N, N)+32-1]);
+                assert lemmaSumOverABBCisAC(fyGs(),0,sycl::linearize2(gid, lid, T/N, N),sycl::linearize2(gid, lidp1, T/N, N)-1,sycl::linearize2(gid, lidp1, T/N, N)+32-1); */
+
+            resultz = resultz + fx[sycl::linearize2(gid, lidp2, T/N, N)];
+            /*@ assert lemmaSumOverConcat(fzGs()[0 .. sycl::linearize2(gid, lid, T/N, N)],fzGs()[sycl::linearize2(gid, lidp2, T/N, N)-2 .. sycl::linearize2(gid, lidp2, T/N, N)+32-2]);
+                assert lemmaSumOverABBCisAC(fzGs(),0,sycl::linearize2(gid, lid, T/N, N),sycl::linearize2(gid, lidp2, T/N, N)-2,sycl::linearize2(gid, lidp2, T/N, N)+32-2); */
 
             //@     ghost int lid2=lid+32;
             //@     assert (lid2 < N) ==> sycl::linearize2(gid, lid, T/N, N) + 32 == sycl::linearize2(gid, lid2, T/N, N);
-            //@     assert (lid2 < N ) ==>  resultx == sum(fxGs()[0 .. sycl::linearize2(gid, lid2, T/N, N)]);
             //@     assert (lid2 == N) ==> sycl::linearize2(gid, lid, T/N, N) + 32 == sycl::linearize2(gid, lid2-32, T/N, N)+32;
-            //@     assert (lid2 == N) ==> resultx == sum(fxGs()[0 .. sycl::linearize2(gid, lid2-32, T/N, N)+32]);
-
         }
         //@ assert gidshift(T,N,gid);
     }
-    // assert resultx == sum(fxGs()[0 .. Tf()]);
+    //@ assert resultx == sum(fxGs()[0 .. Tf()]);
+    //@ assert resulty == sum(fyGs()[0 .. Tf()]);
+    //@ assert resultz == sum(fzGs()[0 .. Tf()]);
 
-    //@ inhale false;
-    // assert resulty == sum(fyGs()[0 .. Tf()]);
-    // assert resultz == sum(fzGs()[0 .. Tf()]);
     return 0;
 }
 
@@ -177,6 +169,8 @@ ensures |xs| == 1 ==> \result == xs[0];
 pure int sum(seq<int> xs) =
     0 < |xs| ? xs[0] + sum(xs[1 .. ]) : 0;
 
+pure int incr1(int a) = a+1;
+pure int incr2(int a) = a+2;
 
 requires |xs| >= 0;
 requires |ys| >= 0;
