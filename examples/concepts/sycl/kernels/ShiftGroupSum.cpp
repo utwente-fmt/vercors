@@ -242,11 +242,12 @@ void accumulateResult(int T, int N, int* fx) {
 /*@
 ensures |xs| == 0 ==> \result == 0;
 ensures |xs| == 1 ==> \result == xs[0];
-pure int sum(seq<int> xs) =
+opaque pure int sum(seq<int> xs) =
     0 < |xs| ? xs[0] + sum(xs[1 .. ]) : 0;
 
 pure int incr1(int a) = a+1;
 pure int incr2(int a) = a+2;
+
 
 requires |xs| >= 0;
 requires |ys| >= 0;
@@ -256,12 +257,16 @@ ensures |ys| == 0 ==> sum(xs + ys) == sum(xs);
 ensures |xs + ys| == |xs| + |ys|;
 ensures sum(xs[1 .. ] + ys) == sum(xs[1 .. ]) + sum(ys);
 ensures sum(xs) + sum(ys) == sum(xs + ys);
-pure bool lemmaSumOverConcat(seq<int> xs, seq<int> ys) =
+opaque pure bool lemmaSumOverConcat(seq<int> xs, seq<int> ys) =
     0 < |xs| ?
-        lemmaSumOverConcat(xs[1 .. ], ys) &&
-        xs[1 .. ] + ys == ((xs + ys)[1 .. ])
+        reveal lemmaSumOverConcat(xs[1 .. ], ys) &&
+        xs[1 .. ] + ys == ((xs + ys)[1 .. ]) &&
+        reveal sum(xs) + reveal sum(ys) == reveal sum(xs + ys)
         :
+        reveal sum(xs) + reveal sum(ys) == reveal sum(xs + ys) &&
         true;
+
+
 
 requires a <= b && c <= d && b == c;
 ensures \result;
