@@ -9,7 +9,7 @@ void test(int* a) {
   {
     sycl::buffer<int, 1> aBuffer = sycl::buffer(a, sycl::range<1>(10));
 
-    myQueue.submit(
+    sycl::event e = myQueue.submit(
       [&](sycl::handler& cgh) {
 
         sycl::accessor<int, 1> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_write);
@@ -26,9 +26,10 @@ void test(int* a) {
         );
       }
     );
+    e.wait();
   } // Leaving scope, which destroys aBuffer, which waits on the kernel to terminate as it uses aBuffer
 
-  //@ assert (\forall int i; 0 <= i && i < 10 ==> a[i] == a[sycl::linearize2(i/5, i%5, 2,5)]);
+  //@ assert (\forall int i; 0 <= i && i < 10 ==> a[i] == a[sycl::linearize2(i%5, i/5, 5,2)]);
 
   //@ assert (\forall int i; i >= 0 && i < 10; a[i] == 10);
 
