@@ -8,10 +8,15 @@
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
 
+#include "IRSpec/PallasSpecDecoding.h"
 #include "Passes/Function/ExprWrapperMapper.h"
+#include "Passes/Function/FunctionContractDeclarer.h"
+#include "Passes/Module/StructTDeclarer.h"
 #include "Transform/BlockTransform.h"
 #include "Transform/Instruction/IntrinsicsTransform.h"
+#include "Transform/SpecStatementTransform.h"
 #include "Transform/Transform.h"
+#include "Transform/WrapperCallTransform.h"
 #include "Util/BlockUtils.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
@@ -261,7 +266,13 @@ void llvm2col::transformCmpExpr(llvm::CmpInst &cmpInstruction,
 void llvm2col::transformExtractValueInst(
     llvm::ExtractValueInst &llvmInstruction, col::LlvmBasicBlock &colBlock,
     pallas::FunctionCursor &funcCursor) {
-    const auto &dataLayout = llvmInstruction.getModule()->getDataLayout();
+    auto *pFunc = llvmInstruction.getFunction();
+    auto &mamProxy =
+        funcCursor.getFunctionAnalysisManager()
+            .getResult<llvm::ModuleAnalysisManagerFunctionProxy>(*pFunc);
+    auto *sdRes =
+        mamProxy.getCachedResult<pallas::StructTDeclarer>(*pFunc->getParent());
+    assert(sdRes != nullptr);
     col::Assign &assignment =
         funcCursor.createAssignmentAndDeclaration(llvmInstruction, colBlock);
     col::LlvmExtractValue *extrVal =
@@ -272,10 +283,10 @@ void llvm2col::transformExtractValueInst(
     // Aggregate type
     llvm2col::transformAndSetValueType(
         *llvmInstruction.getAggregateOperand(), nullptr,
-        *extrVal->mutable_aggregate_type(), dataLayout);
+        *extrVal->mutable_aggregate_type(), *sdRes);
     // Result type
-    llvm2col::transformAndSetValueType(
-        llvmInstruction, nullptr, *extrVal->mutable_result_type(), dataLayout);
+    llvm2col::transformAndSetValueType(llvmInstruction, nullptr,
+                                       *extrVal->mutable_result_type(), *sdRes);
     // Value
     llvm2col::transformAndSetExpr(funcCursor, llvmInstruction,
                                   *llvmInstruction.getAggregateOperand(),
@@ -344,7 +355,7 @@ void llvm2col::transformCallExpr(llvm::CallInst &callInstruction,
 
     // If it is a call to a function from the pallas specification library,
     // we transform it into the appropriate col-node.
-    if (pallas::utils::isPallasSpecLib(*callInstruction.getCalledFunction())) {
+    if (pallas::irspec::isPallasSpecLib(*callInstruction.getCalledFunction())) {
         transformPallasSpecLibCall(callInstruction, colBlock, funcCursor);
         return;
     }
@@ -379,13 +390,105 @@ void llvm2col::transformCallExpr(llvm::CallInst &callInstruction,
         llvm2col::transformAndSetExpr(funcCursor, callInstruction, *A,
                                       *invocation->add_args());
     }
+
+    // Given-bindings
+    if (auto gBindingMD =
+            pallas::irspec::getGivenBindingBlockMD(callInstruction)) {
+        auto givenBlock = pallas::irspec::getGivenBindingBlock(gBindingMD);
+        if (!givenBlock.has_value())
+            return;
+        auto *calledFunc = callInstruction.getCalledFunction();
+        auto &calledContrRes = funcCursor.getFDCResult(*calledFunc);
+        if (calledContrRes.getIRContract() == nullptr) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC,
+                "Unable to get ghost args from  contract of called function",
+                callInstruction);
+            return;
+        }
+
+        for (auto &g : givenBlock->bindings) {
+            auto *givenEntry = invocation->add_given_map();
+            // Given-variable
+            auto *colGivenVar =
+                calledContrRes.getGhostArgMapEntry(*g.getGivenDef());
+            auto *gVarRef = givenEntry->mutable_v1();
+            gVarRef->set_id(colGivenVar->id());
+
+            // Call to wrapper function
+            auto *colWrapperCall =
+                givenEntry->mutable_v2()->mutable_llvm_function_invocation();
+            llvm2col::buildWrapperCall(
+                g, callInstruction, *callInstruction.getFunction(),
+                *colWrapperCall, funcCursor, stmntVarMapper);
+        }
+    }
+
+    // Handle yields-bindings
+    if (auto yBindingsMD =
+            pallas::irspec::getYieldsBindingBlockMD(callInstruction)) {
+        auto yieldsBlock = pallas::irspec::getYieldsBindingBlock(yBindingsMD);
+        if (!yieldsBlock.has_value())
+            return;
+
+        // Get contract of called function
+        auto &calledContrRes =
+            funcCursor.getFDCResult(*callInstruction.getCalledFunction());
+        if (calledContrRes.getIRContract() == nullptr) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC, "Unable to get contract of called function",
+                callInstruction);
+            return;
+        }
+
+        // Get contract of parent function
+        auto &parentContrRes =
+            funcCursor.getFDCResult(*callInstruction.getParent()->getParent());
+        if (parentContrRes.getIRContract() == nullptr) {
+            pallas::ErrorReporter::addError(
+                SOURCE_LOC, "Unable to get contract of parent function",
+                callInstruction);
+            return;
+        }
+
+        for (auto &y : yieldsBlock->bindings) {
+            auto *yieldsEntry = invocation->add_yields();
+
+            // Expr (Ghost var from parent function)
+            auto *targetVar =
+                parentContrRes.getGhostArgMapEntry(y.getTargetVar());
+            if (targetVar == nullptr) {
+                pallas::ErrorReporter::addError(
+                    SOURCE_LOC, "Unable to get ghost var from parent function",
+                    callInstruction);
+                return;
+            }
+            auto targetName =
+                pallas::irspec::getGhostArgDef(&y.getTargetVar())->name;
+            auto *targetLoc = yieldsEntry->mutable_v1()->mutable_local();
+            targetLoc->set_allocated_origin(
+                llvm2col::generatePallasSpecOrigin(y.getLoc(), targetName));
+            targetLoc->mutable_ref()->set_id(targetVar->id());
+
+            // Yields var from called function
+            auto *yieldsVar =
+                calledContrRes.getGhostArgMapEntry(y.getYieldsArg());
+            if (targetVar == nullptr) {
+                pallas::ErrorReporter::addError(
+                    SOURCE_LOC, "Unable to get yields arg from called function",
+                    callInstruction);
+                return;
+            }
+            yieldsEntry->mutable_v2()->set_id(yieldsVar->id());
+        }
+    }
 }
 
 void llvm2col::transformPallasSpecLibCall(llvm::CallInst &callInstruction,
                                           col::LlvmBasicBlock &colBlock,
                                           pallas::FunctionCursor &funcCursor) {
     auto specLibType =
-        pallas::utils::isPallasSpecLib(*callInstruction.getCalledFunction())
+        pallas::irspec::isPallasSpecLib(*callInstruction.getCalledFunction())
             .value();
 
     if (specLibType == pallas::constants::PALLAS_SPEC_RESULT) {
@@ -576,8 +679,8 @@ void llvm2col::transformPallasFracOf(llvm::CallInst &callInstruction,
     }
 
     // Check that the value of the sret-argument is an alloca
-    auto *sretAlloc =
-        dyn_cast_if_present<llvm::AllocaInst>(callInstruction.getArgOperand(0));
+    auto *sretAlloc = llvm::dyn_cast_if_present<llvm::AllocaInst>(
+        callInstruction.getArgOperand(0));
     if (sretAlloc == nullptr) {
         pallas::ErrorReporter::addError(
             SOURCE_LOC,
@@ -812,6 +915,7 @@ void llvm2col::transformPallasBoundVar(llvm::CallInst &callInstruction,
 
     // "Normal" return.
     if (llvmSpecFunc->arg_size() == 1 && isRegularReturn) {
+        auto &sdRes = getSDResult(funcCursor, callInstruction);
         auto *type = llvmSpecFunc->getReturnType();
         col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
             callInstruction, colBlock);
@@ -827,7 +931,7 @@ void llvm2col::transformPallasBoundVar(llvm::CallInst &callInstruction,
                 SOURCE_LOC, "Invalid identifier (BoundVar)", callInstruction);
             return;
         }
-        auto *constArr = dyn_cast_if_present<llvm::ConstantDataArray>(
+        auto *constArr = llvm::dyn_cast_if_present<llvm::ConstantDataArray>(
             idVar->getInitializer());
         if (constArr == nullptr || !constArr->isString()) {
             pallas::ErrorReporter::addError(
@@ -838,15 +942,14 @@ void llvm2col::transformPallasBoundVar(llvm::CallInst &callInstruction,
                                              : constArr->getAsString();
         bv->set_id(strRepr.str());
         if (auto *subProgram = llvmSpecFunc->getSubprogram()) {
-            auto diType = dyn_cast<llvm::DIType>(
+            auto diType = llvm::dyn_cast<llvm::DIType>(
                 subProgram->getType()->getTypeArray()->getOperand(0));
             llvm2col::transformAndSetTypeWithDebugInfo(
                 llvmSpecFunc->getReturnType(), diType, *bv->mutable_var_type(),
-                callInstruction.getModule()->getDataLayout());
+                sdRes);
         } else {
-            llvm2col::transformAndSetType(
-                *type, *bv->mutable_var_type(),
-                callInstruction.getModule()->getDataLayout());
+            llvm2col::transformAndSetType(*type, *bv->mutable_var_type(),
+                                          sdRes);
         }
     } else {
         pallas::ErrorReporter::addError(
@@ -934,7 +1037,6 @@ void llvm2col::transformPallasUnfolding(llvm::CallInst &callInstruction,
 
     // "Normal" return and pass of value.
     if (isRegularReturn && isRegularPass && isBoolPred) {
-        auto *type = llvmSpecFunc->getReturnType();
         col::Assign &assignment = funcCursor.createAssignmentAndDeclaration(
             callInstruction, colBlock);
         auto *unfolding = assignment.mutable_value()->mutable_unfolding();

@@ -112,7 +112,7 @@ case class LangSpecificToCol[Pre <: Generation](
   def specLocal(
       target: SpecNameTarget[Pre],
       e: Expr[Pre],
-      blame: Blame[DerefInsufficientPermission],
+      blame: Blame[ClassDerefError],
   ): Expr[Post] =
     target match {
       case RefAxiomaticDataType(_) => throw NotAValue(e)
@@ -129,7 +129,7 @@ case class LangSpecificToCol[Pre <: Generation](
       obj: Expr[Pre],
       target: SpecDerefTarget[Pre],
       e: Expr[Pre],
-      blame: Blame[DerefInsufficientPermission],
+      blame: Blame[ClassDerefError],
   ): Expr[Post] =
     target match {
       case RefEnumConstant(enum, decl) =>
@@ -263,6 +263,7 @@ case class LangSpecificToCol[Pre <: Generation](
       }
 
       case func: LLVMFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
+      case sDecl: LLVMStructDeclaration[Pre] => llvm.rewriteStructDecl(sDecl)
       case global: LLVMGlobalSpecification[Pre] => llvm.rewriteGlobal(global)
       case global: LLVMGlobalVariable[Pre] => llvm.rewriteGlobalVariable(global)
 
@@ -617,6 +618,7 @@ case class LangSpecificToCol[Pre <: Generation](
         case t: TCInt[Pre] =>
           val cint = t.rewriteDefault()
           cint.signed = t.signed
+          cint.rank = t.rank
           cint
         case t: CTArray[Pre] => c.arrayType(t)
         case t: CTStruct[Pre] => c.structType(t)

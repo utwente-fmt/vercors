@@ -205,6 +205,11 @@ sealed trait CheckError {
           context(expr) ->
             "This quantifier has triggers but its body doesn't use its dependent variables (Hint: use {:<:trigger:} to add a trigger for an outer quantifier)"
         )
+      case MustBeInPolarityDependent(expr) =>
+        Seq(
+          context(expr) ->
+            "This construct must be in a \\polarity_dependent expression since it must be evaluated in a specific heap"
+        )
     }): _*)
 
   def subcode: String
@@ -358,6 +363,9 @@ case class DisallowedTriggerExpression(node: Node[_]) extends CheckError {
 case class TriggerWithoutDependentVars(node: Node[_]) extends CheckError {
   val subcode: String = "triggerWithoutDependentVars"
 }
+case class MustBeInPolarityDependent(node: Node[_]) extends CheckError {
+  val subcode: String = "polarityDependent"
+}
 
 case object CheckContext {
   case class ScopeFrame[G](
@@ -384,6 +392,7 @@ case class CheckContext[G](
     inGPUKernel: Boolean = false,
     inPreCondition: Boolean = false,
     inPostCondition: Boolean = false,
+    inPolarExpression: Boolean = false,
     currentChoreography: Option[Choreography[G]] = None,
     currentReceiverEndpoint: Option[Endpoint[G]] = None,
     currentParticipatingEndpoints: Option[Set[Endpoint[G]]] = None,
@@ -419,6 +428,8 @@ case class CheckContext[G](
   def withPostcondition: CheckContext[G] = copy(inPostCondition = true)
 
   def withPrecondition: CheckContext[G] = copy(inPreCondition = true)
+
+  def withPolarExpression: CheckContext[G] = copy(inPolarExpression = true)
 
   def withUndeclared(decls: Seq[Declaration[G]]): CheckContext[G] =
     copy(undeclared = undeclared :+ decls)

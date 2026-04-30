@@ -3,6 +3,7 @@ package vct.rewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.expr.op.BinOperatorTypes
+import vct.col.ast.serialize.LlvmStructDeclaration
 import vct.col.ast.{Expr, _}
 import vct.col.origin._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
@@ -121,9 +122,13 @@ case object LangLLVMToCol {
 
   private final case class PointerSubscriptToInsufficientPermissionBlame(
       blame: Blame[PointerSubscriptError]
-  ) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit =
-      blame.blame(PointerInsufficientPermission(error.node))
+  ) extends Blame[ClassDerefError] {
+    override def blame(error: ClassDerefError): Unit = {
+      blame.blame(PointerInsufficientPermission(error match {
+        case ClassNull(node) => node
+        case InsufficientPermission(node) => node
+      }))
+    }
   }
 
   private val pallasResArgPermOrigin: Origin = Origin(Seq(
@@ -162,10 +167,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private val globalVariableMap
       : SuccessionMap[LLVMGlobalVariable[Pre], HeapVariable[Post]] =
     SuccessionMap()
-  private val structMap: SuccessionMap[LLVMTStruct[Pre], Class[Post]] =
-    SuccessionMap()
+  private val structMap
+      : SuccessionMap[LLVMStructDeclaration[Pre], Class[Post]] = SuccessionMap()
   private val structFieldMap
-      : SuccessionMap[(LLVMTStruct[Pre], Int), InstanceField[Post]] =
+      : SuccessionMap[(LLVMStructDeclaration[Pre], Int), InstanceField[Post]] =
     SuccessionMap()
 
   private val globalVariableInferredType
@@ -252,9 +257,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         op.target match {
           case Local(Ref(v)) =>
             v.t match {
-              case sT: LLVMTStruct[Pre] =>
+              case LLVMTStruct(Ref(sDecl)) =>
                 typeSubstitutions(v) = TTuple(
-                  Seq(sT.elements.head.t, sT.elements(1).t)
+                  Seq(sDecl.elements.head.t, sDecl.elements(1).t)
                 )
             }
         }
@@ -292,6 +297,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def gatherTypeHints(program: Program[Pre]): Unit = {
+
+    // Touch all references to struct declarations within LLVMTStruct-types.
+    // Otherwise, the type-equality does not work because the LazyRef might not have been resolved.
+    program.collect { case sType: LLVMTStruct[Pre] => sType.ref.decl }
+
     // TODO: We also need to do something where we only keep structurally distinct types
     // Returns if self is more specific than other
     def moreSpecific(self: Type[Pre], other: Type[Pre]): Boolean = {
@@ -311,15 +321,17 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case (TPointer(a, _), LLVMTPointer(Some(b))) => moreSpecific(a, b)
         case (TPointer(a, _), TPointer(b, _)) => moreSpecific(a, b)
         // Define a named struct to be more specific than a structurally equivalent literal struct.
-        case (s1: LLVMTStruct[Pre], s2: LLVMTStruct[Pre])
+        case (LLVMTStruct(Ref(s1)), LLVMTStruct(Ref(s2)))
             if moreSpecificLitStruct(s1, s2) =>
           true
-        case (s1: LLVMTStruct[Pre], s2: LLVMTStruct[Pre])
+        case (LLVMTStruct(Ref(s1)), LLVMTStruct(Ref(s2)))
             if moreSpecificLitStruct(s2, s1) =>
           false
-        case (LLVMTStruct(_, _, _, a, _), LLVMTStruct(_, _, _, b, _)) =>
-          a.headOption.exists(ta => b.exists(tb => moreSpecific(ta.t, tb.t)))
-        case (LLVMTStruct(_, _, _, _, _), _) => true
+        case (a: LLVMTStruct[Pre], b: LLVMTStruct[Pre]) =>
+          a.ref.decl.elements.headOption.exists(ta =>
+            b.ref.decl.elements.exists(tb => moreSpecific(ta.t, tb.t))
+          )
+        case (LLVMTStruct(_), _) => true
         case (LLVMTArray(_, a), LLVMTArray(_, b)) => moreSpecific(a, b)
         case (LLVMTArray(_, _), _) => true
         case _ => false
@@ -329,8 +341,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     // Returns true if other is a literal struct type and self if a structurally
     // equivalent non-literal struct.
     def moreSpecificLitStruct(
-        self: LLVMTStruct[Pre],
-        other: LLVMTStruct[Pre],
+        self: LLVMStructDeclaration[Pre],
+        other: LLVMStructDeclaration[Pre],
     ): Boolean = {
       !self.isLiteral && other.isLiteral && self.packed == other.packed &&
       self.elements == other.elements && self.sizeInBits == other.sizeInBits
@@ -352,7 +364,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
     }
 
-    // TODO: This should be removed once the support for mixing PVL and LLVM is no longer needed
+    // TODO: This should be simplified once the support for mixing PVL and LLVM is no longer needed
     // Defines which LLVM and PVL types are considered equal when LLVM and PVL are mixed
     def pvlLLVMEqual(a: Type[Pre], b: Type[Pre]): Boolean = {
       def isVoidPtr(t: Type[Pre]): Boolean = {
@@ -366,6 +378,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
       (a, b) match {
         case (t1, t2) if t1 == t2 => true
+        case (LLVMTStruct(Ref(s1)), LLVMTStruct(Ref(s2))) =>
+          s1 ==
+            s2 // Required because equality is false if refs are not evaluated
         case (TInt(), LLVMTInt(_)) => true
         case (LLVMTInt(_), TInt()) => true
         case (TChar(), LLVMTInt(_)) => true
@@ -403,7 +418,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
 
     def findAcceptable(types: mutable.ArrayBuffer[Type[Pre]]): Type[Pre] = {
-      types.reduce { (a, b) =>
+      types.reduceLeft { (a, b) =>
         findSuperType(a, b).getOrElse(
           throw Unreachable(
             s"Failed to find super type of '$a' and '$b' even though both sides should be pointers"
@@ -639,7 +654,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
             // If the invoked function is a wrapper function, we infer the
             // type of the pointer-typed argument from the call-site.
-            if (calledFunc.isWrapper && arg.t.asPointer.isDefined) {
+            if (
+              (calledFunc.isWrapper || calledFunc.isGhostWrapper) &&
+              arg.t.asPointer.isDefined
+            ) {
               val dependencies = findDependencies(inv.args(idx))
               // TODO: Check if this can be simplified I.e. the expression
               //  should almost always be resolvable with getVariable
@@ -796,9 +814,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             case Some((idx, _)) => Some(argList(idx).ref)
             case None => None
           }
-        val isWrapper = func.isWrapper
+        val isWrapper = func.isWrapper || func.isGhostWrapper
         val returnT =
-          if (isWrapper && !wrappersInAssume.contains(func)) {
+          if (func.isWrapper && !wrappersInAssume.contains(func)) {
             TResource[Post]()
           } else {
             rw.dispatch(func.importedReturnType.getOrElse(func.returnType))
@@ -843,6 +861,30 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
     }
     llvmFunctionMap.update(func, procedure)
+  }
+
+  def rewriteStructDecl(sDecl: LLVMStructDeclaration[Pre]): Unit = {
+    implicit val o: Origin = sDecl.o
+    val newStruct =
+      new ByValueClass[Post](
+        Seq(),
+        rw.classDeclarations.collect {
+          sDecl.elements.zipWithIndex.foreach { case (field, idx) =>
+            structFieldMap((sDecl, idx)) =
+              new InstanceField(rw.dispatch(field.t), Nil)(field.o)
+            rw.classDeclarations.declare(structFieldMap((sDecl, idx)))
+          }
+        }._1,
+        sDecl.packed,
+        const(sDecl.sizeInBits / 8)(sDecl.o),
+        sDecl.elements.collect { field => rw.c.sizeOf(field.t, field.o) },
+      )(
+        sDecl.o.withContent(TypeName("struct"))
+          .where(name = sDecl.name.headOption.getOrElse("unknown"))
+      )
+
+    rw.globalDeclarations.declare(newStruct)
+    structMap(sDecl) = newStruct
   }
 
   def rewritePredicateDef(pred: LLVMFunctionDefinition[Pre]): Unit = {
@@ -961,7 +1003,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   ): Expr[Post] = {
     implicit val o: Origin = inv.o
 
-    val given = inv.givenMap.map { case (Ref(v), e) =>
+    val `given` = inv.givenMap.map { case (Ref(v), e) =>
       (rw.succ[Variable[Post]](v), addCast(e, v))
     }
     val yields = inv.yields.map { case (e, Ref(v)) =>
@@ -973,7 +1015,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         new ProcedureInvocation[Post](
           ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(func)),
           args = inv.args.zip(func.args).map(p => addCast(p._1, p._2)),
-          givenMap = given,
+          givenMap = `given`,
           yields = yields,
           outArgs = Seq.empty,
           typeArgs = Seq.empty,
@@ -1004,7 +1046,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = inv.o
 
     if (!inv.ref.decl.isPredicate) {
-      val given = inv.givenMap.map { case (Ref(v), e) =>
+      val `given` = inv.givenMap.map { case (Ref(v), e) =>
         (rw.succ[Variable[Post]](v), addCast(e, v))
       }
       val yields = inv.yields.map { case (e, Ref(v)) =>
@@ -1014,7 +1056,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       new ProcedureInvocation[Post](
         ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(inv.ref.decl)),
         args = inv.args.zip(inv.ref.decl.args).map(p => addCast(p._1, p._2)),
-        givenMap = given,
+        givenMap = `given`,
         yields = yields,
         outArgs = Seq.empty,
         typeArgs = Seq.empty,
@@ -1069,41 +1111,16 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     )
   }
 
-  def rewriteStruct(t: LLVMTStruct[Pre]): Unit = {
-    val LLVMTStruct(name, packed, literal, elements, size) = t
-    val newStruct =
-      new ByValueClass[Post](
-        Seq(),
-        rw.classDeclarations.collect {
-          elements.zipWithIndex.foreach { case (field, idx) =>
-            structFieldMap((t, idx)) =
-              new InstanceField(rw.dispatch(field.t), Nil)(field.o)
-            rw.classDeclarations.declare(structFieldMap((t, idx)))
-          }
-        }._1,
-        t.packed,
-        rw.c.sizeOf(t, t.o),
-        elements.collect { field => rw.c.sizeOf(field.t, field.o) },
-      )(
-        t.o.withContent(TypeName("struct"))
-          .where(name = name.headOption.getOrElse("unknown"))
-      )
-
-    rw.globalDeclarations.declare(newStruct)
-    structMap(t) = newStruct
-  }
-
   def rewriteGlobalVariable(decl: LLVMGlobalVariable[Pre]): Unit = {
     // TODO: Handle the initializer
     // TODO: Include array and vector bounds somehow
     val (newT, newInit) =
       globalVariableInferredType.getOrElse(decl, decl.variableType) match {
         case struct: LLVMTStruct[Pre] =>
-          rewriteStruct(struct)
           (
             new TNonNullPointer[Post](
               new TByValueClass[Post](
-                new DirectRef[Post, Class[Post]](structMap(struct)),
+                new DirectRef[Post, Class[Post]](structMap(struct.ref.decl)),
                 Seq(),
               )(struct.o),
               None,
@@ -1133,12 +1150,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       pointer: Expr[Post],
       t: Type[Pre],
       indices: Seq[Expr[Pre]],
-      blame: Blame[InsufficientPermission],
+      blame: Blame[ClassDerefError],
   )(implicit o: Origin): Expr[Post] = {
     if (indices.isEmpty) { return pointer }
     t match {
-      case struct: LLVMTStruct[Pre] =>
-        if (!structMap.contains(struct)) { rewriteStruct(struct) }
+      case LLVMTStruct(Ref(struct)) =>
         val value =
           indices.head match {
             case value: LLVMIntegerValue[Pre] => value.value.intValue
@@ -1209,46 +1225,22 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           (expr, LLVMTVector[Pre](numElements, inner))
         }
       case LLVMTPointer(
-            Some(struct @ LLVMTStruct(name, packed, literal, elements, size))
+            Some(tS @ LLVMTStruct(Ref(sDecl: LLVMStructDeclaration[Pre])))
           ) =>
         derefUntil(
           Deref[Post](
             DerefPointer(pointer)(pointer.o),
-            structFieldMap.ref((struct, 0)),
+            structFieldMap.ref((sDecl, 0)),
           )(pointer.o),
-          elements.head.t,
+          sDecl.elements.head.t,
           untilType,
-        ).map { case (expr, inner) =>
-          (
-            expr,
-            LLVMTPointer[Pre](Some(LLVMTStruct(
-              name,
-              packed,
-              literal,
-              LLVMFieldDefinition(0, inner.bits.getExact.intValue, inner) +:
-                elements.tail,
-              size,
-            ))),
-          )
-        }
-      case struct @ LLVMTStruct(name, packed, literal, elements, size) =>
+        ).map { case (expr, inner) => (expr, LLVMTPointer[Pre](Some(tS))) }
+      case sT @ LLVMTStruct(Ref(struct)) =>
         derefUntil(
           Deref[Post](pointer, structFieldMap.ref((struct, 0)))(pointer.o),
-          elements.head.t,
+          struct.elements.head.t,
           untilType,
-        ).map { case (expr, inner) =>
-          (
-            expr,
-            LLVMTStruct[Pre](
-              name,
-              packed,
-              literal,
-              LLVMFieldDefinition(0, inner.bits.getExact.intValue, inner) +:
-                elements.tail,
-              size,
-            ),
-          )
-        }
+        ).map { case (expr, inner) => (expr, sT) }
       // Save the expensive check for last. This check is for when we're mixing PVL and LLVM types
       // TODO: This check should be removed ASAP when we get real LLVM contracts since comparing types in Post is bad
       case LLVMTPointer(Some(inner))
@@ -1347,12 +1339,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       value: Expr[Post],
       t: Type[Pre],
       indices: Seq[Int],
-      blame: Blame[InsufficientPermission],
+      blame: Blame[ClassDerefError],
   )(implicit o: Origin): Expr[Post] = {
     if (indices.isEmpty) { return value }
     t match {
-      case struct: LLVMTStruct[Pre] =>
-        if (!structMap.contains(struct)) { rewriteStruct(struct) }
+      case LLVMTStruct(Ref(struct)) =>
         val idx = indices.head
         derefStructIndexChain(
           Deref[Post](value, structFieldMap.ref((struct, idx)))(blame),
@@ -1404,6 +1395,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case (LLVMTInt(_), LLVMTInt(_)) => rw.dispatch(zext.value)
       case (TBool(), LLVMTInt(_)) =>
         Select(rw.dispatch(zext.value), const(1), const(0))
+      case (TBool(), TBool()) => rw.dispatch(zext.value)
       case (_, _) => throw UnsupportedZeroExtension(zext)
     }
   }
@@ -1445,19 +1437,14 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     if (!overflowOpInitializers.contains(structT)) {
       implicit val o: Origin = overflowOpInitializerOrigin
       val (resT, flagT) =
-        structT match {
-          case LLVMTStruct(
-                _,
-                _,
-                _,
-                Seq(
-                  LLVMFieldDefinition(_, _, res: LLVMTInt[Pre]),
-                  LLVMFieldDefinition(_, _, flag: TBool[Pre]),
-                ),
-                _,
+        structT.ref.decl.elements match {
+          case Seq(
+                LLVMFieldDefinition(_, _, res: LLVMTInt[Pre]),
+                LLVMFieldDefinition(_, _, flag: TBool[Pre]),
               ) =>
             (res, flag)
         }
+
       val resArg =
         new Variable[Post](rw.dispatch(resT))(o.where(name = "resArg"))
       val flagArg =
@@ -1807,7 +1794,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case Local(Ref(v)) =>
         getLocalVarType(v) match {
           case LLVMTPointer(Some(s: LLVMTStruct[Pre]))
-              if (s.sizeInBits + 7) / 8 == numBytes.intValue =>
+              if (s.ref.decl.sizeInBits + 7) / 8 == numBytes.intValue =>
             memsetStruct(memset, s)
           case LLVMTPointer(Some(LLVMTInt(bitWidth)))
               if (bitWidth + 7) / 8 == numBytes.intValue =>
@@ -1826,15 +1813,16 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       structType: LLVMTStruct[Pre],
   ): Statement[Post] = {
     implicit val o: Origin = memset.o
+    val structDecl = structType.ref.decl
     // Set all fields of the struct to 0
-    val fieldAssignments = structType.elements.zipWithIndex.map {
+    val fieldAssignments = structDecl.elements.zipWithIndex.map {
       case (field, idx) =>
         val intT =
           field.t match {
             case t: LLVMTInt[Pre] => t
             case _ => throw UnsupportedMemset(memset)
           }
-        val structField = structFieldMap((structType, idx))
+        val structField = structFieldMap((structDecl, idx))
         Assign[Post](
           Deref[Post](
             DerefPointer(rw.dispatch(memset.dest))(memset.blame),
@@ -1874,17 +1862,17 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       s: LLVMTStruct[Pre],
   ): Statement[Post] = {
     implicit val o: Origin = memcpy.o
-
-    Block[Post](s.elements.zipWithIndex.map { case (f, i) =>
+    val sDecl = s.ref.decl
+    Block[Post](sDecl.elements.zipWithIndex.map { case (f, i) =>
       val srcField =
         Deref[Post](
           DerefPointer[Post](src)(memcpy.blame),
-          structFieldMap.ref((s, i)),
+          structFieldMap.ref((sDecl, i)),
         )(memcpy.blame)
       val dstField =
         Deref[Post](
           DerefPointer[Post](dst)(memcpy.blame),
-          structFieldMap.ref((s, i)),
+          structFieldMap.ref((sDecl, i)),
         )(memcpy.blame)
       f.t match {
         case inner: LLVMTStruct[Pre] =>
@@ -2291,8 +2279,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def structType(t: LLVMTStruct[Pre]): Type[Post] = {
-    if (!structMap.contains(t)) { rewriteStruct(t) }
-    val targetClass = new LazyRef[Post, Class[Post]](structMap(t))
+    val targetClass = new LazyRef[Post, Class[Post]](structMap(t.ref.decl))
     TByValueClass[Post](targetClass, Seq())(t.o)
   }
 

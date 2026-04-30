@@ -33,6 +33,14 @@ case class NegativePermissionValue(node: Expr[_]) extends ContractFailure {
   override def inlineDescCompletion: String =
     s"${node.o.inlineContextText} may be a negative permission amount"
 }
+case class NotWellDefined(node: Node[_], inner: VerificationFailure)
+    extends ContractFailure {
+  override def code: String = inner.code
+  override def descCompletion =
+    s"the contract is not well-defined:\n${inner.desc}"
+  override def inlineDescCompletion =
+    s"in ${node.o.inlineContextText} the contract is not well-defined: ${inner.inlineDesc}"
+}
 
 trait VerificationFailure {
   def code: String
@@ -707,7 +715,15 @@ case class ChannelInvariantNotEstablished(
     s"The channel invariant at `$node` cannot be established, since $failure"
 }
 
-sealed trait DerefInsufficientPermission extends FrontendDerefError
+sealed trait ClassDerefError extends FrontendDerefError
+case class ClassNull(node: HeapDeref[_])
+    extends ClassDerefError with NodeVerificationFailure {
+  override def code: String = "classNull"
+  override def descInContext: String = "This class may be null."
+  override def inlineDescWithSource(source: String): String =
+    s"This class may be null: `$source`."
+}
+sealed trait DerefInsufficientPermission extends ClassDerefError
 case class InsufficientPermission(node: HeapDeref[_])
     extends DerefInsufficientPermission with NodeVerificationFailure {
   override def code: String = "perm"
@@ -1135,13 +1151,71 @@ case class ArrayValuesPerm(node: Values[_]) extends ArrayValuesError {
 }
 
 // TODO: Signed-ness
-case class IntegerOutOfBounds(node: Node[_], bits: Int)
-    extends NodeVerificationFailure {
-  override def code: String = "intBounds"
+sealed trait IntegerOutOfBounds extends UnsafeCoercion
+case class BitwiseIntegerOutOfBounds(node: Node[_], bits: Int)
+    extends IntegerOutOfBounds {
+  override def code: String = "bitIntBounds"
   override def descInContext: String =
     s"Integer may be out of bounds, expected a `$bits`-bit integer"
   override def inlineDescWithSource(source: String) =
     s"Integer `$source` may be out of bounds, expected a `$bits`-bit integer"
+}
+
+case class IntegerUnderflow(node: Node[_], gte: BigInt)
+    extends IntegerOutOfBounds {
+  override def code: String = "underflow"
+  override def descInContext: String =
+    s"Integer may underflow here, expected a value greater or equal to `$gte`"
+  override def inlineDescWithSource(source: String): String =
+    s"Integer may underflow at `$source`, expected a value greater or equal to `$gte`"
+}
+
+case class IntegerOverflow(node: Node[_], lt: BigInt)
+    extends IntegerOutOfBounds {
+  override def code: String = "overflow"
+  override def descInContext: String =
+    s"Integer may overflow here, expected a value less than `$lt`"
+  override def inlineDescWithSource(source: String): String =
+    s"Integer may overflow at `$source`, expected a value less than `$lt`"
+}
+
+case class ReturnOutOfBounds(
+    node: ContractApplicable[_],
+    gte: BigInt,
+    lt: BigInt,
+) extends IntegerOutOfBounds {
+  override def code: String = "returnBounds"
+  override def descInContext: String =
+    s"Return value may be out of bounds, expected a value in range [$gte,$lt)`"
+  override def inlineDescWithSource(source: String): String =
+    s"Return value of `$source` may be out of bounds, expected a value in range [$gte,$lt)"
+}
+
+case class YieldsOutOfBounds(
+    node: ContractApplicable[_],
+    v: Variable[_],
+    gte: BigInt,
+    lt: BigInt,
+) extends IntegerOutOfBounds {
+  override def code: String = "yieldsBounds"
+  override def descInContext: String =
+    s"Yielded variable `$v` may be out of bounds, expected a value in range [$gte,$lt)`"
+  override def inlineDescWithSource(source: String): String =
+    s"Yielded variable `$v` of `$source` may be out of bounds, expected a value in range [$gte,$lt)"
+}
+
+case class CallOutOfBounds(
+    node: Node[_],
+    v: Variable[_],
+    expr: Expr[_],
+    gte: BigInt,
+    lt: BigInt,
+) extends IntegerOutOfBounds {
+  override def code: String = "callBounds"
+  override def descInContext: String =
+    s"Given argument `$expr` for variable `$v` may be out of bounds, expected a value in range [$gte,$lt)`"
+  override def inlineDescWithSource(source: String): String =
+    s"Given argument `$expr` for variable `$v` in `$source` may be out of bounds, expected a value in range [$gte,$lt)"
 }
 
 sealed trait PointerArraySubscriptError extends FrontendSubscriptError

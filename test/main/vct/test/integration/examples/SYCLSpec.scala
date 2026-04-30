@@ -42,7 +42,7 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "syclBufferConstructionFailed" example "concepts/sycl/buffers/TwoBuffersForSameData.cpp"
   vercors should error withCode "noSuchName" example "concepts/sycl/buffers/UnfoldingExclusiveHostDataAccessPredicate.cpp"
   vercors should fail withCode "assignFieldFailed" using silicon example "concepts/sycl/buffers/WriteDataInBufferScope.cpp"
-  vercors should error withCode "notApplicable" example "concepts/sycl/buffers/WrongGenericArgumentForConstructorHostdataType.cpp"
+  vercors should error withCode "resolutionError:type,type,type,type" example "concepts/sycl/buffers/WrongGenericArgumentForConstructorHostdataType.cpp"
   vercors should error withCode "notApplicable" example "concepts/sycl/buffers/WrongGenericArgumentForConstructorRangeType1.cpp"
   vercors should error withCode "notApplicable" example "concepts/sycl/buffers/WrongGenericArgumentForConstructorRangeType2.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/buffers/WrongGenericArgumentForHostdataType.cpp"

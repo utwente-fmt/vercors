@@ -252,6 +252,10 @@ sealed trait BitwiseType[G] extends Type[G] with BitwiseTypeImpl[G]
 
 final case class TInt[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends IntType[G] with TIntImpl[G]
+final case class TCheckedInt[G](gte: BigInt, lt: BigInt)(
+    val blame: Blame[IntegerOutOfBounds]
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends IntType[G] with TCheckedIntImpl[G]
 final case class TBoundedInt[G](gte: BigInt, lt: BigInt)(
     implicit val o: Origin = DiagnosticOrigin
 ) extends IntType[G] with TBoundedIntImpl[G]
@@ -1196,8 +1200,16 @@ final case class CoerceCFloatCInt[G](source: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceCFloatCIntImpl[G]
 final case class CoerceCIntCFloat[G](target: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceCIntCFloatImpl[G]
+final case class CoerceBoolCInt[G](target: Type[G])(implicit val o: Origin)
+    extends Coercion[G] with CoerceBoolCIntImpl[G]
+final case class CoerceCIntBool[G]()(implicit val o: Origin)
+    extends Coercion[G] with CoerceCIntBoolImpl[G]
+final case class CoercePointerBool[G](source: Type[G])(implicit val o: Origin)
+    extends Coercion[G] with CoercePointerBoolImpl[G]
 final case class CoerceCIntInt[G](t: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceCIntIntImpl[G]
+final case class CoerceCheckedIntInt[G]()(implicit val o: Origin)
+    extends Coercion[G] with CoerceCheckedIntIntImpl[G]
 final case class CoerceCFloatFloat[G](source: Type[G], target: Type[G])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceCFloatFloatImpl[G]
@@ -1342,6 +1354,7 @@ sealed trait ResourceTerm[G] extends Expr[G] with ResourceTermImpl[G]
 // Trait mirroring Viper's PossibleTrigger should be implemented by all expressions that eventually become nodes that implement Viper's trait
 sealed trait PossibleTrigger[G] extends Expr[G] with PossibleTriggerImpl[G]
 
+// Dummy constant, used for type inference, should not appear in the AST after a rewrite (therefore there is no entry in CoercingRewriter ensuring we crash)
 final case class DummyConstant[G](t: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends Expr[G] with DummyConstantImpl[G]
@@ -1349,12 +1362,17 @@ final case class DummyConstant[G](t: Type[G])(
 sealed trait Constant[G] extends Expr[G] with ConstantImpl[G]
 sealed trait ConstantInt[G] extends Constant[G] with ConstantIntImpl[G]
 sealed trait ConstantFloat[G] extends Constant[G]
-// Dummy constant, used for type inference, should not appear in the AST after a rewrite (therefore there is no entry in CoercingRewriter ensuring we crash)
 final case class CIntegerValue[G](value: BigInt, t: Type[G])(
     implicit val o: Origin
 ) extends ConstantInt[G] with Expr[G] with CIntegerValueImpl[G]
 final case class IntegerValue[G](value: BigInt)(implicit val o: Origin)
     extends ConstantInt[G] with Expr[G] with IntegerValueImpl[G]
+final case class CheckedIntegerValue[G](value: BigInt, gte: BigInt, lt: BigInt)(
+    val blame: Blame[IntegerOutOfBounds]
+)(implicit val o: Origin)
+    extends ConstantInt[G] with Expr[G] with CheckedIntegerValueImpl[G]
+final case class UncheckedMath[G](inner: Expr[G])(implicit val o: Origin)
+    extends Expr[G] with UncheckedMathImpl[G]
 final case class BooleanValue[G](value: Boolean)(implicit val o: Origin)
     extends Constant[G] with BooleanValueImpl[G]
 final case class FloatValue[G](value: BigDecimal, t: Type[G] /* TFloat */ )(
@@ -1576,11 +1594,11 @@ final case class DerefHeapVariable[G](ref: Ref[G, HeapVariable[G]])(
 )(implicit val o: Origin)
     extends Expr[G] with HeapDeref[G] with DerefHeapVariableImpl[G]
 final case class Deref[G](obj: Expr[G], ref: Ref[G, InstanceField[G]])(
-    val blame: Blame[InsufficientPermission]
+    val blame: Blame[ClassDerefError]
 )(implicit val o: Origin)
     extends Expr[G] with HeapDeref[G] with DerefImpl[G]
 final case class ModelDeref[G](obj: Expr[G], ref: Ref[G, ModelField[G]])(
-    val blame: Blame[ModelInsufficientPermission]
+    val blame: Blame[ClassDerefError]
 )(implicit val o: Origin)
     extends Expr[G] with ModelDerefImpl[G]
 final case class DerefPointer[G](pointer: Expr[G])(
@@ -3212,6 +3230,7 @@ sealed trait CPointerType[G] extends CType[G] with CPointerTypeImpl[G]
 final case class TCInt[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends IntType[G] with CType[G] with TCIntImpl[G] with BitwiseType[G] {
   var signed: Boolean = true
+  var rank: Int = -1
 }
 final case class TCFloat[G](exponent: Int, mantissa: Int)(
     implicit val o: Origin = DiagnosticOrigin
@@ -3385,7 +3404,7 @@ sealed trait CPPExpr[G] extends Expr[G] with CPPExprImpl[G]
 final case class CPPLocal[G](
     name: String,
     genericArgs: Seq[CPPExprOrTypeSpecifier[G]],
-)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin)
+)(val blame: Blame[ClassDerefError])(implicit val o: Origin)
     extends CPPExpr[G] with CPPLocalImpl[G] {
   var ref: Option[CPPNameTarget[G]] = None
 }
@@ -3690,10 +3709,9 @@ final case class JavaWildcard[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends JavaType[G] with JavaWildcardImpl[G]
 
 sealed trait JavaExpr[G] extends Expr[G] with JavaExprImpl[G]
-final case class JavaLocal[G](name: String)(
-    val blame: Blame[DerefInsufficientPermission]
-)(implicit val o: Origin)
-    extends JavaExpr[G] with JavaLocalImpl[G] {
+final case class JavaLocal[G](name: String)(val blame: Blame[ClassDerefError])(
+    implicit val o: Origin
+) extends JavaExpr[G] with JavaLocalImpl[G] {
   var ref: Option[JavaNameTarget[G]] = None
 }
 final case class JavaDeref[G](obj: Expr[G], field: String)(
@@ -3925,10 +3943,17 @@ final class LLVMGlobalVariable[G](
 sealed trait LLVMFunctionType[G]
     extends NodeFamily[G] with LLVMFunctionTypeImpl[G]
 
+// Regular function
 final case class NormalFunction[G]()(implicit val o: Origin)
     extends LLVMFunctionType[G] with NormalFunctionImpl[G]
+// Wrapper function that is used to encode specifications
 final case class WrapperFunction[G]()(implicit val o: Origin)
     extends LLVMFunctionType[G] with WrapperFunctionImpl[G]
+// Wrapper function that is used to encode ghost values
+// (i.e. does not necissarily return a resource. )
+final case class GhostWrapperFunction[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with GhostWrapperFunctionImpl[G]
+// Function that encodes the definition of a predicate
 final case class PredicateDefinition[G](val inlined: Boolean)(
     implicit val o: Origin
 ) extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
@@ -4091,7 +4116,7 @@ final case class LLVMExtractValue[G](
     resultType: Type[G],
     value: Expr[G],
     indices: Seq[Int],
-)(val blame: Blame[InsufficientPermission])(implicit val o: Origin)
+)(val blame: Blame[ClassDerefError])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMExtractValueImpl[G]
 
 final case class LLVMSignExtend[G](
@@ -4313,6 +4338,14 @@ final case class LLVMRawVectorValue[G](value: String, vectorType: Type[G])(
 final case class LLVMZeroedAggregateValue[G](aggregateType: Type[G])(
     implicit val o: Origin
 ) extends Constant[G] with LLVMExpr[G] with LLVMZeroedAggregateValueImpl[G]
+final class LLVMStructDeclaration[G](
+    val name: Seq[String],
+    val packed: Boolean,
+    val isLiteral: Boolean,
+    val elements: Seq[LLVMFieldDefinition[G]],
+    val sizeInBits: Int, // Number of bits that are allocated for this type
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends GlobalDeclaration[G] with LLVMStructDeclarationImpl[G]
 
 final case class LLVMTInt[G](bitWidth: Int)(
     implicit val o: Origin = DiagnosticOrigin
@@ -4327,14 +4360,9 @@ final case class LLVMTPointer[G](innerType: Option[Type[G]])(
 ) extends Type[G] with LLVMTPointerImpl[G]
 final case class LLVMTMetadata[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with LLVMTMetadataImpl[G]
-final case class LLVMTStruct[G](
-    name: Seq[String],
-    packed: Boolean,
-    isLiteral: Boolean,
-    elements: Seq[LLVMFieldDefinition[G]],
-    sizeInBits: Int, // Number of bits that are allocated for this type
-)(implicit val o: Origin = DiagnosticOrigin)
-    extends Type[G] with LLVMTStructImpl[G]
+final case class LLVMTStruct[G](ref: Ref[G, LLVMStructDeclaration[G]])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Type[G] with LLVMTStructImpl[G]
 @family
 final case class LLVMFieldDefinition[G](offset: Int, size: Int, t: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
@@ -4354,10 +4382,9 @@ final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(
 }
 
 sealed trait PVLExpr[G] extends Expr[G] with PVLExprImpl[G]
-final case class PVLLocal[G](name: String)(
-    val blame: Blame[DerefInsufficientPermission]
-)(implicit val o: Origin)
-    extends PVLExpr[G] with PVLLocalImpl[G] {
+final case class PVLLocal[G](name: String)(val blame: Blame[ClassDerefError])(
+    implicit val o: Origin
+) extends PVLExpr[G] with PVLLocalImpl[G] {
   var ref: Option[PVLNameTarget[G]] = None
 }
 final case class PVLDeref[G](obj: Expr[G], field: String)(

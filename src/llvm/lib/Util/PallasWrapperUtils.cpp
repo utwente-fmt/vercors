@@ -15,14 +15,14 @@
 namespace pallas::utils {
 namespace col = vct::col::ast;
 
-bool hasDiExpression(llvm::DbgVariableIntrinsic &intr) {
+bool hasDiExpression(const llvm::DbgVariableIntrinsic &intr) {
     return intr.getExpression() != nullptr &&
            intr.getExpression()->getNumElements() != 0;
 }
 
 void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
+                            const pallas::irspec::WrappedSpecElement &specElem,
                             unsigned int argIdx, llvm::AllocaInst &llvmAlloca,
-                            llvm::Function &llvmWFunc, llvm::MDNode &srcLoc,
                             pallas::FunctionCursor &functionCursor) {
     col::Variable &colVar =
         functionCursor.getVariableMapEntry(llvmAlloca, false);
@@ -30,7 +30,7 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
     // Cast, if type is packed struct with single element
     auto *structTy =
         llvm::dyn_cast<llvm::StructType>(llvmAlloca.getAllocatedType());
-    llvm::Type *expectedTy = llvmWFunc.getArg(argIdx)->getType();
+    llvm::Type *expectedTy = specElem.getWrapper().getArg(argIdx)->getType();
     bool isTrivialStruct = structTy != nullptr && structTy->isPacked() &&
                            structTy->getNumElements() == 1;
 
@@ -39,42 +39,47 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
         if (isTrivialStruct && structTy->getElementType(0) == expectedTy) {
             auto *ptrDeref = wrapperCall.add_args()->mutable_deref_pointer();
             ptrDeref->set_allocated_origin(
-                llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
+                llvm2col::generatePallasWrapperCallOrigin(specElem));
             ptrDeref->set_allocated_blame(new col::Blame());
             auto *cast = ptrDeref->mutable_pointer()->mutable_cast();
             cast->set_allocated_origin(
-                llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
+                llvm2col::generatePallasWrapperCallOrigin(specElem));
             col::TypeValue *tVal =
                 cast->mutable_type_value()->mutable_type_value();
             tVal->set_allocated_origin(
-                llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
+                llvm2col::generatePallasWrapperCallOrigin(specElem));
             llvm2col::transformAndSetPointerType(
                 *expectedTy, *tVal->mutable_value(),
-                llvmAlloca.getModule()->getDataLayout());
+                llvm2col::getSDResult(functionCursor, llvmAlloca));
             local = cast->mutable_value()->mutable_local();
         } else {
             local = wrapperCall.add_args()->mutable_local();
         }
+    } else if (llvm::isa<llvm::ArrayType>(llvmAlloca.getAllocatedType()) &&
+               llvm::isa<llvm::PointerType>(expectedTy)) {
+        // When passing an array-type to the wrapper, we skip the dereference
+        // because the array decays into a pointer in the signature of the
+        // wrapper.
+        local = wrapperCall.add_args()->mutable_local();
     } else {
         // Ptr deref
         auto *ptrDeref = wrapperCall.add_args()->mutable_deref_pointer();
         ptrDeref->set_allocated_origin(
-            llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
+            llvm2col::generatePallasWrapperCallOrigin(specElem));
         ptrDeref->set_allocated_blame(new col::Blame());
         local = ptrDeref->mutable_pointer()->mutable_local();
     }
 
     // Local to var of alloca
     local->set_allocated_origin(
-        llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
+        llvm2col::generatePallasWrapperCallOrigin(specElem));
     local->mutable_ref()->set_id(colVar.id());
 }
 
-bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
-                              unsigned int argIdx, llvm::DbgValueInst &dbgVal,
-                              llvm::Function &llvmWFunc, llvm::MDNode &srcLoc,
-                              pallas::FunctionCursor &functionCursor,
-                              llvm::Function &llvmParentFunc) {
+bool buildArgExprFromDbgValue(
+    col::LlvmFunctionInvocation &wrapperCall,
+    const pallas::irspec::WrappedSpecElement &specElem, unsigned int argIdx,
+    llvm::DbgValueInst &dbgVal, pallas::FunctionCursor &functionCursor) {
     if (hasDiExpression(dbgVal)) {
         return false;
     }
@@ -86,7 +91,10 @@ bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
     // attached to the extended value.
     // However the wrapper-function expects the original i1.
     // In this case, we must 'skip' the zext-instruction.
-    if (llvmWFunc.getFunctionType()->getParamType(argIdx)->isIntegerTy(1) &&
+    if (specElem.getWrapper()
+            .getFunctionType()
+            ->getParamType(argIdx)
+            ->isIntegerTy(1) &&
         llvmValue->getType()->isIntegerTy() &&
         !llvmValue->getType()->isIntegerTy(1)) {
         // Attempt to skip zext
@@ -97,13 +105,21 @@ bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
     }
 
     // Handle the case where the debug-info references a constant value.
+    auto llvmParentF = dbgVal.getFunction();
+    auto &mamProxy =
+        functionCursor.getFunctionAnalysisManager()
+            .getResult<llvm::ModuleAnalysisManagerFunctionProxy>(*llvmParentF);
+    auto *sdRes =
+        mamProxy.getCachedResult<StructTDeclarer>(*llvmParentF->getParent());
+    assert(sdRes != nullptr);
+
     if (auto *constVal = llvm::dyn_cast<llvm::Constant>(llvmValue)) {
         auto *argExpr = wrapperCall.add_args();
         llvm2col::transformAndSetConstExpr(
             functionCursor.getFunctionAnalysisManager(),
             // TODO: Put a more precise origin here!
-            llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc),
-            *constVal, *argExpr, llvmParentFunc.getParent()->getDataLayout());
+            llvm2col::generatePallasWrapperCallOrigin(specElem), *constVal,
+            *argExpr, *sdRes);
         return true;
     }
 
@@ -111,14 +127,14 @@ bool buildArgExprFromDbgValue(col::LlvmFunctionInvocation &wrapperCall,
     if (auto *arg = llvm::dyn_cast<llvm::Argument>(llvmValue)) {
         auto &fam = functionCursor.getFunctionAnalysisManager();
         auto &colFResult =
-            fam.getResult<pallas::FunctionDeclarer>(llvmParentFunc);
+            fam.getResult<pallas::FunctionDeclarer>(*llvmParentF);
         colVar = &colFResult.getFuncArgMapEntry(*arg);
     } else {
         colVar = &functionCursor.getVariableMapEntry(*llvmValue, true);
     }
     auto *argExpr = wrapperCall.add_args()->mutable_local();
     argExpr->set_allocated_origin(
-        llvm2col::generatePallasWrapperCallOrigin(llvmWFunc, srcLoc));
+        llvm2col::generatePallasWrapperCallOrigin(specElem));
     argExpr->mutable_ref()->set_id(colVar->id());
     return true;
 }

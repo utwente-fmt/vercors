@@ -29,10 +29,13 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
+  CTypeConversions,
+  CollectLocalDeclarations,
   DisambiguateLocation,
   DisambiguatePredicateExpression,
   EncodeAssuming,
   EncodeAutoValue,
+  EncodeBoundsChecks,
   EncodeByValueClassUsage,
   EncodeIntegerPointerCast,
   EncodePointerArrays,
@@ -46,6 +49,7 @@ import vct.rewrite.{
   LowerHeapVariables,
   MakeUniqueMethodCopies,
   MonomorphizeClass,
+  PrettifyBlocks,
   SmtlibToProverTypes,
   TypeQualifierCoercion,
   VariableToPointer,
@@ -183,6 +187,8 @@ object Transformation extends LazyLogging {
           veymontPermissionStratificationMode =
             options.veymontPermissionStratificationMode,
           opaqueBitwiseOperators = options.opaqueBitwiseOperators,
+          checkIntegerBounds = options.checkIntegerBounds,
+          unsetTarget = options.targetString.isEmpty,
         )
     }
 
@@ -361,10 +367,13 @@ case class SilverTransformation(
     veymontPermissionStratificationMode: PermissionStratificationMode =
       PermissionStratificationMode.Wrap,
     opaqueBitwiseOperators: Boolean = false,
+    checkIntegerBounds: Boolean = false,
+    unsetTarget: Boolean = true,
 ) extends Transformation(
       onPassEvent,
       Seq(
-        CFloatIntCoercion,
+        CTypeConversions.withArg(checkIntegerBounds, unsetTarget),
+        EncodeBoundsChecks,
         // Replace leftover SYCL types
         ReplaceSYCLTypes,
         TypeQualifierCoercion,
@@ -428,9 +437,10 @@ case class SilverTransformation(
         EncodeCurrentThread,
         EncodeIntrinsicLock,
         EncodeForkJoin,
+        // PureMethodsToFunctions should be before InlineApplicables since InlineApplicables treats functions and methods differently
+        PureMethodsToFunctions,
         InlineApplicables,
         InlineTrivialLets,
-        PureMethodsToFunctions,
         RefuteToInvertedAssert,
         ExplicitResourceValues,
         EncodeResourceValues,

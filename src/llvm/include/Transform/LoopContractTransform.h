@@ -11,6 +11,7 @@
 #pragma GCC diagnostic pop
 #endif // __GNUC__
 
+#include "IRSpec/PallasIRSpec.h"
 #include "Passes/Function/FunctionBodyTransformer.h"
 
 #include <llvm/Analysis/LoopInfo.h>
@@ -27,9 +28,10 @@ void transformLoopContract(llvm::Loop &llvmLoop, col::LoopContract &colContract,
 
 void initializeEmptyLoopContract(col::LoopContract &colContract);
 
-bool addInvariantToContract(llvm::MDNode &invMD, llvm::Loop &llvmLoop,
+bool addInvariantToContract(const pallas::irspec::LoopInvariantClause &inv,
+                            llvm::Loop &llvmLoop,
                             col::LlvmLoopContract &colContract,
-                            llvm::MDNode &contractLoc,
+                            const pallas::irspec::SrcLoc &contractLoc,
                             pallas::FunctionCursor &functionCursor);
 
 } // namespace llvm2col

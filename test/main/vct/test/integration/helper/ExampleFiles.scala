@@ -57,11 +57,16 @@ case object ExampleFiles {
     "examples/concepts/llvm/pallas/pallas_swift_assert.swift",
     "examples/concepts/llvm/pallas/pallas_c_loop_unused.c",
     "examples/concepts/llvm/pallas/pallas_c_assume.c",
+    "examples/concepts/llvm/pallas/pallas_c_linked_list.c",
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.h",
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.cpp",
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.h",
     "examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.c",
     "examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.cpp",
+    "examples/concepts/llvm/pallas/ghost/pallas_ghost_func.c",
+    "examples/concepts/llvm/pallas/ghost/pallas_c_ghost_arg.c",
+    "examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.cpp",
+    "examples/concepts/llvm/pallas/ghost/pallas_swift_ghost.swift",
     "examples/concepts/llvm/pointer_casts.c",
     "examples/concepts/llvm/structs.c"
   ).map(_.replaceAll("/", File.separator))
