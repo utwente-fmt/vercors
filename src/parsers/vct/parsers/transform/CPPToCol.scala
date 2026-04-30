@@ -669,8 +669,8 @@ case class CPPToCol[G](
         CPPInvocation(
           convert(target),
           args.map(convert(_)) getOrElse Nil,
-          convertEmbedYields(yields),
           convertEmbedGiven(given),
+          convertEmbedYields(yields),
           subgroup_invariant.map(convert(_)),
           false
         )(blame(expr))
