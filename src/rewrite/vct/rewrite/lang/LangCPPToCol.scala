@@ -940,6 +940,7 @@ ScopedStack()
               _,
               _,
               _,
+              _,
             )
           ) =>
         throw SYCLPredicateFoldingNotAllowed(e)
@@ -1237,7 +1238,7 @@ ScopedStack()
   }
 
   def invocation(inv: CPPInvocation[Pre]): Expr[Post] = {
-    val CPPInvocation(_, args, givenMap, yields, subgroup_inv) = inv
+    val CPPInvocation(_, args, givenMap, yields, subgroup_inv, reveal) = inv
     implicit val o: Origin = inv.o
     inv.ref.get match {
       case spec: SpecInvocationTarget[Pre] =>
@@ -1248,7 +1249,7 @@ ScopedStack()
           args,
           givenMap,
           yields,
-          reveal = false,
+          reveal,
           inv,
           inv.blame,
         )
@@ -1272,7 +1273,7 @@ ScopedStack()
       e: RefCPPGlobalDeclaration[Pre],
       inv: CPPInvocation[Pre],
   ): Expr[Post] = {
-    val CPPInvocation(applicable, args, givenMap, yields, sginv) = inv
+    val CPPInvocation(applicable, args, givenMap, yields, sginv, reveal) = inv
     val RefCPPGlobalDeclaration(decls, initIdx) = e
     implicit val o: Origin = inv.o
 
@@ -1404,6 +1405,7 @@ ScopedStack()
           Nil,
           givenMap.map { case (Ref(v), e) => (rw.succ(v), rw.dispatch(e)) },
           yields.map { case (e, Ref(v)) => (rw.dispatch(e), rw.succ(v)) },
+          reveal = reveal
         )(inv.blame)
     }
   }
@@ -1412,7 +1414,7 @@ ScopedStack()
       typ: SYCLTConstructableClass[Pre],
       inv: CPPInvocation[Pre],
   ): Expr[Post] = {
-    val CPPInvocation(_, args, _, _, _) = inv
+    val CPPInvocation(_, args, _, _, _, _) = inv
     implicit val o: Origin = inv.o
 
     typ match {
@@ -2024,6 +2026,7 @@ ScopedStack()
                 _,
                 _,
                 _,
+                _,
               ) =>
             rw.dispatch(accessModeRef) match {
               case accessMode: SYCLAccessMode[Post] =>
@@ -2456,14 +2459,14 @@ ScopedStack()
   )(implicit o: Origin): Expr[Post] = {
     val ids = currentDimensionIterVars(GroupScope()).indices.map(i => {
       getGlobalWorkItemId(
-        CPPInvocation[Pre](tt, Seq(c_const(i)), Nil, Nil)(PanicBlame(
+        CPPInvocation[Pre](tt, Seq(c_const(i)), Nil, Nil, reveal=false)(PanicBlame(
           s"Method sycl::nd_item::get_global_id($i) should callable here."
         ))
       )
     })
     val ranges = currentDimensionIterVars(GroupScope()).indices.map(i => {
       getGlobalWorkItemRange(
-        CPPInvocation[Pre](tt, Seq(c_const(i)), Nil, Nil)(PanicBlame(
+        CPPInvocation[Pre](tt, Seq(c_const(i)), Nil, Nil, reveal=false)(PanicBlame(
           s"Method sycl::nd_item::get_global_range($i) should callable here."
         ))
       )

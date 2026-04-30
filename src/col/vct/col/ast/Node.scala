@@ -3402,7 +3402,8 @@ final case class CPPInvocation[G](
     args: Seq[Expr[G]],
     givenArgs: Seq[(Ref[G, Variable[G]], Expr[G])],
     yields: Seq[(Expr[G], Ref[G, Variable[G]])],
-    subgroup_inv: Option[Expr[G]]=None
+    subgroup_inv: Option[Expr[G]]=None,
+    reveal: Boolean
 )(val blame: Blame[FrontendInvocationError])(implicit val o: Origin)
     extends CPPExpr[G] with CPPInvocationImpl[G] {
   var ref: Option[CPPInvocationTarget[G]] = None

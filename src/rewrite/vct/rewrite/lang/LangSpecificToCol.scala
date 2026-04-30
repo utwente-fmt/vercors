@@ -338,7 +338,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
       case atomic: GpgpuAtomic[Pre] => c.gpuAtomic(atomic)
 
-      case eval @ Eval(CPPInvocation(_, _, _, _,_)) =>
+      case eval @ Eval(CPPInvocation(_, _, _, _,_,_)) =>
         cpp.invocationStatement(eval)
 
       case fold: Fold[Pre] =>

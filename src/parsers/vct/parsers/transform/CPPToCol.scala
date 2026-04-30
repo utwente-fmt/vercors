@@ -669,11 +669,22 @@ case class CPPToCol[G](
         CPPInvocation(
           convert(target),
           args.map(convert(_)) getOrElse Nil,
+          convertEmbedYields(yields),
+          convertEmbedGiven(given),
+          subgroup_invariant.map(convert(_)),
+          false
+        )(blame(expr))
+      case PostfixExpression4(maybeReveal, target, _, args, _, given, yields, subgroup_invariant) =>
+        CPPInvocation(
+          convert(target),
+          args.map(convert(_)) getOrElse Nil,
           convertEmbedGiven(given),
           convertEmbedYields(yields),
-          subgroup_invariant.map(convert(_))
+          subgroup_invariant.map(convert(_)),
+          convert(maybeReveal)
         )(blame(expr))
-      case PostfixExpression4(classVar, _, None, idExpr) =>
+
+      case PostfixExpression5(classVar, _, None, idExpr) =>
         convert(idExpr) match {
           case CPPTypedefName(name, Seq()) =>
             CPPClassMethodOrFieldAccess(convert(classVar), name, Seq())(blame(
@@ -684,31 +695,37 @@ case class CPPToCol[G](
               blame(expr)
             )
         }
-      case PostfixExpression4(classVar, _, _, idExpr) => ??(expr)
-      case PostfixExpression5(_, _, _) => ??(expr)
-      case PostfixExpression6(_, _, _, _) => ??(expr)
-      case PostfixExpression7(_, _, _) => ??(expr)
-      case PostfixExpression8(targetNode, _) =>
+      case PostfixExpression5(classVar, _, _, idExpr) => ??(expr)
+      case PostfixExpression6(_, _, _) => ??(expr)
+      case PostfixExpression7(_, _, _, _) => ??(expr)
+      case PostfixExpression8(_, _, _) => ??(expr)
+      case PostfixExpression9(targetNode, _) =>
         val target = convert(targetNode)
         PostAssignExpression(
           target,
           col.AmbiguousPlus(target, c_const(1))(blame(expr)),
         )(blame(expr))
-      case PostfixExpression9(targetNode, _) =>
+      case PostfixExpression10(targetNode, _) =>
         val target = convert(targetNode)
         PostAssignExpression(
           target,
           col.AmbiguousMinus(target, c_const(1))(blame(expr)),
         )(blame(expr))
-      case PostfixExpression10(e, SpecPostfix0(postfix)) =>
+      case PostfixExpression11(e, SpecPostfix0(postfix)) =>
         convert(expr, postfix, convert(e))
-      case PostfixExpression11(_, _, _, _, _, _) => ??(expr)
-      case PostfixExpression12(_, _) => ??(expr)
-      case PostfixExpression13(_, _, _, _, _, _) => ??(expr)
-      case PostfixExpression14(_, _) => ??(expr)
-      case PostfixExpression15(_, _, _, _, _, _, _) => ??(expr)
-      case _: PostfixExpression16Context => ??(expr)
+      case PostfixExpression12(_, _, _, _, _, _) => ??(expr)
+      case PostfixExpression13(_, _) => ??(expr)
+      case PostfixExpression14(_, _, _, _, _, _) => ??(expr)
+      case PostfixExpression15(_, _) => ??(expr)
+      case PostfixExpression16(_, _, _, _, _, _, _) => ??(expr)
+      case _: PostfixExpression17Context => ??(expr)
     }
+
+  def convert(implicit reveal: ValEmbedRevealContext): Boolean = reveal match {
+    case ValEmbedReveal0(_, r, _) => r.isDefined
+    case ValEmbedReveal1(_) => true
+  }
+
 
   def convert(implicit exprList: ExpressionListContext): Seq[Expr[G]] =
     exprList match { case ExpressionList0(initList) => convert(initList) }
