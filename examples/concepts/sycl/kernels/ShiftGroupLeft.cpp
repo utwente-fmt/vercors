@@ -23,10 +23,10 @@
 @*/
 int smartsum(sycl::queue q, int T, int N, int* fx) {
     //@ label bK;
-    //@ refute false;
+    //@ assert true;
     {
         sycl::buffer<int, 1> fxBuf = sycl::buffer(fx, sycl::range<1>(T));
-        //@ refute false;
+        //@ assert true;
 
         sycl::event e0 = q.submit([&](sycl::handler& h)
         {
@@ -47,7 +47,7 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
             */
             [=](sycl::nd_item<1> it) {
             // [=](sycl::nd_item<1> it) [[sycl::reqd_sub_group_size(32)]] {
-                //@ refute false;
+                //@ assert true;
                 sycl::sub_group sg = it.get_sub_group();
                 int gid = it.get_global_id(0);
                 int laneId = sg.get_local_id();
@@ -59,7 +59,7 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
 
                 /*@ assert lemmaSumOverConcat(fxGs[gid .. gid+d1],fxGs[gid+d1 .. gid+d1+d1]);
                 assert lemmaSumOverABBCisAC(fxGs, gid, gid+d1, gid+d1+d1);
-                refute false; */
+                assert true; */
 
                 int d2 = 2;
                 //@ assert sg.get_local_id() + d1 < sg.get_local_range(0) ==> gid+d2 <= |fxGs| ==> fxAcc[gid] == sum(fxGs[gid .. gid+d2]);
@@ -69,7 +69,7 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
 
                 /*@ assert lemmaSumOverConcat(fxGs[gid .. gid+d2],fxGs[gid+d2 .. gid+d2+d2]);
                 assert lemmaSumOverABBCisAC(fxGs, gid, gid+d2, gid+d2+d2);
-                refute false;*/
+                assert true;*/
 
                 /*@ assert sg.get_local_id() + d2 + d1 < sg.get_local_range(0) ==>
                         gid+d2+d2 <= |fxGs| ==> fxAcc[gid] == sum(fxGs[gid .. gid+d2+d2]);*/
@@ -97,22 +97,22 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
 
                     /*@ assert lemmaSumOverConcat(fxGs[gid .. gid+dk],fxGs[gid+dk .. gid+dk+dk]);
                     assert lemmaSumOverABBCisAC(fxGs, gid, gid+dk, gid+dk+dk);
-                    refute false;*/
+                    assert true;*/
 
                     /*@ ghost k1=k1+1; */
                 }
-                //@ refute false;
+                //@ assert true;
             });});
-        //@ refute false;
+        //@ assert true;
         e0.wait();
-        //@ refute false;
+        //@ assert true;
     }
 
     int result = accumulateResult(T,N,fx) 
         /*@ given {fxGs=fxGs} */;
 
 
-    //@ refute false;
+    //@ assert true;
     //@ assert result == sum(fxGs[0 .. Tf()]);
     return result;
 }
@@ -142,7 +142,7 @@ int accumulateResult(int T, int N, int* fx) {
 
     int result = 0;
     int gid = 0;
-    //@ refute false;
+    //@ assert true;
 
     /*@ loop_invariant wrpSz == sycl::h::warp_sizes();
         loop_invariant T == Tf() && N == Nf() && T > N && T%N == 0 && N%wrpSz==0;
@@ -159,7 +159,7 @@ int accumulateResult(int T, int N, int* fx) {
     */
     for (gid=0; gid < T/N; gid++){
         int lid = 0;
-        //@ refute false;
+        //@ assert true;
 
         /*@ loop_invariant wrpSz == sycl::h::warp_sizes();
             loop_invariant 0 <= gid && gid < T/N;
@@ -180,7 +180,7 @@ int accumulateResult(int T, int N, int* fx) {
                 assert result == sum(fxGs[0 .. sycl::linearize2(gid, lid, T/N, N)]);
                 ghost int resultBU = result;
                 assert resultBU == sum(fxGs[0 .. sycl::linearize2(gid, lid, T/N, N)]);
-                refute false;
+                assert true;
 
                 */
             result = result + fx[sycl::linearize2(gid, lid, T/N, N)];
@@ -218,7 +218,7 @@ int accumulateResult(int T, int N, int* fx) {
             //@     assert (lid2 == N) ==> result == sum(fxGs[0 .. sycl::linearize2(gid, lid2-wrpSz, T/N, N)+wrpSz]);
             // @ assert (lid2 < N) ==> (lid2%wrpSz==0  && 0<= lid2 && lid2 <=N);
             // @ assert (lid2 == N) ==> (lid2%wrpSz==0 && 0<= lid2 && lid2 <=N);
-            //@ refute false;
+            //@ assert true;
         }
     }
     return result;

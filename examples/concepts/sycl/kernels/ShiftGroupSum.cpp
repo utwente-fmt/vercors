@@ -19,7 +19,7 @@
     yields int resultxx;
     yields int resultyy;
     yields int resultzz;
-    context_everywhere T == Tf() && N == Nf() && T > N && T%N == 0 && N%sycl::h::warp_sizes()==0 && N > 0;
+    context_everywhere N > 0 && T == Tf() && N == Nf() && T > N && T%N == 0 && N%sycl::h::warp_sizes()==0;
     context \pointer(fx, T, write) ** \pointer(fy, T, write) ** \pointer(fz, T, write);
     requires |fxGs| == Tf() && (\forall int i=0 .. Tf(); fxGs[i] == fx[i]);
     requires |fyGs| == Tf() && (\forall int i=0 .. Tf(); fyGs[i] == fy[i]);
@@ -35,13 +35,13 @@
 @*/
 void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
     //@ label bK;
-    //@ refute false;
+    //@ assert true;
     {
         sycl::buffer<int, 1> fxBuf = sycl::buffer(fx, sycl::range<1>(T));
         sycl::buffer<int, 1> fyBuf = sycl::buffer(fy, sycl::range<1>(T));
         sycl::buffer<int, 1> fzBuf = sycl::buffer(fz, sycl::range<1>(T));
 
-        //@ refute false;
+        //@ assert true;
 
         sycl::event e0 = q.submit([&](sycl::handler& h)
         {
@@ -72,7 +72,7 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
             [=](sycl::nd_item<1> it) {
             // [=](sycl::nd_item<1> it) [[sycl::reqd_sub_group_size(sycl::h::warp_sizes())]] {
 
-                    //@ refute false;
+                    //@ assert true;
                     sycl::sub_group sg = it.get_sub_group();
                     int gid = it.get_global_id(0);
                     int laneId = sg.get_local_id();
@@ -90,7 +90,7 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                     /*@ assert lemmaSumOverConcat(fxGs[gid    .. gid+d1],  fxGs[gid+d1 .. gid+d1+d1]) && lemmaSumOverABBCisAC(fxGs, gid,    gid+d1,   gid+d1, gid+d1+d1);
                         assert lemmaSumOverConcat(fzGs[gid    .. gid+d1],  fzGs[gid+d1 .. gid+d1+d1]) && lemmaSumOverABBCisAC(fzGs, gid,    gid+d1,   gid+d1, gid+d1+d1);
                         assert lemmaSumOverConcat(fyGs[gid-d1 .. gid-d1+1],fyGs[gid    .. gid+1])     && lemmaSumOverABBCisAC(fyGs, gid-d1, gid-d1+1, gid, gid+1);
-                        refute false; */
+                        assert true; */
 
                     if (gid % 2 != 0) { fxAcc[gid] = fyAcc[gid]; }
 
@@ -106,7 +106,7 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                     /*@ assert lemmaSumOverConcat(fxGs[gid    .. gid+d2],   fxGs[gid+d2 .. gid+d2+d2])  && lemmaSumOverABBCisAC(fxGs, gid,    gid+d2, gid+d2, gid+d2+d2);
                         assert lemmaSumOverConcat(fyGs[gid-d1 .. gid+1],    fyGs[gid+1  .. gid+d2+1])   && lemmaSumOverABBCisAC(fyGs, gid-d1, gid+1,  gid+d2-d1, gid+d2+1);
                         assert lemmaSumOverConcat(fzGs[gid-d2 .. gid-d2+d2],fzGs[gid    .. gid+d2])     && lemmaSumOverABBCisAC(fzGs, gid-d2, gid,    gid, gid+d2);
-                        refute false; */
+                        assert true; */
 
                     if (gid % 4 >= 2) { fxAcc[gid] = fzAcc[gid]; }
 
@@ -142,15 +142,15 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                             /*@ assert lemmaSumOverConcat(fxGs[gid   .. gid+dk  ],fxGs[gid+dk   .. gid+dk+dk  ]) && lemmaSumOverABBCisAC(fxGs, gid  , gid+dk  , gid+dk  , gid+dk+dk  );
                                 assert lemmaSumOverConcat(fyGs[gid-1 .. gid+dk-1],fyGs[gid+dk-1 .. gid+dk+dk-1]) && lemmaSumOverABBCisAC(fyGs, gid-1, gid+dk-1, gid+dk-1, gid+dk+dk-1);
                                 assert lemmaSumOverConcat(fzGs[gid-2 .. gid+dk-2],fzGs[gid+dk-2 .. gid+dk+dk-2]) && lemmaSumOverABBCisAC(fzGs, gid-2, gid+dk-2, gid+dk-2, gid+dk+dk-2);
-                                refute false;*/
+                                assert true;*/
 
                             /*@ ghost k1=k1+1; */
                     }
-
+                    //@ assert true;
             });});
-        //@ refute false;
+        //@ assert true;
         e0.wait();
-        //@ refute false;
+        //@ assert true;
     }
 
     accumulateResult(T,N,fx) 
@@ -279,12 +279,15 @@ pure bool lemmaSumOverABBCisAC(seq<int> xs, int a, int b, int c, int d) = xs[a .
 requires N > 0 && T > N && T%N == 0 && N%sycl::h::warp_sizes()==0 ;
 requires 0 <= gid && gid < T/N;
 requires 0 <= lid && lid < N && lid%sycl::h::warp_sizes() == 0; 
+requires 0 <= sycl::linearize2(gid, 0, T/N, N) &&  sycl::linearize2(gid, 0, T/N, N) < T;
 ensures \result;
 ensures sycl::linearize2(gid, lid, T/N, N)+sycl::h::warp_sizes() <= T;
 pure bool idshift(int T, int N,int gid, int lid) = true; 
 
 requires N > 0 && T > N && T%N == 0 && N%sycl::h::warp_sizes()==0 ;
 requires 0 <= gid && gid < T/N;
+requires 0 <= sycl::linearize2(gid, 0, T/N, N) &&  sycl::linearize2(gid, 0, T/N, N) < T;
+
 requires sycl::linearize2(gid, 0, T/N, N)%4 == 0;
 ensures gid+1<T/N  ==> sycl::linearize2(gid+1, 0, T/N, N)%4 == 0;
 pure bool gidshift(int T, int N,int gid) = true; 
