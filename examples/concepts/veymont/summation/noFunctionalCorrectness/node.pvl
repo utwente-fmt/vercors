@@ -72,28 +72,11 @@ class Node {
   // }
 
   context Perm(outMessage, 1) ** Perm(inMessage, 1\2) ** Perm(n, 1) ** Perm(total, 1);
-  requires (\forall int i = 0 .. |nodes|; nodes[i] != null);
-  requires |nodes| > 0;
-  requires 0 <= tid && tid < |nodes|;
-  requires 0 <= n && n < |nodes|;
-  requires {: inMessage :} == getTotal(nodes, next(tid, |nodes|), n);
-  requires {: nodes[tid] :} == this;
-  ensures {: n :} == \old(n) + 1;
-  ensures {: inMessage :} == \old(inMessage);
-  ensures {: total :} == inMessage + v;
-  ensures {: outMessage :} == total;
-  ensures {: outMessage :} == getTotal(nodes, tid, n);
+  ensures n == \old(n) + 1;
+  ensures outMessage == total;
   boolean processMessage(seq<Node> nodes) {
-    open_getTotal();
-
     total = inMessage + v;
     outMessage = total;
-    n++;
-  }
-
-  context Perm(n, 1);
-  ensures {: n :} == \old(n) + 1;
-  boolean processMessage_onlyN(seq<Node> nodes) {
     n++;
   }
 
@@ -119,16 +102,10 @@ class Node {
   requires Perm(backN, 1);
   context Perm(n, 1\2);
   ensures Perm(backN, 1);
-  ensures {: backN :} == n && {: n :} == \old(n);
+  ensures {: backN :} == {: n :};
   void updateBackN() {
     backN = n;
   }
-
-  requires Perm(n, 1\2);
-  ensures Perm(n, 1\2);
-  void updateBackN_onlyN() {
-  }
-
 
   context Perm(frontN, 1) ** Perm(n, 1\2);
   ensures {: frontN :} == {: n :};

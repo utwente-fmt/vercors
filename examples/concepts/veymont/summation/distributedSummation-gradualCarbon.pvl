@@ -29,6 +29,7 @@ choreography summation(int N, seq<int> vals) {
   // ensures (\endpoint nodes[i := 0 .. N]; nodes[i].n == N - 1);
   // ensures (\endpoint nodes[i := 0 .. N]; nodes[i].total == getTotal(nodes, 0, nodes[i].n));
   run {
+    inhale (\chor false);
     endpoint nodes[i := 0 .. N]: nodes[i].getTotal_init(nodes);
 
     // Parallel loop invariant

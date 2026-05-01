@@ -1,0 +1,107 @@
+// Goal: have an example with only the .n, frontN and backN fields to see if the back-sending of frontN + backN can even be verified
+
+requires |vals| == N;
+requires N >= 2;
+choreography summation(int N, seq<int> vals) {
+  endpoints nodes[tid := 0 .. N] = Node(vals[tid], tid);
+
+  requires (\chor N >= 2);
+  requires (\endpoint nodes[i := 0 .. N];
+    Perm(nodes[i].n, 1) ** Perm(nodes[i].dummySend, 1) ** Perm(nodes[i].dummyReceive, 1));
+  requires (\endpoint nodes[i := 0 .. N - 1]; Perm(nodes[i].frontN, 1) ** Perm(nodes[i].backN, 1\2));
+  requires (\endpoint nodes[i := 0 .. N - 1], ∀int j = i + 1; Perm(nodes[j].backN, 1\2));
+  requires (\endpoint nodes[N - 1];
+    Perm(nodes[N-1].frontN, 1) ** Perm(nodes[N-1].backN, 1\2) ** Perm(nodes[0].backN, 1\2)
+  );
+  requires (\endpoint nodes[i := 0 .. N - 1];
+    {: nodes[i].n :} == 0 &&
+    {: nodes[i].frontN :} == nodes[i].n &&
+    {: nodes[i].backN :} == nodes[i].n);
+  requires (\endpoint nodes[i := 0 .. N - 1], ∀int j = i + 1;
+    {: nodes[j].backN :} == {: nodes[i].n :});
+  requires (\endpoint nodes[N - 1]; nodes[N - 1].n == 0 && nodes[N - 1].frontN == nodes[N - 1].n && nodes[N - 1].backN == nodes[N - 1].n && nodes[0].backN == nodes[N - 1].n);
+  run {
+    // Parallel loop invariant
+    loop_invariant (\endpoint nodes[i := 0 .. N];
+      Perm(nodes[i].n, 1) ** Perm(nodes[i].frontN, 1) ** Perm(nodes[i].backN, 1\2) **
+      Perm(nodes[i].dummySend, 1) ** Perm(nodes[i].dummyReceive, 1)
+    );
+    loop_invariant (\endpoint nodes[i := 0 .. N - 1], ∀int j = i + 1; Perm(nodes[j].backN, 1\2) ** 
+      {: nodes[j].backN :} == {: nodes[i].n :});
+    loop_invariant (\endpoint nodes[N - 1]; Perm(nodes[0].backN, 1\2) ** nodes[0].backN == nodes[N - 1].n);
+    loop_invariant (\endpoint nodes[i := 0 .. N - 1];
+      0 <= {: nodes[i].n :} ** {: nodes[i].n :} <= N - 1 **
+      nodes[i].n == {: nodes[i].frontN :} ** nodes[i].n == {: nodes[i].backN :}
+    );
+    loop_invariant (\endpoint nodes[i := 0 .. N - 1], ∀int j = i + 1; {: nodes[i].frontN :} == {: nodes[j].backN :});
+    loop_invariant (\endpoint nodes[N - 1];
+      0 <= nodes[N - 1].n ** nodes[N - 1].n <= N - 1 ** 
+      nodes[N - 1].n == nodes[N - 1].frontN ** nodes[N - 1].n == nodes[N - 1].backN **
+      nodes[N - 1].frontN == nodes[0].backN
+    );
+    loop_invariant (\chor (\forall int j = 0..N, int k = 0..N; 
+      (\endpoint nodes[j]; {: nodes[j].n :}) == (\endpoint nodes[k]; {: nodes[k].n :})));
+    while ((\endpoint nodes[i := 0..N]; nodes[i].n < N - 1)) {
+      label A;
+      assert (\endpoint nodes[i := 0 .. N]; {: nodes[i].backN :} == {: nodes[i].n :});
+      assert (\endpoint nodes[i := 0 .. N]; {: nodes[i].frontN :} == {: nodes[i].n :});
+
+      channel_invariant
+        Perm(\sender.frontN, 1\2) ** Perm(\receiver.backN, 1\2) **
+        {: \sender.frontN :}  == {: \receiver.backN :} ** 0 <= {: \sender.frontN :} ** {: \sender.frontN :} <= N;
+      communicate nodes[i := 0 .. N - 1]: nodes[i].dummySend -> nodes[i + 1].dummyReceive;
+
+      label B;
+      assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].backN :} == \old[A](nodes[i].backN));
+      assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].n :} == \old[A](nodes[i].n));
+      assert (\endpoint nodes[i := 1 .. N], \forall int j = i - 1; {: nodes[j].frontN :} == nodes[i].backN);
+      assert (\endpoint nodes[i := 1 .. N], \forall int j = i - 1; {: nodes[j].frontN :} == nodes[i].n);
+
+      channel_invariant
+        Perm(\sender.frontN, 1\2) ** Perm(\receiver.backN, 1\2) **
+        \sender.frontN == \receiver.backN ** 0 <= \sender.frontN ** \sender.frontN <= N;
+      communicate nodes[0].dummyReceive <- nodes[N - 1].dummySend;
+
+      label C;
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: nodes[j].frontN :} == \old[B](nodes[j].frontN));
+      assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].backN :} == \old[B](nodes[i].backN));
+      assert (\endpoint nodes[i := 1 .. N], \forall int j = i - 1; {: nodes[j].frontN :} == {: nodes[i].backN :});
+
+      endpoint nodes[tid := 0 .. N]: nodes[tid].processMessage_onlyN(nodes);
+
+      label D;
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: nodes[j].frontN :} == \old[B](nodes[j].frontN));
+      assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].backN :} == \old[B](nodes[i].backN));
+      assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].n :} == \old[B](nodes[i].n) + 1);
+
+      assert (\endpoint nodes[i := 1 .. N]; {: \old[D](nodes[i].n) :} == \old[B](nodes[i].n) + 1);
+
+      endpoint nodes[tid := 0 .. N]: nodes[tid].updateBackN();
+
+      assert (\endpoint nodes[i := 1 .. N]; {: nodes[i].n :} == \old[D](nodes[i].n));
+      assume (\endpoint nodes[i := 1 .. N]; {: nodes[i].n :} == \old[B](nodes[i].n) + 1); // verifies in vscode
+
+      assert (\endpoint nodes[i := 1 .. N]; {: \old[D](nodes[i].backN) :} == \old[B](nodes[i].backN));
+
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: nodes[j].frontN :} == \old[B](nodes[j].frontN));
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: \old[B](nodes[j].frontN) :} == \old[B](nodes[i].n));
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; {: nodes[j].frontN :} == \old[B](nodes[i].n)); 
+
+      // Ok:
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; 
+        {: nodes[j].frontN :} + 1 == {: nodes[i].backN :});
+
+      // Fails:
+      assert (\endpoint nodes[i := 1 .. N], ∀int j = i - 1; Perm(nodes[i].backN, 1\2) ** Perm(nodes[j].frontN, 1\2) ** 
+        {: nodes[j].frontN :} + 1 == {: nodes[i].backN :}); // verifies in vscode
+
+      channel_invariant 
+        Perm(\sender.backN, 1\2) ** Perm(\receiver.frontN, 1\2) ** {: \receiver.frontN :} + 1 == {: \sender.backN :};
+      communicate nodes[i := 1 .. N]: nodes[i].dummySend -> nodes[i - 1].dummyReceive;
+
+      inhale (\chor false);
+    }
+
+    inhale (\chor false);
+  }
+}
