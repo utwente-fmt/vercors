@@ -14,6 +14,12 @@ namespace sycl {
       ensures !(0<p) ==> \result == 1;
       decreases p;
       pure int exp(int n, int p) = 0 < p ? n * sycl::h::exp(n, p - 1) : 1;
+
+      ensures (\result == 8 && sycl::h::exp(2, 3) == 8) ||
+              (\result == 16 && sycl::h::exp(2, 4) == 16) ||
+              (\result == 32 && sycl::h::exp(2, 5) == 32) ||
+              (\result == 64 && sycl::h::exp(2, 6) == 64);
+      pure int warp_sizes();
     */
   }
 

@@ -213,6 +213,7 @@ case object LangCPPToCol {
   }
 
   def SYCLMulMethodInvocationBlame = PanicBlame("The mul helper method doesn't have preconditions. This should not happen.")
+  def SYCLWarpSizeMethodInvocationBlame = PanicBlame("The warpSize helper method doesn't have preconditions. This should not happen.")
 
   private case class SYCLItemMethodSeqBoundFailureBlame(inv: CPPInvocation[_])
       extends Blame[SeqBoundFailure] {
@@ -1550,44 +1551,52 @@ ScopedStack()
           )
           case None =>
             implicit val o: Origin = invocation.o
-            val wrpsizeProcedure = withResult((result: Result[Post]) => {
-              procedure(
-                returnType = TCInt(),
-                pure = true,
-                ensures = UnitAccountedPredicate(
-                    Or(
-                        Or(
-                          And(
-                            Eq[Post](result, c_const(16)),
-                            Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(4)), SYCLMulMethodInvocationBlame, o), c_const(16))
-                          ),
-                          And(
-                            Eq[Post](result, c_const(32)),
-                            Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(5)), SYCLMulMethodInvocationBlame, o), c_const(32))
-                          )
-                        ),
-                          And(
-                            Eq[Post](result, c_const(64)),
-                            Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(6)), SYCLMulMethodInvocationBlame, o), c_const(64))
-                        )
-                    )
-                  ),
-                  contractBlame = PanicBlame("There are no preconditions"),
-                  blame = PanicBlame("Should never fail"))(o.where(name = "warpSizeFunc"),
-                )
-              })
-
-              rw.globalDeclarations.declare(wrpsizeProcedure)
+//            val wrpsizeProcedure = withResult((result: Result[Post]) => {
+//              procedure(
+//                returnType = TCInt(),
+//                pure = true,
+//                ensures = UnitAccountedPredicate(
+//                          Or(
+//                            And(
+//                              Eq[Post](result, c_const(8)),
+//                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(3)), SYCLMulMethodInvocationBlame, o), c_const(8))
+//                            ),
+//                          Or(
+//                          Or(
+//                            And(
+//                              Eq[Post](result, c_const(16)),
+//                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(4)), SYCLMulMethodInvocationBlame, o), c_const(16))
+//                            ),
+//                            And(
+//                              Eq[Post](result, c_const(32)),
+//                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(5)), SYCLMulMethodInvocationBlame, o), c_const(32))
+//                            )
+//                          ),
+//                            And(
+//                              Eq[Post](result, c_const(64)),
+//                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(6)), SYCLMulMethodInvocationBlame, o), c_const(64))
+//                          )
+//                      )
+//                    )
+//                  ),
+//                  contractBlame = PanicBlame("There are no preconditions"),
+//                  blame = PanicBlame("Should never fail"))(o.where(name = "warpSizeFunc"),
+//                )
+//              })
+//
+//              rw.globalDeclarations.declare(wrpsizeProcedure)
               val callToWrpsizeProcedure = {
-                procedureInvocation[Post](
-                  blame = PanicBlame("Should never fail"),
-                  ref = wrpsizeProcedure.ref,
-                  args = Seq(),
-                  outArgs = Nil,
-                  typeArgs = Nil,
-                  givenMap = Nil,
-                  yields = Nil,
-              )
+                syclHelperFunctions("sycl_:_:h_:_:warp_sizes")(Seq(), SYCLWarpSizeMethodInvocationBlame, o)
+
+//                procedureInvocation[Post](
+//                  blame = PanicBlame("Should never fail"),
+//                  ref = wrpsizeProcedure.ref,
+//                  args = Seq(),
+//                  outArgs = Nil,
+//                  typeArgs = Nil,
+//                  givenMap = Nil,
+//                  yields = Nil,
+//              )
               }
 
             (
