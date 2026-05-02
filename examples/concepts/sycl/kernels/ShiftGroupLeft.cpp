@@ -1,5 +1,7 @@
 #include <sycl/sycl.hpp>
 
+
+
 /*@
     ensures \result > 0;
     pure int Tf();
@@ -58,7 +60,7 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
 
 
                 /*@ assert lemmaSumOverConcat(fxGs[gid .. gid+d1],fxGs[gid+d1 .. gid+d1+d1]);
-                assert lemmaSumOverABBCisAC(fxGs, gid, gid+d1, gid+d1+d1);
+                assert lemmaSumOverABBCisAC(fxGs, gid, gid+d1,gid+d1, gid+d1+d1);
                 assert true; */
 
                 int d2 = 2;
@@ -68,7 +70,7 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
                 /*@ sub_group_inv { sg.get_local_id() + d1 < sg.get_local_range(0) ==> \gtid+d2 <= |fxGs| ==> \sg_val == sum(fxGs[\gtid .. \gtid+d2]) } */;
 
                 /*@ assert lemmaSumOverConcat(fxGs[gid .. gid+d2],fxGs[gid+d2 .. gid+d2+d2]);
-                assert lemmaSumOverABBCisAC(fxGs, gid, gid+d2, gid+d2+d2);
+                assert lemmaSumOverABBCisAC(fxGs, gid, gid+d2, gid+d2, gid+d2+d2);
                 assert true;*/
 
                 /*@ assert sg.get_local_id() + d2 + d1 < sg.get_local_range(0) ==>
@@ -102,9 +104,9 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
                     fxAcc[gid] += sgl_result2;
 
                     /*@ assert lemmaSumOverConcat(fxGs[gid .. gid+dk],fxGs[gid+dk .. gid+dk+dk]);
-                    assert lemmaSumOverABBCisAC(fxGs, gid, gid+dk, gid+dk+dk);
+                    assert lemmaSumOverABBCisAC(fxGs, gid, gid+dk,gid+dk, gid+dk+dk);
                     assert true;*/
-                    //@ ghost if (k1+1<sycl::h::wrpsz_pow()) {exp2_step_le(k1+1, sycl::h::wrpsz_pow());}
+                    //@ ghost if (k1+1<sycl::h::wrpsz_pow()) {expMonotonicity(k1+1, sycl::h::wrpsz_pow());}
 
                     /*@ ghost k1=k1+1; */
                 }
@@ -123,6 +125,12 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
     return result;
 }
 
+/*
+pure bool NBound(int N) =
+    (N == 16 && sycl::h::exp(2,4) == 16) ||
+    (N == sycl::h::warp_sizes() && sycl::h::exp(2,5) == sycl::h::warp_sizes()) ||
+    (N == 64 && sycl::h::exp(2,6) == 64);
+*/
 
 /////////////////////////////////////////
 /// Sum related functions and lemma's ///
@@ -130,8 +138,9 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
 /*@
 ensures |xs| == 0 ==> \result == 0;
 ensures |xs| == 1 ==> \result == xs[0];
-pure int sum(seq<int> xs) =
+opaque pure int sum(seq<int> xs) =
     0 < |xs| ? xs[0] + sum(xs[1 .. ]) : 0;
+
 
 requires |xs| >= 0;
 requires |ys| >= 0;
@@ -141,28 +150,43 @@ ensures |ys| == 0 ==> sum(xs + ys) == sum(xs);
 ensures |xs + ys| == |xs| + |ys|;
 ensures sum(xs[1 .. ] + ys) == sum(xs[1 .. ]) + sum(ys);
 ensures sum(xs) + sum(ys) == sum(xs + ys);
-pure bool lemmaSumOverConcat(seq<int> xs, seq<int> ys) =
+opaque pure bool lemmaSumOverConcat(seq<int> xs, seq<int> ys) =
     0 < |xs| ?
-        lemmaSumOverConcat(xs[1 .. ], ys) &&
-        xs[1 .. ] + ys == ((xs + ys)[1 .. ])
+        reveal lemmaSumOverConcat(xs[1 .. ], ys) &&
+        xs[1 .. ] + ys == ((xs + ys)[1 .. ]) &&
+        reveal sum(xs) + reveal sum(ys) == reveal sum(xs + ys)
         :
+        reveal sum(xs) + reveal sum(ys) == reveal sum(xs + ys) &&
         true;
 
-requires a <= b && b <= c;
+
+
+requires a <= b && c <= d && b == c;
 ensures \result;
-pure bool lemmaSumOverABBCisAC(seq<int> xs, int a, int b, int c) = xs[a .. c] == xs[a .. b] + xs[b .. c];
+pure bool lemmaSumOverABBCisAC(seq<int> xs, int a, int b, int c, int d) = xs[a .. d] == xs[a .. b] + xs[c .. d];
 
-ensures \result >= 0;
-ensures sycl::h::exp(2,\result) == N;
-pure int logTwo(int N);
-
+    
 ghost
 requires 0 <= k;
 requires k < w;
 ensures 2 * sycl::h::exp(2, k) <= sycl::h::exp(2, w);
-void exp2_step_le(int k, int w)
+void expMonotonicity(int k, int w)
 {if (k + 1 == w) {} 
- else {exp2_step_le(k + 1, w);}}
+ else {expMonotonicity(k + 1, w);}}
+
+
+requires N > 0 && T > N && T%N == 0 && N%sycl::h::warp_sizes()==0 ;
+requires 0 <= gid && gid < T/N;
+requires 0 <= lid && lid < N && lid%sycl::h::warp_sizes() == 0; 
+requires 0 <= sycl::linearize2(gid, 0, T/N, N) &&  sycl::linearize2(gid, 0, T/N, N) < T;
+ensures \result;
+ensures sycl::linearize2(gid, lid, T/N, N)+sycl::h::warp_sizes() <= T;
+pure bool idshift(int T, int N,int gid, int lid)=true; 
+
+requires k >= 0 && l > 0 && k%l==0;
+ensures (k+l)%l==0;
+pure bool modwrp(int k, int l) = true;
+
 */
 
 
@@ -171,7 +195,7 @@ void exp2_step_le(int k, int w)
 
 /*@
     given seq<int> fxGs;
-    context_everywhere T == Tf() && N == Nf() && T > N && T%N == 0 && N%sycl::h::warp_sizes()==0 && N > 0;
+    context_everywhere T > 0 && N > 0 && T == Tf() && N == Nf() && T > N && T%N == 0 && N%sycl::h::warp_sizes()==0 && N > 0;
     context_everywhere |fxGs| == Tf();
     context \pointer(fx, T, 1\2);
 
@@ -183,16 +207,8 @@ void exp2_step_le(int k, int w)
     ensures \result == sum(fxGs[0 .. Tf()]);
 @*/
 int accumulateResult(int T, int N, int* fx) {
-    //@ inhale false;
     //@ ghost int wrpSz = sycl::h::warp_sizes();
-    /*@
-    assert (\forall int lid=0 .. N, int gid=0 .. T/N;
-        lid % wrpSz + wrpSz <= wrpSz ==>
-        sycl::linearize2(gid, lid, T/N, N) + wrpSz <= |fxGs| ==>
-              fx[{:sycl::linearize2(gid, lid, T/N, N):}] == sum(fxGs[sycl::linearize2(gid, lid, T/N, N) .. sycl::linearize2(gid, lid, T/N, N) + wrpSz])
-    );
-    */
-
+    //@ label bL;
     int result = 0;
     int gid = 0;
     //@ assert true;
@@ -227,6 +243,9 @@ int accumulateResult(int T, int N, int* fx) {
             loop_invariant (lid == N ) ==> result == sum(fxGs[0 .. sycl::linearize2(gid, N-wrpSz, T/N, N)+wrpSz]);
         */
         for (lid=0; lid < N; lid=lid+wrpSz){
+            /*@ assert idshift(T,N,gid,lid); */
+            //@ assert modwrp(lid, wrpSz);
+
             /*@
                 assert sycl::linearize2(gid, lid, T/N, N) < T;
                 assert  lid % wrpSz + wrpSz <= wrpSz;
@@ -254,6 +273,7 @@ int accumulateResult(int T, int N, int* fx) {
                     fxGs,
                     0,
                     sycl::linearize2(gid, lid, T/N, N),
+                    sycl::linearize2(gid, lid, T/N, N),
                     sycl::linearize2(gid, lid, T/N, N)+wrpSz
                 );
                 assert result == sum(fxGs[0 ..  sycl::linearize2(gid, lid, T/N, N) + wrpSz]);
@@ -273,15 +293,20 @@ int accumulateResult(int T, int N, int* fx) {
             //  But if lid2 == N, then
             //@     assert (lid2 == N) ==> sycl::linearize2(gid, lid, T/N, N) + wrpSz == sycl::linearize2(gid, lid2-wrpSz, T/N, N)+wrpSz;
             //@     assert (lid2 == N) ==> result == sum(fxGs[0 .. sycl::linearize2(gid, lid2-wrpSz, T/N, N)+wrpSz]);
-            //@ assert (lid2 < N) ==> (lid2%wrpSz==0);
+            //@ assert (lid2%wrpSz==0);
+
             //@ assert (lid2 < N) ==> (lid2 <=N);
             //@ assert (lid2 < N) ==> (0<= lid2);
-            //@ assert (lid2 == N) ==> (lid2%wrpSz==0 && 0<= lid2 && lid2 <=N);
+            //@ assert (lid2 == N) ==> (0<= lid2 && lid2 <=N);
             //@ assert true;
         }
     }
     return result;
 }
+
+
+
+
 
 
 
