@@ -1490,4 +1490,19 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
       }
       """,
   )
+
+  choreography(
+    desc = "Better invariant split",
+    input = example("technical/veymont/betterInvariantSplit.pvl")
+  )
+
+  choreography(
+    desc = "endpointExpr with forall",
+    input = example("technical/veymont/endpointExprForall.pvl")
+  )
+
+  choreography(
+    desc = "Extra quantifier syntax",
+    input = example("technical/veymont/extraQuantifierSyntax.pvl")
+  )
 }

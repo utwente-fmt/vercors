@@ -53,4 +53,18 @@ class VeyMontExamplesSpec extends VeyMontSpec {
       inputs = examples(s"$wd/swap.pvl"),
     )
   }
+
+  {
+    val wd = "concepts/veymont/summation"
+
+    choreography(
+      desc = "Distributed summation",
+      inputs = examples(
+        s"$wd/distributedSummation.pvl",
+        s"$wd/lemmas.pvl",
+        s"$wd/node.pvl",
+        s"$wd/util.pvl"
+      )
+    )
+  }
 }
