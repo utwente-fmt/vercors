@@ -1,17 +1,7 @@
 package vct.rewrite.veymont
 
 import hre.util.ScopedStack
-import vct.col.ast.{
-  ChorRun,
-  Choreography,
-  Class,
-  Communicate,
-  Constructor,
-  Endpoint,
-  InstanceField,
-  Program,
-  Variable,
-}
+import vct.col.ast.{ChorRun, Choreography, Class, CommTargetSingle, Communicate, Constructor, Endpoint, InstanceField, Program, Variable}
 import vct.col.rewrite.{Generation, Rewriter}
 
 trait VeymontContext[Pre <: Generation] {
@@ -80,12 +70,12 @@ trait VeymontContext[Pre <: Generation] {
     mappings.fieldToClass(field)
 
   val currentChoreography = ScopedStack[Choreography[Pre]]()
-  val currentEndpoint = ScopedStack[Endpoint[Pre]]()
+  val currentTarget = ScopedStack[CommTargetSingle[Pre]]()
 
   def inChoreography: Boolean =
-    currentChoreography.nonEmpty && currentEndpoint.isEmpty
+    currentChoreography.nonEmpty && currentTarget.isEmpty
   def inEndpoint: Boolean =
-    currentChoreography.nonEmpty && currentEndpoint.nonEmpty
+    currentChoreography.nonEmpty && currentTarget.nonEmpty
 
   object InChor {
     def unapply[T](t: T): Option[(Choreography[Pre], T)] =
@@ -103,12 +93,12 @@ trait VeymontContext[Pre <: Generation] {
   object InEndpoint {
     def unapply[T](t: T): Option[(Choreography[Pre], Endpoint[Pre], T)] =
       if (inEndpoint)
-        Some((currentChoreography.top, currentEndpoint.top, t))
+        Some((currentChoreography.top, currentTarget.top, t))
       else
         None
     def unapply: Option[(Choreography[Pre], Endpoint[Pre])] =
       if (inEndpoint)
-        Some((currentChoreography.top, currentEndpoint.top))
+        Some((currentChoreography.top, currentTarget.top))
       else
         None
   }

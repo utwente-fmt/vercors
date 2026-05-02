@@ -2,58 +2,8 @@ package vct.rewrite.veymont.generation
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{
-  And,
-  ApplicableContract,
-  Assert,
-  Assign,
-  Assume,
-  Block,
-  Branch,
-  ByReferenceClass,
-  ChorRun,
-  ChorStatement,
-  Choreography,
-  Class,
-  ClassDeclaration,
-  Constructor,
-  Declaration,
-  Deref,
-  Endpoint,
-  EndpointExpr,
-  EndpointStatement,
-  Eval,
-  Exhale,
-  Expr,
-  FieldLocation,
-  Fork,
-  IdleToken,
-  Inhale,
-  InstanceField,
-  InstanceMethod,
-  IterationContract,
-  Join,
-  Local,
-  Location,
-  Loop,
-  LoopContract,
-  LoopInvariant,
-  Node,
-  Or,
-  Perm,
-  Procedure,
-  Program,
-  RunMethod,
-  Scope,
-  Statement,
-  TVoid,
-  ThisObject,
-  Type,
-  Value,
-  Variable,
-  WritePerm,
-}
-import vct.col.origin.{Name, Origin, PanicBlame, PostBlameSplit}
+import vct.col.ast.{And, ApplicableContract, Assert, Assign, Assume, Block, BooleanValue, Branch, ByReferenceClass, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, CommTargetEndpoint, CommTargetIndex, CommunicateTarget, Constructor, Declaration, Deref, Endpoint, EndpointExpr, EndpointStatement, Eval, Exhale, Expr, FieldLocation, Fork, IdleToken, Inhale, InstanceField, InstanceMethod, IterationContract, Join, Local, Location, Loop, LoopContract, LoopInvariant, Node, Or, Perm, Procedure, Program, RangeBinder, RunMethod, Scope, Statement, TVoid, ThisObject, Type, Value, Variable, WritePerm}
+import vct.col.origin.{DiagnosticOrigin, Name, Origin, PanicBlame, PostBlameSplit}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
@@ -106,6 +56,7 @@ case class GenerateImplementation[Pre <: Generation]()
   // with a reference to the second endpoint
   val endpointPeerFields =
     SuccessionMap[(Endpoint[Pre], Endpoint[Pre]), InstanceField[Post]]()
+  val endpointClasses = mutable.LinkedHashMap[Endpoint[Pre], Class[Post]]()
 
   val currentThis = ScopedStack[ThisObject[Post]]()
 
@@ -114,22 +65,37 @@ case class GenerateImplementation[Pre <: Generation]()
     super.dispatch(p)
   }
 
+  // For choreography c:
+  //   For endpoint/family e:
+  //     - get cls of e
+  //     -
+
+  def generateEndpointClass(endpoint: Endpoint[Pre]): Unit = {
+    implicit val o = DiagnosticOrigin
+    val cls = endpoint.cls.decl
+    val chor = choreographyOf(endpoint)
+    // TODO: Maybe add a variation on the CommTarget trait, CommTargetSingle, that matces CommTargetEndpoint and CommTargetIndex?
+    val commTarget = endpoint.range match {
+      case Some(RangeBinder(_, _, _)) => ??? // Something like: CommTargetIndex(endpoint.ref)
+      case None => CommTargetEndpoint[Pre](endpoint.ref[Endpoint[Pre]])
+    }
+    val endpointClass = currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
+      cls.rewrite(decls =
+        classDeclarations.collect {
+          cls.decls.foreach(dispatch)
+          generateRunMethod(chor, commTarget)
+          generateParamFields(chor, endpoint)
+          generatePeerFields(chor, endpoint)
+        }._1
+      )
+    }
+    globalDeclarations.declare(endpointClass)
+    endpointClasses.put(endpoint, endpointClass)
+  }
+
   override def dispatch(decl: Declaration[Pre]): Unit = {
     decl match {
       case p: Procedure[Pre] => super.dispatch(p)
-      case cls: ByReferenceClass[Pre] if isEndpointClass(cls) =>
-        val chor = choreographyOf(cls)
-        val endpoint = endpointOf(cls)
-        currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
-          cls.rewrite(decls =
-            classDeclarations.collect {
-              cls.decls.foreach(dispatch)
-              generateRunMethod(chor, endpointOf(cls))
-              generateParamFields(chor, endpoint)
-              generatePeerFields(chor, endpoint)
-            }._1
-          ).succeed(cls)
-        }
 
       case cons: Constructor[Pre] if isEndpointClass(classOf(cons)) =>
         implicit val o = cons.o
@@ -147,7 +113,10 @@ case class GenerateImplementation[Pre <: Generation]()
       case chor: Choreography[Pre] =>
         currentChoreography.having(chor) {
           chor.drop()
-          chor.endpoints.foreach(_.drop())
+          chor.endpoints.foreach { endpoint =>
+            endpoint.drop()
+            generateEndpointClass(endpoint)
+          }
           implicit val o = chor.o
 
           chor.endpoints.foreach(endpoint =>
@@ -158,6 +127,7 @@ case class GenerateImplementation[Pre <: Generation]()
           val initEndpoints = chor.endpoints.map { endpoint =>
             assignLocal[Post](
               endpointLocals(endpoint).get,
+              // TODO (RR): CONTINUE - by this point it's hard to resolve the constructor. Solution: when producing the class, open a new successor scope, and register the new class as the successor. Then also rewrite this init, letting it resolve to a successor as normal. Then when the rewriting is finished, the constructor will have been picked automatically.
               dispatch(endpoint.init),
             )
           }
@@ -214,16 +184,16 @@ case class GenerateImplementation[Pre <: Generation]()
 
   def generateRunMethod(
       chor: Choreography[Pre],
-      endpoint: Endpoint[Pre],
+      target: CommunicateTarget[Pre],
   ): Unit = {
     val run = chor.run
     implicit val o = run.o
     currentChoreography.having(chor) {
-      currentEndpoint.having(endpoint) {
+      currentTarget.having(target) {
         classDeclarations.declare(
           new RunMethod(
-            body = Some(projectStmt(run.body)(endpoint)),
-            contract = projectContract(run.contract)(endpoint),
+            body = Some(projectStmt(run.body)(target)),
+            contract = projectContract(run.contract)(target),
           )(PanicBlame(""))
         )
       }
@@ -295,8 +265,8 @@ case class GenerateImplementation[Pre <: Generation]()
   }
 
   override def dispatch(statement: Statement[Pre]): Statement[Post] = {
-    if (currentEndpoint.nonEmpty)
-      projectStmt(statement)(currentEndpoint.top)
+    if (currentTarget.nonEmpty)
+      projectStmt(statement)(currentTarget.top)
     else
       super.dispatch(statement)
   }
@@ -311,7 +281,7 @@ case class GenerateImplementation[Pre <: Generation]()
           PanicBlame("Shouldn't happen")
         )
       case InEndpoint(_, endpoint, Local(Ref(v)))
-          if currentChoreography.nonEmpty && currentEndpoint.nonEmpty &&
+          if currentChoreography.nonEmpty && currentTarget.nonEmpty &&
             isChoreographyParam(v) =>
         implicit val o = expr.o
         Deref[Post](currentThis.top, endpointParamFields.ref((endpoint, v)))(
@@ -415,17 +385,19 @@ case class GenerateImplementation[Pre <: Generation]()
       expr: Expr[Pre]
   )(implicit endpoint: Endpoint[Pre]): Expr[Post] =
     expr match {
-      case EndpointExpr(commTarget, _, expr)
-          if commTarget.asName.endpoint == endpoint =>
-        ??? // TODO (RR): Handle bindings
+      case EndpointExpr(CommTargetEndpoint(Ref(ep)), Seq(), expr)
+          if ep == endpoint =>
         projectExpr(expr)
-      case EndpointExpr(_, _, _) => tt
+      case EndpointExpr(CommTargetEndpoint(Ref(ep)), Seq(), expr)
+        if ep != endpoint => BooleanValue(true)(expr.o)
+      case EndpointExpr(ct, bindings, expr) =>
+        ??? // TODO (RR): Handle encoding bindings, probably as forall?
       // Define transparent projections for basic operators
       case and: And[Pre] =>
         and.rewrite(projectExpr(and.left), projectExpr(and.right))
       case or: Or[Pre] =>
         or.rewrite(projectExpr(or.left), projectExpr(or.right))
-      // Actually this is kind of wrong and buggy. But it covers most default & correct cases so
+      // Actually just doing rewriteDefault is kind of wrong and buggy. But it covers most default & correct cases so
       // I'll leave it for now
       case _ => expr.rewriteDefault()
     }
