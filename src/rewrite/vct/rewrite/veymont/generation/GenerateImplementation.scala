@@ -2,7 +2,7 @@ package vct.rewrite.veymont.generation
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
-import vct.col.ast.{And, ApplicableContract, Assert, Assign, Assume, Block, BooleanValue, Branch, ByReferenceClass, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, CommTargetEndpoint, CommTargetIndex, CommunicateTarget, Constructor, Declaration, Deref, Endpoint, EndpointExpr, EndpointStatement, Eval, Exhale, Expr, FieldLocation, Fork, IdleToken, Inhale, InstanceField, InstanceMethod, IterationContract, Join, Local, Location, Loop, LoopContract, LoopInvariant, Node, Or, Perm, Procedure, Program, RangeBinder, RunMethod, Scope, Statement, TVoid, ThisObject, Type, Value, Variable, WritePerm}
+import vct.col.ast.{And, ApplicableContract, Assert, Assign, Assume, Block, BooleanValue, Branch, ByReferenceClass, ChorRun, ChorStatement, Choreography, Class, ClassDeclaration, CommTargetEndpoint, CommTargetIndex, CommTargetSingle, CommunicateTarget, Constructor, Declaration, Deref, Endpoint, EndpointExpr, EndpointStatement, Eval, Exhale, Expr, FieldLocation, Fork, IdleToken, Inhale, InstanceField, InstanceMethod, IterationContract, Join, Local, Location, Loop, LoopContract, LoopInvariant, Node, Or, Perm, Procedure, Program, RangeBinder, RunMethod, Scope, Statement, TSeq, TVoid, ThisObject, Type, Value, Variable, WritePerm}
 import vct.col.origin.{DiagnosticOrigin, Name, Origin, PanicBlame, PostBlameSplit}
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -22,7 +22,7 @@ object GenerateImplementation extends RewriterBuilder {
   override def desc: String =
     "Generate classes for VeyMont threads in parallel program"
 
-  case class CannotProjectStatement(endpoint: Endpoint[_], s: Statement[_])
+  case class CannotProjectStatement(target: CommTargetSingle[_], s: Statement[_])
       extends SystemError {
     override def text: String = {
       Message.messagesInContext(
@@ -30,7 +30,7 @@ object GenerateImplementation extends RewriterBuilder {
           s.o,
           s"The following statement was not transformed into a supported statement...",
         ),
-        (endpoint.o, "... while projecting for this endpoint."),
+        (target.ref.decl.o, "... while projecting for this endpoint."),
       )
     }
   }
@@ -56,41 +56,12 @@ case class GenerateImplementation[Pre <: Generation]()
   // with a reference to the second endpoint
   val endpointPeerFields =
     SuccessionMap[(Endpoint[Pre], Endpoint[Pre]), InstanceField[Post]]()
-  val endpointClasses = mutable.LinkedHashMap[Endpoint[Pre], Class[Post]]()
 
   val currentThis = ScopedStack[ThisObject[Post]]()
 
   override def dispatch(p: Program[Pre]): Program[Post] = {
     mappings.program = p
     super.dispatch(p)
-  }
-
-  // For choreography c:
-  //   For endpoint/family e:
-  //     - get cls of e
-  //     -
-
-  def generateEndpointClass(endpoint: Endpoint[Pre]): Unit = {
-    implicit val o = DiagnosticOrigin
-    val cls = endpoint.cls.decl
-    val chor = choreographyOf(endpoint)
-    // TODO: Maybe add a variation on the CommTarget trait, CommTargetSingle, that matces CommTargetEndpoint and CommTargetIndex?
-    val commTarget = endpoint.range match {
-      case Some(RangeBinder(_, _, _)) => ??? // Something like: CommTargetIndex(endpoint.ref)
-      case None => CommTargetEndpoint[Pre](endpoint.ref[Endpoint[Pre]])
-    }
-    val endpointClass = currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
-      cls.rewrite(decls =
-        classDeclarations.collect {
-          cls.decls.foreach(dispatch)
-          generateRunMethod(chor, commTarget)
-          generateParamFields(chor, endpoint)
-          generatePeerFields(chor, endpoint)
-        }._1
-      )
-    }
-    globalDeclarations.declare(endpointClass)
-    endpointClasses.put(endpoint, endpointClass)
   }
 
   override def dispatch(decl: Declaration[Pre]): Unit = {
@@ -109,25 +80,43 @@ case class GenerateImplementation[Pre <: Generation]()
             .left(PanicBlame("Automatically generated permissions"), cons.blame),
         ).succeed(cons)
 
+      case cls: Class[Pre] if isEndpointClass(cls) =>
+        implicit val o = DiagnosticOrigin
+        val endpoint = endpointOf(cls)
+        val chor = choreographyOf(endpoint)
+        val commTarget = endpoint.range match {
+          case Some(RangeBinder(_, _, _)) => ??? // Something like: CommTargetIndex(endpoint.ref, some field probably?)
+          case None => CommTargetEndpoint[Pre](endpoint.ref[Endpoint[Pre]])
+        }
+        currentThis.having(ThisObject[Post](succ(cls))(cls.o)) {
+          cls.rewrite(decls =
+            classDeclarations.collect {
+              cls.decls.foreach(dispatch)
+              generateRunMethod(chor, commTarget)
+              generateParamFields(chor, endpoint)
+              generatePeerFields(chor, endpoint)
+            }._1
+          )
+        }.succeed(cls)
+
       case cls: Class[Pre] => super.dispatch(cls)
       case chor: Choreography[Pre] =>
         currentChoreography.having(chor) {
-          chor.drop()
-          chor.endpoints.foreach { endpoint =>
-            endpoint.drop()
-            generateEndpointClass(endpoint)
-          }
           implicit val o = chor.o
-
-          chor.endpoints.foreach(endpoint =>
-            endpointLocals(endpoint) =
-              new Variable(dispatch(endpoint.singleType))(endpoint.o)
-          )
+          chor.drop()
 
           val initEndpoints = chor.endpoints.map { endpoint =>
+            endpoint.drop()
+
+            val newClassT = dispatch(endpoint.cls.decl.classType(Seq()))
+            if (endpoint.isSingle) {
+              endpointLocals(endpoint) = new Variable(newClassT)(endpoint.o)
+            } else {
+              endpointLocals(endpoint) = new Variable(TSeq(newClassT))(endpoint.o)
+            }
+
             assignLocal[Post](
               endpointLocals(endpoint).get,
-              // TODO (RR): CONTINUE - by this point it's hard to resolve the constructor. Solution: when producing the class, open a new successor scope, and register the new class as the successor. Then also rewrite this init, letting it resolve to a successor as normal. Then when the rewriting is finished, the constructor will have been picked automatically.
               dispatch(endpoint.init),
             )
           }
@@ -184,7 +173,7 @@ case class GenerateImplementation[Pre <: Generation]()
 
   def generateRunMethod(
       chor: Choreography[Pre],
-      target: CommunicateTarget[Pre],
+      target: CommTargetSingle[Pre],
   ): Unit = {
     val run = chor.run
     implicit val o = run.o
@@ -275,25 +264,25 @@ case class GenerateImplementation[Pre <: Generation]()
     expr match {
       case InChor(_, EndpointName(Ref(endpoint))) =>
         Local[Post](endpointLocals.ref(endpoint))(expr.o)
-      case InEndpoint(_, endpoint, EndpointName(Ref(peer))) =>
+      case InEndpoint(_, target, EndpointName(Ref(peer))) =>
         implicit val o = expr.o
-        Deref[Post](currentThis.top, endpointPeerFields.ref((endpoint, peer)))(
+        Deref[Post](currentThis.top, endpointPeerFields.ref((target.ref.decl, peer)))(
           PanicBlame("Shouldn't happen")
         )
-      case InEndpoint(_, endpoint, Local(Ref(v)))
+      case InEndpoint(_, target, Local(Ref(v)))
           if currentChoreography.nonEmpty && currentTarget.nonEmpty &&
             isChoreographyParam(v) =>
         implicit val o = expr.o
-        Deref[Post](currentThis.top, endpointParamFields.ref((endpoint, v)))(
+        Deref[Post](currentThis.top, endpointParamFields.ref((target.ref.decl, v)))(
           PanicBlame("Shouldn't happen")
         )
-      case InEndpoint(_, endpoint, expr) => projectExpr(expr)(endpoint)
+      case InEndpoint(_, target, expr) => projectExpr(expr)(target)
       case _ => expr.rewriteDefault()
     }
 
   def projectStmt(
       statement: Statement[Pre]
-  )(implicit endpoint: Endpoint[Pre]): Statement[Post] =
+  )(implicit target: CommTargetSingle[Pre]): Statement[Post] =
     statement match {
       case EndpointStatement(None, statement) =>
         statement match {
@@ -303,7 +292,7 @@ case class GenerateImplementation[Pre <: Generation]()
             )
         }
       case EndpointStatement(Some(target), inner)
-          if target.asName.endpoint == endpoint =>
+          if target == target =>
         inner match {
           case assign: Assign[Pre] => assign.rewriteDefault()
           case eval: Eval[Pre] => eval.rewriteDefault()
@@ -312,7 +301,8 @@ case class GenerateImplementation[Pre <: Generation]()
       case EndpointStatement(_, _) => Block(Seq())(statement.o)
       // Specialize composite statements to the current endpoint
       case c @ ChorStatement(branch: Branch[Pre])
-          if c.explicitEndpoints.contains(endpoint) =>
+          if c.explicitEndpoints.contains(target) =>
+        // TODO (RR): For supporting target = CommTargetIndex, need to check here if endpoint index is in range in various places. Just checking the explicitEndpoints list is not sound. An if is included for each endpoint in a total endpoint range, but it should only be executed for those actually in the range. So I think the explicitEndpoints check actually has to become semantic, and wrap the actually projected if. Kind of like this: if (currentEndpoint in range) { if (actual projected if with regular projected expressions) }. This might actually be a bug in the paper as well...?
         implicit val o = branch.o
         Branch[Post](
           Seq((projectExpr(branch.cond), projectStmt(branch.yes))) ++
@@ -320,7 +310,8 @@ case class GenerateImplementation[Pre <: Generation]()
               .getOrElse(Seq())
         )
       case c @ ChorStatement(l: Loop[Pre])
-          if c.explicitEndpoints.contains(endpoint) =>
+          if c.explicitEndpoints.contains(target) =>
+        // TODO (RR): For supporting target = CommTargetIndex, need to check here if endpoint index is in range. See comment above.
         implicit val o = l.o
         loop(
           cond = projectExpr(l.cond),
@@ -344,38 +335,38 @@ case class GenerateImplementation[Pre <: Generation]()
       // We just keep them in the program here for debugging purposes.
       case assign: Assign[Pre] => assign.rewriteDefault()
       // Don't let any missed cases slip through
-      case s => throw CannotProjectStatement(endpoint, s)
+      case s => throw CannotProjectStatement(target, s)
     }
 
   def projectContract(
       contract: LoopContract[Pre]
-  )(implicit endpoint: Endpoint[Pre]): LoopContract[Post] = {
+  )(implicit target: CommTargetSingle[Pre]): LoopContract[Post] = {
     implicit val o = contract.o
     contract match {
       case inv: LoopInvariant[Pre] =>
         inv.rewrite(invariant =
-          endpointContext(endpoint, value = true) &* projectExpr(inv.invariant)
+          endpointContext(target.ref.decl, value = true) &* projectExpr(inv.invariant)
         )
       case it: IterationContract[Pre] =>
         it.rewrite(
           requires =
-            endpointContext(endpoint, value = true) &* projectExpr(it.requires),
+            endpointContext(target.ref.decl, value = true) &* projectExpr(it.requires),
           ensures =
-            endpointContext(endpoint, value = true) &* projectExpr(it.ensures),
+            endpointContext(target.ref.decl, value = true) &* projectExpr(it.ensures),
         )
     }
   }
 
   def projectContract(
       contract: ApplicableContract[Pre]
-  )(implicit endpoint: Endpoint[Pre]): ApplicableContract[Post] = {
+  )(implicit target: CommTargetSingle[Pre]): ApplicableContract[Post] = {
     implicit val o = contract.o
     contract.rewrite(
       requires =
-        endpointContext(endpoint, value = true).accounted &*
+        endpointContext(target.ref.decl, value = true).accounted &*
           mapPredicate(contract.requires, projectExpr),
       ensures =
-        endpointContext(endpoint, value = true).accounted &*
+        endpointContext(target.ref.decl, value = true).accounted &*
           mapPredicate(contract.ensures, projectExpr),
       contextEverywhere = projectExpr(contract.contextEverywhere),
     )
@@ -383,13 +374,13 @@ case class GenerateImplementation[Pre <: Generation]()
 
   def projectExpr(
       expr: Expr[Pre]
-  )(implicit endpoint: Endpoint[Pre]): Expr[Post] =
+  )(implicit target: CommTargetSingle[Pre]): Expr[Post] =
     expr match {
       case EndpointExpr(CommTargetEndpoint(Ref(ep)), Seq(), expr)
-          if ep == endpoint =>
+          if ep == target.ref.decl =>
         projectExpr(expr)
       case EndpointExpr(CommTargetEndpoint(Ref(ep)), Seq(), expr)
-        if ep != endpoint => BooleanValue(true)(expr.o)
+        if ep != target.ref.decl => BooleanValue(true)(expr.o)
       case EndpointExpr(ct, bindings, expr) =>
         ??? // TODO (RR): Handle encoding bindings, probably as forall?
       // Define transparent projections for basic operators

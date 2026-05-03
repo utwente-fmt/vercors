@@ -91,12 +91,12 @@ trait VeymontContext[Pre <: Generation] {
   }
 
   object InEndpoint {
-    def unapply[T](t: T): Option[(Choreography[Pre], Endpoint[Pre], T)] =
+    def unapply[T](t: T): Option[(Choreography[Pre], CommTargetSingle[Pre], T)] =
       if (inEndpoint)
         Some((currentChoreography.top, currentTarget.top, t))
       else
         None
-    def unapply: Option[(Choreography[Pre], Endpoint[Pre])] =
+    def unapply: Option[(Choreography[Pre], CommTargetSingle[Pre])] =
       if (inEndpoint)
         Some((currentChoreography.top, currentTarget.top))
       else

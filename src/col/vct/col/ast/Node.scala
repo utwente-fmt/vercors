@@ -3920,16 +3920,16 @@ final case class CommunicateStatement[G](inner: Communicate[G])(
 @family
 sealed trait CommunicateTarget[G]
     extends NodeFamily[G] with CommunicateTargetImpl[G]
-sealed trait CommTargetSingle[G]
+sealed trait CommTargetSingle[G] extends CommTargetSingleImpl[G]
 case class CommTargetEndpoint[G](ref: Ref[G, Endpoint[G]])(
     implicit val o: Origin
-) extends CommunicateTarget[G] with CommTargetEndpointImpl[G] with CommTargetSingle
+) extends CommunicateTarget[G] with CommTargetEndpointImpl[G] with CommTargetSingle[G]
 case class CommTargetRange[G](ref: Ref[G, Endpoint[G]], range: RangeBinder[G])(
     implicit val o: Origin
 ) extends CommunicateTarget[G] with CommTargetRangeImpl[G]
 case class CommTargetIndex[G](ref: Ref[G, Endpoint[G]], index: Expr[G])(
     implicit val o: Origin
-) extends CommunicateTarget[G] with CommTargetIndexImpl[G] with CommTargetSingle
+) extends CommunicateTarget[G] with CommTargetIndexImpl[G] with CommTargetSingle[G]
 
 final case class CtExpr[G](inner: CommunicateTarget[G])(implicit val o: Origin)
     extends Expr[G] with CtExprImpl[G]
