@@ -12,14 +12,20 @@ namespace sycl {
       requires n > 0;
       ensures 0 < p  ==> \result == n * sycl::h::exp(n, p - 1);
       ensures !(0<p) ==> \result == 1;
+      ensures \result > 0;
       decreases p;
       pure int exp(int n, int p) = 0 < p ? n * sycl::h::exp(n, p - 1) : 1;
 
-      ensures (\result == 8 && sycl::h::exp(2, 3) == 8) ||
-              (\result == 16 && sycl::h::exp(2, 4) == 16) ||
-              (\result == 32 && sycl::h::exp(2, 5) == 32) ||
-              (\result == 64 && sycl::h::exp(2, 6) == 64);
+      ensures \result >= 0;
+      ensures sycl::h::exp(2,\result) == N;
+      pure int logTwo(int N);
+
+      ensures \result > 2;
+      pure int wrpsz_pow();
+
+      ensures \result >= 8 && \result == sycl::h::exp(2,sycl::h::wrpsz_pow()) && sycl::h::logTwo(\result) == sycl::h::wrpsz_pow();
       pure int warp_sizes();
+
     */
   }
 
