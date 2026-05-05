@@ -1,9 +1,5 @@
 #include <sycl/sycl.hpp>
 
-/*
-- Check that delta is the same for all.
-*/
-
 /*@
     given seq<int> fxGs;
     context_everywhere N > 0 && T > N && T%N == 0 && N%sycl::h::warp_sizes()==0;
@@ -24,20 +20,17 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
             sycl::accessor<int, 1, sycl::access_mode::read_write> fxAcc = sycl::accessor(fxBuf, h, sycl::read_write);
 
             h.parallel_for(sycl::nd_range<1>(sycl::range<1>(T), sycl::range<1>(N)),
-            /*@
-            context Perm(fxAcc[it.get_global_id(0)], write);
-            ensures fxAcc == \old(fxAcc);
-            context (\forall int i=0 .. T; fxGs[i] == \old[bK](fx[i]));
-            requires |fxGs| == T &&
-                fxGs[it.get_global_id(0)] == fxAcc[it.get_global_id(0)] &&
-                fxGs[it.get_global_id(0)] == \old(fx[it.get_global_id(0)]);
+            /*@ context Perm(fxAcc[it.get_global_id(0)], write);
+                ensures fxAcc == \old(fxAcc);
+                context (\forall int i=0 .. T; fxGs[i] == \old[bK](fx[i]));
+                requires |fxGs| == T &&
+                    fxGs[it.get_global_id(0)] == fxAcc[it.get_global_id(0)] &&
+                    fxGs[it.get_global_id(0)] == \old(fx[it.get_global_id(0)]);
 
-            ensures it.get_sub_group().get_local_id() + it.get_sub_group().get_local_range(0) <= it.get_sub_group().get_local_range(0) ==>
-                it.get_global_id(0)+it.get_sub_group().get_local_range(0) <= |fxGs| ==>
-                    fxAcc[it.get_global_id(0)] == sum(fxGs[it.get_global_id(0) .. it.get_global_id(0)+it.get_sub_group().get_local_range(0)]);
-            */
+                ensures it.get_sub_group().get_local_id() + it.get_sub_group().get_local_range(0) <= it.get_sub_group().get_local_range(0) ==>
+                    it.get_global_id(0)+it.get_sub_group().get_local_range(0) <= |fxGs| ==>
+                        fxAcc[it.get_global_id(0)] == sum(fxGs[it.get_global_id(0) .. it.get_global_id(0)+it.get_sub_group().get_local_range(0)]); */
             [=](sycl::nd_item<1> it) {
-            // [=](sycl::nd_item<1> it) [[sycl::reqd_sub_group_size(32)]] {
                 //@ assert true;
                 sycl::sub_group sg = it.get_sub_group();
                 int gid = it.get_global_id(0);
@@ -47,38 +40,31 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
                 fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], d1)
                 /*@ sub_group_inv { \gtid+d1 <= |fxGs| ==> \sg_val == sum(fxGs[\gtid .. \gtid+d1]) } */;
 
-
                 /*@ assert lemmaSumOverConcat(fxGs[gid .. gid+d1],fxGs[gid+d1 .. gid+d1+d1]);
-                assert lemmaSumOverABBCisAC(fxGs, gid, gid+d1,gid+d1, gid+d1+d1);
-                assert true; */
+                    assert lemmaSumOverABBCisAC(fxGs, gid, gid+d1,gid+d1, gid+d1+d1);
+                    assert true; */
 
                 int d2 = 2;
-                //@ assert sg.get_local_id() + d1 < sg.get_local_range(0) ==> gid+d2 <= |fxGs| ==> fxAcc[gid] == sum(fxGs[gid .. gid+d2]);
-
                 fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], d2)
                 /*@ sub_group_inv { sg.get_local_id() + d1 < sg.get_local_range(0) ==> \gtid+d2 <= |fxGs| ==> \sg_val == sum(fxGs[\gtid .. \gtid+d2]) } */;
 
                 /*@ assert lemmaSumOverConcat(fxGs[gid .. gid+d2],fxGs[gid+d2 .. gid+d2+d2]);
-                assert lemmaSumOverABBCisAC(fxGs, gid, gid+d2, gid+d2, gid+d2+d2);
-                assert true;*/
-
-                /*@ assert sg.get_local_id() + d2 + d1 < sg.get_local_range(0) ==> gid+d2+d2 <= |fxGs| ==> fxAcc[gid] == sum(fxGs[gid .. gid+d2+d2]);*/
-                /*@ assert sg.get_local_id() + sycl::h::exp(2, 2) <= sg.get_local_range(0) ==> gid+d2+d2 <= |fxGs| ==> fxAcc[gid] == sum(fxGs[gid .. gid+d2+d2]);*/
+                    assert lemmaSumOverABBCisAC(fxGs, gid, gid+d2, gid+d2, gid+d2+d2);
+                    assert true;*/
 
                 int dk = 4;
                 //@ ghost int k1 = 2;
 
-                /*@ loop_invariant sg.get_local_range(0) %2==0;
-                loop_invariant k1 >= 2 && k1 <= sycl::h::wrpsz_pow() && dk == sycl::h::exp(2,k1);
-                loop_invariant sg.get_local_range(0) %2==0;
-                loop_invariant 4 <= dk && dk <= sg.get_local_range(0);
-                loop_invariant dk == sg.get_local_range(0) ==> sycl::h::exp(2,k1) == sg.get_local_range(0);
-                loop_invariant dk >= sg.get_local_range(0) ==> dk == sg.get_local_range(0);
-                
-                loop_invariant (\forall int i=0 .. T; fxGs[i] == \old[bK](fx[i]));
-                loop_invariant Perm({:fxAcc[it.get_global_id(0)]:}, write);
-                loop_invariant  sg.get_local_id() + sycl::h::exp(2,k1) <= sg.get_local_range(0) ==>
-                    gid+dk <= |fxGs| ==> fxAcc[gid] == sum(fxGs[gid .. gid+dk]); */
+                /*@ loop_invariant k1 >= 2 && k1 <= sycl::h::wrpsz_pow() && dk == sycl::h::exp(2,k1);
+                    loop_invariant sg.get_local_range(0) %2==0;
+                    loop_invariant 4 <= dk && dk <= sg.get_local_range(0);
+                    loop_invariant dk == sg.get_local_range(0) ==> sycl::h::exp(2,k1) == sg.get_local_range(0);
+                    loop_invariant dk >= sg.get_local_range(0) ==> dk == sg.get_local_range(0);
+                    
+                    loop_invariant (\forall int i=0 .. T; fxGs[i] == \old[bK](fx[i]));
+                    loop_invariant Perm({:fxAcc[it.get_global_id(0)]:}, write);
+                    loop_invariant  sg.get_local_id() + sycl::h::exp(2,k1) <= sg.get_local_range(0) ==>
+                        gid+dk <= |fxGs| ==> fxAcc[gid] == sum(fxGs[gid .. gid+dk]); */
                 for (dk = 4; dk < sg.get_local_range(0); dk = dk * 2) {
                     int sgl_result2 = sycl::shift_group_left(sg, fxAcc[gid], dk)
                     /*@ sub_group_inv { sg.get_local_id() + dk <= sg.get_local_range(0) ==> \gtid+dk <= |fxGs| ==> \sg_val == sum(fxGs[\gtid .. \gtid+dk]) } */;

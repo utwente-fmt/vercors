@@ -20,10 +20,10 @@ namespace sycl {
       ensures sycl::h::exp(2,\result) == N;
       pure int logTwo(int N);
 
-      ensures \result > 2;
+      ensures \result >= 3;
       pure int wrpsz_pow();
 
-      ensures \result >= 8 && \result == sycl::h::exp(2,sycl::h::wrpsz_pow()) && sycl::h::logTwo(\result) == sycl::h::wrpsz_pow();
+      ensures \result >= 8 && \result == sycl::h::exp(2,sycl::h::wrpsz_pow()) ;
       pure int warp_sizes();
 
     */
