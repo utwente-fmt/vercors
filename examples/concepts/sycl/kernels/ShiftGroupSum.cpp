@@ -1,5 +1,3 @@
-
-
 #include <sycl/sycl.hpp>
 
 /*@
@@ -65,7 +63,6 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                         fxAcc[it.get_global_id(0)] == sum(fzGs()[it.get_global_id(0)-2 .. it.get_global_id(0)+it.get_sub_group().get_local_range(0)-2])); */
             [=](sycl::nd_item<1> it) {
                 //@ assert true;
-                //@ assert sycl::h::warp_sizes() >= 1;
                 sycl::sub_group sg = it.get_sub_group();
                 int gid = it.get_global_id(0);
                 int laneId = sg.get_local_id();
@@ -77,7 +74,6 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                 /*@ sub_group_inv { \gtid+d1 <= |fyGs()| ==> \sg_val == sum(fyGs()[\gtid .. \gtid+d1]) } */;
                 fzAcc[gid] += sycl::shift_group_left(sg, fzAcc[gid], d1)
                 /*@ sub_group_inv { \gtid+d1 <= |fzGs()| ==> \sg_val == sum(fzGs()[\gtid .. \gtid+d1]) } */;
-
 
                 /*@ assert lemmaSumOverConcat(fxGs()[gid    .. gid+d1],  fxGs()[gid+d1 .. gid+d1+d1]) && lemmaSumOverABBCisAC(fxGs(), gid,    gid+d1,   gid+d1, gid+d1+d1);
                     assert lemmaSumOverConcat(fzGs()[gid    .. gid+d1],  fzGs()[gid+d1 .. gid+d1+d1]) && lemmaSumOverABBCisAC(fzGs(), gid,    gid+d1,   gid+d1, gid+d1+d1);
@@ -103,7 +99,6 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
 
                 int dk = 4;
                 //@ ghost int k1 = 2;
-
 
                 /*@ frame 
                     context T > 0 && N > 0 && T > N && T/N > 0 && T%N == 0 && N%sycl::h::warp_sizes()==0;
@@ -159,49 +154,50 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                             assert lemmaSumOverConcat(fzGs()[gid-2 .. gid+dk-2],fzGs()[gid+dk-2 .. gid+dk+dk-2]) && lemmaSumOverABBCisAC(fzGs(), gid-2, gid+dk-2, gid+dk-2, gid+dk+dk-2);
                             assert true; */
 
-                    //@ assert (gid%4 == 0) ==> (laneId+dk   <= sg.get_local_range(0) && gid+dk   <= |fxGs()|) ==>                     gsfxAcc == sum(fxGs()[gid   .. gid+dk]);
-                    //@ assert (gid%4 == 1) ==> (0 <= laneId - 1 && laneId+dk-1 <= sg.get_local_range(0) && gid+dk-1 <= |fyGs()|) ==>  gsfxAcc == sum(fyGs()[gid-1 .. gid+dk-1]);
-                    //@ assert (gid%4 == 2) ==> (0 <= laneId - 2 && laneId+dk-2 <= sg.get_local_range(0) && gid+dk-2 <= |fzGs()|) ==>  gsfxAcc == sum(fzGs()[gid-2 .. gid+dk-2]);
-
                     /*@ assert laneId + dk < sg.get_local_range(0) ==>
-                                                ((gid + dk) % 4 == 0
-                                                    ? laneId + dk + dk <= sg.get_local_range(0) ==>
-                                                      gid + dk + dk <= |fxGs()| ==>
-                                                            sgl_result2 == sum(fxGs()[gid + dk..gid + dk + dk])
-                                                    : 
-                                                    (gid + dk) % 4 == 1
-                                                    ? 0 <= laneId + dk - 1 ==>
-                                                      laneId + dk + dk - 1 <= sg.get_local_range(0) ==>
-                                                      gid + dk + dk - 1 <= |fyGs()| ==>
-                                                        sgl_result2 == sum(fyGs()[gid + dk - 1 .. gid + dk + dk - 1])
-                                                    : 
-                                                    (gid + dk) % 4 == 2
-                                                    ? 0 <= laneId + dk - 2 ==>
-                                                      laneId + dk + dk - 2 <= sg.get_local_range(0) ==>
-                                                      gid + dk + dk - 2 <= |fzGs()| ==>
-                                                        sgl_result2 == sum(fzGs()[gid + dk - 2 .. gid + dk + dk - 2])
-                                                            : true);
+                                ((gid + dk) % 4 == 0
+                                    ? laneId + dk + dk <= sg.get_local_range(0) ==>
+                                        gid + dk + dk <= |fxGs()| ==>
+                                            sgl_result2 == sum(fxGs()[gid + dk..gid + dk + dk])
+                                    : 
+                                    (gid + dk) % 4 == 1
+                                    ? 0 <= laneId + dk - 1 ==>
+                                        laneId + dk + dk - 1 <= sg.get_local_range(0) ==>
+                                        gid + dk + dk - 1 <= |fyGs()| ==>
+                                        sgl_result2 == sum(fyGs()[gid + dk - 1 .. gid + dk + dk - 1])
+                                    : 
+                                    (gid + dk) % 4 == 2
+                                    ? 0 <= laneId + dk - 2 ==>
+                                        laneId + dk + dk - 2 <= sg.get_local_range(0) ==>
+                                        gid + dk + dk - 2 <= |fzGs()| ==>
+                                        sgl_result2 == sum(fzGs()[gid + dk - 2 .. gid + dk + dk - 2])
+                                            : true);
                     
                                                             */
 
                     /*@
+                        assert mod_times_two(dk);
+
                         ghost if (gid%4==0) {
-                            assert mod_add(gid,dk,0,0);
-                            assert (gid+dk)%4==0;
+                            assert mod_add_0(gid,dk);
+                            assert sycl::h::add(gid,dk)%4==0;
                             assert (gid%4 == 0) ==> (laneId+dk+dk   <= sg.get_local_range(0) && gid+dk+dk   <= |fxGs()|) ==> fxAcc[gid] == sum(fxGs()[gid   .. gid+dk+dk]);
                         } else if (gid%4==1) {
-                            assert mod_add(gid,dk,1,0);
-                            assert (gid+dk)%4==1;
+                            assert mod_add_1(gid,dk);
+                            assert sycl::h::add(gid,dk)%4==1;
+                            assert mod_add_1(gid,dk) ==> (gid+dk)%4==1;
                             assert (gid%4 == 1) ==> (0 <= laneId - 1 && laneId+dk+dk-1 <= sg.get_local_range(0) && gid+dk+dk-1 <= |fyGs()|) ==> fxAcc[gid] == sum(fyGs()[gid-1 .. gid+dk+dk-1]);
                         } else if (gid%4==2) {
-                            assert mod_add(gid,dk,2,0);
-                            assert (gid+dk)%4==2;
+                            assert mod_add_2(gid,dk);
+                            assert sycl::h::add(gid,dk)%4==2;
+                            assert mod_add_2(gid,dk) ==> (gid+dk)%4==2;
                             assert (gid%4 == 2) ==> (0 <= laneId - 2 && laneId+dk+dk-2 <= sg.get_local_range(0) && gid+dk+dk-2 <= |fzGs()|) ==> fxAcc[gid] == sum(fzGs()[gid-2 .. gid+dk+dk-2]);
                         }
                     */
                     
                     //@ ghost if (k1+1<sycl::h::wrpsz_pow()) {expMonotonicity(k1+1, sycl::h::wrpsz_pow());}
                     /*@ ghost k1=k1+1; */
+                    //@ assert mod_times_two(dk);
                 }/*@}*/
                 //@ assert true;
             });});
@@ -269,12 +265,14 @@ pure bool idshift(int T, int N,int gid, int lid, int warpsz);
 
 requires k >= 0 && l > 0 && k%l==0;
 ensures (k+l)%l==0;
+ensures \result;
 pure bool modwrp(int k, int l);
 
 
 requires wrpsz > 0 && 0 <= lid && lid < N && lid%wrpsz == 0; 
 requires N > 0 &&  N%wrpsz==0;
 ensures lid+wrpsz <= N;
+ensures \result;
 pure bool lidshift(int lid, int N, int wrpsz);
 
 
@@ -336,10 +334,35 @@ pure bool mod_trans(int a, int b, int c);
 requires g >=0 && d >= 0 && 0 <= x && x < 4 && 0 <= y && y < 4;
 requires g%4==x && d%4==y;
 ensures (g+d)%4==(x+y)%4;
+ensures sycl::h::add(g,d)%4==sycl::h::add(x,y)%4;
 ensures \result;
 pure bool mod_add(int g, int d, int x, int y);
 
+requires g >=0 && d >= 0;
+requires g%4==0 && d%4==0;
+ensures (g+d)%4==0;
+ensures \result;
+ensures sycl::h::add(g,d)%4==0;
+pure bool mod_add_0(int g, int d) = mod_add(g,d,0,0);
 
+requires g >=0 && d >= 0;
+requires g%4==1 && d%4==0;
+ensures (g+d)%4==1;
+ensures \result;
+ensures sycl::h::add(g,d)%4==1;
+pure bool mod_add_1(int g, int d) = mod_add(g,d,1,0);
+
+requires g >=0 && d >= 0;
+requires g%4==2 && d%4==0;
+ensures (g+d)%4==2;
+ensures \result;
+ensures sycl::h::add(g,d)%4==2;
+pure bool mod_add_2(int g, int d) = mod_add(g,d,2,0);
+
+
+requires g > 0 && g % 4 == 0;
+ensures (2*g)%4 == 0;
+pure bool mod_times_two(int g)  = true;
 */
 
 
@@ -385,111 +408,4 @@ theorem mod4_add_general (g d x y : ℕ)
     ensures resultyy == sum(fyGs[0 .. T]);
     ensures resultzz == sum(fzGs[0 .. T]);
 @*/
-void accumulateResult(int T, int N, int* fx) {
-    int resultx = 0;
-    int resulty = 0;
-    int resultz = 0;
-    int gid = 0;
- 
-    /*@ loop_invariant 0 <= gid && gid <= T/N;
-        loop_invariant (gid < T/N ) ==> (0 <= sycl::linearize2(gid, 0, T/N, N) && sycl::linearize2(gid, 0, T/N, N) < T);
-        loop_invariant \pointer(fx, T, 1\2);
-        loop_invariant intermediateResults1(T,N,sycl::h::warp_sizes(),fx,fxGs,fyGs,fzGs);        
-        loop_invariant intermediateResults2(T,N,sycl::h::warp_sizes(),fx,fxGs,fyGs,fzGs);        
-        loop_invariant intermediateResults3(T,N,sycl::h::warp_sizes(),fx,fxGs,fyGs,fzGs);        
-
-        loop_invariant (gid < T/N) ==> sycl::linearize2(gid, 0, T/N, N)%4 == 0;
-        loop_invariant (gid < T/N ) ==>  resultx == sum(fxGs[0 .. sycl::linearize2(gid, 0, T/N, N)]);
-        loop_invariant (gid < T/N ) ==>  resultz == sum(fzGs[0 .. sycl::linearize2(gid, 0, T/N, N)]);
-        loop_invariant (gid < T/N ) ==>  resulty == sum(fyGs[0 .. sycl::linearize2(gid, 0, T/N, N)]);
-                                          
-        loop_invariant (gid == T/N ) ==> resultx == sum(fxGs[0 .. T]);
-        loop_invariant (gid == T/N ) ==> resulty == sum(fyGs[0 .. T]);
-        loop_invariant (gid == T/N ) ==> resultz == sum(fzGs[0 .. T]); 
-         */
-    for (gid=0; gid < T/N; gid++){
-        int lid = 0;
-
-        /*@ assert (lid < N ) ==> resultx == sum(fxGs[0 .. sycl::linearize2(gid, lid, T/N, N)]);
-            assert (lid < N ) ==> resulty == sum(fyGs[0 .. sycl::linearize2(gid, lid, T/N, N)]);
-            assert (lid < N ) ==> resultz == sum(fzGs[0 .. sycl::linearize2(gid, lid, T/N, N)]);
-        */
-
-        /*@ loop_invariant 0 <= gid && gid < T/N;
-            loop_invariant 0 <= lid && lid <= N && lid%sycl::h::warp_sizes()==0;
-            loop_invariant (lid < N ) ==> (0 <= sycl::linearize2(gid, lid, T/N, N) && sycl::linearize2(gid, lid, T/N, N) < T);
-            loop_invariant \pointer(fx, T, 1\2);
-            loop_invariant intermediateResults1(T,N,sycl::h::warp_sizes(),fx,fxGs,fyGs,fzGs);
-            loop_invariant intermediateResults2(T,N,sycl::h::warp_sizes(),fx,fxGs,fyGs,fzGs);
-            loop_invariant intermediateResults3(T,N,sycl::h::warp_sizes(),fx,fxGs,fyGs,fzGs);
-            
-            loop_invariant (lid < N) ==> sycl::linearize2(gid, lid, T/N, N)%4 == 0;
-            loop_invariant (lid < N) ==> (sycl::linearize2(gid, lid, T/N, N)+1)%4 == 1;
-            loop_invariant (lid < N) ==> (sycl::linearize2(gid, lid, T/N, N)+2)%4 == 2;
-        
-            loop_invariant (lid < N ) ==> resultx == sum(fxGs[0 .. sycl::linearize2(gid, lid, T/N, N)]);
-            loop_invariant (lid < N ) ==> resulty == sum(fyGs[0 .. sycl::linearize2(gid, lid, T/N, N)]);
-            loop_invariant (lid < N ) ==> resultz == sum(fzGs[0 .. sycl::linearize2(gid, lid, T/N, N)]);
-                                           
-            loop_invariant (lid == N ) ==> resultx == sum(fxGs[0 .. sycl::linearize2(gid, N-sycl::h::warp_sizes(), T/N, N)+sycl::h::warp_sizes()]);
-            loop_invariant (lid == N ) ==> resulty == sum(fyGs[0 .. sycl::linearize2(gid, N-sycl::h::warp_sizes(), T/N, N)+sycl::h::warp_sizes()]);
-            loop_invariant (lid == N ) ==> resultz == sum(fzGs[0 .. sycl::linearize2(gid, N-sycl::h::warp_sizes(), T/N, N)+sycl::h::warp_sizes()]);  */
-        for (lid=0; lid < N; lid=lid+sycl::h::warp_sizes()){
-            /*@ assert idshift(T,N,gid,lid,sycl::h::warp_sizes()); */
-            //@ assert lidshift(lid,N,sycl::h::warp_sizes());
-            /*@ assert modwrp(lid, sycl::h::warp_sizes()); */
-            //@ ghost int lidp1 = lid+1;
-            //@ ghost int lidp2 = lid+2;
-
-
-            resultx = resultx + fx[sycl::linearize2(gid, lid, T/N, N)];
-            /*@ assert lemmaSumOverConcat(fxGs[0 .. sycl::linearize2(gid, lid, T/N, N)],fxGs[sycl::linearize2(gid, lid, T/N, N) .. sycl::linearize2(gid, lid, T/N, N) + sycl::h::warp_sizes()]);
-                assert lemmaSumOverABBCisAC(fxGs,0,sycl::linearize2(gid, lid, T/N, N),sycl::linearize2(gid, lid, T/N, N),sycl::linearize2(gid, lid, T/N, N)+sycl::h::warp_sizes()); */
-            //@ assert intermediateResults1(T,N,sycl::h::warp_sizes(),fx,fxGs,fyGs,fzGs); 
-            //@ assert (lid+sycl::h::warp_sizes() < N ) ==> resultx == sum(fxGs[0 .. sycl::linearize2(gid, lid+sycl::h::warp_sizes(), T/N, N)]);
-
-            resulty = resulty + fx[sycl::linearize2(gid, lidp1, T/N, N)];
-            /*@ assert lemmaSumOverConcat(fyGs[0 .. sycl::linearize2(gid, lid, T/N, N)],fyGs[sycl::linearize2(gid, lidp1, T/N, N)-1 .. sycl::linearize2(gid, lidp1, T/N, N)+sycl::h::warp_sizes()-1]);
-                assert lemmaSumOverABBCisAC(fyGs,0,sycl::linearize2(gid, lid, T/N, N),sycl::linearize2(gid, lidp1, T/N, N)-1,sycl::linearize2(gid, lidp1, T/N, N)+sycl::h::warp_sizes()-1); */
-            /*@ assert intermediateResults2(T,N,sycl::h::warp_sizes(),fx,fxGs,fyGs,fzGs); */
-            
-            /*@ assert {:2:sycl::linearize2(gid, lidp1, T/N, N):}%4 == 1;
-                assert idshiftBack(lid, sycl::h::warp_sizes(), N);
-                assert 0 <= lidp1%sycl::h::warp_sizes() - 1;
-                assert lidp1%sycl::h::warp_sizes()+sycl::h::warp_sizes()-1 <= sycl::h::warp_sizes(); 
-                assert sycl::linearize2(gid, lidp1, T/N, N)+sycl::h::warp_sizes()-1 <= |fyGs|;                           
-                assert fx[sycl::linearize2(gid, lidp1, T/N, N)] == sum(fyGs[sycl::linearize2(gid, lidp1, T/N, N)-1 .. sycl::linearize2(gid, lidp1, T/N, N)+sycl::h::warp_sizes()-1]); */
-
-            //@ assert (lid+sycl::h::warp_sizes() < N ) ==> resulty == sum(fyGs[0 .. sycl::linearize2(gid, lid+sycl::h::warp_sizes(), T/N, N)]);
-
-            resultz = resultz + fx[sycl::linearize2(gid, lidp2, T/N, N)];
-            /*@ assert lemmaSumOverConcat(fzGs[0 .. sycl::linearize2(gid, lid, T/N, N)],fzGs[sycl::linearize2(gid, lidp2, T/N, N)-2 .. sycl::linearize2(gid, lidp2, T/N, N)+sycl::h::warp_sizes()-2]);
-                assert lemmaSumOverABBCisAC(fzGs,0,sycl::linearize2(gid, lid, T/N, N),sycl::linearize2(gid, lidp2, T/N, N)-2,sycl::linearize2(gid, lidp2, T/N, N)+sycl::h::warp_sizes()-2); */
-            /*@ assert intermediateResults3(T,N,sycl::h::warp_sizes(),fx,fxGs,fyGs,fzGs); */
-            /*@ assert {:3:sycl::linearize2(gid, lidp2, T/N, N):}%4 == 2;
-                assert 0 <= lidp2%sycl::h::warp_sizes() - 2;
-                assert lidp2%sycl::h::warp_sizes()+sycl::h::warp_sizes()-2 <= sycl::h::warp_sizes(); 
-                assert sycl::linearize2(gid, lidp2, T/N, N)+sycl::h::warp_sizes()-2 <= |fzGs|;
-                assert fx[sycl::linearize2(gid, lidp2, T/N, N)] == sum(fzGs[sycl::linearize2(gid, lidp2, T/N, N)-2 .. sycl::linearize2(gid, lidp2, T/N, N)+sycl::h::warp_sizes()-2]); */
-            
-            //@ assert (lid+sycl::h::warp_sizes() < N ) ==> resultz == sum(fzGs[0 .. sycl::linearize2(gid, lid+sycl::h::warp_sizes(), T/N, N)]);
-
-            //@     ghost int lid2=lid+sycl::h::warp_sizes();
-            //@     assert (lid2 < N) ==> sycl::linearize2(gid, lid, T/N, N) + sycl::h::warp_sizes() == sycl::linearize2(gid, lid2, T/N, N);
-            //@     assert (lid2 == N) ==> sycl::linearize2(gid, lid, T/N, N) + sycl::h::warp_sizes() == sycl::linearize2(gid, lid2-sycl::h::warp_sizes(), T/N, N)+sycl::h::warp_sizes();
-            
-            /*@ assert idshift(T,N,gid,lid,sycl::h::warp_sizes()); */
-            //@ assert lidshift(lid,N,sycl::h::warp_sizes());
-            /*@ assert modwrp(lid, sycl::h::warp_sizes()); */
-        }
-        //@ assert gidshiftPlease(gid, T, N);
-    }
-    //@ ghost resultxx = resultx;
-    //@ ghost resultyy = resulty;
-    //@ ghost resultzz = resultz;
-    
-    //@ assert resultx == sum(fxGs[0 .. T]);
-    //@ assert resulty == sum(fyGs[0 .. T]);
-    //@ assert resultz == sum(fzGs[0 .. T]);
-
-}
+void accumulateResult(int T, int N, int* fx);
