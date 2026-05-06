@@ -362,7 +362,7 @@ pure bool mod_add_2(int g, int d) = mod_add(g,d,2,0);
 
 requires g > 0 && g % 4 == 0;
 ensures (2*g)%4 == 0;
-pure bool mod_times_two(int g)  = true;
+pure bool mod_times_two(int g);
 */
 
 
