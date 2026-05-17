@@ -302,7 +302,7 @@ case class GenerateImplementation[Pre <: Generation]()
       // Specialize composite statements to the current endpoint
       case c @ ChorStatement(branch: Branch[Pre])
           if c.explicitEndpoints.contains(target) =>
-        // TODO (RR): For supporting target = CommTargetIndex, need to check here if endpoint index is in range in various places. Just checking the explicitEndpoints list is not sound. An if is included for each endpoint in a total endpoint range, but it should only be executed for those actually in the range. So I think the explicitEndpoints check actually has to become semantic, and wrap the actually projected if. Kind of like this: if (currentEndpoint in range) { if (actual projected if with regular projected expressions) }. This might actually be a bug in the paper as well...?
+        // TODO (RR): For supporting target = CommTargetIndex, need to check here if endpoint index is in range in various places. Just checking the explicitEndpoints list is not sound (see notes)
         implicit val o = branch.o
         Branch[Post](
           Seq((projectExpr(branch.cond), projectStmt(branch.yes))) ++
