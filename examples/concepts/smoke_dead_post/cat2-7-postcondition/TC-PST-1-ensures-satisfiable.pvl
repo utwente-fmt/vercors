@@ -1,0 +1,10 @@
+//:: cases TC_PST_1_EnsuresSatisfiable
+//:: tools silicon
+//:: verdict Pass
+
+// TC-PST-1: Postcondition \result > 0 is satisfiable on its own (e.g., result=1).
+// The postSat checker must not fire.
+ensures \result > 0;
+int f(int x) {
+    return 1;
+}

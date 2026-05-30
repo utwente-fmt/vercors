@@ -1,0 +1,22 @@
+//:: cases TC_PC_4_MultiplePreconditions
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PC-4: Multiple preconditions narrow the range to [1,4].
+// First branch (x > 10) is dead — outside the range.
+// Second branch (x > 3) is live — x could be 4.
+// Third branch (x > 20) is dead — outside the range.
+// Expected: warning on first and third branch only.
+requires x > 0;
+requires x < 5;
+void f(int x) {
+    if (x > 10) {
+        return; // dead: outside range [1,4]
+    }
+    if (x > 3) {
+        return; // live: x could be 4
+    }
+    if (x > 20) {
+        return; // dead: outside range [1,4]
+    }
+}

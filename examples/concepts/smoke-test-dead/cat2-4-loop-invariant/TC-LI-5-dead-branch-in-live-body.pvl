@@ -1,0 +1,22 @@
+//:: cases TC_LI_5_DeadBranchInLiveBody
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-5: The loop body as a whole is live, but a branch inside it is dead.
+// The invariant (x > 0) combined with the loop body's reachable state rules
+// out x < 0 inside. Distinct from TC-LI-2 where the whole body is dead.
+// Expected: warning on first inner branch only — the loop body itself is live.
+requires x > 0;
+void f(int x) {
+    loop_invariant x > 0;
+    while (x < 10) {
+        // loop body is live: x starts > 0 and loop condition is x < 10
+        if (x < 0) {
+            refute false; // dead: invariant x > 0 contradicts x < 0
+        }
+        if (x > 0) {
+            refute false; // live: invariant guarantees x > 0
+        }
+        x = x + 1;
+    }
+}

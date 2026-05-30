@@ -1,0 +1,9 @@
+//:: cases TC_PST_2_EnsuresUnsatContradiction
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-2: \result > 0 && \result < 0 is always false — no value satisfies both.
+// requires false makes normal verification vacuous; only postUnsatisfiable fires.
+requires x != 0;
+ensures \result > 0 && \result < 0;
+int f(int x) { return 1; }

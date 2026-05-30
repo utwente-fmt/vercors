@@ -1,0 +1,10 @@
+//:: cases TC_PST_6_EnsuresStricterSatisfiable
+//:: tools silicon
+//:: verdict Pass
+
+// TC-PST-6: Conjunction \result > 5 && \result < 100 is satisfiable (e.g., result=50).
+// The postSat checker must not fire.
+ensures \result > 5 && \result < 100;
+int f(int x) {
+    return 50;
+}

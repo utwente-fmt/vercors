@@ -1,0 +1,12 @@
+//:: cases TC_LI_2_LoopBodyDead
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-2: Loop body dead — precondition x > 0 contradicts loop condition x < 0.
+// The loop body is unreachable: the loop is never entered.
+requires x > 0;
+void f(int x) {
+    while (x < 0) {
+        refute false; // dead: x > 0 AND x < 0 unsatisfiable
+    }
+}

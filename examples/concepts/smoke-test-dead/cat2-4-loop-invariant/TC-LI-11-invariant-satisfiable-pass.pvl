@@ -1,0 +1,11 @@
+//:: cases TC_LI_11_InvariantSatisfiablePass
+//:: tools silicon
+//:: verdict Pass
+
+// TC-LI-11 (Negative): loop_invariant x >= 0 is satisfiable — x = 0 witnesses it.
+// The invariant satisfiability check must NOT fire.
+requires x >= 0;
+void f(int x) {
+    loop_invariant x >= 0;
+    while (x < 10) { x = x + 1; }
+}

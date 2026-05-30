@@ -27,10 +27,13 @@ import vct.options.types.{Backend, PathOrStd}
 import vct.parsers.debug.DebugOptions
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
+import vct.col.rewrite._
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
   CTypeConversions,
+  CheckLoopInvariantSatisfiability,
   CollectLocalDeclarations,
+  DetectDeadCode,
   DisambiguateLocation,
   DisambiguatePredicateExpression,
   EncodeAssuming,
@@ -360,6 +363,7 @@ case class SilverTransformation(
     inferHeapContextIntoFrame: Boolean = true,
     bipResults: BIP.VerificationResults,
     checkSat: Boolean = true,
+    checkPostSat: Boolean = true,
     splitVerificationByProcedure: Boolean = false,
     override val optimizeUnsafe: Boolean = false,
     generatePermissions: Boolean = false,
@@ -441,6 +445,8 @@ case class SilverTransformation(
         PureMethodsToFunctions,
         InlineApplicables,
         InlineTrivialLets,
+        DetectDeadCode, // before RefuteToInvertedAssert so inserted Refute nodes are transformed, and before ParBlockEncoder so ParBlock/ParAtomic still exist
+        CheckLoopInvariantSatisfiability, // before EncodeExtract (encodes Extract+FramedProof) and before EncodeProofHelpers (encodes FramedProof)
         RefuteToInvertedAssert,
         ExplicitResourceValues,
         EncodeResourceValues,
@@ -485,10 +491,12 @@ case class SilverTransformation(
         ResolveExpressionSideEffects,
         EncodeTryThrowSignals,
         MonomorphizeClass,
+        // DetectDeadCode is placed before RefuteToInvertedAssert above
         // No more classes
         ClassToRef,
         HeapVariableToRef,
         CheckContractSatisfiability.withArg(checkSat),
+        CheckPostconditionSatisfiability.withArg(checkPostSat),
         DesugarCollectionOperators,
         EncodeNdIndex,
         EncodeBitVectors.withArg(opaqueBitwiseOperators),

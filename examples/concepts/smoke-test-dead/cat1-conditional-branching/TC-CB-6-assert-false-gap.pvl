@@ -1,0 +1,16 @@
+//:: cases TC_CB_6_AssertFalseGap
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CB-6: Documented gap — assert false is different from assume false.
+// assert false is a proof obligation: it fails with assertFailed, but does NOT
+// add false to the state. The verifier does not treat subsequent code as dead.
+//
+// Verdict is Fail due to assertFailed on the assert itself, NOT due to
+// refute false firing. The branch after assert false is still considered live.
+void f(int x) {
+    assert false; // assertFailed: state is feasible, so false never holds
+    if (x > 0) {
+        x = x + 1; // NOT dead: assert false does not narrow the state
+    }
+}

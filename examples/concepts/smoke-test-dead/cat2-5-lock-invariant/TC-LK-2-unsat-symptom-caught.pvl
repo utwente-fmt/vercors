@@ -1,0 +1,46 @@
+//:: cases TC_LK_2_UnsatSymptomCaught
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LK-2: The SYMPTOM of an unsatisfiable lock invariant is caught by the
+// existing appendCheck(Lock) in DetectDeadCode, but the ROOT CAUSE is not.
+//
+// The invariant (val > 5 AND val < 3) is always false.  After 'lock this',
+// EncodeIntrinsicLock does:
+//   inhale Perm(lockInv, write)          -- acquire the predicate
+//   unfold lockInv                        -- expand it: val>5 ** val<3 → false
+//   inhale Perm(held, write)             -- acquire held token
+// The state is now contradictory (false).  The appendCheck(Lock) that
+// DetectDeadCode inserts right after 'lock this' is:
+//   refute false  →  assert false (expected to fail)
+// From a contradictory state, 'assert false' passes, the expected error is NOT
+// tripped, RefuteFailed fires → DeadBranch("code after locking this").
+//
+// Gap: this fires once per method that uses 'lock this', all reporting the
+// same root cause.  A CheckLockInvariantSatisfiability pass (analogous to
+// CheckLoopInvariantSatisfiability) would fire LockInvariantUnsatisfiable
+// once at the CLASS level using:
+//   FramedProof(pre=true, body={ Inhale(lockInv); refute false }, post=true)
+// before any method is verified.
+lock_invariant Perm(val, write) ** val > 5 ** val < 3;
+class UnsatInvClass {
+    int val;
+
+    requires committed(this);
+    void method_a() {
+        lock this;
+        // State: false (invariant is unsat).  appendCheck inserts refute false here.
+        // 'assert false' passes from contradictory state → DeadBranch fires.
+        if (val > 0) { }  // dead — but error says "dead after locking", not "invariant unsat"
+        unlock this;
+    }
+
+    // The same root cause fires a second separate DeadBranch in method_b.
+    // A class-level check would report this once and stop here.
+    requires committed(this);
+    void method_b() {
+        lock this;
+        if (val < 10) { }  // dead — same unsat invariant, same DeadBranch error again
+        unlock this;
+    }
+}

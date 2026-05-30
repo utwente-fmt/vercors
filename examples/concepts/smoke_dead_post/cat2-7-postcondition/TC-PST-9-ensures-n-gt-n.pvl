@@ -1,0 +1,9 @@
+//:: cases TC_PST_9_EnsuresNGtN
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-9: \result > \result is always false — no value is strictly greater than itself.
+// requires false makes normal verification vacuous; only postUnsatisfiable fires.
+requires true;
+ensures \result > \result;
+int f(int x) { return 1; }

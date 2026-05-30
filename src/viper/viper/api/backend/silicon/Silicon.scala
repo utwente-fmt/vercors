@@ -138,7 +138,7 @@ case class Silicon(
 
     val plugins =
       SilverPluginManager(Some(
-        Seq("viper.silver.plugin.standard.termination.TerminationPlugin")
+        Seq("viper.silver.plugin.standard.termination.TerminationPlugin", "viper.silver.plugin.standard.refute.RefutePlugin")
           .mkString(":")
       ))(
         silicon.reporter,

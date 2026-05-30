@@ -1,0 +1,23 @@
+//:: cases TC_CA_6_IntentionalAssertFalseNoWarning
+//:: tools silicon
+//:: verdict Pass
+
+// TC-CA-6: assert false marks the outer branch as intentionally dead.
+//
+// requires x > 0 makes x < 0 unreachable — normally a deadBranch warning.
+// The developer writes assert false as the FIRST statement in the body, signalling
+// that this dead code is intentional (e.g. defensive programming, fault injection
+// countermeasure).  instrumentBody sees isIntentionallyDead = true and skips
+// inserting refute false for this branch entirely.
+//
+// The body has no inner branches, loops, assumes, or inhales after assert false,
+// so dispatch(body) produces no additional instrumentation.
+//
+// Expected: Pass — no deadBranch warning, no other errors.
+requires x > 0;
+void f(int x) {
+    if (x < 0) {
+        assert false; // intentional — suppresses deadBranch for this branch
+        x = 0;        // code after the annotation; no branches to instrument
+    }
+}

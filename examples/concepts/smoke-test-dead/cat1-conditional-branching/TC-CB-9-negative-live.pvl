@@ -1,0 +1,12 @@
+//:: cases TC_CB_9_NegativeLive
+//:: tools silicon
+//:: verdict Pass
+
+// TC-CB-9 (Negative): No specification, branch condition is satisfiable.
+// refute false passes — the branch is live. No dead code warning expected.
+// Baseline false-positive test.
+void f(int x) {
+    if (x > 0) {
+        x = x +1; // live: x could be anything > 0
+    }
+}

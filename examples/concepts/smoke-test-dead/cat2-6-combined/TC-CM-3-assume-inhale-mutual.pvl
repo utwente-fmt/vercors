@@ -1,0 +1,14 @@
+//:: cases TC_CM_3_AssumeInhaleMutual
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CM-3: assume + inhale contradict each other.
+// assume x > 10 AND inhale x < 5 — no integer satisfies both.
+// The state becomes contradictory, making the branch dead.
+void f(int x) {
+    assume x > 10;
+    inhale x < 5; // contradicts assume x > 10
+    if (x == 7) {
+        return; // dead: mutual contradiction between assume and inhale
+    }
+}

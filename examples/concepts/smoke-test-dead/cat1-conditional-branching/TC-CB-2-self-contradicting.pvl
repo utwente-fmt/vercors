@@ -1,0 +1,11 @@
+//:: cases TC_CB_2_SelfContradicting
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CB-2: Branch condition contradicts itself — x > 0 && x < 0 is never true.
+// No specification needed: the condition alone is impossible.
+void f(int x) {
+    if (x > 0 && x < 0) {
+        x = x + 1; // dead: impossible condition
+    }
+}

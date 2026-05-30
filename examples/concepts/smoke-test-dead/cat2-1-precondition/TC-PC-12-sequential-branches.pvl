@@ -1,0 +1,20 @@
+//:: cases TC_PC_12_SequentialBranches
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PC-12: Multiple sequential branches with mixed liveness.
+// First and third are dead, second is live.
+// Expected: warning on first and third branch only.
+requires x > 0;
+requires x < 10;
+void f(int x) {
+    if (x < 0) {
+        return; // dead: outside range (0,10)
+    }
+    if (x > 5) {
+        return; // live: x could be 6..9
+    }
+    if (x > 20) {
+        return; // dead: outside range (0,10)
+    }
+}

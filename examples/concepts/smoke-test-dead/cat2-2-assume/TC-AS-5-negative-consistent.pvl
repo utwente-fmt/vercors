@@ -1,0 +1,12 @@
+//:: cases TC_AS_5_NegativeConsistent
+//:: tools silicon
+//:: verdict Pass
+
+// TC-AS-5 (Negative): assume is consistent with the branch condition.
+// assume x > 0 does not exclude x > 5. Branch is live.
+void f(int x) {
+    assume x > 0;
+    if (x > 5) {
+        x = x + 1; // live: x could be 6, 7, ... satisfying both constraints
+    }
+}

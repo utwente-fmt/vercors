@@ -1,0 +1,16 @@
+//:: cases TC_LI_1_PostLoopDead
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-1: Post-loop branch dead — after the loop the verifier knows both
+// the invariant (x >= 0) and the exit condition (NOT x < 10, i.e. x >= 10).
+// Combined: x >= 10. Branch x < 0 is impossible there.
+requires x >= 0;
+void f(int x) {
+    loop_invariant x >= 0;
+    while (x < 10) { x = x + 1; }
+    // post-loop state: x >= 0 AND x >= 10, so x >= 10
+    if (x < 0) {
+        return; // dead: x >= 10 contradicts x < 0
+    }
+}

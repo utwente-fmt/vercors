@@ -1,0 +1,13 @@
+//:: cases TC_PC_5_Context
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PC-5: context clause — equivalent to requires + ensures.
+// The entry state established by context x > 0 makes x < 0 dead.
+context x>0; //becomes requires > 0 && ensures > 0 anyways
+void f(int x) {
+    if (x < 0) {
+        return; // dead: context adds x > 0 to entry state
+    }
+    //PROBLEM: transformations dont exist
+}

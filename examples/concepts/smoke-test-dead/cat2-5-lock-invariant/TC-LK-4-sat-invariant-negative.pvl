@@ -1,0 +1,39 @@
+//:: cases TC_LK_4_SatInvariantNegative
+//:: tools silicon
+//:: verdict Pass  // Correct: satisfiable invariant, no dead code anywhere
+
+// TC-LK-4 (Negative): A satisfiable lock invariant produces no false positives
+// from either the existing appendCheck(Lock) or the proposed appendCheck(Unlock).
+//
+// After 'lock this': state has Perm(val,write) ** val > 0 — consistent.
+//   appendCheck(Lock): refute false inserted.  From a live state, 'assert false'
+//   FAILS → expected error IS tripped → no DeadBranch.  Correct.
+//
+// After 'unlock this': the pure fact val > 0 is re-deposited into the predicate
+// and exhaled.  The remaining state is consistent.
+//   appendCheck(Unlock) (proposed): refute false inserted.  'assert false' fails →
+//   expected error tripped → no DeadBranch.  Correct — no false positive.
+//
+// CheckLockInvariantSatisfiability (proposed): Inhale(val > 0); refute false.
+//   'assert false' fails (val > 0 is satisfiable) → expected error tripped →
+//   no LockInvariantUnsatisfiable.  Correct — no false positive.
+lock_invariant Perm(val, write) ** val > 0;
+class SatInvClass {
+    int val;
+
+    ensures committed(this);
+    constructor() {
+        val = 1;
+        commit this;  // fold lockInv: needs Perm(val,write) ** val>0  →  1>0 holds
+    }
+
+    requires committed(this);
+    void method() {
+        lock this;
+        // State: Perm(val, write) ** val > 0 — live.  No dead branch.
+        assert val > 0;  // holds: invariant guarantees it
+        val = val + 1;
+        unlock this;
+        // State after unlock: consistent, no dead code.
+    }
+}

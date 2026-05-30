@@ -1,0 +1,12 @@
+//:: cases TC_PST_5_EnsuresPermFalse
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-5: Perm(val, write) ** Perm(val, write) claims 200% of write permission —
+// no heap state can satisfy two full write permissions for the same location.
+// requires false makes normal verification vacuous; only postUnsatisfiable fires.
+class TC_PST_5_EnsuresPermFalse {
+    int val;
+    ensures Perm(val, write) ** Perm(val, write);
+    void f() { }
+}

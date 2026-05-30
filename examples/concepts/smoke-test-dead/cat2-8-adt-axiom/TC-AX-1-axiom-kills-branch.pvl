@@ -1,0 +1,17 @@
+//:: cases TC_AX_1_AxiomKillsBranch
+//:: tools silicon
+//:: verdict Fail
+
+// TC-AX-1: ADT axiom f() > 100 makes the branch condition f() < 0 impossible.
+// Question: does DetectDeadCode fire when deadness comes from an axiom
+// rather than an explicit precondition?
+adt Foo {
+    pure int f();
+    axiom (f() > 100);
+}
+
+void method() {
+    if (Foo.f() < 0) {
+        int x = 1; // dead: axiom guarantees f() > 100, so f() < 0 is unreachable
+    }
+}

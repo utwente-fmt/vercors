@@ -1,0 +1,12 @@
+//:: cases TC_IH_5_NegativeConsistent
+//:: tools silicon
+//:: verdict Pass
+
+// TC-IH-5 (Negative): inhale is consistent with the branch condition.
+// inhale x > 0 does not exclude x > 5. Branch is live.
+void f(int x) {
+    inhale x > 0;
+    if (x > 5) {
+        return; // live: x could be 6, 7, ... satisfying both constraints
+    }
+}

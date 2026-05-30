@@ -1,0 +1,9 @@
+//:: cases TC_PST_4_EnsuresResultContradiction
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-4: \result > 5 && \result < 0 — no integer is simultaneously > 5 and < 0.
+// requires false makes normal verification vacuous; only postUnsatisfiable fires.
+requires x > 0 && x < 0;
+ensures \result > 5 && \result < 0;
+int f(int x) { return 1; }

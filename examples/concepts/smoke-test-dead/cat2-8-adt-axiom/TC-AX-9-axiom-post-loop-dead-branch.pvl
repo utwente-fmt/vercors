@@ -1,0 +1,27 @@
+//:: cases TC_AX_9_AxiomPostLoopDeadBranch
+//:: tools silicon
+//:: verdict Fail
+
+// TC-AX-9: After the loop the verifier knows:
+//   invariant:      x <= Foo.f()
+//   exit condition: NOT (x < Foo.f()), i.e. x >= Foo.f()
+//   combined:       x == Foo.f()
+//   axiom:          Foo.f() > 100
+//   therefore:      x > 100
+// The branch x < 0 is dead — DetectDeadCode should fire on the then-branch.
+adt Foo {
+    pure int f();
+    axiom (f() > 100);
+}
+
+void method(int x) {
+    requires x <= Foo.f();
+    loop_invariant x <= Foo.f();
+    while (x < Foo.f()) {
+        x = x + 1;
+    }
+    // post-loop: x == Foo.f() > 100, so x > 100
+    if (x < 0) {
+        int z = 1; // dead: x > 100 contradicts x < 0
+    }
+}

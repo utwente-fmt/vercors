@@ -529,6 +529,14 @@ case class LoopTerminationMeasureFailed(node: DecreasesClause[_])
   override def inlineDescWithSource(source: String): String =
     s"Loop may not terminate, since ${node.o.inlineContextText} may be unbounded or nondecreasing"
 }
+case class LoopInvariantUnsatisfiable(node: LoopInvariant[_])
+    extends LoopInvariantFailure with NodeVerificationFailure {
+  override def code: String = "invariantUnsatisfiable"
+  override def descInContext: String =
+    "This loop invariant may be unsatisfiable (equivalent to false)."
+  override def inlineDescWithSource(source: String): String =
+    s"Loop invariant `$source` may be unsatisfiable."
+}
 case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_])
     extends VerificationFailure with AnyStarError {
   override def code: String = "notInjective"
@@ -1374,6 +1382,24 @@ case class NontrivialUnsatisfiable(node: ApplicableContract[_])
     "The precondition of this contract may be unsatisfiable. If this is intentional, replace it with `requires false`."
   override def inlineDescWithSource(source: String): String =
     s"The precondition in `$source` may be unsatisfiable."
+}
+
+case class NontrivialPostconditionUnsatisfiable(node: ApplicableContract[_])
+    extends NodeVerificationFailure with ContractedFailure {
+  override def code: String = "postUnsatisfiable"
+  override def descInContext: String =
+    "The postcondition of this contract may be unsatisfiable."
+  override def inlineDescWithSource(source: String): String =
+    s"The postcondition in `$source` may be unsatisfiable."
+}
+
+case class DeadBranch(node: Node[_], branchKind: String)
+    extends NodeVerificationFailure with ContractedFailure {
+  override def code: String = "deadBranch"
+  override def descInContext: String =
+    s"The $branchKind is dead — the verifier proved this code path cannot be reached under the current specification (preconditions, assumptions, and invariants)."
+  override def inlineDescWithSource(source: String): String =
+    s"$branchKind is dead: `$source` cannot be reached under the current specification."
 }
 
 sealed trait UnsafeCoercion extends NodeVerificationFailure

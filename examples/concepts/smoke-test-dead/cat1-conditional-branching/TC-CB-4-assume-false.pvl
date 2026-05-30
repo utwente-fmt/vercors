@@ -1,0 +1,12 @@
+//:: cases TC_CB_4_AssumeFalse
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CB-4: assume false makes the state immediately contradictory.
+// All subsequent code is dead. refute false fires in the branch.
+void f(int x) {
+    assume false; // state immediately contradictory
+    if (x > 0) {
+        x = x + 1; // dead: anything after assume false is unreachable
+    }
+}

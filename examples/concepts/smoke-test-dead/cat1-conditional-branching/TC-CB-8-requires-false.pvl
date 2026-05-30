@@ -1,0 +1,20 @@
+//:: cases TC_CB_8_RequiresFalse
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CB-8: requires false — the precondition can never be satisfied.
+// The method body is verified in an unsatisfiable context, so every branch
+// is dead. Both refute false statements fire.
+//
+// Note: CheckContractSatisfiability separately warns about the unsatisfiable
+// precondition. Dead code detection is complementary: it catches the consequence
+// that every branch in the method body is dead.
+requires false;
+void f(int x) {
+    if (x > 0) {
+       x = x + 1; // dead: precondition is false
+    }
+    if (x < 0) {
+        x = x + 1; // dead: precondition is false
+    }
+}

@@ -1,0 +1,17 @@
+//:: cases TC_AX_6_AxiomKillsPostcondition
+//:: tools silicon
+//:: verdict Fail
+
+// TC-AX-6: Postcondition \result == Foo.f() && \result < 0 is unsatisfiable
+// under the axiom f() > 100: substituting gives f() < 0, which contradicts f() > 100.
+// CheckPostconditionSatisfiability generates a synthetic method with the postcondition
+// as its precondition (with \result as a fresh variable). Under the axiom, the
+// combined constraint is unsat, so assert false trivially holds and
+// NontrivialPostconditionUnsatisfiable fires.
+adt Foo {
+    pure int f();
+    axiom (f() > 100);
+}
+
+ensures \result == Foo.f() && \result < 0;
+int getF() { return Foo.f(); }

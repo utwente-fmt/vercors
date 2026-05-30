@@ -1,0 +1,13 @@
+//:: cases TC_CB_3_TautologyElseDead
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CB-3: Condition is a tautology — then-branch is always taken,
+// else-branch is dead. refute false fires in the else.
+void f(int x) {
+    if (true) {
+        x = x + 1; // live: condition always true
+    } else {
+        x = x + 2; // dead: else never reached
+    }
+}

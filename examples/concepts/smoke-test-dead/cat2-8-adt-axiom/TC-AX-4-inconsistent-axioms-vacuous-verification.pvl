@@ -1,0 +1,20 @@
+//:: cases TC_AX_4_InconsistentAxiomsVacuousVerification
+//:: tools silicon
+//:: verdict Fail
+
+// TC-AX-4: Mutually inconsistent axioms with a method present.
+// f() > 100 AND f() < 0 is globally unsatisfiable.
+// CheckContractSatisfiability generates a synthetic method with the
+// precondition (here: true) and asserts false inside. Under inconsistent
+// axioms, assert false trivially holds — the expected error is not tripped,
+// so NontrivialUnsatisfiable fires on the method's contract.
+// The blame points at the precondition, not the axiom — the root cause is obscured.
+adt Broken {
+    pure int f();
+    axiom (f() > 100);
+    axiom (f() < 0);
+}
+
+void method() {
+    int x = Broken.f(); // brings Broken's axioms into scope
+}

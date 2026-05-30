@@ -1,0 +1,14 @@
+//:: cases TC_AX_3_InconsistentAxiomsNoMethod
+//:: tools silicon
+//:: verdict Pass
+
+// TC-AX-3 (Known Gap): Two axioms that directly contradict each other.
+// f() > 100 AND f() < 0 is unsatisfiable — no integer satisfies both.
+// With no methods present, VerCors generates no verification query that involves
+// these axioms, so the inconsistency is silently accepted.
+// Expected verdict: Pass (gap — should ideally be Fail).
+adt Broken {
+    pure int f();
+    axiom (f() > 100);
+    axiom (f() < 0);
+}

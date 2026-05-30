@@ -1,0 +1,13 @@
+//:: cases TC_PC_6_BooleanPrecondition
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PC-6: Boolean precondition — requires b == true pins b.
+// The negation (!b) is dead because b is always true.
+requires b == true;
+void f(boolean b) {
+    if (!b) {
+        return; // dead: b is always true
+    }
+    return;
+}

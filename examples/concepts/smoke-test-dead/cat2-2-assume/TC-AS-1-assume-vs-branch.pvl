@@ -1,0 +1,13 @@
+//:: cases TC_AS_1_AssumeVsBranch
+//:: tools silicon
+//:: verdict Fail
+
+// TC-AS-1: assume mid-body directly contradicts the branch condition.
+// assume x > 0 makes x < 0 impossible at the branch.
+void f(int x) {
+    assume x > 0;
+    if (x < 0) {
+        x = x - 1;
+        assume false; // dead: assume x > 0 contradicts x < 0
+    }
+}

@@ -1,0 +1,15 @@
+//:: cases TC_AX_2_AxiomKillsPrecondition
+//:: tools silicon
+//:: verdict Fail
+
+// TC-AX-2: Precondition Foo.f() < 0 directly contradicts axiom f() > 100.
+// Question: does CheckContractSatisfiability detect this and report
+// NontrivialUnsatisfiable, and does the blame point at the precondition
+// rather than the axiom?
+adt Foo {
+    pure int f();
+    axiom (f() > 100);
+}
+
+requires Foo.f() < 0;
+void method() { }

@@ -253,6 +253,7 @@ class Main {
     requires Perm(executed[task], 1\2) ** !executed[task];
     void execute(int i, int task) {
         lock this;
+        //----------------------------no in fragma-c-------------
         noSelfLoop(task);
         executed[task] = true;
         task_owner[task] = -1;
