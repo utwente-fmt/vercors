@@ -2,40 +2,17 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-LK-3: Dead code after 'unlock this' IS already caught — not by a dedicated
-// Unlock case in DetectDeadCode, but because the unlock expansion always ends with
-// 'assume committed(this)', which matches the existing appendCheck(Assume) case
-// at DetectDeadCode.scala:179.
-//
-// Unlock expansion (EncodeIntrinsicLock):
-//   fold lockInv                       -- check invariant holds (succeeds from false)
-//   exhale Perm(lockInv, write)        -- remove predicate permission
-//   exhale Perm(held, write)           -- remove held token
-//   assume committed(this)             -- <-- appendCheck(Assume) inserts refute false here
-//
-// The contradictory precondition (val > 5 AND val < 3 is impossible) puts false in the
-// path condition from method entry.  After unlock, the pure-fact contradiction survives
-// the exhales.  The refute false after 'assume committed(this)' does not fail
-// (assert false passes from the contradictory state), so the expected error is not
-// tripped → RefuteFailed → DeadBranch("code after assume committed(this)").
-//
-// Conclusion: no separate 'case Unlock => appendCheck' is needed in DetectDeadCode.
-// The Assume case at the tail of every unlock expansion already covers it.
 lock_invariant Perm(val, write) ** val > 5 ** val < 3;
 class UnlockDeadCaughtClass {
     int val;
 
-    // Precondition: contradictory (val > 5 AND val < 3 can never both hold).
-    // Simulates the heap state after an external lock on an unsatisfiable invariant.
     requires held(this) ** Perm(val, write) ** val > 5 ** val < 3;
     void release_only() {
-        // State: false (val > 5 ∧ val < 3 is impossible)
-        // No 'lock this' here → appendCheck(Lock) never fires in this method.
+        // State: false (val > 5 ∧ val < 3 is impossible).
+        // No 'lock this' here → no Refute from the lock expansion.
         unlock this;
-        // unlock expands to: fold; exhale; exhale; assume committed(this)
-        //                                                ↑ refute false inserted here
-        // From the contradictory state, 'assert false' passes in the refute check
-        // → expected error not tripped → DeadBranch("code after assume committed").
-        int dead = 0;   // dead — IS flagged via the assume-based check after unlock
+        // EncodeIntrinsicLock's Refute(ff)(UnlockDeadCodeBlame) fires here
+        // → UnlockCodeDead("unlock this").
+        int dead = 0;
     }
 }

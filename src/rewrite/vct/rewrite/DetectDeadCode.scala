@@ -9,13 +9,14 @@ import vct.col.origin.{
   LoopInvariantFailure,
   LoopInvariantNotEstablished,
   LoopInvariantNotMaintained,
+  NamePrefix,
   Origin,
   RefuteFailed,
 }
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers.ff
 
-case object DetectDeadCode extends RewriterBuilder {
+case object DetectDeadCode extends RewriterBuilderArg[Boolean] {
   override def key: String = "detectDeadCode"
   override def desc: String =
     "Check that branches, loop bodies, switch cases, and code after state-narrowing statements are reachable under the method preconditions and assumptions."
@@ -38,7 +39,7 @@ case object DetectDeadCode extends RewriterBuilder {
   }
 }
 
-case class DetectDeadCode[Pre <: Generation]() extends Rewriter[Pre] {
+case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true) extends Rewriter[Pre] {
   import DetectDeadCode.DeadCodeBlame
 
   val methodBlame: ScopedStack[Blame[ContractedFailure]] = ScopedStack()
@@ -90,7 +91,7 @@ case class DetectDeadCode[Pre <: Generation]() extends Rewriter[Pre] {
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
-    if (methodBlame.topOption.isEmpty || afterAssertFalse.nonEmpty) stat.rewriteDefault()
+    if (!doCheck || methodBlame.topOption.isEmpty || afterAssertFalse.nonEmpty) stat.rewriteDefault()
     else stat match {
       case branch @ Branch(Seq((cond, thenBody), (BooleanValue(true), elseBody))) =>
         implicit val o: Origin = branch.o
@@ -168,8 +169,35 @@ case class DetectDeadCode[Pre <: Generation]() extends Rewriter[Pre] {
           Block(before.map(dispatch) ++ afterAssertFalse.having(()) { rest.map(dispatch) })
         }
 
-      case l @ Lock(obj)              => appendCheck(l, s"code after locking `${condText(obj)}`")
-      case u @ Unfold(res)            => appendCheck(u, s"code after unfolding `${condText(res)}`")
+      // CheckLockInvariantSatisfiability tags its FramedProof inhale with origin prefix
+      // "checkLockInvSat".  Without this skip, DetectDeadCode would append its own
+      // Refute(ff) after that inhale, producing a DeadBranch alongside the intended
+      // LockInvariantUnsatisfiable error.  The same latent issue exists for
+      // CheckLoopInvariantSatisfiability but is rarely triggered.
+      case i @ Inhale(_) if i.o.find[NamePrefix].exists(_.prefix == "checkLockInvSat") =>
+        i.rewriteDefault()
+
+      // EncodeIntrinsicLock tags the invariant-predicate inhale with origin prefix
+      // "lockInv".  At this point the predicate is still folded so the state is always
+      // live — a check here would be a no-op and would shadow the single Refute(ff)
+      // placed by EncodeIntrinsicLock after the complete lock expansion.
+      case i @ Inhale(_) if i.o.find[NamePrefix].exists(_.prefix == "lockInv") =>
+        i.rewriteDefault()
+
+      // EncodeIntrinsicLock tags the held-token inhale with origin prefix "lockHeld"
+      // and inserts its own Refute(ff) immediately after the unfold (where the lock
+      // invariant body first becomes visible to the prover).  Skipping this inhale
+      // prevents a duplicate DeadBranch alongside the LockCodeDead that fires from
+      // EncodeIntrinsicLock's Refute.
+      case i @ Inhale(_) if i.o.find[NamePrefix].exists(_.prefix == "lockHeld") =>
+        i.rewriteDefault()
+
+      // EncodeIntrinsicLock tags the committed-restoration assume with origin prefix
+      // "lockCommitted" and inserts its own Refute(ff) before it (after the exhales).
+      // Skipping this assume prevents a duplicate DeadBranch alongside UnlockCodeDead.
+      case a @ Assume(_) if a.o.find[NamePrefix].exists(_.prefix == "lockCommitted") =>
+        a.rewriteDefault()
+
       case a @ Assume(BooleanValue(false)) =>
         implicit val o: Origin = a.o
         methodBlame.top.blame(DeadBranch(a, "assume false"))

@@ -70,6 +70,26 @@ case object EncodeIntrinsicLock extends RewriterBuilder {
     override def blame(error: AssertFailed): Unit =
       lock.blame.blame(LockNotCommitted(lock))
   }
+
+  // Fired when the state is dead after the complete lock operation (all three
+  // expansion statements have run and the invariant body is visible to the prover).
+  // PanicBlame guard: Wait(obj) synthesises Lock(obj)(PanicBlame(...)); calling
+  // PanicBlame.blame would throw, so we suppress it — the primary error is already
+  // reported at the original lock site.
+  case class LockDeadCodeBlame(lock: Lock[_]) extends Blame[RefuteFailed] {
+    override def blame(error: RefuteFailed): Unit =
+      lock.blame match {
+        case _: PanicBlame => // synthesised lock (e.g. from Wait) — suppress
+        case _             => lock.blame.blame(LockCodeDead(lock))
+      }
+  }
+
+  // Fired when the state is dead after the complete unlock operation.
+  case class UnlockDeadCodeBlame(unlock: Unlock[_]) extends Blame[RefuteFailed] {
+    override def blame(error: RefuteFailed): Unit =
+      unlock.blame.blame(UnlockCodeDead(unlock))
+  }
+
 }
 
 case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
@@ -215,20 +235,51 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
             Assert(getCommitted(obj)(LockLockObjectNull(lock)))(
               NotCommittedAssertFailed(lock)
             ),
-            Inhale(Perm(PredicateLocation(getInvariant(obj)), WritePerm())),
+            // Tag the invariant-predicate inhale with LockInvariantOrigin ("lockInv"
+            // prefix) so DetectDeadCode skips it.  The predicate is still folded here
+            // so the state is always live at this point — a check would be a no-op
+            // and would mask the single authoritative check inserted below.
+            {
+              implicit val o: Origin = LockInvariantOrigin(getClass(obj))
+              Inhale(Perm(PredicateLocation(getInvariant(obj)), WritePerm()))
+            },
+            // After unfold the invariant body is in the heap and visible to the prover.
+            // A contradictory invariant (e.g. x>5 ** x<3) makes the state dead here.
             Unfold(ScaledPredicateApply(getInvariant(obj), WritePerm()))(
               PanicBlame(
                 "Unfolding a predicate immediately after inhaling it should never fail."
               )
             ),
-            Inhale(Perm(PredicateLocation(getHeld(obj)), WritePerm())),
+            // Tag the held-token inhale with HeldTokenOrigin ("lockHeld" prefix) so
+            // DetectDeadCode skips its generic appendCheck for it.
+            {
+              implicit val o: Origin = HeldTokenOrigin(getClass(obj))
+              Inhale(Perm(PredicateLocation(getHeld(obj)), WritePerm()))
+            },
+            // Per-site dead-code check for the complete lock operation.
+            // This is distinct from CheckLockInvariantSatisfiability's FramedProof:
+            //   - FramedProof tests the invariant in isolation (pre = tt, fresh state)
+            //     → catches: invariant is universally false
+            //   - This Refute tests the actual thread state after acquiring the lock
+            //     → catches: invariant interacts with thread-local preconditions to
+            //       produce a contradiction even when the invariant is satisfiable alone
+            // Both can fire for the same lock (LockInvariantUnsatisfiable + LockCodeDead)
+            // when the invariant is universally false, but they carry distinct meaning.
+            Refute(ff)(LockDeadCodeBlame(lock)),
           ))
         else
           Block(Seq(
             Assert(getCommitted(obj)(LockLockObjectNull(lock)))(
               NotCommittedAssertFailed(lock)
             ),
-            Inhale(Perm(PredicateLocation(getHeld(obj)), WritePerm())),
+            // No invariant: no unfold happens, so the lock itself cannot introduce a
+            // contradiction.  Still include the per-site check so that dead code caused
+            // by the thread's state (e.g. a contradictory precondition) is caught here.
+            {
+              implicit val o: Origin = HeldTokenOrigin(getClass(obj))
+              Inhale(Perm(PredicateLocation(getHeld(obj)), WritePerm()))
+            },
+            Refute(ff)(LockDeadCodeBlame(lock)),
           ))
 
       case unlock @ Unlock(obj) =>
@@ -245,18 +296,34 @@ case class EncodeIntrinsicLock[Pre <: Generation]() extends Rewriter[Pre] {
             Exhale(Perm(PredicateLocation(getHeld(obj)), WritePerm()))(
               UnlockHeldExhaleFailed(unlock)
             ),
-            Assume(getCommitted(obj)(PanicBlame(
-              "Exhaling held predicate should imply != null"
-            ))),
+            // Single authoritative dead-code check for the complete unlock operation.
+            // Fires UnlockCodeDead if the state is dead after releasing all resources
+            // (i.e. the thread entered the locked region with a contradictory state).
+            Refute(ff)(UnlockDeadCodeBlame(unlock)),
+            // Tag the committed-restoration assume with CommittedOrigin ("lockCommitted"
+            // prefix) so DetectDeadCode skips it: the Refute above is the single
+            // authoritative check for dead code at the end of an unlock.
+            {
+              implicit val o: Origin = CommittedOrigin(getClass(obj))
+              Assume(getCommitted(obj)(PanicBlame(
+                "Exhaling held predicate should imply != null"
+              )))
+            },
           ))
         else
           Block(Seq(
             Exhale(Perm(PredicateLocation(getHeld(obj)), WritePerm()))(
               UnlockHeldExhaleFailed(unlock)
             ),
-            Assume(getCommitted(obj)(PanicBlame(
-              "Exhaling held predicate should imply != null"
-            ))),
+            // No invariant case: still check for dead code — the locked region may
+            // have introduced a contradictory state through other means.
+            Refute(ff)(UnlockDeadCodeBlame(unlock)),
+            {
+              implicit val o: Origin = CommittedOrigin(getClass(obj))
+              Assume(getCommitted(obj)(PanicBlame(
+                "Exhaling held predicate should imply != null"
+              )))
+            },
           ))
 
       case wait @ Wait(obj) =>

@@ -187,6 +187,15 @@ case object Options {
       opt[Unit]("dev-no-sat").maybeHidden()
         .action((_, c) => c.copy(devCheckSat = false))
         .text("Do not check the satisfiability of contracts in the input"),
+      opt[Unit]("dev-no-post-sat").maybeHidden()
+        .action((_, c) => c.copy(devCheckPostSat = false))
+        .text("Do not check the satisfiability of postconditions"),
+      opt[Unit]("dev-no-dead").maybeHidden()
+        .action((_, c) => c.copy(devDetectDead = false))
+        .text("Disable dead code detection (refute false after branches/loops/assumes)"),
+      opt[Unit]("dev-no-loop-inv-sat").maybeHidden()
+        .action((_, c) => c.copy(devCheckLoopInvSat = false))
+        .text("Do not check the satisfiability of loop invariants"),
       opt[String]("dev-simplify-debug-in").unbounded().maybeHidden()
         .valueName("<declaration>").action((decl, c) =>
           c.copy(devSimplifyDebugIn = c.devSimplifyDebugIn :+ decl)
@@ -527,6 +536,9 @@ case class Options(
     devParserReportContextSensitivities: Boolean = false,
     devAbruptExc: Boolean = false,
     devCheckSat: Boolean = true,
+    devCheckPostSat: Boolean = true,
+    devDetectDead: Boolean = true,
+    devCheckLoopInvSat: Boolean = true,
     devSimplifyDebugIn: Seq[String] = Nil,
     devSimplifyDebugMatch: Boolean = false,
     devSimplifyDebugMatchShort: Boolean = true,

@@ -1323,6 +1323,26 @@ case class LockNotCommitted(node: Lock[_])
   override def inlineDescWithSource(source: String): String =
     s"Lock target in `$source` may not yet have committed the lock invariant."
 }
+// Extends both LockFailure and UnlockFailure so it can be reported through
+// lock.blame (Blame[LockFailure]) when triggered at a Lock site, or through
+// unlock.blame (Blame[UnlockFailure]) when triggered at an Unlock-only site
+// (a method that receives held(this) as a precondition and never calls lock this).
+case class LockInvariantUnsatisfiable(node: Node[_])
+    extends NodeVerificationFailure with LockFailure with UnlockFailure {
+  override def code: String = "lockInvariantUnsatisfiable"
+  override def descInContext: String =
+    "The lock invariant may be unsatisfiable (equivalent to false)"
+  override def inlineDescWithSource(source: String): String =
+    s"Lock invariant of `$source` may be unsatisfiable."
+}
+case class LockCodeDead(node: Lock[_])
+    extends NodeVerificationFailure with LockFailure {
+  override def code: String = "lockDead"
+  override def descInContext: String =
+    "Code after this lock statement may be unreachable"
+  override def inlineDescWithSource(source: String): String =
+    s"Code after `$source` may be unreachable."
+}
 
 sealed trait UnlockFailure extends LockRegionFailure
 case class UnlockInvariantFailed(node: Unlock[_], failure: ContractFailure)
@@ -1340,6 +1360,14 @@ case class LockTokenNotHeld(node: Unlock[_], failure: ContractFailure)
     "The token that indicates the lock is locked (`held(obj)`) may not be exhaled here, since"
   override def inlineDescWithSource(node: String, failure: String): String =
     s"`$node` may fail, since the `held` resource may not be exhaled here, since $failure."
+}
+case class UnlockCodeDead(node: Unlock[_])
+    extends NodeVerificationFailure with UnlockFailure {
+  override def code: String = "unlockDead"
+  override def descInContext: String =
+    "Code after this unlock statement may be unreachable"
+  override def inlineDescWithSource(source: String): String =
+    s"Code after `$source` may be unreachable."
 }
 
 sealed trait ConstructorFailure extends VerificationFailure

@@ -31,6 +31,7 @@ import vct.col.rewrite._
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
   CTypeConversions,
+  CheckLockInvariantSatisfiability,
   CheckLoopInvariantSatisfiability,
   CollectLocalDeclarations,
   DetectDeadCode,
@@ -180,6 +181,9 @@ object Transformation extends LazyLogging {
           simplifyAfterRelations = options.simplifyPathsAfterRelations
             .map(simplifierFor(_, options)),
           checkSat = options.devCheckSat,
+          checkPostSat = options.devCheckPostSat,
+          detectDead = options.devDetectDead,
+          checkLoopInvSat = options.devCheckLoopInvSat,
           inferHeapContextIntoFrame = options.inferHeapContextIntoFrame,
           bipResults = bipResults,
           splitVerificationByProcedure =
@@ -364,6 +368,8 @@ case class SilverTransformation(
     bipResults: BIP.VerificationResults,
     checkSat: Boolean = true,
     checkPostSat: Boolean = true,
+    detectDead: Boolean = true,
+    checkLoopInvSat: Boolean = true,
     splitVerificationByProcedure: Boolean = false,
     override val optimizeUnsafe: Boolean = false,
     generatePermissions: Boolean = false,
@@ -439,14 +445,15 @@ case class SilverTransformation(
         GivenYieldsToArgs,
         CheckProcessAlgebra,
         EncodeCurrentThread,
+        CheckLockInvariantSatisfiability,
         EncodeIntrinsicLock,
         EncodeForkJoin,
         // PureMethodsToFunctions should be before InlineApplicables since InlineApplicables treats functions and methods differently
         PureMethodsToFunctions,
         InlineApplicables,
         InlineTrivialLets,
-        DetectDeadCode, // before RefuteToInvertedAssert so inserted Refute nodes are transformed, and before ParBlockEncoder so ParBlock/ParAtomic still exist
-        CheckLoopInvariantSatisfiability, // before EncodeExtract (encodes Extract+FramedProof) and before EncodeProofHelpers (encodes FramedProof)
+        DetectDeadCode.withArg(detectDead),  //before RefuteToInvertedAssert so inserted Refute nodes are transformed, and before ParBlockEncoder so ParBlock/ParAtomic still exist
+        CheckLoopInvariantSatisfiability.withArg(checkLoopInvSat),  //before EncodeExtract (encodes Extract+FramedProof) and before EncodeProofHelpers (encodes FramedProof)
         RefuteToInvertedAssert,
         ExplicitResourceValues,
         EncodeResourceValues,
