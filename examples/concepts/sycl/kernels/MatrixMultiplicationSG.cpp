@@ -107,42 +107,136 @@ requires (\forall int gid02=0 .. Mf(), int lid02=0 .. 1, int gid3=0 .. Pf()/tlsz
 ensures (\forall int gid02=0 .. Mf(), int gl3=0 .. Pf();
     c[gid02*Pf()+(gl3)] == {:sumprod(gsA(), gsB(), Nf(), gid02, gl3, Mf(),Nf(), Pf()):}
 );
-void lemmaPost(int* c) {
-    assert (\forall int gid02=0 .. Mf(), int lid02=0 .. 1, int gid3=0 .. Pf()/tlszf(), int lid3=0 .. tlszf(); {:tr0(gid02, lid02, gid3, lid3):} ==> 
-        c[sycl::linearize2(sycl::linearize2(gid02,lid02, Mf(), 1),sycl::linearize2(gid3, lid3,Pf()/tlszf(), tlszf()), Mf(),Pf())]
-        ==
-        c[gid02*Pf()+gid3*tlszf()+lid3]
-    ); 
-
-    assert (\forall int gid02=0 .. Mf(), int lid02=0 .. 1, int gid3=0 .. Pf()/tlszf(), int lid3=0 .. tlszf(); {:tr1(gid02, lid02, gid3, lid3):} ==> 
-        sumprod(gsA(), gsB(), Nf(), sycl::linearize2(gid02,lid02, Mf(), 1), sycl::linearize2(gid3, lid3,Pf()/tlszf(), tlszf()), Mf(),Nf(), Pf())
-        ==
-        sumprod(gsA(), gsB(), Nf(), gid02, gid3*tlszf()+lid3, Mf(),Nf(), Pf())
-    );
-
-    assert (\forall int gid02=0 .. Mf(), int lid02=0 .. 1, int gid3=0 .. Pf()/tlszf(), int lid3=0 .. tlszf();  tr0(gid02, lid02, gid3, lid3) ==> tr1(gid02, lid02, gid3, lid3) ==>
-        c[gid02*Pf()+gid3*tlszf()+lid3]
-        ==
-        sumprod(gsA(), gsB(), Nf(), gid02, gid3*tlszf()+lid3, Mf(),Nf(), Pf())
-    );
+void lemmaPost(int* c);
 
 
-    assert (\forall int gid02=0 .. Mf(); (\forall int lid02=0 .. 1, int gid3=0 .. Pf()/tlszf(), int lid3=0 .. tlszf();  
-        tr0(gid02, lid02, gid3, lid3) ==> tr1(gid02, lid02, gid3, lid3) ==>
-        c[gid02*Pf()+gid3*tlszf()+lid3]
-        ==
-        {:sumprod(gsA(), gsB(), Nf(), gid02, gid3*tlszf()+lid3, Mf(),Nf(), Pf()):}
-    ));
+ghost 
+requires i >= 0;
+requires Pf()%tlszf()==0;
+ensures (i * Pf()) % tlszf() == 0;
+void lemma2(int i) {
+    assert true;
+    int bla = Pf()/tlszf();
+    assert bla*tlszf() == Pf();
+    assert (i * bla * tlszf()) % tlszf() == 0;
+}
 
-    assert Pf() == Pf()/tlszf()*tlszf();
-    
-    assert (\forall int gid02=0 .. Mf(), int gl3=0 .. Pf();
-        tr0(gid02, 0, gl3/tlszf(), gl3%tlszf()) ==> tr1(gid02, 0, gl3/tlszf(), gl3%tlszf()) ==>
-        c[gid02*Pf()+gl3] == sumprod(gsA(), gsB(), Nf(), gid02, gl3, Mf(),Nf(), Pf())
-    );
+ghost
+requires a>=0 && b >=0 &&tlszf()>0;
+requires a%tlszf()==0;
+ensures (a+b)%tlszf()==b%tlszf();
+void lemma123(int a, int b){
+    inhale false;
+    assert a%tlszf()+b%tlszf()==b%tlszf();
+    assert a%tlszf()+b%tlszf() == (a+b)%tlszf();
+}
 
+ghost
+requires Pf()%tlszf()==0;
+requires llid == glid % tlszf();
+requires 0 <= glid && glid < Mf()*Pf();
+requires 0 <= llid && llid < tlszf();
+requires 0 <= k && k < tlszf();
+requires 0 <= gid0 && gid0 < Mf();
+requires glid/Pf() == gid0;
+ensures (glid + k - (llid % tlszf()))/Pf() == gid0;
+void lemmaGlobalId(int glid, int llid, int k, int gid0) {
+    assert true;
+    int rest = glid % Pf();
+    assert glid == gid0 * Pf() + rest;
+    assert 0 <= rest && rest < Pf();
+    assert llid == glid % tlszf();
+    assert llid == (gid0 * Pf() + rest) % tlszf();
+    assert Pf() % tlszf() == 0;
+    assert Pf() == (Pf() / tlszf()) * tlszf();
+    ghost lemma2(gid0);
+    assert (gid0 * Pf()) % tlszf() == 0;
+    assert llid == (gid0 * Pf() + rest) % tlszf();
+    ghost lemma123(gid0 * Pf(), rest);
+    assert ((gid0 * Pf()) + rest) % tlszf() == rest % tlszf();
+    assert llid == (gid0 * Pf() + rest) % tlszf() ==> (gid0 * Pf()) % tlszf() == 0 ==> (gid0 * Pf() + rest) % tlszf() == rest % tlszf();
+    assert llid == rest % tlszf();
+    assert 0 <= llid && llid < tlszf();
+    int shifted = glid + k - llid;
+    assert shifted == gid0 * Pf() + rest + k - llid;
+    assert shifted == gid0 * Pf() + (rest - llid + k);
+    int d = rest - llid + k;
+    int q = rest / tlszf();
+    assert rest == q * tlszf() + llid;
+    assert d == (q * tlszf() + llid) - llid + k;
+    assert d == q * tlszf() + k;
+    assert 0 <= k && k < tlszf();
+    assert d >= q * tlszf();
+    assert d <= q * tlszf() + (tlszf() - 1);
+    assert q * tlszf() <= Pf() - tlszf();
+    assert d < Pf();
+    assert d >= 0;
+    assert shifted == gid0 * Pf() + d;
+    assert (gid0 * Pf() + d) / Pf() == gid0;
+    assert shifted / Pf() == gid0;
+}
+
+ghost
+requires Pf()%tlszf() == 0;
+requires 0 <= glid && glid < Mf()*Pf();
+requires 0 <= llid && llid < 1*tlszf();
+requires 0 <= g0 && g0 < Mf();
+requires 0 <= g1 && g1 < Pf();
+requires 0 <= l0 && l0 < 1;
+requires 0 <= l1 && l1 < tlszf();
+requires llid == l0*1+l1;
+requires glid == g0*Pf() + g1;
+requires l1 == g1%tlszf();
+ensures llid == glid%tlszf();
+void lemma1234(int glid, int llid, int g0, int g1, int l0, int l1) {
+    assert true;
+    assert l0 == 0;
+    assert llid == l1;
+    assert llid == g1 % tlszf();
+    ghost lemma2(g0);
+    assert (g0 * Pf()) % tlszf() == 0;
+    assert glid == g0 * Pf() + g1;
+    assert glid % tlszf()
+        == ((g0 * Pf()) + g1) % tlszf();
+    ghost lemma123(g0 * Pf(), g1);
+    // assert ((g0 * Pf()) + g1) % tlszf()
+    //     == ((g0 * Pf()) % tlszf() + g1 % tlszf()) % tlszf();
+    assert ((g0 * Pf()) % tlszf() + g1 % tlszf()) % tlszf()
+        == (0 + g1 % tlszf()) % tlszf();
+    assert glid % tlszf() == g1 % tlszf();
+    assert llid == glid % tlszf();
+}
+
+
+
+
+ghost
+requires Pf()%tlszf() == 0;
+requires 0 <= g1 && g1 < Pf();
+requires 0 <= l1 && l1 < tlszf();
+requires g1 == gr1*tlszf()+l1;
+ensures g1%tlszf() == l1;
+void lemma12334(int g1, int gr1, int l1) {
+    assert true;
+    assert tlszf() > 0;
+    assert g1 == (g1 / tlszf()) * tlszf() + g1 % tlszf();
+    assert g1 == gr1 * tlszf() + l1;
+    assert 0 <= l1 && l1 < tlszf();
+    // uniqueness of quotient/remainder implies:
+    assert g1 % tlszf() == l1;
+}
+
+ghost 
+requires Pf()%tlszf() == 0;
+requires 0 <= glid && glid < Mf()*Pf();
+requires 0 <= g0 && g0 < Mf();
+requires 0 <= g1 && g1 < Pf();
+requires glid == g0*Pf() + g1;
+ensures g0 == glid/Pf();
+void lemma1234445(int glid, int g0, int g1) {
 }
 @*/
+
 
 
 
@@ -166,7 +260,8 @@ void matrixmul(sycl::queue q, int M, int N, int P, int tlsz, int* a, int* b, int
     sycl::buffer<int, 2> b_buf = sycl::buffer(b, sycl::range<2>(N, P));
     sycl::buffer<int, 2> c_buf = sycl::buffer(c, sycl::range<2>(M, P));
 
-    sycl::event e2 = q.submit([&](sycl::handler& h) {
+    sycl::event e2 = q.submit([&](sycl::handler& h) 
+        {
         sycl::accessor<int, 2, sycl::access_mode::read> a_acc = sycl::accessor(a_buf, h, sycl::read_only);
         sycl::accessor<int, 2, sycl::access_mode::read> b_acc = sycl::accessor(b_buf, h, sycl::read_only);
         sycl::accessor<int, 2, sycl::access_mode::read_write> c_acc = sycl::accessor(c_buf, h, sycl::read_write);
@@ -184,11 +279,13 @@ void matrixmul(sycl::queue q, int M, int N, int P, int tlsz, int* a, int* b, int
             context Perm(c_acc[it.get_global_id(0)][it.get_global_id(1)], write);
             ensures c_acc[it.get_global_id(0)][it.get_global_id(1)] == sumprod(gsA(), gsB(), Nf(), it.get_global_id(0), it.get_global_id(1), Mf(), Nf(), Pf());
             @*/
-            [=](sycl::nd_item<2> it) {
+            [=](sycl::nd_item<2> it) 
+            [[sycl::reqd_sub_group_size(tlsz)]]
+            {
                 int m = it.get_global_id(0); //lin2(group_id_0, local_id_0, group_range0, local_range0);
                 int n = it.get_global_id(1); //lin2(group_id_1, local_id_2, group_range1, local_range1);
-                int i = it.get_local_id(1); // 0..tlsz
-
+                int i = it.get_local_id(1); // 0..tlsz    
+                
                 int sum = 0;
                 /*@ ghost int k1 = 0; */
                 /*@
@@ -213,6 +310,7 @@ void matrixmul(sycl::queue q, int M, int N, int P, int tlsz, int* a, int* b, int
 
                         loop_invariant m == it.get_global_id(0) && n == it.get_global_id(1) && i == it.get_local_id(1);
                         loop_invariant 0 <= it.get_local_id(1) && it.get_local_id(1) < tlszf();
+                        loop_invariant tileA == a_acc[m][l + i];
                         loop_invariant M == Mf() && N == Nf() && P == Pf() && tlsz == tlszf() && N%tlsz==0 && P%tlsz==0;
                         loop_invariant 0 <= l && l <= Nf() && 0 <= k1 && l==tlszf()*k1 && l%tlszf()==0;
                         loop_invariant 0 <= k && k <= tlszf();
@@ -220,11 +318,63 @@ void matrixmul(sycl::queue q, int M, int N, int P, int tlsz, int* a, int* b, int
                     */
                     for (int k = 0; k < tlsz; k=k+1) {
                         //@ ghost lemmalStep(l);
-//                      int sg_result = group_broadcast(sg, tileA, k);
-                      int sg_result = a_acc[m][l + k];
-                      sum += sg_result * b_acc[l + k][n];
-//                      sum += group_broadcast(sg, tileA, k) * b_acc[l + k][n];
+                        // \gtid is the global_linear_id, global_id(0) is then \gtid/P
 
+
+
+                        //@ ghost lemma1234445(it.get_global_linear_id(), it.get_global_id(0), it.get_global_id(1));
+                        //@ assert m == it.get_global_linear_id()/Pf();
+
+                        //@ assert it.get_global_linear_id() == it.get_global_id(0) * Pf() + it.get_global_id(1);
+                        //@ assert it.get_global_id(1) < Pf();
+                        //@ assert it.get_global_linear_id() < Mf()*Pf();
+                        //@ assert it.get_global_linear_id()/Pf() == (it.get_global_id(0) * Pf() + it.get_global_id(1))/Pf();
+
+                        //@ assert it.get_global_linear_id()/Pf() == it.get_global_id(0);
+                        /*@ assert it.get_sub_group().get_local_id() == k ==> 
+                            tileA == a_acc[it.get_global_linear_id()/Pf()][l + k];
+
+                            assert it.get_sub_group().get_local_id() == k ==> 
+                            a_acc[it.get_global_linear_id()/Pf()][l + it.get_sub_group().get_local_id()]
+                            ==
+                            a_acc[m][l + it.get_sub_group().get_local_id()]
+                            ;
+                        */
+
+                        
+                        //@ assert it.get_sub_group().get_local_id() == (it.get_local_id(0) * 1 + it.get_local_id(1))%it.get_sub_group().get_local_range(0);
+                        //@ assert it.get_local_id(0) == 0;
+                        //@ assert (it.get_local_id(0) * 1 + it.get_local_id(1))%it.get_sub_group().get_local_range(0) == it.get_local_id(1)%it.get_sub_group().get_local_range(0);
+                        //@ assert it.get_local_id(1) == it.get_local_id(1)%it.get_sub_group().get_local_range(0);
+                        //@ assert i == it.get_sub_group().get_local_id();
+
+
+                        int sg_result = sycl::group_broadcast(it.get_sub_group(), tileA, k)  /*@ sub_group_inv {  \gtid\Pf() < Mf() && \sg_val == a_acc[\gtid/Pf()][l + \sgtid] } */;
+                        sum += sg_result * b_acc[l + k][n];
+
+                        /*@ 
+                        ghost lemma12334(
+                            it.get_global_id(1),
+                            it.get_group(1),
+                            it.get_local_id(1)
+                        );
+                        ghost lemma1234(
+                                    it.get_global_linear_id(), 
+                                    it.get_local_linear_id(), 
+                                    it.get_global_id(0), 
+                                    it.get_global_id(1), 
+                                    it.get_local_id(0), 
+                                    it.get_local_id(1)
+                        );*/
+
+                        
+                        //@ ghost lemmaGlobalId(it.get_global_linear_id(), it.get_local_linear_id(), k, it.get_global_id(0));
+
+                        //@ assert (it.get_global_linear_id() + k - (it.get_local_linear_id() % it.get_sub_group().get_local_range(0)))/Pf() == it.get_global_id(0);
+
+                        /*@ assert (it.get_global_linear_id() + k - it.get_local_linear_id() % it.get_sub_group().get_local_range(0)) / Pf() < Mf() &&
+                            sg_result == a_acc[m][l + k];
+                        */
                     }
                     //@ ghost lemmalStep2(l,k1);
                     /*@ ghost k1=k1+1;*/
@@ -247,30 +397,40 @@ void matrixmul(sycl::queue q, int M, int N, int P, int tlsz, int* a, int* b, int
 
 
 
+// g0 := sycl__linearize3(
+//     group_id_02,
+//     local_id_02, 
+//     M/1              group_range0,
+//     1,               local_range0
+// )
+// g1 := sycl__linearize3(
+//     group_id_3,
+//     local_id_3, 
+//     P/tlsz,          group_range1,
+//     tlsz,            local_range1
+// )
+// l0 := local_id_02
+// l1 := local_id_3
 
+// glid0 := sycl__linearize3(
+//     sycl__linearize3(
+//         group_id_02,
+//         local_id_02, 
+//         M,                       group_range0,
+//         1,                       local_range0
+//     ),
+//     sycl__linearize3(
+//         group_id_3,
+//         local_id_3, 
+//         P/tlsz,                  group_range1,
+//         tlsz,                    local_range1
+//     ),
+//     1*M,                         sycl__ndItem__getGlobalRange1(local_range0,group_range0),
+//     P/tlsz*tlsz                  sycl__ndItem__getGlobalRange1(local_range1,group_range1))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// llid0 := sycl__linearize3(
+//     local_id_02,
+//     local_id_3, 
+//     1,           local_range0,
+//     tlsz,        local_range1
+// )
