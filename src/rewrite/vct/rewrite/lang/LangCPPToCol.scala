@@ -1348,10 +1348,16 @@ ScopedStack()
       case "sycl::sub_group::get_local_id" =>
         classInstance match {
           case Some(lref) =>
+            val lid = lref match {
+              case s: LiteralSeq[Post] if s.values.nonEmpty => s.values.head
+              case _ => SeqSubscript[Post](lref,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
+            }
+
+
             if (syclSubgroupDeltaSuccessors.nonEmpty) {
-              SeqSubscript[Post](lref,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))+syclSubgroupDeltaSuccessors.top
+              lid+syclSubgroupDeltaSuccessors.top
             } else {
-              SeqSubscript[Post](lref,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
+              lid
             }
           case _ => throw NotApplicable(inv)
         }
@@ -1541,67 +1547,23 @@ ScopedStack()
         syclWarpSize = Some(new Variable[Post](TCInt())(kernelDeclaration.o.where(name="warpSize")))
         //        rw.variables.declare(syclWarpSize.get)
 
-        val maybeWarpSize = kernelDeclaration.declarator.asInstanceOf[CPPLambdaDeclarator[Post]].attrs
-          .find(attr => attr.name == "sycl::reqd_sub_group_size" && attr.args.size == 1 && attr.args.head.t == TCInt[Post]())
+        val maybeWarpSize = kernelDeclaration.declarator.asInstanceOf[CPPLambdaDeclarator[Pre]].attrs
+          .find(attr => attr.name == "sycl::reqd_sub_group_size" && attr.args.size == 1 && attr.args.head.t == TCInt[Pre]())
 
         val defineWarpSize = maybeWarpSize match {
           case Some(ws) => (
-            assignLocal(syclWarpSize.get.get(ws.o), ws.args.head)(ws.o.where(name="warpSize")),
-            Eq(syclWarpSize.get.get(ws.o), ws.args.head)(ws.o),
+            assignLocal(syclWarpSize.get.get(ws.o), rw.dispatch(ws.args.head))(ws.o.where(name="warpSize")),
+            Eq(syclWarpSize.get.get(ws.o), rw.dispatch(ws.args.head))(ws.o),
           )
           case None =>
             implicit val o: Origin = invocation.o
-//            val wrpsizeProcedure = withResult((result: Result[Post]) => {
-//              procedure(
-//                returnType = TCInt(),
-//                pure = true,
-//                ensures = UnitAccountedPredicate(
-//                          Or(
-//                            And(
-//                              Eq[Post](result, c_const(8)),
-//                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(3)), SYCLMulMethodInvocationBlame, o), c_const(8))
-//                            ),
-//                          Or(
-//                          Or(
-//                            And(
-//                              Eq[Post](result, c_const(16)),
-//                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(4)), SYCLMulMethodInvocationBlame, o), c_const(16))
-//                            ),
-//                            And(
-//                              Eq[Post](result, c_const(32)),
-//                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(5)), SYCLMulMethodInvocationBlame, o), c_const(32))
-//                            )
-//                          ),
-//                            And(
-//                              Eq[Post](result, c_const(64)),
-//                              Eq[Post](syclHelperFunctions("sycl_:_:h_:_:exp")(Seq(c_const(2),c_const(6)), SYCLMulMethodInvocationBlame, o), c_const(64))
-//                          )
-//                      )
-//                    )
-//                  ),
-//                  contractBlame = PanicBlame("There are no preconditions"),
-//                  blame = PanicBlame("Should never fail"))(o.where(name = "warpSizeFunc"),
-//                )
-//              })
-//
-//              rw.globalDeclarations.declare(wrpsizeProcedure)
               val callToWrpsizeProcedure = {
                 syclHelperFunctions("sycl_:_:h_:_:warp_sizes")(Seq(), SYCLWarpSizeMethodInvocationBlame, o)
-
-//                procedureInvocation[Post](
-//                  blame = PanicBlame("Should never fail"),
-//                  ref = wrpsizeProcedure.ref,
-//                  args = Seq(),
-//                  outArgs = Nil,
-//                  typeArgs = Nil,
-//                  givenMap = Nil,
-//                  yields = Nil,
-//              )
               }
 
             (
               assignLocal(syclWarpSize.get.get, callToWrpsizeProcedure),
-            Eq(syclWarpSize.get.get, callToWrpsizeProcedure)(kernelDeclaration.o.where(name="warpSize"))
+              Eq(syclWarpSize.get.get, callToWrpsizeProcedure)(kernelDeclaration.o.where(name="warpSize"))
             )
         }
         Some(defineWarpSize)
@@ -1620,7 +1582,7 @@ ScopedStack()
                                       s.asInstanceOf[CPPSpecificationType[Pre]].t.asInstanceOf[SYCLTAccessor[Pre]].readOnly
                                     )
       => local.ref.get.asInstanceOf[RefCPPLocalDeclaration[Pre]]
-    }
+    }.toSet
 
     val readOnlyPerms = accsInBody.map { accRef =>
       val buff = syclAccessorSuccessor(accRef).buffer.generatedVar
@@ -2193,7 +2155,8 @@ ScopedStack()
     val perm: Expr[Post] =
       acc.accessMode match {
         case SYCLReadWriteAccess() => WritePerm[Post]()(acc.accessMode.o)
-        case SYCLReadOnlyAccess() => ReadPerm[Post]()(acc.accessMode.o)
+//        case SYCLReadOnlyAccess() => ReadPerm[Post]()(acc.accessMode.o)
+        case SYCLReadOnlyAccess() => RatDiv[Post](c_const(1)(acc.accessMode.o),c_const(2)(acc.accessMode.o))(acc.accessMode.o)(acc.accessMode.o)
       }
 
     (
@@ -2469,24 +2432,34 @@ ScopedStack()
   private def getGlobalWorkItemRange(
       inv: CPPInvocation[Pre]
   )(implicit o: Origin): Expr[Post] = {
-    val args: Seq[Expr[Post]] = Seq(
-      SeqSubscript[Post](
-        LiteralSeq(
-          TCInt(),
-          currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.to)
-            .toSeq,
-        ),
-        rw.dispatch(inv.args.head),
-      )(SYCLItemMethodSeqBoundFailureBlame(inv)),
-      SeqSubscript[Post](
-        LiteralSeq(
-          TCInt(),
-          currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.to)
-            .toSeq,
-        ),
-        rw.dispatch(inv.args.head),
-      )(SYCLItemMethodSeqBoundFailureBlame(inv)),
-    )
+
+    val args: Seq[Expr[Post]] = isConstantInt(inv.args.head) match {
+      case Some(i) if 0 <= i && i < currentDimensionIterVars(LocalScope()).size  =>
+        val l = currentDimensionIterVars(LocalScope())(i.toInt)
+        val g = currentDimensionIterVars(GroupScope())(i.toInt)
+
+        Seq(l.to,g.to)
+      case _ =>
+        Seq(
+          SeqSubscript[Post](
+            LiteralSeq(
+              TCInt(),
+              currentDimensionIterVars(LocalScope()).map(iterVar => iterVar.to)
+                .toSeq,
+            ),
+            rw.dispatch(inv.args.head),
+          )(SYCLItemMethodSeqBoundFailureBlame(inv)),
+
+          SeqSubscript[Post](
+            LiteralSeq(
+              TCInt(),
+              currentDimensionIterVars(GroupScope()).map(iterVar => iterVar.to)
+                .toSeq,
+            ),
+            rw.dispatch(inv.args.head),
+          )(SYCLItemMethodSeqBoundFailureBlame(inv)),
+        )
+    }
 
     syclHelperFunctions("sycl_:_:nd_item_:_:get_global_range")(
       args,
@@ -3064,7 +3037,6 @@ ScopedStack()
 
     val laneid: Expr[Post] = SeqSubscript[Post](sgArg, c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
 
-
     val exhalePred: Expr[Post] =
       syclSubgroupInvSuccessors.having(
         mutable.Map(
@@ -3074,7 +3046,7 @@ ScopedStack()
         )
       ) {
         rw.dispatch(sgInv)
-      }
+    }
 
     val plusMinDelta = (e: Expr[Post]) => if (leftOrRight) e+d else e-d
     val gidDelta = plusMinDelta(getGlobalWorkItemLinearId(inv))
@@ -3107,13 +3079,14 @@ ScopedStack()
         (c_const[Post](0) <= (laneid - d))==> inhalePred
       }
 
-    if (dependsIndirectlyOnSYCLIdFunctions(sgInv)) {
+    if (dependsIndirectlyOnSYCLIdFunctions(sgInv) || dependsIndirectlyOnSYCLIdFunctions(inv.args(2))) {
       throw SYCLSubGroupInvDependsOnTheId(sgInv)
     }
 
     val sg = new Variable[Post](TSeq(TCInt()))(o.where(name = "sg"))
     val value = new Variable[Post](TCInt())(o.where(name = "value"))
     val delta = new Variable[Post](TCInt())(o.where(name = "delta"))
+    val wrpsz = new Variable[Post](TCInt())(o.where(name = "wrpsz"))
     val funcName = if (leftOrRight) "shift_group_left" else "shift_group_right"
     val shiftGroupBlame = PanicBlame(s"The call to $funcName should never fail")
 
@@ -3123,10 +3096,10 @@ ScopedStack()
         contractBlame = shiftGroupBlame,
         blame = shiftGroupBlame,
         returnType = TCInt(),
-        args = Seq(sg, value, delta),
+        args = Seq(sg, value, delta, wrpsz),
         requires = UnitAccountedPredicate(Star(
           Greater(delta.get, c_const(0)),
-          tt
+          Greater(wrpsz.get,delta.get)
         ))
       )(o.where(name = funcName))
     })
@@ -3143,7 +3116,7 @@ ScopedStack()
             procedureInvocation[Post](
               blame = inv.blame,
               ref = procedure.ref,
-              args = inv.args.map(rw.dispatch),
+              args = inv.args.map(rw.dispatch) ++ Seq(warpsize.get),
             )
           )(PanicBlame("Assignment to temporary variable should never fail.")),
           Inhale(predToInhale),
@@ -3199,7 +3172,7 @@ ScopedStack()
 
 
     val tokensInInv: Seq[CPPExpr[Pre]] = sgInv.collect {
-//      case inv: CPPInvocation[Pre] if !inv.ref.get.isInstanceOf[RefFunction[Pre]] => inv
+      case inv: CPPInvocation[Pre] if !inv.ref.get.isInstanceOf[RefFunction[Pre]] => inv
       case local: CPPLocal[Pre] if !local.ref.get.isInstanceOf[RefFunction[Pre]] => local
     }
 
@@ -3254,7 +3227,97 @@ ScopedStack()
   }
 
   def groupBroadCastProcedure(inv: CPPInvocation[Pre]): Expr[Post] = {
-    ???
+    implicit val o = inv.o
+    val sgInv = inv.subgroup_inv.getOrElse(tt[Pre])
+    val sgArg = rw.dispatch(inv.args.head) //Assumes |args| == 3
+    val valToSend = rw.dispatch(inv.args(1)) //Assumes |args| == 3
+    val senderArg: Expr[Post] = rw.dispatch(inv.args(2)) //Assumes |args| == 3
+    val sglResult = new Variable[Post](TCInt())(o.where(name = "sgl_result"))
+    val warpsize = syclWarpSize.getOrElse(throw new SYCLWarpSizeNotDefinedError(inv))
+    val laneid: Expr[Post] = sgArg match {
+      case s: LiteralSeq[Post] if s.values.nonEmpty => s.values.head
+      case _ => SeqSubscript[Post](sgArg, c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
+    }
+
+
+    if (dependsIndirectlyOnSYCLIdFunctions(sgInv) || dependsIndirectlyOnSYCLIdFunctions(inv.args(2))) {
+      throw SYCLSubGroupInvDependsOnTheId(sgInv)
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////
+    val exhalePred: Expr[Post] =
+      syclSubgroupInvSuccessors.having(
+        mutable.Map(
+          GlobalThreadId[Pre]() -> getGlobalWorkItemLinearId(inv),
+          SubGroupLaneId[Pre]() -> laneid,
+          SubGroupFuncValue[Pre]() -> valToSend,
+        )
+      ) {
+        rw.dispatch(sgInv)
+      }
+
+
+    val inhalePred: Expr[Post] =
+      syclSubgroupInvSuccessors.having(
+        mutable.Map(
+          GlobalThreadId[Pre]() -> (getGlobalWorkItemLinearId(inv)+senderArg-laneid),
+          SubGroupLaneId[Pre]() -> senderArg,
+          SubGroupFuncValue[Pre]() -> Local(sglResult.ref),
+        )
+      ) {
+        rw.dispatch(sgInv)
+    }
+
+
+    val predToExhale: Expr[Post] = (laneid === senderArg) ==> exhalePred// Something like laneId
+    val predToInhale = tt ==> inhalePred
+
+    val sg = new Variable[Post](TSeq(TCInt()))(o.where(name = "sg"))
+    val value = new Variable[Post](TCInt())(o.where(name = "value"))
+    val sender = new Variable[Post](TCInt())(o.where(name = "sender"))
+    val wrpsz = new Variable[Post](TCInt())(o.where(name = "wrpsz"))
+    val funcName = "group_broadcast"
+    val groupBroadcastBlame = PanicBlame(s"The call to $funcName should never fail")
+
+
+    val procedure = withResult((result: Result[Post]) => {
+      AstBuildHelpers.procedure(
+        contractBlame = groupBroadcastBlame,
+        blame = groupBroadcastBlame,
+        returnType = TCInt(),
+        args = Seq(sg, value, sender, wrpsz),
+        requires = UnitAccountedPredicate(Star(
+          GreaterEq(sender.get, c_const(0)),
+          Greater(wrpsz.get,sender.get)
+        ))
+      )(o.where(name = funcName))
+    })
+
+    rw.globalDeclarations.declare(procedure)
+
+    val result: Expr[Post] = With[Post](
+      Exhale(predToExhale)(SubGroupFunctionPreconditionFailed(inv)),
+      ScopedExpr(
+        Seq(sglResult),
+        Then(
+          PreAssignExpression(
+            sglResult.get,
+            procedureInvocation[Post](
+              blame = inv.blame,
+              ref = procedure.ref,
+              args = inv.args.map(rw.dispatch) ++ Seq(warpsize.get),
+            )
+          )(PanicBlame("Assignment to temporary variable should never fail.")),
+          Inhale(predToInhale),
+        )
+      )
+    )
+
+    result
   }
 
 }
