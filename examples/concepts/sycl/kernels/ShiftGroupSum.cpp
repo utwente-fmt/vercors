@@ -181,6 +181,7 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                         ghost if (gid%4==0) {
                             assert mod_add_0(gid,dk);
                             assert sycl::h::add(gid,dk)%4==0;
+                            assert mod_add_0(gid,dk) ==> (gid+dk)%4 == 0;
                             assert (gid%4 == 0) ==> (laneId+dk+dk   <= sg.get_local_range(0) && gid+dk+dk   <= |fxGs()|) ==> fxAcc[gid] == sum(fxGs()[gid   .. gid+dk+dk]);
                         } else if (gid%4==1) {
                             assert mod_add_1(gid,dk);
@@ -361,6 +362,7 @@ pure bool mod_add_2(int g, int d) = mod_add(g,d,2,0);
 
 
 requires g > 0 && g % 4 == 0;
+ensures \result;
 ensures (2*g)%4 == 0;
 pure bool mod_times_two(int g);
 */
