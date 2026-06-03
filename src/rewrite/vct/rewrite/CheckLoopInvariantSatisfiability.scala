@@ -6,6 +6,7 @@ import vct.col.origin._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.rewrite.util.Extract
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.Substitute
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -40,6 +41,29 @@ case class CheckLoopInvariantSatisfiability[Pre <: Generation](doCheck: Boolean 
   override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] =
     wellFormednessBlame.topOption.getOrElse(blame)
 
+  // \old(e) is only valid in postconditions. Loop invariants may contain \old,
+  // so we replace each occurrence with a fresh variable before placing the
+  // invariant in a requires clause. Extract then treats the fresh variable as a
+  // free input, matching what CheckPostconditionSatisfiability does.
+  // Exception: \old nodes that appear directly as trigger elements are replaced
+  // with their inner expression instead of a fresh variable, because Local is
+  // not a valid trigger but Old is.
+  private def eliminateOld(expr: Expr[Pre])(implicit o: Origin): Expr[Pre] = {
+    val olds = expr.collect { case old: Old[Pre] => old }
+    if (olds.isEmpty) return expr
+    val triggerOlds: Set[Old[Pre]] = expr.flatCollect {
+      case q: Forall[Pre]  => q.triggers.flatten.collect { case old: Old[Pre] => old }
+      case q: Starall[Pre] => q.triggers.flatten.collect { case old: Old[Pre] => old }
+      case q: Exists[Pre]  => q.triggers.flatten.collect { case old: Old[Pre] => old }
+    }.toSet
+    Substitute[Pre](olds.map { old =>
+      old -> (if (triggerOlds.contains(old))
+        old.expr
+      else
+        Local[Pre](new Variable[Pre](old.t)(o.where(name = "old")).ref)(old.o))
+    }.toMap).dispatch(expr)
+  }
+
   def checkInvariant(li: LoopInvariant[Pre]): Unit = {
     implicit val o: Origin = li.o.where(prefix = "checkInvSat")
     li.invariant match {
@@ -57,7 +81,7 @@ case class CheckLoopInvariantSatisfiability[Pre <: Generation](doCheck: Boolean 
         )
         expectedErrors.top += err
         val extractObj = Extract[Pre]()
-        val extracted = extractObj.extract(inv)
+        val extracted = extractObj.extract(eliminateOld(inv))
         val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
         variables.scope {
           localHeapVariables.scope {
