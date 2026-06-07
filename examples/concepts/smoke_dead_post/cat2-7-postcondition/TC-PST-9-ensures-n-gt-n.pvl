@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-PST-9: \result > \result is always false — no value is strictly greater than itself.
-// requires false makes normal verification vacuous; only postUnsatisfiable fires.
-requires true;
-ensures \result > \result;
+// TC-PST-9: result > 0 && result < 0 is always false — no integer is simultaneously positive
+// and negative.
+ensures \result > 0 && \result < 0;
 int f(int x) { return 1; }

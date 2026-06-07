@@ -1,0 +1,12 @@
+//:: cases TC_PST_28_HeapFieldContradictionFail
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-28: Postcondition claims n.val > 0 AND n.val < 0 — no integer can be both.
+// PostSat check: inhale Perm(n.val, write); inhale n.val > 0 ** n.val < 0
+// — infeasible — postUnsatisfiable fires.
+class TC_PST_28_Node { int val; }
+
+requires Perm(n.val, write);
+ensures Perm(n.val, write) ** n.val > 0 ** n.val < 0;
+void foo(TC_PST_28_Node n) { }

@@ -1,0 +1,14 @@
+//:: cases TC_PST_29_HeapPrecondFilteredPass
+//:: tools silicon
+//:: verdict Pass
+
+// TC-PST-29: Precondition includes Perm(n.val, write) ** n.val > 0.
+// isNonHeap filters out both — n.val > 0 contains a SilverDeref (heap read after ClassToRef),
+// and Perm is a permission assertion. Supervisor's fix adds nothing.
+// PostSat check: inhale Perm(n.val, write) ** n.val > 0 (postcondition only) — satisfiable.
+// Normal verification: empty body preserves perm and field value — passes.
+class TC_PST_29_Node { int val; }
+
+requires Perm(n.val, write) ** n.val > 0;
+ensures Perm(n.val, write) ** n.val > 0;
+void foo(TC_PST_29_Node n) { }

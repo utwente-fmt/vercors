@@ -21,11 +21,16 @@ import vct.col.origin.{
   VerificationFailure,
 }
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
-import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, ff, foldStar, procedure, unfoldStar}
+
+import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, ff, foldStar, procedure, tt, unfoldStar}
 import vct.col.util.Substitute
 
 import scala.collection.mutable.ArrayBuffer
 
+// Checks that method postconditions are satisfiable given their preconditions.
+// For each applicable, generates a standalone procedure that inhales the preconditions
+// and postcondition, then asserts false. If that assert passes (i.e. the postcondition
+// is contradictory), postUnsatisfiable is reported.
 case object CheckPostconditionSatisfiability extends RewriterBuilderArg[Boolean] {
   override def key: String = "checkPostSat"
   override def desc: String =
@@ -83,31 +88,32 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
       Result[Pre](applicable.ref)(o) -> Local[Pre](resultVar.ref)(o)
     )).dispatch(expr)
 
-  // Replace each \old(e) with a fresh variable so the expression can appear
-  // in requires position. \old is only valid in postconditions; lifting it
-  // verbatim into a requires causes a type-check error. The fresh variables
-  // are left unbound so Extract picks them up as free variables, same as it
-  // does for \result and other free locals.
-  //
-  // Exception: \old nodes that appear directly as trigger elements are replaced
-  // with their inner expression (dropping \old) instead of a fresh variable.
-  // Old extends PossibleTrigger but Local does not, so a bare fresh variable
-  // in trigger position would fail the trigger validity check.
-  private def eliminateOld(
-      expr: Expr[Pre],
-  )(implicit o: Origin): Expr[Pre] = {
-    val olds = expr.collect { case old: Old[Pre] => old }
-    if (olds.isEmpty) return expr
+  private def isNonHeap(expr: Expr[Pre]): Boolean =
+    expr match {
+      case BooleanValue(false) => false
+      case _ => !expr.exists {
+        case _: Perm[Pre] | _: PointsTo[Pre] | _: Value[Pre] | _: CurPerm[Pre] => true
+        case _: Scale[Pre] | _: ScaleByParBlock[Pre] => true
+        case _: PermPointer[Pre] | _: PermPointerIndex[Pre] => true
+        case _: PredicateApplyExpr[Pre] | _: ForPerm[Pre] | _: ForPermWithValue[Pre] => true
+        case _: Held[Pre] | _: Wand[Pre] => true
+        case _: HeapDeref[Pre] | _: DerefPointer[Pre] | _: ModelDeref[Pre] => true
+        case _: ArraySubscript[Pre] => true
+        case _: Unfolding[Pre] => true
+        case _: ModelPerm[Pre] | _: ActionPerm[Pre] => true
+        case _: ResourceOfResourceValue[Pre] | _: ResourceValue[Pre] => true
+      }
+    }
+
+  private def eliminateOldInTriggers(expr: Expr[Pre]): Expr[Pre] = {
     val triggerOlds: Set[Old[Pre]] = expr.flatCollect {
-      case q: Forall[Pre] => q.triggers.flatten.collect { case old: Old[Pre] => old }
+      case q: Forall[Pre]  => q.triggers.flatten.collect { case old: Old[Pre] => old }
       case q: Starall[Pre] => q.triggers.flatten.collect { case old: Old[Pre] => old }
-      case q: Exists[Pre] => q.triggers.flatten.collect { case old: Old[Pre] => old }
+      case q: Exists[Pre]  => q.triggers.flatten.collect { case old: Old[Pre] => old }
     }.toSet
-    Substitute[Pre](olds.map { old =>
-      old -> (if (triggerOlds.contains(old))
-        old.expr
-      else
-        Local[Pre](new Variable[Pre](old.t)(o.where(name = "old")).ref)(old.o))
+    if (triggerOlds.isEmpty) return expr
+    Substitute[Pre](triggerOlds.map { old =>
+      (old: Expr[Pre]) -> old.expr
     }.toMap).dispatch(expr)
   }
 
@@ -122,10 +128,6 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
       case BooleanValue(false) => // trivially false postcondition — skip (already always an error)
       case BooleanValue(true)  => // trivially true — nothing to check
       case _ =>
-        // Replace \result and \old(e) with fresh variables so the postcondition
-        // can appear in requires position. Both are unbound, so Extract detects
-        // them as free variables and generates the correct typed args — including
-        // proper handling of generic type parameters via ts.keys.
         val postPredAfterResult = returnTypeOf(applicable) match {
           case Some(rt) =>
             val v = new Variable[Pre](rt)(origin.where(name = "result"))
@@ -133,7 +135,7 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
           case None =>
             ensuresPred
         }
-        val postPred = eliminateOld(postPredAfterResult)
+        val postPred = eliminateOldInTriggers(postPredAfterResult)
 
         val err = ExpectedError(
           "assertFailed:false",
@@ -145,8 +147,13 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
           err,
         )
         expectedErrors.top += err
+        val combined = postPred
+
+        val nonHeapPreConds = splitPred(contract.requires).filter(isNonHeap)
+
         val extractObj = Extract[Pre]()
-        val extracted = extractObj.extract(postPred)
+        val extracted = extractObj.extract(combined)
+        val extractedPreConds = nonHeapPreConds.map(extractObj.extract)
         val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
         variables.scope {
           localHeapVariables.scope {
@@ -157,14 +164,20 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
               contractBlame = UnsafeDontCare.Satisfiability(
                 "the precondition of a check-post-sat method is only there to check it."
               ),
-              requires = UnitAccountedPredicate(
-                wellFormednessBlame.having(NotWellFormedIgnoreCheckPostSat(err)) {
-                  dispatch(extracted)
-                }
-              )(extracted.o),
+              requires = UnitAccountedPredicate(tt)(extracted.o),
               typeArgs = variables.dispatch(ts.keys),
               args = variables.dispatch(in.keys),
-              body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame))),
+              body = Some(Scope[Post](Nil, Block(
+                extractedPreConds.map(pc => Inhale(dispatch(pc))) ++
+                Seq(
+                  Inhale(
+                    wellFormednessBlame.having(NotWellFormedIgnoreCheckPostSat(err)) {
+                      dispatch(extracted)
+                    }
+                  ),
+                  Assert(ff)(onlyAssertBlame),
+                )
+              ))),
             ))
           }
         }

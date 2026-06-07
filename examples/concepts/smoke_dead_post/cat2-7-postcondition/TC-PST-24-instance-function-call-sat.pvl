@@ -1,0 +1,22 @@
+//:: cases TC_PST_24_InstanceFunctionCallSat
+//:: tools silicon
+//:: verdict Pass
+
+// TC-PST-24: Postcondition calls an instance function (InstanceFunctionInvocation).
+// foo explicitly ensures Perm(c.value, read), so the permission is part of the
+// postcondition expression that gets inhaled in the postSat check.
+// Check: inhale Perm(c.value, read) ** c.isPositive()
+// isPositive axiom fires (Perm present): c.isPositive() == (c.value > 0) — satisfiable.
+// postUnsatisfiable must not fire.
+// Normal verification also passes: precondition grants permission and c.value > 0.
+
+class TC_PST_24_Container {
+    int value;
+
+    requires Perm(value, read);
+    pure boolean isPositive() = value > 0;
+}
+
+requires Perm(c.value, read) ** c.value > 0;
+ensures Perm(c.value, read) ** c.isPositive();
+void foo(TC_PST_24_Container c) { }

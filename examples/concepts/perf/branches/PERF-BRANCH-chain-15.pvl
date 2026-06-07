@@ -1,0 +1,25 @@
+//:: cases PERF_BRANCH_chain_15
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 15-way if / else-if / ... / else chain, all branches live.
+// detectDeadCode: 15 Refutes; the final else check carries 14 accumulated negations.
+// Stress test for how deep chaining compares to sequential branching.
+void perf_branch_chain_15(int x) {
+    if (x > 1400) {
+    } else if (x > 1300) {
+    } else if (x > 1200) {
+    } else if (x > 1100) {
+    } else if (x > 1000) {
+    } else if (x > 900) {
+    } else if (x > 800) {
+    } else if (x > 700) {
+    } else if (x > 600) {
+    } else if (x > 500) {
+    } else if (x > 400) {
+    } else if (x > 300) {
+    } else if (x > 200) {
+    } else if (x > 100) {
+    } else {
+    }
+}

@@ -6,5 +6,5 @@
 // The postcondition x > 0 is satisfiable on its own (e.g., x=1) — checker must not fire.
 // Normal verification also passes: x > 10 implies x > 0, body leaves x unchanged.
 requires x > 10;
-ensures x > 0;
-void f(int x) { }
+ensures \result  0;
+int f(int x) { returns -x;}

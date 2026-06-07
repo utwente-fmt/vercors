@@ -1,0 +1,18 @@
+//:: cases TC_PST_25_RequiresNonHeapConflictsEnsuresFnUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-25: foo's non-heap precondition `n > 0` conflicts with its postcondition
+// `isNeg(n)` (body: n < 0). isNeg has no precondition — its axiom fires unconditionally.
+// Without supervisor's fix: postSat checks `inhale n < 0; assert false` — n < 0 is
+// satisfiable in isolation (e.g. n = -1) → assert false fails → postUnsatisfiable does NOT fire (wrong).
+// With supervisor's fix: postSat adds `n > 0` from foo's own precondition, making the
+// check `inhale n > 0; inhale n < 0; assert false` — infeasible → postUnsatisfiable fires.
+
+pure boolean isNeg(int n) = n < 0;
+
+requires n > 0;
+ensures isNeg(n);
+void foo(int n) {
+    assume false;  // makes normal verification vacuous; only postUnsatisfiable fires
+}

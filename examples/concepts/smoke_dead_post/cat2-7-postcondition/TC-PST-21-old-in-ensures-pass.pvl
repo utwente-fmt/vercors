@@ -1,0 +1,12 @@
+//:: cases TC_PST_21_OldInEnsuresPass
+//:: tools silicon
+//:: verdict Pass
+
+// TC-PST-21: Postcondition contains \old(n). The ensures clause is satisfiable
+// (\result == \old(n) holds when the method returns its input unchanged).
+// The postcondition sat check must NOT fire.
+// Must be a method (not pure function): Viper forbids \old in pure function postconditions
+// because pure functions have no pre-state/post-state distinction.
+requires n >= 0;
+ensures \result == \old(n);
+int identity(int n) { return n; }

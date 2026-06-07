@@ -1,0 +1,20 @@
+//:: cases PERF_BRANCH_chain_5
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 5-way if / else-if / else-if / else-if / else chain, all branches live.
+// detectDeadCode: 5 Refutes, each carrying more accumulated negations than the last.
+//   branch 1 check: plain (no prior negations)
+//   branch 2 check: under x <= 1000
+//   branch 3 check: under x <= 1000 && x <= 500
+//   branch 4 check: under x <= 1000 && x <= 500 && x <= 100
+//   branch 5 check: under x <= 1000 && x <= 500 && x <= 100 && x <= 10
+// This differs from PERF-BRANCH-5 (sequential pairs) where each check is independent.
+void perf_branch_chain_5(int x) {
+    if (x > 1000) {
+    } else if (x > 500) {
+    } else if (x > 100) {
+    } else if (x > 10) {
+    } else {
+    }
+}

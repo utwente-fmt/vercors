@@ -1,0 +1,9 @@
+//:: cases PERF_SAT_post
+//:: tools silicon
+//:: verdict Pass
+
+// Sat/unsat pair C (postcondition): satisfiable postcondition — checkPostSat must not fire.
+// Pair with PERF-UNSAT-post.
+requires false;
+ensures \result >= 0 && \result < 1000000;
+int perf_sat_post(int n) { return 0; }

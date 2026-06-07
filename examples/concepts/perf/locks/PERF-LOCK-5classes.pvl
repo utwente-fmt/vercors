@@ -1,0 +1,42 @@
+//:: cases PERF_LOCK_5classes
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 5 distinct classes each with a permission-based lock invariant.
+// checkLockInvSat: 5 independent FramedProofs (deduplication is per-class).
+// Compare to PERF-LOCK-perm-1field: should be approximately 5x the cost.
+
+lock_invariant Perm(value, write) ** value >= 0;
+class PERF_LOCK_A {
+    int value;
+    ensures committed(this); constructor() { value = 0; commit this; }
+    requires committed(this); void run() { lock this; value = value + 1; unlock this; }
+}
+
+lock_invariant Perm(value, write) ** value >= 0;
+class PERF_LOCK_B {
+    int value;
+    ensures committed(this); constructor() { value = 0; commit this; }
+    requires committed(this); void run() { lock this; value = value + 1; unlock this; }
+}
+
+lock_invariant Perm(value, write) ** value >= 0;
+class PERF_LOCK_C {
+    int value;
+    ensures committed(this); constructor() { value = 0; commit this; }
+    requires committed(this); void run() { lock this; value = value + 1; unlock this; }
+}
+
+lock_invariant Perm(value, write) ** value >= 0;
+class PERF_LOCK_D {
+    int value;
+    ensures committed(this); constructor() { value = 0; commit this; }
+    requires committed(this); void run() { lock this; value = value + 1; unlock this; }
+}
+
+lock_invariant Perm(value, write) ** value >= 0;
+class PERF_LOCK_E {
+    int value;
+    ensures committed(this); constructor() { value = 0; commit this; }
+    requires committed(this); void run() { lock this; value = value + 1; unlock this; }
+}

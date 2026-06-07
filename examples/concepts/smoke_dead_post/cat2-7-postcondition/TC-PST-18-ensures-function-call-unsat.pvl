@@ -1,0 +1,13 @@
+//:: cases TC_PST_18_EnsuresFunctionCallUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-18: Postcondition calls a pure function whose body is always false.
+// neverTrue has no preconditions — its axiom fires unconditionally.
+// PostSat check: inhale neverTrue(n); assert false.
+// Axiom: neverTrue(n) == (n > 0 && n < 0) — always false — contradiction — postUnsatisfiable fires.
+
+pure boolean neverTrue(int n) = n > 0 && n < 0;
+
+ensures neverTrue(n);
+void foo(int n) { }

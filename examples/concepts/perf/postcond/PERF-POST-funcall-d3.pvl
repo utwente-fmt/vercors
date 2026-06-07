@@ -1,0 +1,19 @@
+//:: cases PERF_POST_funcall_d3
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: postcondition contains a 3-deep nested function call.
+// WD fix adds 3 extra inhales (each function's precondition, depth-first) before the assert.
+// Compare to PERF-POST-simple to see WD collection overhead in postcondition checker.
+requires x > 0;
+pure int lift1(int x) = x + 1;
+
+requires x > 0;
+pure int lift2(int x) = x + 1;
+
+requires x > 0;
+pure boolean above0(int x) = x > 0;
+
+requires false;
+ensures above0(lift2(lift1(n))) && n > 0;
+void perf_post_funcall_d3(int n) { }

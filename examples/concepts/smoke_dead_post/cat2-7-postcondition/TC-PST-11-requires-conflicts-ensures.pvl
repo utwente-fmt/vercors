@@ -1,17 +1,9 @@
 //:: cases TC_PST_11_RequiresConflictsEnsures
 //:: tools silicon
-//:: verdict Pass
+//:: verdict Fail
 
-// TC-PST-11: In VerCors, 'x' in an ensures clause refers to the original parameter
-// value at the call site (frozen at entry), not a locally-modified copy.
-// So requires x == 5; ensures x < 0 would always fail normal verification (5 < 0).
-// requires false makes normal verification vacuous, isolating the postSat check:
-// ensures x < 0 is satisfiable on its own (e.g., x = -1), so the postSat checker
-// must NOT fire.
-//
-// Under the old combined check (requires ∧ ensures), false ∧ (x < 0) is
-// unsatisfiable regardless of the postcondition, so it would have incorrectly
-// fired postUnsatisfiable even though the postcondition is independently satisfiable.
-requires x > 0;
-ensures \result < 0;
+// TC-PST-11: Postcondition x < 0 is independently satisfiable.
+// PostSat check: inhale x < 0 → satisfiable → postUnsatisfiable must NOT fire.
+// Normal verification fails because x is unconstrained and may be >= 0.
+ensures x < 0;
 void f(int x) { }

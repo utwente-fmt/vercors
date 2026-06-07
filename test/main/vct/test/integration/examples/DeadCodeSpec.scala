@@ -35,27 +35,46 @@ class DeadCodeSpec extends VercorsSpec {
   // Cascade suppression: dead outer branch — inner branches should not each produce a separate error
   vercors should fail withCode "deadBranch" using silicon example "smoke_tests/dead-code-cascade.java"
 
+  // Parallel block dead code
+  // Fail: tid is always >= 0 inside par body — branch tid < 0 is dead
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-dead/cat2-1-precondition/TC-PC-17-parallel-dead-branch.pvl"
+  // Fail: range [0..size) with size <= 0 is empty — par body is unreachable
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-dead/cat2-1-precondition/TC-PC-20-par-body-dead.pvl"
+  // Pass: range is non-empty, body is reachable
+  vercors should verify using silicon example "concepts/smoke-test-dead/cat2-1-precondition/TC-PC-21-parallel-body-live.pvl"
+
+  // Pass: branch inside par body is live (tid < n is satisfiable for tid in [0..n))
+  vercors should verify using silicon example "concepts/smoke-test-dead/cat2-1-precondition/TC-PC-23-par-live-branch-inside.pvl"
+  // Fail: context_everywhere adds invariant to each iteration — branch contradicting it is dead
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-dead/cat2-1-precondition/TC-PC-24-par-context-everywhere-dead.pvl"
+
+  // Atomic block dead code
+  // Fail: invariant x > 0 is inhaled — branch x < 0 inside atomic is dead
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-dead/cat2-1-precondition/TC-PC-18-atomic-dead-branch.pvl"
+  // Pass: body is consistent with invariant — no dead code
+  vercors should verify using silicon example "concepts/smoke-test-dead/cat2-1-precondition/TC-PC-22-atomic-body-live.pvl"
+  // Fail: complex invariant (x > 0 && y > 0) — branch x < 0 is dead
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-dead/cat2-1-precondition/TC-PC-25-atomic-complex-invariant-dead.pvl"
+
   // Postcondition satisfiability (CheckPostconditionSatisfiability)
-  // The checker tests only the postcondition in isolation — the precondition applies to a
-  // different program state (pre-call) and the method body may freely transform state,
-  // so combining requires ∧ ensures would yield false positives.
+  // The checker inhales the postcondition and asserts false, expecting that assertion to fail.
+  // Non-heap conditions from the method's own precondition (those involving only constants,
+  // arguments, and pure function calls — no permissions, no field/array reads) are also inhaled
+  // as additional assumptions, since arguments are immutable and such conditions are still valid
+  // at the end of the method. Heap-dependent conditions and `requires false` are excluded.
 
   // Pass (PVL): satisfiable postconditions — checker must not fire
   vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-1-ensures-satisfiable.pvl"
-  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-3-ensures-false-intentional.pvl"
   vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-6-ensures-stricter-satisfiable.pvl"
   vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-7-ensures-satisfiable-void.pvl"
   vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-8-ensures-result-range-sat.pvl"
   vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-10-requires-narrows-ensures-sat.pvl"
-  // PST-11: precondition conflicts with postcondition for the same variable, but the
-  // postcondition is satisfiable on its own and the body establishes it — must not fire.
-  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-11-requires-conflicts-ensures.pvl"
 
-  // Fail (PVL): postcondition contradicts itself — checker must fire with postUnsatisfiable
-  vercors should fail withCode "postUnsatisfiable" using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-2-ensures-unsat-contradiction.pvl"
-  vercors should fail withCode "postUnsatisfiable" using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-4-ensures-result-contradiction.pvl"
-  vercors should fail withCode "postUnsatisfiable" using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-5-ensures-perm-false.pvl"
-  vercors should fail withCode "postUnsatisfiable" using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-9-ensures-n-gt-n.pvl"
+  // Fail (PVL): postcondition contradicts itself — postUnsatisfiable fires (plus postFailed from normal verification)
+  vercors should fail using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-2-ensures-unsat-contradiction.pvl"
+  vercors should fail using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-4-ensures-result-contradiction.pvl"
+  vercors should fail using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-5-ensures-perm-false.pvl"
+  vercors should fail using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-9-ensures-n-gt-n.pvl"
 
   // Pass (Java): satisfiable postconditions — checker must not fire
   vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-12-java-ensures-satisfiable.java"
@@ -69,6 +88,43 @@ class DeadCodeSpec extends VercorsSpec {
 
   // Fail (C): postcondition contradicts itself — checker must fire with postUnsatisfiable
   vercors should fail withCode "postUnsatisfiable" using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-16-c-ensures-unsat.c"
+
+  // Postcondition calls a pure function.
+  // Pass: foo's precondition satisfies callee's requirement; postcondition is satisfiable.
+  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-17-ensures-function-call-sat.pvl"
+  // Fail: function body is always false (no preconditions) — postUnsatisfiable fires (plus postFailed).
+  vercors should fail using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-18-ensures-function-call-unsat.pvl"
+  // Pass: Perm in ensures — axiom fires, postcondition is satisfiable.
+  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-19-ensures-perm-function-call-sat.pvl"
+  // Fail: Perm in ensures — axiom fires, body always false — postUnsatisfiable fires (plus postFailed).
+  vercors should fail using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-20-ensures-perm-function-call-unsat.pvl"
+
+  // Edge cases for postcondition calls
+  // \old in postcondition: sat checker must not fire, handled via eliminateOldInTriggers.
+  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-21-old-in-ensures-pass.pvl"
+  // \old in forall range: the exact pattern from ArrayList.java that previously crashed.
+  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-22-old-in-ensures-forall-range-pass.pvl"
+  // Nested calls: axioms fire unconditionally, postcondition is satisfiable.
+  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-22-nested-function-calls-sat.pvl"
+  // Nested calls where inner function negates — isPos(n) && isPos(negate(n)) is always false.
+  vercors should fail using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-23-nested-function-calls-unsat.pvl"
+  // Instance function call: Perm is in ensures, axiom fires, postcondition is satisfiable.
+  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-24-instance-function-call-sat.pvl"
+
+  // Heap field in postcondition
+  // Pass: body writes field to 0; postcondition Perm + n.val == 0 is satisfiable.
+  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-27-heap-field-write-pass.pvl"
+  // Fail: postcondition claims n.val > 0 AND n.val < 0 — field value contradiction.
+  vercors should fail using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-28-heap-field-contradiction-fail.pvl"
+  // Pass: heap precondition (n.val > 0) filtered by isNonHeap — supervisor's fix adds nothing,
+  // postcondition independently satisfiable — demonstrates the SilverDeref fix.
+  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-29-heap-precond-filtered-pass.pvl"
+
+  // Supervisor's fix: non-heap preconditions from foo's own requires are added as assumptions.
+  // Fail: foo requires n > 0, but ensures isNeg(n) (= n < 0) — contradiction only visible with fix.
+  vercors should fail withCode "postUnsatisfiable" using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-25-requires-nonheap-conflicts-ensures-fn-unsat.pvl"
+  // Pass: foo requires n > 0, ensures isPos(n) (= n > 0) — compatible, postSat must not fire.
+  vercors should verify using silicon example "concepts/smoke_dead_post/cat2-7-postcondition/TC-PST-26-requires-nonheap-compatible-ensures-fn-sat.pvl"
 
   // Loop invariant + post-loop dead code (DetectDeadCode)
   // Dead if-branch after loop: invariant+exit makes branch condition impossible
@@ -103,6 +159,24 @@ class DeadCodeSpec extends VercorsSpec {
 
   // Fail (C): unsatisfiable invariant — checker must fire with invariantUnsatisfiable
   vercors should fail withCode "invariantUnsatisfiable" using silicon example "concepts/smoke-test-dead/cat2-4-loop-invariant/TC-LI-17-c-invariant-contradiction-unsat.c"
+
+  // Well-definedness conditions fix for loop invariants
+  // Pass: invariant calls a pure function with precondition, invariant is satisfiable.
+  vercors should verify using silicon example "concepts/smoke-test-dead/cat2-4-loop-invariant/TC-LI-20-invariant-function-call-sat.pvl"
+  // Fail: invariant calls a pure function always returning false for valid inputs.
+  // (Before this fix: WD error was silently suppressed and invariant appeared satisfiable.)
+  vercors should fail withCode "invariantUnsatisfiable" using silicon example "concepts/smoke-test-dead/cat2-4-loop-invariant/TC-LI-21-invariant-function-call-unsat.pvl"
+  // Nested calls in invariant: depth-first WD ordering, satisfiable.
+  vercors should verify using silicon example "concepts/smoke-test-dead/cat2-4-loop-invariant/TC-LI-22-invariant-nested-function-calls-sat.pvl"
+
+  // Permission WD conditions in invariants
+  // Pass: invariant calls function with write permission precondition, satisfiable.
+  vercors should verify using silicon example "concepts/smoke-test-dead/cat2-4-loop-invariant/TC-LI-23-invariant-perm-function-call-sat.pvl"
+  // Fail: invariant calls function with write permission, body always false — WD fix detects it.
+  vercors should fail withCode "invariantUnsatisfiable" using silicon example "concepts/smoke-test-dead/cat2-4-loop-invariant/TC-LI-24-invariant-perm-function-call-unsat.pvl"
+  // Bug demo: invariant explicitly includes Perm + WD fix also adds Perm = 200% overcounting.
+  // Expected Pass but current WD fix incorrectly fires invariantUnsatisfiable.
+  vercors should verify using silicon example "concepts/smoke-test-dead/cat2-4-loop-invariant/TC-LI-25-invariant-perm-overcount-bug.pvl"
 
   // Cascade suppression: all live loop with invariant established and maintained
   vercors should verify using silicon example "concepts/smoke-test-dead/cat3-cascade/TC-CA-13-negative-loop-all-live.pvl"

@@ -1,0 +1,16 @@
+//:: cases TC_PC_24_ParContextEverywhereDead
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PC-24: context_everywhere n > 100 is inhaled for every iteration.
+// Branch n < 0 inside the body is dead — it contradicts n > 100.
+requires n > 100;
+void f(int n) {
+    par (int tid = 0 .. n)
+        context_everywhere n > 100;
+    {
+        if (n < 0) {
+            assert false; // dead: context_everywhere guarantees n > 100
+        }
+    }
+}

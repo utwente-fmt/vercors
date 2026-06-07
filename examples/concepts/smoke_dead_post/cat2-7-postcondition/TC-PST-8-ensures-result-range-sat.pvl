@@ -4,7 +4,7 @@
 
 // TC-PST-8: Range postcondition \result >= 0 && \result <= 1000 is satisfiable (e.g., result=500).
 // The postSat checker must not fire.
-ensures false;
+ensures \result >= 0 && \result <= 1000;
 int f(int x) {
     return 500;
 }

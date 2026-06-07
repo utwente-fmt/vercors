@@ -1,0 +1,17 @@
+//:: cases PERF_POST_perm
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: postcondition calls an instance function requiring Perm on a field.
+// WD fix prepends Perm(c.value, read) as an extra inhale before the postcondition sat check.
+// Tests heap reasoning overhead in the postcondition checker.
+class PERF_POST_perm_Node {
+    int value;
+
+    requires Perm(this.value, read) ** this.value > 0;
+    pure boolean isPositive() = this.value > 0;
+}
+
+requires Perm(c.value, read) ** c.value > 0;
+ensures c.isPositive();
+void perf_post_perm(PERF_POST_perm_Node c) { }

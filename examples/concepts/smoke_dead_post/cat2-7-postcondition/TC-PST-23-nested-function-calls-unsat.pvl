@@ -1,0 +1,15 @@
+//:: cases TC_PST_23_NestedFunctionCallsUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-23: Postcondition isPos(n) && isPos(negate(n)) is always false.
+// isPos(n) = n > 0; isPos(negate(n)) = (-n > 0) = (n < 0).
+// n > 0 && n < 0 is a contradiction. Both axioms fire unconditionally (no preconditions).
+// PostSat check: inhale isPos(n) && isPos(negate(n)) — infeasible — postUnsatisfiable fires.
+
+pure int negate(int n) = -n;
+
+pure boolean isPos(int x) = x > 0;
+
+ensures isPos(n) && isPos(negate(n));
+void foo(int n) { }

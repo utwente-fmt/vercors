@@ -1,0 +1,20 @@
+//:: cases PERF_INV_combined
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: worst-case single invariant — Perm + forall + function call combined.
+// WD fix adds function precondition as extra inhale. Heap reasoning from Perm.
+// Quantifier from forall. All three expensive dimensions active simultaneously.
+requires x >= 0;
+pure boolean nonNeg(int x) = x >= 0;
+
+class PERF_INV_combined_Node {
+    int value;
+
+    requires Perm(this.value, write) ** this.value >= 0;
+    void run(int n) {
+        loop_invariant Perm(this.value, write) ** this.value >= 0 && this.value <= n &&
+                       nonNeg(this.value) && (\forall int j = 0 .. this.value; j >= 0);
+        while (this.value < n) { this.value = this.value + 1; }
+    }
+}

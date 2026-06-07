@@ -1,0 +1,19 @@
+//:: cases PERF_NEST_2level
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 2-level nested loops, arithmetic invariant at each level.
+// checkInvSat: 2 isolated FramedProofs — same cost as 2 sequential loops.
+// detectDeadCode: inner body Refute carries outer invariant + outer condition in path state.
+// Compare to PERF-SEQ-5loops to see if nesting amplifies detectDeadCode cost.
+requires n >= 0 && m >= 0;
+void perf_nest_2(int n, int m) {
+    int i = 0;
+    loop_invariant i >= 0 && i <= n;
+    while (i < n) {
+        int j = 0;
+        loop_invariant j >= 0 && j <= m;
+        while (j < m) { j = j + 1; }
+        i = i + 1;
+    }
+}

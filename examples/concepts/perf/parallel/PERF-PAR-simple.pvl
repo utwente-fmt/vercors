@@ -1,0 +1,16 @@
+//:: cases PERF_PAR_simple
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: single parallel block with two live branches inside.
+// detectDeadCode instruments the par block body the same way it instruments loop bodies.
+// Baseline for parallel block instrumentation cost.
+requires n > 0;
+void perf_par_simple(int n, int x) {
+    par (int tid = 0 .. n)
+        context true;
+    {
+        if (x > 0) { }
+        if (x <= 0) { }
+    }
+}
