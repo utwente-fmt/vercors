@@ -2157,8 +2157,7 @@ ScopedStack()
     val perm: Expr[Post] =
       acc.accessMode match {
         case SYCLReadWriteAccess() => WritePerm[Post]()(acc.accessMode.o)
-//        case SYCLReadOnlyAccess() => ReadPerm[Post]()(acc.accessMode.o)
-        case SYCLReadOnlyAccess() => RatDiv[Post](c_const(1)(acc.accessMode.o),c_const(2)(acc.accessMode.o))(acc.accessMode.o)(acc.accessMode.o)
+        case SYCLReadOnlyAccess() => ReadPerm[Post]()(acc.accessMode.o)
       }
 
     (

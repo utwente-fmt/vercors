@@ -71,12 +71,19 @@ case object ExampleFiles {
     "examples/concepts/llvm/structs.c"
   ).map(_.replaceAll("/", File.separator))
 
+  val SLOW_EXAMPLES_TO_SKIP: Set[String] = Set(
+    "examples/concepts/sycl/kernels/ShiftGroupSum.cpp"
+  )
+
+
+
   val EXCLUSIONS: Seq[Path => Boolean] = Seq(
     f => IGNORE_DIRS.exists(dir => f.toString.startsWith(dir)),
     f => MAIN_FILES.contains(f.toString),
     f => CONTRACT_FILES.contains(f.toString),
     f => IGNORE_FILES.contains(f.getFileName.toString),
     f => IGNORE_EXTS.exists(ext => f.getFileName.toString.endsWith(ext)),
+    f => SLOW_EXAMPLES_TO_SKIP.contains(f.toString)
   )
 
   val FILES: Seq[Path] = find(Paths.get("examples"))

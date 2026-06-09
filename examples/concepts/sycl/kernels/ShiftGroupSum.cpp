@@ -332,6 +332,8 @@ ensures \result;
 ensures a%c==0;
 pure bool mod_trans(int a, int b, int c);
 
+//mod_trans is proven in Lean4, https://github.com/leanprover/lean4/blob/3dc1a088b6d2d8eafe25a7cd7ec7b58d731bd7cc/src/Init/Data/Int/DivMod/Bootstrap.lean#L37-L38
+
 requires g >=0 && d >= 0 && 0 <= x && x < 4 && 0 <= y && y < 4;
 requires g%4==x && d%4==y;
 ensures (g+d)%4==(x+y)%4;
@@ -368,23 +370,6 @@ pure bool mod_times_two(int g);
 */
 
 
-/*
-Proofs using ChatGPT, I'm not that good at Lean
-idshiftBack on its own verifies, but takes 1:27 by itself and non-deterministically gets stuck , so I leave it abstract.
-mod_trans is proven in Lean4, https://github.com/leanprover/lean4/blob/3dc1a088b6d2d8eafe25a7cd7ec7b58d731bd7cc/src/Init/Data/Int/DivMod/Bootstrap.lean#L37-L38
-
-
-import Mathlib.Data.Nat.Basic
-
-theorem mod4_add_general (g d x y : ℕ)
-  (hg : g % 4 = x)
-  (hd : d % 4 = y) :
-  (g + d) % 4 = (x + y) % 4 := by
-  have h := Nat.add_mod g d 4
-  -- rewrite both sides using assumptions
-  rw [hg, hd] at h
-  exact h
-  */
 
 
 

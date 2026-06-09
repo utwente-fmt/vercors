@@ -28,6 +28,5 @@ void vector_add(sycl::queue q, int size, int a[], int b[], int c[]) {
       }
     );
   });
-        //@ assert false;
 
 }

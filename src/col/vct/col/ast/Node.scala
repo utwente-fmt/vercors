@@ -3433,7 +3433,7 @@ final case class CPPLambdaDefinition[G](
     contract: ApplicableContract[G],
     declarator: CPPDeclarator[G],
     body: Statement[G],
-    extract: Boolean=true,
+    extract: Boolean=false,
     decreases: Option[DecreasesClause[G]]=None
                                        )(val blame: Blame[SYCLKernelLambdaFailure])(implicit val o: Origin)
     extends CPPExpr[G] with CPPLambdaDefinitionImpl[G]

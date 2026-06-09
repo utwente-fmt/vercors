@@ -942,11 +942,11 @@ case class CPPToCol[G](
       // Bool
       case SimpleTypeSpecifier6(_) => Seq(new CPPBool[G]())
       // Short
-      case SimpleTypeSpecifier7(_) => ??(typeSpec)
+      case SimpleTypeSpecifier7(_) => Seq(new CPPInt[G]())
       // Int
       case SimpleTypeSpecifier8(_) => Seq(new CPPInt[G]())
       // Long
-      case SimpleTypeSpecifier9(_) => ??(typeSpec)
+      case SimpleTypeSpecifier9(_) => Seq(new CPPInt[G]())
       // Signed
       case SimpleTypeSpecifier10(_) => Seq(new CPPSigned[G]())
       // Signed
