@@ -1308,8 +1308,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         CPPClassMethodOrFieldAccess(classInstance, methodOrFieldName, typeArgs)(
           cfa.blame
         )
-      case defn @ CPPLambdaDefinition(contract, declarator, body) =>
-        CPPLambdaDefinition(contract, declarator, body)(defn.blame)
+      case defn @ CPPLambdaDefinition(contract, declarator, body, extract, decreases) =>
+        CPPLambdaDefinition(contract, declarator, body, extract, decreases)(defn.blame)
       case CPPLambdaRef() => e
       case inv @ CPPInvocation(applicable, args, givenArgs, yields, sginv, reveal) =>
         CPPInvocation(applicable, args, givenArgs, yields, sginv,reveal)(inv.blame)

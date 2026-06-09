@@ -3433,7 +3433,9 @@ final case class CPPLambdaDefinition[G](
     contract: ApplicableContract[G],
     declarator: CPPDeclarator[G],
     body: Statement[G],
-)(val blame: Blame[SYCLKernelLambdaFailure])(implicit val o: Origin)
+    extract: Boolean=true,
+    decreases: Option[DecreasesClause[G]]=None
+                                       )(val blame: Blame[SYCLKernelLambdaFailure])(implicit val o: Origin)
     extends CPPExpr[G] with CPPLambdaDefinitionImpl[G]
 
 final case class CPPLiteralArray[G](exprs: Seq[Expr[G]])(implicit val o: Origin)

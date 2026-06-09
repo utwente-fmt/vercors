@@ -20,9 +20,6 @@ void vector_add(sycl::queue q, int size, int a[], int b[], int c[]) {
 
     h.parallel_for(sycl::range<1>(size),
       /*@
-        context it.get_id(0) < a_acc.get_range().get(0);
-        context it.get_id(0) < b_acc.get_range().get(0);
-        context it.get_id(0) < c_acc.get_range().get(0);
         context Perm(c_acc[it.get_id(0)], write);
         ensures c_acc[it.get_id(0)] == a_acc[it.get_id(0)] + b_acc[it.get_id(0)];
       @*/
@@ -31,4 +28,6 @@ void vector_add(sycl::queue q, int size, int a[], int b[], int c[]) {
       }
     );
   });
+        //@ assert false;
+
 }

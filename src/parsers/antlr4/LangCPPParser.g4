@@ -63,7 +63,9 @@ nestedNameSpecifier:
 	| nestedNameSpecifier Template? simpleTemplateId Doublecolon;
 
 lambdaExpression:
+	startSpec 'extract' valDecreases? endSpec valEmbedContract? lambdaIntroducer lambdaDeclarator? compoundStatement |
 	valEmbedContract? lambdaIntroducer lambdaDeclarator? compoundStatement;
+
 
 lambdaIntroducer: LeftBracket lambdaCapture? RightBracket;
 

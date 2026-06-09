@@ -1446,7 +1446,7 @@ ScopedStack()
 
   private def rewriteSYCLQueueSubmit(
       invocation: CPPInvocation[Pre]
-  ): (Block[Post], Variable[Post]) = {
+  ): (Statement[Post], Variable[Post]) = {
     // Do not allow given and yields on the invocation
     if (invocation.givenArgs.nonEmpty || invocation.yields.nonEmpty)
       throw SYCLGivenYieldsOnSYCLMethodsUnsupported(invocation)
@@ -1746,6 +1746,13 @@ ScopedStack()
       ),
     )
 
+    val kernelEncoding = FramedProof[Post](kernelRunnerPreCondition.pred,
+      ParStatement[Post](kernelParBlockUpdated)(kernelDeclaration.body.o),
+      tt
+    )(PanicBlame(""))(invocation.o)
+
+
+
     // Create a new class instance and assign it to the class instance variable, then fork that variable
     val result =
       (
@@ -1761,17 +1768,12 @@ ScopedStack()
             Seq(Assert(rangeChecks)((SYCLKernelRangeInvalidBlame(rangeChecks)))(rangeChecks.o)) ++
             rangeAssignments ++
             Seq(
-              IndetBranch(Seq(
-                Block(Seq[Statement[Post]](
-                  ParStatement[Post](kernelParBlockUpdated)(kernelDeclaration.body.o),
-                  Inhale(ff)(kernelParBlockUpdated.o),
-                ))(kernelParBlockUpdated.o),
-                Block(Seq(
-                  Exhale[Post](kernelRunnerPreCondition.pred)(
-                    kernelRunnerPreCondition.pred.o
-                  )(kernelRunnerPreCondition.pred.o)
-                ))(kernelDeclaration.body.o),
-              ))(kernelDeclaration.body.o)
+              if (kernelDeclaration.extract)
+                Extract[Post](
+                  kernelEncoding,
+                  kernelDeclaration.decreases.map(rw.dispatch(_)))(PanicBlame(""))(invocation.o)
+              else
+                kernelEncoding
             )
         )(invocation.o),
         eventClassRef,

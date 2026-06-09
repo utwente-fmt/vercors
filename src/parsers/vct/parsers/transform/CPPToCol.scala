@@ -1251,6 +1251,10 @@ case class CPPToCol[G](
   ): CPPLambdaDefinition[G] =
     lambda match {
       case LambdaExpression0(
+            _,
+            _,
+            maybeDecreases,
+            _,
             maybeContract,
             _,
             Some(lambdaDecl),
@@ -1263,9 +1267,28 @@ case class CPPToCol[G](
               contract.consumeApplicableContract(blame(lambda)),
               convert(lambdaDecl),
               convert(compoundStmnt),
+              extract=true,
+              decreases=maybeDecreases.map(convert(_))
             )(blame(lambda)),
         )
-      case LambdaExpression0(_, _, _, _) => ??(lambda)
+      case LambdaExpression0(_,_,_,_,_, _, _, _) => ??(lambda)
+      case LambdaExpression1(
+        maybeContract,
+        _,
+        Some(lambdaDecl),
+        compoundStmnt,
+      ) =>
+        withContract(
+          maybeContract,
+          contract =>
+            CPPLambdaDefinition(
+              contract.consumeApplicableContract(blame(lambda)),
+              convert(lambdaDecl),
+              convert(compoundStmnt),
+            )(blame(lambda)),
+        )
+      case LambdaExpression1(_, _, _, _) => ??(lambda)
+
     }
 
   // Do not support Mutable, exceptionSpecification, attributeSpecifierSeq, and trailingReturnType
