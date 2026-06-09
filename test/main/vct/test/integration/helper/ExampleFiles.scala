@@ -72,10 +72,11 @@ case object ExampleFiles {
   ).map(_.replaceAll("/", File.separator))
 
   val SLOW_EXAMPLES_TO_SKIP: Set[String] = Set(
-    "examples/concepts/sycl/kernels/ShiftGroupSum.cpp"
+    "examples/concepts/sycl/kernels/ShiftGroupSum.cpp",
+    "examples/concepts/sycl/kernels/ShiftGroupSumHelper.cpp",
+    "examples/concepts/sycl/kernels/MatrixMultiplicationSG.cpp",
+    "examples/concepts/sycl/kernels/MatrixMultiplicationSGLemmaProofs.cpp",
   )
-
-
 
   val EXCLUSIONS: Seq[Path => Boolean] = Seq(
     f => IGNORE_DIRS.exists(dir => f.toString.startsWith(dir)),
