@@ -29,8 +29,12 @@ void test(int* a) {
     e.wait();
   } // Leaving scope, which destroys aBuffer, which waits on the kernel to terminate as it uses aBuffer
 
-  //@ assert (\forall int i; 0 <= i && i < 10 ==> a[i] == a[sycl::linearize2(i%5, i/5, 5,2)]);
-
-  //@ assert (\forall int i; i >= 0 && i < 10; a[i] == 10);
-
+  /*@ assert (\forall int l=0 .. 2, int g=0 .. 5; {:tr0(g,l):}; a[sycl::linearize2(g, l,5, 2)] == 10);
+      assert (\forall int l=0 .. 2, int g=0 .. 5; tr0(g,l); {:a[g*2+l]:} == 10);
+      assert (\forall int i=0 .. 10; a[i] == 10); */
 }
+
+/*@
+ensures \result;
+pure bool tr0(int g, int l);
+*/
