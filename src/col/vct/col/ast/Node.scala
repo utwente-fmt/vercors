@@ -4278,6 +4278,16 @@ final case class LLVMSeqSlice[G](seq: Expr[G], sIdx: Expr[G], eIdx: Expr[G])(
 )(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMSeqSliceImpl[G]
 
+final case class LLVMSeqPrepend[G](elem: Expr[G], seq: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqPrependImpl[G]
+
+final case class LLVMSeqUpdate[G](seq: Expr[G], idx: Expr[G], elem: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqUpdateImpl[G]
+
 @family
 sealed trait LLVMMemoryOrdering[G]
     extends NodeFamily[G] with LLVMMemoryOrderingImpl[G]

@@ -157,6 +157,14 @@ void transformPallasSeqSlice(llvm::CallInst &callInstruction,
                              col::LlvmBasicBlock &colBlock,
                              pallas::FunctionCursor &funcCursor);
 
+void transformPallasSeqPrepend(llvm::CallInst &callInstruction,
+                               col::LlvmBasicBlock &colBlock,
+                               pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqUpdate(llvm::CallInst &callInstruction,
+                              col::LlvmBasicBlock &colBlock,
+                              pallas::FunctionCursor &funcCursor);
+
 } // namespace llvm2col
 
 #endif // PALLAS_OTHEROPTRANSFORM_H

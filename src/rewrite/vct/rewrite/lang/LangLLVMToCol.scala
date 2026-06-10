@@ -2077,6 +2077,27 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     )
   }
 
+  def rewriteSeqPrepend(seqPrep: LLVMSeqPrepend[Pre]): Expr[Post] = {
+    requireInWrapper(seqPrep)
+    implicit val o: Origin = seqPrep.o
+
+    Cons(
+      rw.dispatch(seqPrep.elem),
+      DerefPointer(rw.dispatch(seqPrep.seq))(seqPrep.blame),
+    )
+  }
+
+  def rewriteSeqUpdate(seqUpdate: LLVMSeqUpdate[Pre]): Expr[Post] = {
+    requireInWrapper(seqUpdate)
+    implicit val o: Origin = seqUpdate.o
+
+    SeqUpdate(
+      DerefPointer(rw.dispatch(seqUpdate.seq))(seqUpdate.blame),
+      rw.dispatch(seqUpdate.idx),
+      rw.dispatch(seqUpdate.elem),
+    )
+  }
+
   def correctPointerComparison[T <: Expr[Post]](
       left: Expr[Pre],
       right: Expr[Pre],

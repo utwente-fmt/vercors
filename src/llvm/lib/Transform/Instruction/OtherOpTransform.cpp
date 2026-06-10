@@ -533,6 +533,10 @@ void llvm2col::transformPallasSpecLibCall(llvm::CallInst &callInstruction,
         transformPallasSeqGet(callInstruction, colBlock, funcCursor);
     } else if (specLibType == pallas::constants::PALLAS_SPEC_SEQ_SLICE) {
         transformPallasSeqSlice(callInstruction, colBlock, funcCursor);
+    } else if (specLibType == pallas::constants::PALLAS_SPEC_SEQ_PREPEND) {
+        transformPallasSeqPrepend(callInstruction, colBlock, funcCursor);
+    } else if (specLibType == pallas::constants::PALLAS_SPEC_SEQ_SET) {
+        transformPallasSeqUpdate(callInstruction, colBlock, funcCursor);
     } else {
         pallas::ErrorReporter::addError(
             SOURCE_LOC, "Unsupported Pallas specification function ",
@@ -1313,6 +1317,96 @@ void llvm2col::transformPallasSeqSlice(llvm::CallInst &callInstruction,
     llvm2col::transformAndSetExpr(funcCursor, callInstruction,
                                   *callInstruction.getArgOperand(3),
                                   *seqSlice->mutable_e_idx());
+    // Target
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(0),
+                                  *store->mutable_pointer());
+    // Memory ordering (Set to sequentially consistent)
+    col::LlvmMemorySequentiallyConsistent *memOrder =
+        store->mutable_ordering()
+            ->mutable_llvm_memory_sequentially_consistent();
+    memOrder->set_allocated_origin(
+        llvm2col::generateFunctionCallOrigin(callInstruction));
+}
+
+void llvm2col::transformPallasSeqPrepend(llvm::CallInst &callInstruction,
+                                         col::LlvmBasicBlock &colBlock,
+                                         pallas::FunctionCursor &funcCursor) {
+    auto *llvmSpecFunc = callInstruction.getCalledFunction();
+    if (llvmSpecFunc->arg_size() != 3 ||
+        !llvmSpecFunc->getArg(0)->hasStructRetAttr() ||
+        !llvmSpecFunc->getArg(0)->getType()->isPointerTy()) {
+        pallas::ErrorReporter::addError(
+            SOURCE_LOC, "Malformed pallas spec-lib function: seq.prepend",
+            callInstruction);
+        return;
+    }
+
+    // Build store-instruction because result is returned as sret
+    auto *store =
+        pallas::bodyAsBlock(colBlock).add_statements()->mutable_llvm_store();
+    store->set_allocated_origin(
+        llvm2col::generateFunctionCallOrigin(callInstruction));
+    store->set_allocated_blame(new col::Blame());
+    // Value
+    auto *seqPrepend = store->mutable_value()->mutable_llvm_seq_prepend();
+    seqPrepend->set_allocated_origin(
+        llvm2col::generateFunctionCallOrigin(callInstruction));
+    seqPrepend->set_allocated_blame(new col::Blame());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(1),
+                                  *seqPrepend->mutable_elem());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(2),
+                                  *seqPrepend->mutable_seq());
+    // Target
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(0),
+                                  *store->mutable_pointer());
+    // Memory ordering (Set to sequentially consistent)
+    col::LlvmMemorySequentiallyConsistent *memOrder =
+        store->mutable_ordering()
+            ->mutable_llvm_memory_sequentially_consistent();
+    memOrder->set_allocated_origin(
+        llvm2col::generateFunctionCallOrigin(callInstruction));
+}
+
+void llvm2col::transformPallasSeqUpdate(llvm::CallInst &callInstruction,
+                                        col::LlvmBasicBlock &colBlock,
+                                        pallas::FunctionCursor &funcCursor) {
+    auto *llvmSpecFunc = callInstruction.getCalledFunction();
+    if (llvmSpecFunc->arg_size() != 4 ||
+        !llvmSpecFunc->getArg(0)->hasStructRetAttr() ||
+        !llvmSpecFunc->getArg(0)->getType()->isPointerTy() ||
+        !llvmSpecFunc->getArg(1)->getType()->isPointerTy() ||
+        !llvmSpecFunc->getArg(1)->hasByValAttr() ||
+        !llvmSpecFunc->getArg(2)->getType()->isIntegerTy()) {
+        pallas::ErrorReporter::addError(
+            SOURCE_LOC, "Malformed pallas spec-lib function: seq.update",
+            callInstruction);
+        return;
+    }
+
+    // Build store-instruction because result is returned as sret
+    auto *store =
+        pallas::bodyAsBlock(colBlock).add_statements()->mutable_llvm_store();
+    store->set_allocated_origin(
+        llvm2col::generateFunctionCallOrigin(callInstruction));
+    store->set_allocated_blame(new col::Blame());
+    // Value
+    auto *seqUpdate = store->mutable_value()->mutable_llvm_seq_update();
+    seqUpdate->set_allocated_origin(
+        llvm2col::generateFunctionCallOrigin(callInstruction));
+    seqUpdate->set_allocated_blame(new col::Blame());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(1),
+                                  *seqUpdate->mutable_seq());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(2),
+                                  *seqUpdate->mutable_idx());
+    llvm2col::transformAndSetExpr(funcCursor, callInstruction,
+                                  *callInstruction.getArgOperand(3),
+                                  *seqUpdate->mutable_elem());
     // Target
     llvm2col::transformAndSetExpr(funcCursor, callInstruction,
                                   *callInstruction.getArgOperand(0),

@@ -494,6 +494,10 @@ case class LangSpecificToCol[Pre <: Generation](
       case llvmSeqEq: LLVMSeqEq[Pre] => llvm.rewriteSeqEq(llvmSeqEq)
       case llvmSeqGet: LLVMSeqGet[Pre] => llvm.rewriteSeqGet(llvmSeqGet)
       case llvmSeqSlice: LLVMSeqSlice[Pre] => llvm.rewriteSeqSlice(llvmSeqSlice)
+      case llvmSeqPrepend: LLVMSeqPrepend[Pre] =>
+        llvm.rewriteSeqPrepend(llvmSeqPrepend)
+      case llvmSeqUpdate: LLVMSeqUpdate[Pre] =>
+        llvm.rewriteSeqUpdate(llvmSeqUpdate)
       case eq: AmbiguousEq[Pre] =>
         llvm.correctPointerComparison(
           eq.left,
