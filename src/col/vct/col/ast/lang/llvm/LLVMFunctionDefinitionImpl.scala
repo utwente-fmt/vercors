@@ -33,9 +33,12 @@ trait LLVMFunctionDefinitionImpl[G]
         (if (pure)
            Text("pure") <+> returnType
          else
-           returnType.show) <+> ctx.name(this) <> "(" <> Doc.args(args) <> ")"
+           returnType.show) <+> ctx.name(this) <> "(" <> Doc.args(llvmArgs) <>
+          ")"
       ) <+> body.map(_.layoutAsBlock).getOrElse(Text("")),
     ))
+
+  val args: Seq[Variable[G]] = llvmArgs.map(_.v)
 
   val isWrapper: Boolean =
     functionType match {

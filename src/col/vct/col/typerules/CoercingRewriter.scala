@@ -383,6 +383,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: LLVMFloatType[Pre] => node
       case node: LLVMFieldDefinition[Pre] => node
       case node: LLVMFunctionType[Pre] => node
+      case node: LLVMArgAttribute[Pre] => node
+      case node: LLVMFunctionArgument[Pre] => node
       case node: ProverLanguage[Pre] => node
       case node: SmtlibFunctionSymbol[Pre] => node
       case node: ChorRun[Pre] => node
@@ -3163,6 +3165,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: LLVMMemoryOrdering[Pre]): LLVMMemoryOrdering[Pre] = node
   def coerce(node: LLVMFloatType[Pre]): LLVMFloatType[Pre] = node
   def coerce(node: LLVMFunctionType[Pre]): LLVMFunctionType[Pre] = node
+  def coerce(node: LLVMArgAttribute[Pre]): LLVMArgAttribute[Pre] = node
+  def coerce(node: LLVMFunctionArgument[Pre]): LLVMFunctionArgument[Pre] = node
   def coerce(node: LLVMFieldDefinition[Pre]): LLVMFieldDefinition[Pre] = node
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node
