@@ -8,6 +8,12 @@ trait LLVMFunctionArgumentImpl[G]
     extends LLVMFunctionArgumentFamilyOps[G] with LLVMFunctionArgumentOps[G] {
   this: LLVMFunctionArgument[G] =>
 
+  val byValType: Option[Type[G]] =
+    attributes.map {
+      case LLVMByValArg(t) => Some(t)
+      case _ => None
+    }.filter(_.nonEmpty).head
+
   override def layout(implicit ctx: Ctx): Doc = {
     Group(
       v.t.show <+>

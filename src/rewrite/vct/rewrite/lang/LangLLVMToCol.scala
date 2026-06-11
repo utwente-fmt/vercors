@@ -587,6 +587,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             _ => Seq(func.importedArguments.map(_(i).t).getOrElse(a.t), a.t),
           )
         }
+        // If arguments have the byval-attribute, infer type from that
+        func.llvmArgs.filter(_.byValType.nonEmpty).foreach { case arg =>
+          addTypeGuess(arg.v, Set.empty, _ => Seq(LLVMTPointer(arg.byValType)))
+        }
+
         // If the function has an sret-argument, infer type from that.
         func.returnInParam match {
           case Some((idx, t)) =>
