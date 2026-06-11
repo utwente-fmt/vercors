@@ -371,6 +371,16 @@ case class SubGroupFunctionPreconditionFailed(inv: CPPInvocation[_])
       }
   }
 
+  private case class SYCLKernelFrameProofFailureBlame(
+                                                     kernel: CPPLambdaDefinition[_]
+                                                   ) extends Blame[FramedProofFailure] {
+    override def blame(error: FramedProofFailure): Unit =
+      error match {
+        case preFailed @ FramedProofPreFailed(_, _) =>
+          throw SYCLKernelPreconditionNotEstablished(preFailed)
+      }
+  }
+
   private case class SYCLKernelRangeInvalidBlame(expr: Expr[_])
       extends Blame[AssertFailed] {
     private case class KernelRangeInvalidError(error: AssertFailed)
@@ -1701,30 +1711,6 @@ ScopedStack()
       )
     }
 
-    // Declare the newly generated kernel code inside a run-method
-    val kernelRunnerContract =
-      ApplicableContract[Post](
-        kernelRunnerPreCondition,
-        kernelRunnerPostCondition,
-        tt,
-        tt,
-        Nil,
-        Nil,
-        Nil,
-        None,
-      )(SYCLKernelRunMethodContractUnsatisfiableBlame(
-        kernelRunnerPreCondition
-      ))(commandGroup.o)
-    val kernelRunner =
-      new RunMethod[Post](
-        body = Some(
-          Scope(
-            Nil,
-            ParStatement[Post](kernelParBlock)(kernelDeclaration.body.o),
-          )(kernelDeclaration.body.o)
-        ),
-        contract = kernelRunnerContract,
-      )(KernelLambdaRunMethodBlame(kernelDeclaration))(commandGroup.o)
 
     // Create the surrounding class
     val postEventClass: Class[Post] =
@@ -1749,7 +1735,7 @@ ScopedStack()
     val kernelEncoding = FramedProof[Post](kernelRunnerPreCondition.pred,
       ParStatement[Post](kernelParBlockUpdated)(kernelDeclaration.body.o),
       tt
-    )(PanicBlame(""))(invocation.o)
+    )(SYCLKernelFrameProofFailureBlame(kernelDeclaration))(invocation.o)
 
 
 
