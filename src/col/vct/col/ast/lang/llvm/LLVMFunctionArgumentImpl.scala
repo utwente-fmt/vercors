@@ -9,13 +9,14 @@ trait LLVMFunctionArgumentImpl[G]
   this: LLVMFunctionArgument[G] =>
 
   val byValType: Option[Type[G]] = {
-    if (attributes.isEmpty)
-      None
+    val bvAttrs = attributes.map {
+      case LLVMByValArg(t) => Some(t)
+      case _ => None
+    }.filter(_.nonEmpty)
+    if (bvAttrs.nonEmpty)
+      bvAttrs.head
     else
-      attributes.map {
-        case LLVMByValArg(t) => Some(t)
-        case _ => None
-      }.filter(_.nonEmpty).head
+      None
   }
 
   override def layout(implicit ctx: Ctx): Doc = {
