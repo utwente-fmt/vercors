@@ -1042,7 +1042,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           pred.llvmArgs.foreach { a =>
             val newArg =
               new Variable(rw.dispatch(getArgType(a.v, a.isByVal)))(a.o)
-            if (a.isByVal) { rw.variables.succeed(a.v, newArg) }
+            if (!a.isByVal) { rw.variables.succeed(a.v, newArg) }
             else { rw.variables.declare(newArg) }
           }
         }._1
