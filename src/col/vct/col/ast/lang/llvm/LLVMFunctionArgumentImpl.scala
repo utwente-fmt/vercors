@@ -19,6 +19,8 @@ trait LLVMFunctionArgumentImpl[G]
       None
   }
 
+  val isByVal: Boolean = byValType.nonEmpty
+
   override def layout(implicit ctx: Ctx): Doc = {
     Group(
       v.t.show <+>

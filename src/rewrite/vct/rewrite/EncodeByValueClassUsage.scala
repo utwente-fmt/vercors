@@ -46,16 +46,6 @@ case object EncodeByValueClassUsage extends RewriterBuilder {
     }
   }
 
-  private case class InvocationBlameAdapter(blame: Blame[InvocationFailure])
-      extends Blame[PointerDerefError] {
-    override def blame(error: PointerDerefError) =
-      error match {
-        case e @ CopyClassFailed(_, _, _) => blame.blame(e)
-        case e @ CopyClassFailedBeforeCall(_, _, _) => blame.blame(e)
-        case _ => ???
-      }
-  }
-
   case class UnsupportedStructPerm(o: Origin) extends UserError {
     override def code: String = "unsupportedStructPerm"
     override def text: String =

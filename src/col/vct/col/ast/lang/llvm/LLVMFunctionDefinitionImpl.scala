@@ -4,6 +4,7 @@ import vct.col.ast.declaration.category.ApplicableImpl
 import vct.col.ast.{
   Declaration,
   GhostWrapperFunction,
+  LLVMFunctionArgument,
   LLVMFunctionDefinition,
   NormalFunction,
   PallasFunctionContract,
@@ -39,6 +40,9 @@ trait LLVMFunctionDefinitionImpl[G]
     ))
 
   val args: Seq[Variable[G]] = llvmArgs.map(_.v)
+
+  val byValArgs: Seq[LLVMFunctionArgument[G]] = llvmArgs
+    .filter(_.byValType.nonEmpty)
 
   val isWrapper: Boolean =
     functionType match {
