@@ -49,16 +49,16 @@ case class PinSilverNodes[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
-      case starall @ Starall(bindings, triggers, body) =>
-        implicit val o: Origin = e.o
-        val (newBindings, (conds, consequent)) = variables.collect {
-          bindings.foreach(dispatch)
-          collectStarall(body)
-        }
-        val newBody = foldAnd(conds.map(dispatch)) ==> dispatch(consequent)
-        Starall(newBindings, triggers.map(_.map(dispatch)), newBody)(
-          starall.blame
-        )
+//      case starall @ Starall(bindings, triggers, body) =>
+//        implicit val o: Origin = e.o
+//        val (newBindings, (conds, consequent)) = variables.collect {
+//          bindings.foreach(dispatch)
+//          collectStarall(body)
+//        }
+//        val newBody = foldAnd(conds.map(dispatch)) ==> dispatch(consequent)
+//        Starall(newBindings, triggers.map(_.map(dispatch)), newBody)(
+//          starall.blame
+//        )
 
       case Size(xs) =>
         if (xs.t.asSet.nonEmpty)
