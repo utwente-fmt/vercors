@@ -804,7 +804,7 @@ ScopedStack()
 
   val currentlyRunningKernels: mutable.Map[Local[
     Post
-  ], (UnitAccountedPredicate[Post], Seq[SYCLAccessor[Post]])] =
+  ], (UnitAccountedPredicate[Post], Seq[SYCLAccessor[Post]], Exhale[Post])] =
     mutable.Map.empty
   val currentDimensionIterVars
       : mutable.Map[KernelScopeLevel, mutable.Buffer[IterVariable[Post]]] =
@@ -1232,15 +1232,15 @@ ScopedStack()
             .classInstance
         ) match {
           case localVar: Local[Post] =>
-            val (kernelrunnerpost, accessors)
-                : (UnitAccountedPredicate[Post], Seq[SYCLAccessor[Post]]) =
+            val (kernelrunnerpost, accessors, runnningExhale)
+                : (UnitAccountedPredicate[Post], Seq[SYCLAccessor[Post]], Exhale[Post]) =
               currentlyRunningKernels.getOrElse(
                 localVar,
                 throw Unreachable(inv.o.messageInContext(
                   "Could not find the event variable in the stored running kernels."
                 )),
               )
-            syclKernelTermination(localVar, kernelrunnerpost, accessors)
+            syclKernelTermination(localVar, kernelrunnerpost, accessors, runnningExhale)
           case _ =>
             throw Unreachable(inv.o.messageInContext(
               "The object on which the wait() method was called is not a locally declared SYCL event."
@@ -1363,23 +1363,23 @@ ScopedStack()
               case _ => SeqSubscript[Post](lref,c_const(0))(SYCLSubGroupSeqBoundFailureBlame(inv))
             }
 
-
+            LiteralSeq[Post](TCInt(),Seq(
             if (syclSubgroupDeltaSuccessors.nonEmpty) {
               lid+syclSubgroupDeltaSuccessors.top
             } else {
               lid
-            }
+            }))(inv.o)
           case _ => throw NotApplicable(inv)
         }
       case "sycl::sub_group::get_group_id" =>
         classInstance match {
           case Some(lref) =>
-            SeqSubscript[Post](lref,c_const(1))(SYCLSubGroupSeqBoundFailureBlame(inv))
+            LiteralSeq[Post](TCInt(),Seq(SeqSubscript[Post](lref,c_const(1))(SYCLSubGroupSeqBoundFailureBlame(inv))))(inv.o)
           case _ => throw NotApplicable(inv)
         }
-      case "sycl::sub_group::get_local_range" if args.length == 1 =>
+      case "sycl::sub_group::get_local_range" =>
         val warpsize = syclWarpSize.getOrElse(throw new SYCLWarpSizeNotDefinedError(inv))
-        Local(warpsize.ref)
+        LiteralSeq[Post](TCInt(), Seq(Local(warpsize.ref)))
       case "sycl::sub_group::get_group_range" => ???
       case "sycl::nd_item::get_sub_group" => {
         val warpsize = syclWarpSize.getOrElse(throw new SYCLWarpSizeNotDefinedError(inv))
@@ -1689,16 +1689,6 @@ ScopedStack()
       )(kernelDeclaration.contract.contextEverywhere.o)
     }
 
-    val kernelRunnerPreCondition = {
-      implicit val o: Origin = kernelDeclaration.contract.requires.o
-      UnitAccountedPredicate(
-        foldStar(
-          accessorRunMethodConditions ++
-            Seq(getKernelQuantifiedCondition(kernelParBlockUpdated, removeKernelAccessorPermissions(contractRequires, accessors))) ++
-            Seq(kernelRunnerContextEverywhere)
-        )(commandGroupBody.o)
-      )
-    }
     val kernelRunnerPostCondition = {
       implicit val o: Origin = kernelDeclaration.contract.ensures.o
       UnitAccountedPredicate(
@@ -1722,6 +1712,22 @@ ScopedStack()
       new Variable[Post](TByReferenceClass(postEventClass.ref, Seq()))(
         commandGroup.o.where(name = "sycl_event_ref")
       )
+
+    val runningArg =  new Variable[Post](TByReferenceClass(postEventClass.ref, Seq()))(commandGroup.o.where(name = "sycl_event_ref"))
+    val runningPredicate = new Predicate[Post](
+      Seq(runningArg),
+      None,
+      false,
+      false,
+      false
+    )(invocation.o.where(name="runningSYCLKernel"))
+    rw.globalDeclarations.declare(runningPredicate)
+
+    val runningPerm = Perm(
+      PredicateLocation(PredicateApply[Post](runningPredicate.ref, Seq(eventClassRef.get(invocation.o)))(runningPredicate.o))(invocation.o),
+      WritePerm()(invocation.o),
+    )(invocation.o)
+
 //     Store the class ref and read-write accessors to be used when the kernel is done running
     currentlyRunningKernels.put(
       eventClassRef.get(commandGroup.o),
@@ -1729,8 +1735,20 @@ ScopedStack()
         kernelRunnerPostCondition,
         accessors
           .filter(acc => acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]]),
+        Exhale[Post](runningPerm)(invocation.o)(invocation.o)
       ),
     )
+
+    val kernelRunnerPreCondition = {
+      implicit val o: Origin = kernelDeclaration.contract.requires.o
+      UnitAccountedPredicate(
+        foldStar(
+          accessorRunMethodConditions ++
+            Seq(getKernelQuantifiedCondition(kernelParBlockUpdated, removeKernelAccessorPermissions(contractRequires, accessors))) ++
+            Seq(kernelRunnerContextEverywhere)
+        )(commandGroupBody.o)
+      )
+    }
 
     val kernelEncoding = FramedProof[Post](kernelRunnerPreCondition.pred,
       ParStatement[Post](kernelParBlockUpdated)(kernelDeclaration.body.o),
@@ -1753,6 +1771,7 @@ ScopedStack()
              ++
             Seq(Assert(rangeChecks)((SYCLKernelRangeInvalidBlame(rangeChecks)))(rangeChecks.o)) ++
             rangeAssignments ++
+            Seq(Inhale[Post](runningPerm)(invocation.o)) ++
             Seq(
               if (kernelDeclaration.extract)
                 Extract[Post](
@@ -2611,7 +2630,7 @@ ScopedStack()
     )
     val kernelTerminations =
       kernelsToTerminate
-        .map(tuple => syclKernelTermination(tuple._1, tuple._2._1, tuple._2._2))
+        .map(tuple => syclKernelTermination(tuple._1, tuple._2._1, tuple._2._2, tuple._2._3))
         .toSeq
 
     // Get the exclusive access predicate and copy procedures
@@ -2649,7 +2668,7 @@ ScopedStack()
 
     val kernelsToWaitFor: mutable.Map[Local[
       Post
-    ], (UnitAccountedPredicate[Post], Seq[SYCLAccessor[Post]])] =
+    ], (UnitAccountedPredicate[Post], Seq[SYCLAccessor[Post]], Exhale[Post])] =
       mode match {
         case SYCLReadOnlyAccess() =>
           currentlyRunningKernels.filter(tuple =>
@@ -2666,7 +2685,7 @@ ScopedStack()
 
     Block[Post](
       kernelsToWaitFor
-        .map(tuple => syclKernelTermination(tuple._1, tuple._2._1, tuple._2._2))
+        .map(tuple => syclKernelTermination(tuple._1, tuple._2._1, tuple._2._2, tuple._2._3))
         .toSeq
     )
   }
@@ -2909,9 +2928,11 @@ ScopedStack()
       variable: Local[Post],
       kernelRunnerPostCondition: UnitAccountedPredicate[Post],
       accessors: Seq[SYCLAccessor[Post]],
+      runningPerm: Exhale[Post]
   )(implicit o: Origin): Statement[Post] = {
     currentlyRunningKernels.remove(variable)
     Block(
+      Seq(runningPerm) ++
       Seq(Inhale(kernelRunnerPostCondition.pred)(kernelRunnerPostCondition.o))
       // TODO ÖS I need to do something related to readonly accessors. I am currently exhaling all permission, maybe that should only happen if it read/write.
     )

@@ -339,3 +339,16 @@ axiom scale_shift_range_perm_linear_indep {
     (∀* int i; i \in {l..r} ==> Perm(ar[i*factor + shift], p)) ==
     (∀* int i; (i \in {l*factor+shift..r*factor+shift} && (i-shift) % factor == 0) ==> Perm(ar[i], p))))
 }
+
+axiom litseq_index0 {
+  (∀int e0; seq<int>{e0}[0] == e0)
+}
+
+axiom litseq_index1 {
+  (∀int e0, int e1; seq<int>{e0, e1}[0] == e0)
+}
+
+axiom litseq_index2 {
+  (∀int e0, int e1; seq<int>{e0, e1}[1] == e1)
+}
+
