@@ -27,14 +27,14 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
                     fxGs[it.get_global_id(0)] == fxAcc[it.get_global_id(0)] &&
                     fxGs[it.get_global_id(0)] == \old(fx[it.get_global_id(0)]);
 
-                ensures it.get_sub_group().get_local_id() + it.get_sub_group().get_local_range(0) <= it.get_sub_group().get_local_range(0) ==>
-                    it.get_global_id(0)+it.get_sub_group().get_local_range(0) <= |fxGs| ==>
-                        fxAcc[it.get_global_id(0)] == sum(fxGs[it.get_global_id(0) .. it.get_global_id(0)+it.get_sub_group().get_local_range(0)]); */
+                ensures it.get_sub_group().get_local_id()[0] + it.get_sub_group().get_local_range().get(0) <= it.get_sub_group().get_local_range().get(0) ==>
+                    it.get_global_id(0)+it.get_sub_group().get_local_range().get(0) <= |fxGs| ==>
+                        fxAcc[it.get_global_id(0)] == sum(fxGs[it.get_global_id(0) .. it.get_global_id(0)+it.get_sub_group().get_local_range().get(0)]); */
             [=](sycl::nd_item<1> it) {
                 //@ assert true;
                 sycl::sub_group sg = it.get_sub_group();
                 int gid = it.get_global_id(0);
-                int laneId = sg.get_local_id();
+                int laneId = sg.get_local_id()[0];
                 int d1 = 1;
 
                 fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], d1)
@@ -46,7 +46,7 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
 
                 int d2 = 2;
                 fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], d2)
-                /*@ sub_group_inv { \sgtid + d1 < sg.get_local_range(0) ==> \gtid+d2 <= |fxGs| ==> \sg_val == sum(fxGs[\gtid .. \gtid+d2]) } */;
+                /*@ sub_group_inv { \sgtid + d1 < sg.get_local_range().get(0) ==> \gtid+d2 <= |fxGs| ==> \sg_val == sum(fxGs[\gtid .. \gtid+d2]) } */;
 
                 /*@ assert lemmaSumOverConcat(fxGs[gid .. gid+d2],fxGs[gid+d2 .. gid+d2+d2]);
                     assert lemmaSumOverABBCisAC(fxGs, gid, gid+d2, gid+d2, gid+d2+d2);
@@ -56,18 +56,18 @@ int smartsum(sycl::queue q, int T, int N, int* fx) {
                 //@ ghost int k1 = 2;
 
                 /*@ loop_invariant k1 >= 2 && k1 <= sycl::h::wrpsz_pow() && dk == sycl::h::exp(2,k1);
-                    loop_invariant sg.get_local_range(0) %2==0;
-                    loop_invariant 4 <= dk && dk <= sg.get_local_range(0);
-                    loop_invariant dk == sg.get_local_range(0) ==> sycl::h::exp(2,k1) == sg.get_local_range(0);
-                    loop_invariant dk >= sg.get_local_range(0) ==> dk == sg.get_local_range(0);
+                    loop_invariant sg.get_local_range().get(0) %2==0;
+                    loop_invariant 4 <= dk && dk <= sg.get_local_range().get(0);
+                    loop_invariant dk == sg.get_local_range().get(0) ==> sycl::h::exp(2,k1) == sg.get_local_range().get(0);
+                    loop_invariant dk >= sg.get_local_range().get(0) ==> dk == sg.get_local_range().get(0);
                     
                     loop_invariant (\forall int i=0 .. T; fxGs[i] == \old[bK](fx[i]));
                     loop_invariant Perm({:fxAcc[it.get_global_id(0)]:}, write);
-                    loop_invariant  sg.get_local_id() + sycl::h::exp(2,k1) <= sg.get_local_range(0) ==>
+                    loop_invariant  sg.get_local_id()[0] + sycl::h::exp(2,k1) <= sg.get_local_range().get(0) ==>
                         gid+dk <= |fxGs| ==> fxAcc[gid] == sum(fxGs[gid .. gid+dk]); */
-                for (dk = 4; dk < sg.get_local_range(0); dk = dk * 2) {
+                for (dk = 4; dk < sg.get_local_range().get(0); dk = dk * 2) {
                     int sgl_result2 = sycl::shift_group_left(sg, fxAcc[gid], dk)
-                    /*@ sub_group_inv { \sgtid + dk <= sg.get_local_range(0) ==> \gtid+dk <= |fxGs| ==> \sg_val == sum(fxGs[\gtid .. \gtid+dk]) } */;
+                    /*@ sub_group_inv { \sgtid + dk <= sg.get_local_range().get(0) ==> \gtid+dk <= |fxGs| ==> \sg_val == sum(fxGs[\gtid .. \gtid+dk]) } */;
                     fxAcc[gid] += sgl_result2;
 
                     /*@ assert lemmaSumOverConcat(fxGs[gid .. gid+dk],fxGs[gid+dk .. gid+dk+dk]);

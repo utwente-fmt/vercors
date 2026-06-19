@@ -23,8 +23,8 @@ void test() {
                      int i = it.get_group_range(0);
 
                      sycl::sub_group sg = it.get_sub_group();
-                     int j = sg.get_local_id(); // lane id
-                     int k = sg.get_group_id(); // wid = llid / 32
+                     int j = sg.get_local_id()[0]; // lane id
+                     int k = sg.get_group_id()[0]; // wid = llid / 32
                      // llid = wid * 32 + lane;
                  });
             });
