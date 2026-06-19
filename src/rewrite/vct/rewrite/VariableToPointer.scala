@@ -52,7 +52,9 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
 
   val addressedSet: mutable.Map[Node[Pre], PointerSort] =
     new mutable.HashMap[Node[Pre], PointerSort]()
-  val variableMap: SuccessionMap[Variable[Pre], LocalHeapVariable[Post]] =
+  val variableMap: SuccessionMap[Variable[Pre], Variable[Post]] =
+    SuccessionMap()
+  val heapVarMap: SuccessionMap[Variable[Pre], LocalHeapVariable[Post]] =
     SuccessionMap()
   val noTransform: ScopedStack[scala.collection.Set[Variable[Pre]]] =
     ScopedStack()
@@ -122,7 +124,6 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
       }
       case proc: Procedure[Pre] => {
         val skipVars = mutable.Set[Variable[Pre]]()
-        // TODO: Change second type to LocalHeapVariable?
         val extraVars = mutable
           .ArrayBuffer[(Variable[Post], LocalHeapVariable[Post], PointerSort)]()
         // Relies on args being evaluated before body
@@ -134,12 +135,13 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
                 proc.args.map { v =>
                   val newV = variables.succeed(v, v.rewriteDefault())
                   if (addressedSet.contains(v)) {
-                    variableMap(v) =
+                    // These need to be localHeapVariables, otherwise the encoding of ByValueClasses does not work properly
+                    heapVarMap(v) =
                       new LocalHeapVariable[Post](
                         makePointer(dispatch(v.t), addressedSet(v))
                       )(v.o)
                     skipVars += v
-                    extraVars += ((newV, variableMap(v), addressedSet(v)))
+                    extraVars += ((newV, heapVarMap(v), addressedSet(v)))
                   }
                 }
               }._1,
@@ -148,6 +150,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
               else {
                 if (extraVars.isEmpty) { Some(dispatch(proc.body.get)) }
                 else {
+                  // Add declarations & assignments for the localHeapVariables to the start of the body
                   localHeapVariables.scope {
                     variables.scope {
                       val locals =
@@ -188,13 +191,10 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
         )
       }
       case v: Variable[Pre] if addressedSet.contains(v) =>
-        val heapLocal = localHeapVariables.declare(
-          new LocalHeapVariable(makePointer(dispatch(v.t), addressedSet(v)))(
-            v.o
-          )
+        variableMap(v) = variables.succeed(
+          v,
+          new Variable(makePointer(dispatch(v.t), addressedSet(v)))(v.o),
         )
-        // variableMap(v) = variables.succeed(v, heapLocal)
-        variableMap(v) = heapLocal
       case other => allScopes.anySucceed(other, other.rewriteDefault())
     }
 
@@ -224,7 +224,7 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
             .map { local =>
               implicit val o: Origin = local.o
               Assign(
-                HeapLocal[Post](variableMap.ref(local)),
+                Local[Post](variableMap.ref(local)),
                 makeNewPointer(variableMap(local).t),
               )(PanicBlame("Initialisation should always succeed"))
             } ++ Seq(dispatch(s.body))),
@@ -238,9 +238,16 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
     expr match {
       case Local(Ref(v))
           if addressedSet.contains(v) && !noTransform.exists(_.contains(v)) =>
-        DerefPointer(HeapLocal[Post](variableMap.ref(v)))(PanicBlame(
-          "Should always be accessible"
-        ))
+        val inVarMap = variableMap.contains(v)
+        val inHeapVarMap = heapVarMap.contains(v)
+        val local =
+          if (inVarMap && !inHeapVarMap) { Local[Post](variableMap.ref(v)) }
+          else if (inHeapVarMap && !inVarMap) {
+            HeapLocal[Post](heapVarMap.ref(v))
+          } else {
+            ??? // Something is wrong
+          }
+        DerefPointer(local)(PanicBlame("Should always be accessible"))
       case newObject @ NewObject(Ref(cls: ByValueClass[Pre])) =>
         val obj = new Variable[Post](TByValueClass(succ(cls), Seq()))
         ScopedExpr(
