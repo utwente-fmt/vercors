@@ -153,15 +153,10 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
                   // Add declarations & assignments for the localHeapVariables to the start of the body
                   localHeapVariables.scope {
                     variables.scope {
-                      val locals =
-                        localHeapVariables.collect {
-                          extraVars.map { case (_, pointer, _) =>
-                            localHeapVariables.declare(pointer)
-                          }
-                        }._1
-                      val localHeapDecls = locals.map { case v =>
-                        HeapLocalDecl(v)(v.o)
-                      }
+                      val localHeapDecls =
+                        extraVars.map { case (_, v, _) =>
+                          HeapLocalDecl(v)(v.o)
+                        }.toSeq
                       val block =
                         Block(localHeapDecls ++ extraVars.map {
                           case (normal, pointer, Normal(_)) =>
