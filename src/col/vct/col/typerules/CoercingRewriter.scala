@@ -425,6 +425,17 @@ abstract class CoercingRewriter[Pre <: Generation]()
       },
     )(coercionOrigin(value))
 
+  def coerceEither(
+      value: Expr[Pre],
+      target: Type[Pre],
+      canCDemote: Boolean = false,
+  ): Either[CoercionError, Expr[Pre]] =
+    CoercionUtils.getAnyCoercion(value.t, target) match {
+      case Some(coercion) if canCDemote || coercion.isCPromoting =>
+        Right(ApplyCoercion(value, coercion)(coercionOrigin(value)))
+      case _ => Left(Incoercible(value, target))
+    }
+
   def coerceArgs(args: Seq[Expr[Pre]], app: Applicable[Pre]): Seq[Expr[Pre]] =
     args.zip(app.args).map { case (value, arg) => coerce(value, arg.t) }
 
@@ -468,6 +479,12 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def bool(e: Expr[Pre]): Expr[Pre] = coerce(e, TBool[Pre]())
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
+  def ratEither(e: Expr[Pre]): Either[CoercionError, Expr[Pre]] =
+    coerceEither(e, TRational[Pre]())
+  def boolEither(e: Expr[Pre]): Either[CoercionError, Expr[Pre]] =
+    coerceEither(e, TBool[Pre]())
+  def intEither(e: Expr[Pre]): Either[CoercionError, Expr[Pre]] =
+    coerceEither(e, TInt[Pre]())
   // TODO: This is a bit of a hack and using this actually allows you to do things which should not be allowed in non-C languages
   def boolAndCInt(e: Expr[Pre]): Expr[Pre] =
     e.t match {
@@ -477,11 +494,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
     }
   def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
   def float(e: Expr[Pre]): Expr[Pre] =
-    firstOk(
+    firstOkEither(
       e,
       "Expected float",
-      coerce(e, TFloats.ieee754_32bit[Pre]),
-      coerce(e, TFloats.ieee754_64bit[Pre]),
+      coerceEither(e, TFloats.ieee754_32bit[Pre]),
+      coerceEither(e, TFloats.ieee754_64bit[Pre]),
     )
   def floatOp2[T](e: BinExpr[Pre], f: (Expr[Pre], Expr[Pre]) => T): T = {
     val max = TFloats.getFloatMax(e.left.t, e.right.t)
@@ -543,17 +560,55 @@ abstract class CoercingRewriter[Pre <: Generation]()
         }
       case None => throw IncoercibleText(e, s"$typeName vector")
     }
+  def vectorTypeEither(
+      e: Expr[Pre],
+      elementType: Type[Pre],
+      typeName: String,
+  ): Either[CoercionError, (Expr[Pre], TVector[Pre])] =
+    CoercionUtils.getAnyVectorCoercion(e.t) match {
+      case Some((coercionOuter, t)) =>
+        CoercionUtils.getCoercion(t.element, elementType) match {
+          case Some(CoerceIdentity(_)) =>
+            Right((e, TVector(t.size, elementType)))
+          case Some(coercionInner) =>
+            val c =
+              CoerceMapVector(coercionInner, t.element, elementType, t.size)(
+                coercionOrigin(e)
+              )
+            Right((
+              ApplyCoercion(e, c)(coercionOrigin(e)),
+              TVector(t.size, elementType),
+            ))
+          case None => Left(IncoercibleText(e, s"$typeName vector"))
+        }
+      case None => Left(IncoercibleText(e, s"$typeName vector"))
+    }
   def vectorInt(e: Expr[Pre]): (Expr[Pre], TVector[Pre]) =
     vectorType(e, TInt(), "int")
+  def vectorIntEither(
+      e: Expr[Pre]
+  ): Either[CoercionError, (Expr[Pre], TVector[Pre])] =
+    vectorTypeEither(e, TInt(), "int")
   def vectorFloat(e: Expr[Pre]): (Expr[Pre], TVector[Pre]) =
-    firstOk(
+    firstOkEither(
       e,
       "Expected float vector",
-      vectorType(e, TFloats.ieee754_32bit[Pre], "float"),
-      vectorType(e, TFloats.ieee754_64bit[Pre], "float"),
+      vectorTypeEither(e, TFloats.ieee754_32bit[Pre], "float"),
+      vectorTypeEither(e, TFloats.ieee754_64bit[Pre], "float"),
     )
+  def vectorFloatEither(
+      e: Expr[Pre]
+  ): Either[CoercionError, (Expr[Pre], TVector[Pre])] =
+    vectorTypeEither(e, TFloats.ieee754_32bit[Pre], "float") match {
+      case right @ Right(_) => right
+      case Left(_) => vectorTypeEither(e, TFloats.ieee754_64bit[Pre], "float")
+    }
   def vectorRational(e: Expr[Pre]): (Expr[Pre], TVector[Pre]) =
     vectorType(e, TRational(), "rational")
+  def vectorRationalEither(
+      e: Expr[Pre]
+  ): Either[CoercionError, (Expr[Pre], TVector[Pre])] =
+    vectorTypeEither(e, TRational(), "rational")
   def bag(e: Expr[Pre]): (Expr[Pre], TBag[Pre]) =
     CoercionUtils.getAnyBagCoercion(e.t) match {
       case Some((coercion, t)) =>
@@ -645,13 +700,22 @@ abstract class CoercingRewriter[Pre <: Generation]()
   }
   def vectorOp2[T](e: BinExpr[Pre], f: (Expr[Pre], Expr[Pre]) => T): T = {
     implicit val o: Origin = e.o
-    val (left, right) = firstOk(
+    val (left, right) = firstOkEither(
       e,
       s"Expected both operands to be of type vector[integer or float or rational], but got ${e
           .left.t} and ${e.right.t}.",
-      (vectorInt(e.left), vectorInt(e.right)),
-      (vectorFloat(e.left), vectorFloat(e.right)),
-      (vectorRational(e.left), vectorRational(e.right)),
+      for {
+        l <- vectorIntEither(e.left)
+        r <- vectorIntEither(e.right)
+      } yield (l, r),
+      for {
+        l <- vectorFloatEither(e.left)
+        r <- vectorFloatEither(e.right)
+      } yield (l, r),
+      for {
+        l <- vectorRationalEither(e.left)
+        r <- vectorRationalEither(e.right)
+      } yield (l, r),
     )
     if (left._2.size != right._2.size)
       throw IncoercibleText(
@@ -716,27 +780,6 @@ abstract class CoercingRewriter[Pre <: Generation]()
     inv
   }
 
-  def firstOkHelper[T](
-      thing: Either[Seq[CoercionError], T],
-      onError: => T,
-  ): Either[Seq[CoercionError], T] =
-    thing match {
-      case Left(errs) =>
-        try { Right(onError) }
-        catch { case err: CoercionError => Left(errs :+ err) }
-      case Right(value) => Right(value)
-    }
-
-  implicit class FirstOkHelper[T](res: Either[Seq[CoercionError], T]) {
-    def onCoercionError(f: => T): Either[Seq[CoercionError], T] =
-      res match {
-        case Left(errs) =>
-          try { Right(f) }
-          catch { case err: CoercionError => Left(errs :+ err) }
-        case Right(value) => Right(value)
-      }
-  }
-
   def firstOk[T](
       expr: Expr[Pre],
       message: => String,
@@ -754,16 +797,87 @@ abstract class CoercingRewriter[Pre <: Generation]()
       alt12: => T = throw IncoercibleDummy,
       alt13: => T = throw IncoercibleDummy,
   ): T = {
-    Left(Nil).onCoercionError(alt1).onCoercionError(alt2).onCoercionError(alt3)
-      .onCoercionError(alt4).onCoercionError(alt5).onCoercionError(alt6)
-      .onCoercionError(alt7).onCoercionError(alt8).onCoercionError(alt9)
-      .onCoercionError(alt10).onCoercionError(alt11).onCoercionError(alt12)
-      .onCoercionError(alt13) match {
-      case Left(errs) =>
-        for (err <- errs) { logger.debug(err.text) }
-        throw IncoercibleExplanation(expr, message)
-      case Right(value) => value
+    val alternatives = Seq[() => T](
+      () => alt1,
+      () => alt2,
+      () => alt3,
+      () => alt4,
+      () => alt5,
+      () => alt6,
+      () => alt7,
+      () => alt8,
+      () => alt9,
+      () => alt10,
+      () => alt11,
+      () => alt12,
+      () => alt13,
+    )
+
+    val errs = scala.collection.mutable.ArrayBuffer.empty[CoercionError]
+    var idx = 0
+
+    while (idx < alternatives.length) {
+      try { return alternatives(idx)() }
+      catch {
+        case IncoercibleDummy => idx = alternatives.length
+        case err: CoercionError =>
+          errs += err
+          idx += 1
+      }
     }
+
+    for (err <- errs) { logger.debug(err.text) }
+    throw IncoercibleExplanation(expr, message)
+  }
+
+  def firstOkEither[T](
+      expr: Expr[Pre],
+      message: => String,
+      alt1: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt2: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt3: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt4: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt5: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt6: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt7: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt8: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt9: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt10: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt11: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt12: => Either[CoercionError, T] = Left(IncoercibleDummy),
+      alt13: => Either[CoercionError, T] = Left(IncoercibleDummy),
+  ): T = {
+    val alternatives = Seq[() => Either[CoercionError, T]](
+      () => alt1,
+      () => alt2,
+      () => alt3,
+      () => alt4,
+      () => alt5,
+      () => alt6,
+      () => alt7,
+      () => alt8,
+      () => alt9,
+      () => alt10,
+      () => alt11,
+      () => alt12,
+      () => alt13,
+    )
+
+    val errs = scala.collection.mutable.ArrayBuffer.empty[CoercionError]
+    var idx = 0
+
+    while (idx < alternatives.length) {
+      alternatives(idx)() match {
+        case Right(value) => return value
+        case Left(IncoercibleDummy) => idx = alternatives.length
+        case Left(err) =>
+          errs += err
+          idx += 1
+      }
+    }
+
+    for (err <- errs) { logger.debug(err.text) }
+    throw IncoercibleExplanation(expr, message)
   }
 
   def nonAny(
@@ -827,28 +941,46 @@ abstract class CoercingRewriter[Pre <: Generation]()
             ADTFunctionInvocation(None, ref, coerceArgs(args, ref.decl))
         }
       case AmbiguousComputationalAnd(left, right) =>
-        firstOk(
+        firstOkEither(
           e,
           s"Expected both operands to be of type integer or boolean, but got ${left
               .t} and ${right.t}.",
-          AmbiguousComputationalAnd(int(left), int(right)),
-          AmbiguousComputationalAnd(bool(left), bool(right)),
+          for {
+            l <- intEither(left)
+            r <- intEither(right)
+          } yield AmbiguousComputationalAnd(l, r),
+          for {
+            l <- boolEither(left)
+            r <- boolEither(right)
+          } yield AmbiguousComputationalAnd(l, r),
         )
       case AmbiguousComputationalOr(left, right) =>
-        firstOk(
+        firstOkEither(
           e,
           s"Expected both operands to be of type integer or boolean, but got ${left
               .t} and ${right.t}.",
-          AmbiguousComputationalOr(int(left), int(right)),
-          AmbiguousComputationalOr(bool(left), bool(right)),
+          for {
+            l <- intEither(left)
+            r <- intEither(right)
+          } yield AmbiguousComputationalOr(l, r),
+          for {
+            l <- boolEither(left)
+            r <- boolEither(right)
+          } yield AmbiguousComputationalOr(l, r),
         )
       case AmbiguousComputationalXor(left, right) =>
-        firstOk(
+        firstOkEither(
           e,
           s"Expected both operands to be of type integer or boolean, but got ${left
               .t} and ${right.t}.",
-          AmbiguousComputationalXor(int(left), int(right)),
-          AmbiguousComputationalXor(bool(left), bool(right)),
+          for {
+            l <- intEither(left)
+            r <- intEither(right)
+          } yield AmbiguousComputationalXor(l, r),
+          for {
+            l <- boolEither(left)
+            r <- boolEither(right)
+          } yield AmbiguousComputationalXor(l, r),
         )
       case div @ AmbiguousDiv(left, right) =>
         firstOk(
