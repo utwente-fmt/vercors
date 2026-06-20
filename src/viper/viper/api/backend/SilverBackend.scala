@@ -68,6 +68,7 @@ trait SilverBackend
       nodeFromUniqueId: Map[Int, col.Node[_]],
   ): (Verifier, SilverPluginManager)
   def stopVerifier(verifier: Verifier): Unit
+  val skipIdempotencyCheck: Boolean = false
 
   private def info[T <: col.Node[_]](
       node: silver.Infoed
@@ -83,17 +84,19 @@ trait SilverBackend
       colProgram: col.Program[_],
       output: Option[Path],
   ): (silver.Program, Map[Int, col.Node[_]]) = {
-    Progress.stages(Seq(
-      "Translation" -> 2,
-      "Diagnostic Output" -> 2,
-      "Check" -> 7,
-      "Check Idempotency" -> 9,
-    )) { next =>
+    val stages =
+      Seq("Translation" -> 2, "Diagnostic Output" -> 2, "Check" -> 7) ++
+        (if (skipIdempotencyCheck)
+           Seq.empty
+         else
+           Seq("Check Idempotency" -> 9))
+
+    Progress.stages(stages) { next =>
       val (silverProgram, nodeFromUniqueId) = ColToSilver.transform(colProgram)
 
       next()
 
-      val silverProgramString = silverProgram.toString()
+      lazy val silverProgramString = silverProgram.toString()
         .replace("requires decreases", "decreases")
         .replace("invariant decreases", "decreases")
 
@@ -108,34 +111,37 @@ trait SilverBackend
         case some => throw ConsistencyErrors(some)
       }
 
-      next()
+      if (!skipIdempotencyCheck) {
+        next()
 
-      val f = Files.createTempFile("vercors-", ".sil")
-      try {
-        Using(Files.newBufferedWriter(f))(_.write(silverProgramString))
+        val f = Files.createTempFile("vercors-", ".sil")
+        try {
+          Using(Files.newBufferedWriter(f))(_.write(silverProgramString))
 
-        SilverParserDummyFrontend().parse(RWFile(f, doWatch = false)) match {
-          case Left(errors) =>
-            logger.warn(
-              "Possible viper bug: silver AST does not reparse when printing as text"
-            )
-            for (error <- errors) { logger.warn(error.toString) }
-          case Right(reparsedProgram) =>
-            SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
-              case Nil =>
-              case diffs =>
-                logger.debug(
-                  "Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:"
-                )
-                for ((left, right) <- diffs) {
-                  logger
-                    .debug(s" - Left: ${left.getClass.getSimpleName}: $left")
-                  logger
-                    .debug(s" - Right: ${right.getClass.getSimpleName}: $right")
-                }
-            }
-        }
-      } finally { Files.delete(f) }
+          SilverParserDummyFrontend().parse(RWFile(f, doWatch = false)) match {
+            case Left(errors) =>
+              logger.warn(
+                "Possible viper bug: silver AST does not reparse when printing as text"
+              )
+              for (error <- errors) { logger.warn(error.toString) }
+            case Right(reparsedProgram) =>
+              SilverTreeCompare.compare(silverProgram, reparsedProgram) match {
+                case Nil =>
+                case diffs =>
+                  logger.debug(
+                    "Possible VerCors bug: reparsing the silver AST as text causes the AST to be different:"
+                  )
+                  for ((left, right) <- diffs) {
+                    logger
+                      .debug(s" - Left: ${left.getClass.getSimpleName}: $left")
+                    logger.debug(
+                      s" - Right: ${right.getClass.getSimpleName}: $right"
+                    )
+                  }
+              }
+          }
+        } finally { Files.delete(f) }
+      }
 
       (silverProgram, nodeFromUniqueId)
     }

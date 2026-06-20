@@ -43,6 +43,7 @@ case class Silicon(
     branchConditionReportInterval: Option[Int] = Some(1000),
     timeoutValue: Int = 30,
     totalTimeOut: Int = 0,
+    override val skipIdempotencyCheck: Boolean = false,
     options: Seq[String] = Nil,
 ) extends SilverBackend {
 

@@ -17,6 +17,7 @@ case class Carbon(
     boogiePath: Path = Resources.getBoogiePath,
     printFile: Option[Path] = None,
     proverLogFile: Option[Path] = None,
+    override val skipIdempotencyCheck: Boolean = false,
     options: Seq[String] = Nil,
 ) extends SilverBackend {
   override def submit(

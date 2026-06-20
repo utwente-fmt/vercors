@@ -62,6 +62,7 @@ case object Backend {
             optimizeUnsafe = options.devUnsafeOptimization,
             branchConditionReportInterval =
               options.devSiliconBranchConditionReportInterval,
+            skipIdempotencyCheck = options.devSkipSilverIdempotencyCheck,
             options = options.backendFlags,
           ),
           options.backendFile,
@@ -80,6 +81,7 @@ case object Backend {
             boogiePath = options.boogiePath,
             printFile = options.devViperProverLogFile,
             proverLogFile = options.devCarbonBoogieLogFile,
+            skipIdempotencyCheck = options.devSkipSilverIdempotencyCheck,
             options = options.backendFlags,
           ),
           options.backendFile,

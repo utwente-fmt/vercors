@@ -255,13 +255,21 @@ case object Options {
           "for longer than this timeout, the verification will timeout."
       ),
       opt[Unit]("dev-unsafe-optimization").maybeHidden().action((_, c) =>
-        c.copy(devUnsafeOptimization = true, devCheckSat = false)
+        c.copy(
+          devUnsafeOptimization = true,
+          devCheckSat = false,
+          devSkipSilverIdempotencyCheck = true,
+        )
       ).text(
-        "Optimizes runtime at the cost of progress logging and readability of error messages. Implies --dev-no-sat."
+        "Optimizes runtime at the cost of progress logging and readability of error messages. Implies --dev-no-sat and --dev-skip-silver-idempotency-check."
       ),
       opt[Unit]("dev-time-backend").maybeHidden()
         .action((_, c) => c.copy(devTimeBackend = true))
         .text("Will display the time spend during the back end verification."),
+      opt[Unit]("dev-skip-silver-idempotency-check").maybeHidden()
+        .action((_, c) => c.copy(devSkipSilverIdempotencyCheck = true)).text(
+          "Skip Silver AST reparse-and-compare idempotency checking in backend translation"
+        ),
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -546,6 +554,7 @@ case class Options(
     devViperProverLogFile: Option[Path] = None,
     devUnsafeOptimization: Boolean = false,
     devTimeBackend: Boolean = false,
+    devSkipSilverIdempotencyCheck: Boolean = false,
 
     // VeyMont options
     veymontOutput: Option[Path] = None,
