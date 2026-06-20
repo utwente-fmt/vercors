@@ -1,0 +1,25 @@
+//:: cases TC_LI_24_InvariantPermFunctionCallUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-24: Loop invariant calls a pure function requiring write permission
+// but whose body is always false (n.value > 0 && n.value < 0).
+// WD fix adds Perm(x.value, write) to the inhale.
+// Combined: inhale Perm(x.value, write) ** impossiblePerm(x)
+// impossiblePerm(x) = x.value > 0 && x.value < 0 = false always
+// => contradictory state => refute false succeeds => invariantUnsatisfiable fires.
+// Without the WD fix: well-formedness error suppressed, no error (wrong).
+// requires false makes the method body vacuous.
+
+class TC_LI_24_Node {
+    int value;
+}
+
+requires Perm(n.value, write);
+pure boolean impossiblePerm(TC_LI_24_Node n) = n.value > 0 && n.value < 0;
+
+requires false;
+void foo(TC_LI_24_Node x) {
+    loop_invariant impossiblePerm(x);
+    while (true) { }
+}

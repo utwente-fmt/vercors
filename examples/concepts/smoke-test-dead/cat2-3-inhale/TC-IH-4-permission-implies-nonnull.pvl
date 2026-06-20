@@ -1,0 +1,15 @@
+//:: cases TC_IH_4_PermissionImpliesNonNull
+//:: tools silicon
+//:: verdict Fail
+
+// TC-IH-4: VerCors-specific — write permission on a field implies the
+// object is non-null. Perm(b.val, write) in the precondition means b != null,
+// making the null check dead.
+class Box { int val; }
+
+requires Perm(b.val, write);
+void f(Box b) {
+    if (b == null) {
+        return; // dead: write permission on b.val implies b != null
+    }
+}

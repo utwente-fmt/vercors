@@ -1,0 +1,20 @@
+//:: cases TC_LI_7_PostLoopInvariantStrongerThanCondition
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-7: Invariant x > 10 is strictly stronger than condition x > 0, so
+// I implies C: whenever x > 10 the loop continues and the loop can never exit.
+// Post-loop state: x > 10 (invariant) AND x <= 0 (exit) = false.
+// DetectDeadCode's post-loop Refute(false) fires because the state is unsatisfiable.
+//
+// Expected errors: 1 (deadBranch for code after loop).
+// invNotEstablishedFired: stays false — invariant established by requires x > 10.
+requires x > 10;
+void f(int x) {
+    loop_invariant x > 10;
+    while (x > 0) {
+        x = x + 1; // maintains x > 10; exit condition x <= 0 unreachable
+    }
+    // post-loop state: x > 10 (invariant) AND x <= 0 (exit) = false
+    int dead = x; // DEAD — detected via post-loop Refute(false)
+}

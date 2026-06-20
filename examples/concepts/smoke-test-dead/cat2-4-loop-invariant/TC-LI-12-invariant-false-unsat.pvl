@@ -1,0 +1,14 @@
+//:: cases TC_LI_12_InvariantFalseUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-12: loop_invariant false is trivially unsatisfiable.
+// The sat check (inhale false → refute false → inhale false) fires invariantUnsatisfiable.
+// invariantNotEstablished also fires from the loop itself; body and post-loop
+// dead code checks are suppressed as cascades.
+void f(int x) {
+    loop_invariant false;
+    while (x > 0) {
+        x = x - 1;
+    }
+}

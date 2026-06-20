@@ -1,0 +1,15 @@
+//:: cases PERF_SAT_inv_perm
+//:: tools silicon
+//:: verdict Pass
+
+// Sat/unsat pair B (permission): satisfiable permission invariant — must not fire.
+// Pair with PERF-UNSAT-inv-perm. Tests whether heap reasoning changes sat/unsat timing gap.
+class PERF_SAT_inv_perm_Node {
+    int value;
+
+    requires Perm(this.value, write) ** this.value >= 0;
+    void run(int n) {
+        loop_invariant Perm(this.value, write) ** this.value >= 0 && this.value <= n;
+        while (this.value < n) { this.value = this.value + 1; }
+    }
+}

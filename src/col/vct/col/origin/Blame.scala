@@ -529,6 +529,14 @@ case class LoopTerminationMeasureFailed(node: DecreasesClause[_])
   override def inlineDescWithSource(source: String): String =
     s"Loop may not terminate, since ${node.o.inlineContextText} may be unbounded or nondecreasing"
 }
+case class LoopInvariantUnsatisfiable(node: LoopInvariant[_])
+    extends LoopInvariantFailure with NodeVerificationFailure {
+  override def code: String = "invariantUnsatisfiable"
+  override def descInContext: String =
+    "This loop invariant may be unsatisfiable (equivalent to false)."
+  override def inlineDescWithSource(source: String): String =
+    s"Loop invariant `$source` may be unsatisfiable."
+}
 case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_])
     extends VerificationFailure with AnyStarError {
   override def code: String = "notInjective"
@@ -1315,6 +1323,26 @@ case class LockNotCommitted(node: Lock[_])
   override def inlineDescWithSource(source: String): String =
     s"Lock target in `$source` may not yet have committed the lock invariant."
 }
+// Extends both LockFailure and UnlockFailure so it can be reported through
+// lock.blame (Blame[LockFailure]) when triggered at a Lock site, or through
+// unlock.blame (Blame[UnlockFailure]) when triggered at an Unlock-only site
+// (a method that receives held(this) as a precondition and never calls lock this).
+case class LockInvariantUnsatisfiable(node: Node[_])
+    extends NodeVerificationFailure with LockFailure with UnlockFailure {
+  override def code: String = "lockInvariantUnsatisfiable"
+  override def descInContext: String =
+    "The lock invariant may be unsatisfiable (equivalent to false)"
+  override def inlineDescWithSource(source: String): String =
+    s"Lock invariant of `$source` may be unsatisfiable."
+}
+case class LockCodeDead(node: Lock[_])
+    extends NodeVerificationFailure with LockFailure {
+  override def code: String = "lockDead"
+  override def descInContext: String =
+    "Code after this lock statement may be unreachable"
+  override def inlineDescWithSource(source: String): String =
+    s"Code after `$source` may be unreachable."
+}
 
 sealed trait UnlockFailure extends LockRegionFailure
 case class UnlockInvariantFailed(node: Unlock[_], failure: ContractFailure)
@@ -1332,6 +1360,14 @@ case class LockTokenNotHeld(node: Unlock[_], failure: ContractFailure)
     "The token that indicates the lock is locked (`held(obj)`) may not be exhaled here, since"
   override def inlineDescWithSource(node: String, failure: String): String =
     s"`$node` may fail, since the `held` resource may not be exhaled here, since $failure."
+}
+case class UnlockCodeDead(node: Unlock[_])
+    extends NodeVerificationFailure with UnlockFailure {
+  override def code: String = "unlockDead"
+  override def descInContext: String =
+    "Code after this unlock statement may be unreachable"
+  override def inlineDescWithSource(source: String): String =
+    s"Code after `$source` may be unreachable."
 }
 
 sealed trait ConstructorFailure extends VerificationFailure
@@ -1374,6 +1410,24 @@ case class NontrivialUnsatisfiable(node: ApplicableContract[_])
     "The precondition of this contract may be unsatisfiable. If this is intentional, replace it with `requires false`."
   override def inlineDescWithSource(source: String): String =
     s"The precondition in `$source` may be unsatisfiable."
+}
+
+case class NontrivialPostconditionUnsatisfiable(node: ApplicableContract[_])
+    extends NodeVerificationFailure with ContractedFailure {
+  override def code: String = "postUnsatisfiable"
+  override def descInContext: String =
+    "The postcondition of this contract may be unsatisfiable."
+  override def inlineDescWithSource(source: String): String =
+    s"The postcondition in `$source` may be unsatisfiable."
+}
+
+case class DeadBranch(node: Node[_], branchKind: String)
+    extends NodeVerificationFailure with ContractedFailure {
+  override def code: String = "deadBranch"
+  override def descInContext: String =
+    s"The $branchKind is dead — the verifier proved this code path cannot be reached under the current specification (preconditions, assumptions, and invariants)."
+  override def inlineDescWithSource(source: String): String =
+    s"$branchKind is dead: `$source` cannot be reached under the current specification."
 }
 
 sealed trait UnsafeCoercion extends NodeVerificationFailure

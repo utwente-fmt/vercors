@@ -1,0 +1,11 @@
+//:: cases PERF_POST_old_forall
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: postcondition with \old inside a forall range.
+// \old is left in place by eliminateOldInTriggers (only strips from trigger positions).
+// Combines quantifier reasoning with pre-state reference — the pattern from ArrayList.java
+// that previously caused Viper trigger consistency errors.
+requires n >= 0;
+ensures (\forall int i = 0 .. \old(n); i >= 0 && i < n + 1);
+void perf_post_old_forall(int n) { }

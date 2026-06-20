@@ -1,0 +1,22 @@
+//:: cases TC_PC_5b_ContextEverywhere
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PC-5b: context_everywhere implicitly adds its expression as a
+// loop_invariant to every loop in the method body. A branch inside a
+// nested loop can be dead due to the propagated constraint, even without
+// an explicit loop_invariant.
+context_everywhere x > 0;
+void f(int x) {
+    loop_invariant x > 0;
+    while (x < 10) {
+        // context_everywhere propagates x > 0 as implicit loop invariant
+        if (x < 0) {
+            return; // dead: x > 0 propagated into loop body
+        }
+        x = x + 1;
+    }
+    x = x + 1;
+    //this should not be dead
+    
+}

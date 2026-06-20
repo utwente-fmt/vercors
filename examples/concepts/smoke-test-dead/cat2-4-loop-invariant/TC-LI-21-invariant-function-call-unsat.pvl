@@ -1,0 +1,18 @@
+//:: cases TC_LI_21_InvariantFunctionCallUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-21: Loop invariant calls a pure function whose precondition is x >= 0
+// but whose body is always false for valid inputs (x < 0 is false when x >= 0).
+// Without the WD fix: well-formedness error is suppressed, check silently passes (wrong).
+// With the WD fix: the check becomes requires x >= 0 ** impossible(x), which is
+// contradictory since impossible(x) = x < 0 is always false for x >= 0 — invariantUnsatisfiable fires.
+
+requires x >= 0;
+pure boolean impossible(int x) = x < 0;
+
+void foo(int n) {
+    int x = 0;
+    loop_invariant x >= 0 && impossible(x);
+    while (x < 10) { x = x + 1; }
+}

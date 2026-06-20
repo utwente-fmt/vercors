@@ -1,0 +1,16 @@
+//:: cases PERF_INV_perm_1field
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: loop invariant with one heap permission.
+// Forces heap reasoning in the FramedProof: starts with empty heap, inhales Perm, then refutes.
+// Compare timing to PERF-INV-arithmetic to isolate the cost of heap vs pure arithmetic.
+class PERF_INV_perm_1field_Node {
+    int value;
+
+    requires Perm(this.value, write) ** this.value >= 0;
+    void run(int n) {
+        loop_invariant Perm(this.value, write) ** this.value >= 0 && this.value <= n;
+        while (this.value < n) { this.value = this.value + 1; }
+    }
+}

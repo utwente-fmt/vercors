@@ -1,0 +1,14 @@
+//:: cases TC_CM_2_PreconditionInhale
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CM-2: Precondition + inhale together make a branch dead.
+// requires x > 0 AND inhale x < 5 narrows to (0, 5).
+// Branch x > 10 is impossible in that range.
+requires x > 0;
+void f(int x) {
+    inhale x < 5;
+    if (x > 10) {
+        refute false; // dead: x in (0,5) but x > 10 impossible
+    }
+}

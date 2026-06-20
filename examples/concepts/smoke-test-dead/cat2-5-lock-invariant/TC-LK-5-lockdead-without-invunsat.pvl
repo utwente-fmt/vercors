@@ -1,0 +1,37 @@
+//:: cases TC_LK_5_LockDeadWithoutInvUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LK-5: lockDead fires WITHOUT lockInvariantUnsatisfiable.
+//
+// The lock invariant (val > 0) is satisfiable in isolation, so
+// CheckLockInvariantSatisfiability's isolated FramedProof:
+//   Inhale(Perm(val,write) ** val>0); Refute(ff)
+// does NOT fire LockInvariantUnsatisfiable — the invariant is fine.
+//
+// However, the method's precondition constrains a SEPARATE field (flag == 1),
+// and an assume inside the method contradicts it (flag == 2).
+// This makes the state dead BEFORE 'lock this' is reached.
+// The per-site Refute(ff)(LockDeadCodeBlame) in EncodeIntrinsicLock
+// catches the already-dead state at the lock: lockDead fires.
+//
+// Distinction from TC-LK-2:
+//   TC-LK-2  →  lockInvariantUnsatisfiable + lockDead  (invariant itself is bad)
+//   TC-LK-5  →  lockDead only               (invariant OK; context made state dead)
+lock_invariant Perm(val, write) ** val > 0;
+class LiveInvDeadContext {
+    int val;
+    int flag;
+
+    requires committed(this) ** Perm(flag, write) ** flag == 1;
+    void method() {
+        assume flag == 2;
+        // path condition: flag == 1 ∧ flag == 2 → false.
+        // DetectDeadCode: deadBranch("code after assume flag == 2") fires.
+        lock this;
+        // lockDead fires: state was already dead before lock.
+        // lockInvariantUnsatisfiable does NOT fire.
+        unlock this;
+        // unlockDead fires: dead state persists through unlock.
+    }
+}

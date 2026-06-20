@@ -1,0 +1,15 @@
+//:: cases TC_PC_23_ParLiveBranchInside
+//:: tools silicon
+//:: verdict Pass
+
+// TC-PC-23: Inside par body, if (tid < n) is live — tid ranges over [0..n),
+// so tid < n is always true but the branch body is reachable (satisfiable).
+// No deadBranch expected.
+requires n > 0;
+void f(int n) {
+    par (int tid = 0 .. n) {
+        if (tid < n) {
+            assert tid >= 0;
+        }
+    }
+}

@@ -1,0 +1,26 @@
+//:: cases TC_CA_12_BodyDeadFromConditionNotSuppressed
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CA-12: Loop body dead from condition contradiction — no invariant failure,
+// suppressor never activated, deadBranch fires normally.
+//
+// requires x > 0 establishes invariant x > 0 (invNotEstablishedFired stays false).
+// Loop condition x < 0 contradicts invariant x > 0, so inside the body:
+//   state = x > 0 (invariant) AND x < 0 (condition) = false
+// The body's Refute(ff) fires and deadBranch is reported.
+//
+// This test confirms the suppressor (invNotEstablishedFired) does NOT interfere
+// with genuine dead-body detection caused by an invariant/condition contradiction
+// rather than an invariant establishment failure.
+//
+// Expected errors: 1 (deadBranch for loop body).
+// invariantNotEstablished: does not fire (precondition establishes the invariant).
+// Suppressor: invNotEstablishedFired = false throughout — no suppression.
+requires x > 0;
+void f(int x) {
+    loop_invariant x > 0 && x < 0;
+    while (x < 0) {  // condition contradicts invariant — body unreachable
+        x = x + 1;   // deadBranch fires — correctly reported, not suppressed
+    }
+}

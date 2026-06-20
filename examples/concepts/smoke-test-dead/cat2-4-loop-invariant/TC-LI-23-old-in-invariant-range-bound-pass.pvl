@@ -1,0 +1,14 @@
+//:: cases TC_LI_23_OldInInvariantRangeBoundPass
+//:: tools silicon
+//:: verdict Pass
+
+// TC-LI-23: \old appears in the upper bound of a \forall range inside the
+// invariant — the case that broke the old eliminateOld approach because
+// variable renaming in the range bound clashed with trigger generation.
+// The invariant is satisfiable, so the sat check must NOT fire.
+requires n >= 0;
+void f(int n) {
+    int i = 0;
+    loop_invariant (\forall int k = 0 .. \old(n); k >= 0);
+    while (i < n) { i = i + 1; }
+}

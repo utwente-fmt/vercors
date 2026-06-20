@@ -1,0 +1,11 @@
+//:: cases TC_CB_1_LiteralFalse
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CB-1: Branch condition is the literal false — always dead.
+// refute false fires because the branch is unreachable.
+void f(int x) {
+    if (false) {
+        x = x + 1; // dead: condition is literal false
+    }
+}

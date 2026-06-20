@@ -1,0 +1,25 @@
+//:: cases PERF_SEQ_5loops
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 5 sequential loops, same arithmetic invariant.
+// checkInvSat: 5 independent FramedProofs — expect linear 5x cost vs 1loop.
+// detectDeadCode: 10 inline Refutes; each post-loop check accumulates prior loop state.
+requires n >= 0;
+void perf_seq_5(int n) {
+    int i1 = 0;
+    loop_invariant i1 >= 0 && i1 <= n;
+    while (i1 < n) { i1 = i1 + 1; }
+    int i2 = 0;
+    loop_invariant i2 >= 0 && i2 <= n;
+    while (i2 < n) { i2 = i2 + 1; }
+    int i3 = 0;
+    loop_invariant i3 >= 0 && i3 <= n;
+    while (i3 < n) { i3 = i3 + 1; }
+    int i4 = 0;
+    loop_invariant i4 >= 0 && i4 <= n;
+    while (i4 < n) { i4 = i4 + 1; }
+    int i5 = 0;
+    loop_invariant i5 >= 0 && i5 <= n;
+    while (i5 < n) { i5 = i5 + 1; }
+}

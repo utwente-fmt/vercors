@@ -14,6 +14,7 @@ import viper.silver.plugin.standard.termination.{
   DecreasesTuple,
   DecreasesWildcard,
 }
+import viper.silver.plugin.standard.refute.Refute
 import viper.silver.{ast => silver}
 
 import scala.collection.immutable.ListMap
@@ -874,6 +875,8 @@ case class ColToSilver(program: col.Program[_]) {
         silver.Exhale(exp(res))(pos = pos(s), info = NodeInfo(s))
       case col.Assert(assn) =>
         silver.Assert(exp(assn))(pos = pos(s), info = NodeInfo(s))
+      case col.Refute(assn) =>
+        Refute(exp(assn))(pos = pos(s), info = NodeInfo(s))
       case col.Inhale(res) =>
         silver.Inhale(exp(res))(pos = pos(s), info = NodeInfo(s))
       case col.Assume(assn) =>

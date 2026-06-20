@@ -1,0 +1,23 @@
+//:: cases PERF_NEST_3level
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 3-level nested loops, arithmetic invariant at each level.
+// checkInvSat: 3 isolated FramedProofs — same cost as 3 sequential for checkInvSat.
+// detectDeadCode: innermost body Refute carries 3 layers of invariants + conditions.
+requires n >= 0 && m >= 0 && p >= 0;
+void perf_nest_3(int n, int m, int p) {
+    int i = 0;
+    loop_invariant i >= 0 && i <= n;
+    while (i < n) {
+        int j = 0;
+        loop_invariant j >= 0 && j <= m;
+        while (j < m) {
+            int k = 0;
+            loop_invariant k >= 0 && k <= p;
+            while (k < p) { k = k + 1; }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+}

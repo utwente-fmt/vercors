@@ -1,0 +1,26 @@
+//:: cases TC_LK_1_LockInvariant
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LK-1: Lock invariant — after lock this, VerCors assumes the
+// lock_invariant into the state. Branch val < 0 is dead inside the
+// locked region because the invariant guarantees val > 0.
+lock_invariant Perm(val, write) ** val > 0;
+class C {
+    int val;
+
+    ensures committed(this);
+    constructor() {
+        val = 1;
+        commit this;
+    }
+
+    context committed(this);
+    void f() {
+        lock this; // assumes lock_invariant: val > 0
+        if (val < 0) {
+            return; // dead: lock invariant val > 0 contradicts val < 0
+        }
+        unlock this;
+    }
+}

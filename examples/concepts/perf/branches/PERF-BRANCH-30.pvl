@@ -1,0 +1,38 @@
+//:: cases PERF_BRANCH_30
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 30 sequential if-else branches, all live.
+// detectDeadCode: 60 inline Refutes. Stress test for branch count scaling.
+void perf_branch_30(int x) {
+    if (x > 0) { } else { }
+    if (x > 10) { } else { }
+    if (x > 100) { } else { }
+    if (x > 1000) { } else { }
+    if (x > 10000) { } else { }
+    if (x > 100000) { } else { }
+    if (x > 0) { } else { }
+    if (x > 10) { } else { }
+    if (x > 100) { } else { }
+    if (x > 1000) { } else { }
+    if (x > 10000) { } else { }
+    if (x > 100000) { } else { }
+    if (x > 0) { } else { }
+    if (x > 10) { } else { }
+    if (x > 100) { } else { }
+    if (x > 1000) { } else { }
+    if (x > 10000) { } else { }
+    if (x > 100000) { } else { }
+    if (x > 0) { } else { }
+    if (x > 10) { } else { }
+    if (x > 100) { } else { }
+    if (x > 1000) { } else { }
+    if (x > 10000) { } else { }
+    if (x > 100000) { } else { }
+    if (x > 0) { } else { }
+    if (x > 10) { } else { }
+    if (x > 100) { } else { }
+    if (x > 1000) { } else { }
+    if (x > 10000) { } else { }
+    if (x > 100000) { } else { }
+}

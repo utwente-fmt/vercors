@@ -1,0 +1,15 @@
+//:: cases TC_IH_2_InhaleVsPrecondition
+//:: tools silicon
+//:: verdict Fail
+
+// TC-IH-2: inhale contradicts the precondition.
+// requires p != null, then inhale p == null makes the state contradictory.
+class Box { int val; }
+
+requires p != null;
+void f(Box p) {
+    inhale p == null; // contradicts precondition p != null
+    if (p != null) {
+        return; // dead: state is contradictory (p != null AND p == null)
+    }
+}

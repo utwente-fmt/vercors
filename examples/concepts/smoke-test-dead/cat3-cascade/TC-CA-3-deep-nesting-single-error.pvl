@@ -1,0 +1,28 @@
+//:: cases TC_CA_3_DeepNestingSingleError
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CA-3: Three levels of dead nesting from a precondition — only outermost fires.
+//
+// requires x > 0 makes x < 0 impossible.  The outermost if (x < 0) is the dead
+// entry point.  Both the middle and innermost branches are nested inside the outer
+// dead body and are SUPPRESSED by cascade.
+//
+// Blame chain:
+//   outerBlame:  ancestorFired = () => false           → fires, reports deadBranch
+//   middleBlame: ancestorFired = () => outerBlame.didFire  → suppressed
+//   innerBlame:  ancestorFired = () => middleBlame.didFire → suppressed
+//     (middleBlame is already suppressed, but didFire is still set true
+//      so innerBlame sees a "fired" ancestor regardless)
+//
+// Expected errors: 1. Middle and inner are suppressed.
+requires x > 0;
+void f(int x) {
+    if (x < 0) { // level 1 — dead, fires (outerBlame)
+        if (x < -5) { // level 2 — dead, suppressed by outerBlame
+            if (x == -10) { // level 3 — dead, suppressed by middleBlame
+                x = x + 1;
+            }
+        }
+    }
+}

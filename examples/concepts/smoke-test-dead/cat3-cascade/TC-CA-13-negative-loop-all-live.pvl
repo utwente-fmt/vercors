@@ -1,0 +1,26 @@
+//:: cases TC_CA_13_NegativeLoopAllLive
+//:: tools silicon
+//:: verdict Pass
+
+// TC-CA-13 (Negative): Loop invariant established and maintained, body live.
+// No suppressor ever activated. Baseline for the loop invariant cascade tests.
+//
+// requires x >= 0 establishes invariant x >= 0.
+// Body x = x + 1 maintains x >= 0 (x + 1 >= 0 when x >= 0).
+// Loop condition x < 10 eventually becomes false — loop terminates.
+// Body state: x >= 0 AND x < 10 — satisfiable (e.g. x = 5).
+//
+// No error fires:
+//   - invariantNotEstablished: no (requires x >= 0 establishes it)
+//   - invariantNotMaintained:  no (x + 1 >= 0 always holds when x >= 0)
+//   - deadBranch (body):       no (x >= 0 AND x < 10 is satisfiable)
+//   - invNotEstablishedFired:  stays false — suppressor never activated
+//
+// Expected: Pass — confirms suppression is not triggered when everything is fine.
+requires x >= 0;
+void f(int x) {
+    loop_invariant x >= 0;
+    while (x < 10) {
+        x = x + 1; // maintains x >= 0; loop terminates at x = 10
+    }
+}

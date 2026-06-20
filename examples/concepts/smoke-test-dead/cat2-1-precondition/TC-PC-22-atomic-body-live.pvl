@@ -1,0 +1,14 @@
+//:: cases TC_PC_22_AtomicBodyLive
+//:: tools silicon
+//:: verdict Pass
+
+// TC-PC-22: Atomic block — branches inside are live, no deadBranch expected.
+// Dead code inside atomic is detected at branch level, not at atomic entry.
+requires x > 0;
+void f(int x) {
+    invariant inv (x > 0) {
+        atomic (inv) {
+            assert x > 0;
+        }
+    }
+}

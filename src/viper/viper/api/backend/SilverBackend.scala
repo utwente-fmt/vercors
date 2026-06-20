@@ -27,6 +27,7 @@ import viper.silver.plugin.standard.termination.{
   TupleDecreasesFalse,
   TupleSimpleFalse,
 }
+import viper.silver.plugin.standard.refute.RefuteFailed
 import viper.silver.reporter.Reporter
 import viper.silver.verifier._
 import viper.silver.verifier.errors._
@@ -384,6 +385,9 @@ trait SilverBackend
             throw NotSupported(
               s"Vercors does not support counterexamples from Viper"
             )
+          case RefuteFailed(refuteNode, _, _) =>
+            val refute = get[col.Refute[_]](refuteNode)
+            refute.blame.blame(blame.RefuteFailed(refute))
           case other =>
             throw NotSupported(
               s"Viper returned an error that VerCors does not recognize: $other"

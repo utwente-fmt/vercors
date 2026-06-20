@@ -1,0 +1,25 @@
+//:: cases TC_LK_9_FuncCallSatInvariant
+//:: tools silicon
+//:: verdict Pass
+
+// TC-LK-9: Satisfiable lock invariant with a pure function call. No lockInvariantUnsatisfiable expected.
+requires n >= 0;
+pure boolean nonNeg(int n) = n >= 0;
+
+lock_invariant Perm(val, write) ** val >= 0 ** nonNeg(val);
+class TC_LK_9_Sat {
+    int val;
+
+    ensures committed(this);
+    constructor() {
+        val = 0;
+        commit this;
+    }
+
+    context committed(this);
+    void use() {
+        lock this;
+        assert val >= 0;
+        unlock this;
+    }
+}

@@ -1,0 +1,21 @@
+//:: cases PERF_LOCK_dedup_5sites
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 1 class with permission lock invariant, locked 5 times across 5 methods.
+// checkLockInvSat deduplicates per class: only 1 FramedProof fires total.
+// Compare timing to PERF-LOCK-perm-1field — should be identical (dedup holds).
+// Compare to PERF-LOCK-5classes — 5 sites on 1 class vs 1 site on 5 classes.
+lock_invariant Perm(value, write) ** value >= 0;
+class PERF_LOCK_dedup {
+    int value;
+
+    ensures committed(this);
+    constructor() { value = 0; commit this; }
+
+    requires committed(this); void run1() { lock this; value = value + 1; unlock this; }
+    requires committed(this); void run2() { lock this; value = value + 1; unlock this; }
+    requires committed(this); void run3() { lock this; value = value + 1; unlock this; }
+    requires committed(this); void run4() { lock this; value = value + 1; unlock this; }
+    requires committed(this); void run5() { lock this; value = value + 1; unlock this; }
+}

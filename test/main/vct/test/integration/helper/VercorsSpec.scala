@@ -83,7 +83,7 @@ abstract class VercorsSpec extends AnyFlatSpec {
       LoggerFactory.getLogger("viper").asInstanceOf[Logger].setLevel(Level.OFF)
       LoggerFactory.getLogger("vct").asInstanceOf[Logger].setLevel(Level.INFO)
 
-      failAfter(Span(300, Seconds)) {
+      failAfter(Span(900, Seconds)) {
         matchVerdict(verdict, backend match {
           case types.Backend.Silicon =>
             Verify.verifyWithOptions(

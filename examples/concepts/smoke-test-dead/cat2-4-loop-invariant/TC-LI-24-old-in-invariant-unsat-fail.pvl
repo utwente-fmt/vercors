@@ -1,0 +1,12 @@
+//:: cases TC_LI_24_OldInInvariantUnsatFail
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-24: Loop invariant containing \old is unsatisfiable.
+// \old(n) > n && n > \old(n) can never hold simultaneously.
+// The sat check must fire with invariantUnsatisfiable.
+requires n >= 0;
+void f(int n) {
+    loop_invariant \old(n) > n && n > \old(n);
+    while (n > 0) { n = n - 1; }
+}

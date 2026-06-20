@@ -1,0 +1,18 @@
+//:: cases TC_LK_10_FuncCallUnsatInvariant
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LK-10: Unsatisfiable lock invariant with a pure function call. lockInvariantUnsatisfiable expected.
+requires n >= 0;
+pure boolean nonNeg(int n) = n >= 0;
+
+lock_invariant Perm(val, write) ** val >= 0 ** nonNeg(val) ** val < 0;
+class TC_LK_10_Unsat {
+    int val;
+
+    requires committed(this);
+    void use() {
+        lock this;
+        unlock this;
+    }
+}

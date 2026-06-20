@@ -1,0 +1,12 @@
+//:: cases TC_AS_3_AssumesMutual
+//:: tools silicon
+//:: verdict Fail
+
+// TC-AS-3: Two assumes contradict each other — neither alone kills the branch,
+// but together they make the state unsatisfiable.
+// This is the key mutual contradiction case: x > 0 AND x < 0 is impossible.
+void f(int x) {
+    assume x > 0;
+    assume x < 0; // contradicts previous assume
+    x = x + 1;
+}

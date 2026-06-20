@@ -1,0 +1,12 @@
+//:: cases TC_PST_6_EnsuresStricterSatisfiable
+//:: tools silicon
+//:: verdict Pass
+
+// TC-PST-6: Postcondition \result > 5 is stricter than satisfiable — the checker sees
+// only the postcondition (requires true in checkPostSat). \result > 5 is satisfiable
+// (e.g., result=6), so postUnsatisfiable must not fire.
+// Normal verification also passes: body returns 6 which is > 5.
+ensures \result > 5;
+int f(int x) {
+    return 6;
+}

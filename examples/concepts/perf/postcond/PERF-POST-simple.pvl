@@ -1,0 +1,10 @@
+//:: cases PERF_POST_simple
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: simple postcondition, no function calls, no \old, no heap.
+// checkPostSat: generates standalone procedure, inhales ensures, asserts false.
+// Baseline for postcondition checker complexity tests.
+requires false;
+ensures \result >= 0 && \result < 1000000;
+int perf_post_simple(int n) { return 0; }

@@ -1,0 +1,12 @@
+//:: cases TC_IH_1_InhaleVsBranch
+//:: tools silicon
+//:: verdict Fail
+
+// TC-IH-1: inhale adds a boolean fact directly to the state.
+// inhale x > 0 makes x < 0 impossible at the subsequent branch.
+void f(int x) {
+    inhale x > 0;
+    if (x < 0) {
+        x = x + 1; // dead: inhale x > 0 contradicts x < 0
+    }
+}

@@ -1,0 +1,22 @@
+//:: cases PERF_INV_funcall_d3
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: loop invariant contains a 3-deep nested function call f(g(h(i))).
+// WD fix adds 3 extra inhales (each function's precondition, depth-first).
+// Compare to funcall-d1: does WD overhead grow with call depth?
+requires x > 0;
+pure int step1(int x) = x + 1;
+
+requires x > 0;
+pure int step2(int x) = x + 1;
+
+requires x > 0;
+pure boolean isPos(int x) = x > 0;
+
+requires n > 0;
+void perf_inv_funcall_d3(int n) {
+    int i = 1;
+    loop_invariant i > 0 && i <= n && isPos(step2(step1(i)));
+    while (i < n) { i = i + 1; }
+}

@@ -1,0 +1,15 @@
+//:: cases TC_AS_4_AssumeAfterMutation
+//:: tools silicon
+//:: verdict Fail
+
+// TC-AS-4: Variable mutated before assume — assume applies to the current state,
+// not the original precondition. x starts at 21, is decremented to 20,
+// then assume x == 21 contradicts the mutated value.
+requires x == 21;
+void f(int x) {
+    x = x - 1;       // x is now 20
+    assume x == 21;   // false: x is 20, not 21 — state becomes contradictory
+    if (x != 1) {
+        x = x + 1; // dead: state is contradictory after assume
+    }
+}

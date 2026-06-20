@@ -1,0 +1,13 @@
+//:: cases PERF_SEQ_1loop
+//:: tools silicon
+//:: verdict Pass
+
+// Performance baseline: 1 sequential loop with arithmetic invariant.
+// checkInvSat: 1 isolated FramedProof.
+// detectDeadCode: 1 body Refute + 1 post-loop Refute.
+requires n >= 0;
+void perf_seq_1(int n) {
+    int i = 0;
+    loop_invariant i >= 0 && i <= n;
+    while (i < n) { i = i + 1; }
+}

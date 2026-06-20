@@ -1,0 +1,34 @@
+//:: cases PERF_NEST_5level
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 5-level nested loops, arithmetic invariant at each level.
+// checkInvSat: 5 isolated FramedProofs — should match 5 sequential loops in cost.
+// detectDeadCode: innermost body Refute carries 5 layers of path conditions.
+// Key experiment: compare detectDeadCode time here vs PERF-SEQ-15loops.
+requires a >= 0 && b >= 0 && c >= 0 && d >= 0 && e >= 0;
+void perf_nest_5(int a, int b, int c, int d, int e) {
+    int i = 0;
+    loop_invariant i >= 0 && i <= a;
+    while (i < a) {
+        int j = 0;
+        loop_invariant j >= 0 && j <= b;
+        while (j < b) {
+            int k = 0;
+            loop_invariant k >= 0 && k <= c;
+            while (k < c) {
+                int l = 0;
+                loop_invariant l >= 0 && l <= d;
+                while (l < d) {
+                    int m = 0;
+                    loop_invariant m >= 0 && m <= e;
+                    while (m < e) { m = m + 1; }
+                    l = l + 1;
+                }
+                k = k + 1;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+}

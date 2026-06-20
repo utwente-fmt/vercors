@@ -1,0 +1,16 @@
+//:: cases TC_LI_10_PostLoopNegativeTerminates
+//:: tools silicon
+//:: verdict Pass
+
+// TC-LI-10 (Negative): Loop genuinely terminates. Post-loop state is satisfiable.
+// invariant x >= 0, condition x < 10: after loop x >= 0 AND x >= 10, so x >= 10.
+// Code after the loop is in a live state — no dead code.
+requires x >= 0;
+void f(int x) {
+    loop_invariant x >= 0;
+    while (x < 10) {
+        x = x + 1; // maintains x >= 0; loop terminates when x = 10
+    }
+    // post-loop state: x >= 0 AND x >= 10 — satisfiable (e.g. x = 10)
+    int live = x; // LIVE — correctly no error reported
+}

@@ -1,0 +1,18 @@
+//:: cases TC_LK_3_DeadAfterUnlockCaught
+//:: tools silicon
+//:: verdict Fail
+
+lock_invariant Perm(val, write) ** val > 5 ** val < 3;
+class UnlockDeadCaughtClass {
+    int val;
+
+    requires held(this) ** Perm(val, write) ** val > 5 ** val < 3;
+    void release_only() {
+        // State: false (val > 5 ∧ val < 3 is impossible).
+        // No 'lock this' here → no Refute from the lock expansion.
+        unlock this;
+        // EncodeIntrinsicLock's Refute(ff)(UnlockDeadCodeBlame) fires here
+        // → UnlockCodeDead("unlock this").
+        int dead = 0;
+    }
+}

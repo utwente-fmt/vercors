@@ -1,0 +1,8 @@
+//:: cases TC_PST_9_EnsuresNGtN
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-9: result > 0 && result < 0 is always false — no integer is simultaneously positive
+// and negative.
+ensures \result > 0 && \result < 0;
+int f(int x) { return 1; }

@@ -1,0 +1,23 @@
+//:: cases PERF_BRANCH_15
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 15 sequential if-else branches, all live.
+// detectDeadCode: 30 inline Refutes, all with accumulated path conditions from prior branches.
+void perf_branch_15(int x) {
+    if (x > 0) { } else { }
+    if (x > 10) { } else { }
+    if (x > 100) { } else { }
+    if (x > 1000) { } else { }
+    if (x > 10000) { } else { }
+    if (x > 100000) { } else { }
+    if (x > 0) { } else { }
+    if (x > 10) { } else { }
+    if (x > 100) { } else { }
+    if (x > 1000) { } else { }
+    if (x > 10000) { } else { }
+    if (x > 100000) { } else { }
+    if (x > 0) { } else { }
+    if (x > 10) { } else { }
+    if (x > 100) { } else { }
+}

@@ -1,0 +1,9 @@
+//:: cases TC_PST_3_EnsuresFalseIntentional
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-3: ensures false is matched as BooleanValue(false) and skipped by the
+// postSat checker. Normal verification still fails with postFailed.
+
+ensures false;
+void f(int x) { }

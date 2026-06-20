@@ -1,0 +1,16 @@
+//:: cases TC_IH_3_InhalesMutual
+//:: tools silicon
+//:: verdict Fail
+
+// TC-IH-3: Two inhales contradict each other — neither alone kills the branch,
+// but inhale x > 0 followed by inhale x < 0 is unsatisfiable.
+void f(int x) {
+    inhale x > 0;
+    inhale x < 0; // contradicts previous inhale
+    if (x == 5) {
+        x = x - 1;
+        if(x != 5){
+            x = x + 2; 
+        } // dead: mutual contradiction between inhales
+    }
+}
