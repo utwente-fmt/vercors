@@ -1,0 +1,171 @@
+benchmark:
+  date: 2026-06-20
+  command: vct examples/concepts/gpgpu/opencl_vector_add.cl --skip-backend --dev-unsafe-optimization
+  warmup_command: vct --version
+  warmup_policy: run once after each checkout before timed runs
+  runs_per_revision: 4
+  metric: wall_clock_seconds
+
+revisions:
+  - commit: f8d7596fe1
+    role: baseline
+    optimization: Baseline before optimise_vercors changes
+    runs_seconds: [13.692, 12.221, 13.836, 13.870]
+    average_seconds: 13.405
+    delta_vs_baseline_seconds: 0.000
+    delta_vs_baseline_percent: 0.00
+
+  - commit: 14da9aa9bc
+    role: optimization_1
+    optimization: Skip Silver AST idempotency reparse-and-compare check in unsafe optimization mode
+    commit_subject: skipIdempotencyCheck
+    changed_files:
+      - src/main/vct/main/stages/Backend.scala
+      - src/main/vct/options/Options.scala
+      - src/viper/viper/api/backend/SilverBackend.scala
+      - src/viper/viper/api/backend/carbon/Carbon.scala
+      - src/viper/viper/api/backend/silicon/Silicon.scala
+    runs_seconds: [11.546, 10.963, 11.718, 11.570]
+    average_seconds: 11.449
+    delta_vs_baseline_seconds: -1.956
+    delta_vs_baseline_percent: -14.59
+
+  - commit: 11af5c77cc
+    role: optimization_2
+    optimization: Replace throw-based coercion fallback paths with Either-based fast-fail/iteration in CoercingRewriter
+    commit_subject: use Either Type instead of throw
+    changed_files:
+      - src/col/vct/col/typerules/CoercingRewriter.scala
+    runs_seconds: [11.697, 11.488, 10.687, 11.471]
+    average_seconds: 11.336
+    delta_vs_baseline_seconds: -2.069
+    delta_vs_baseline_percent: -15.43
+    delta_vs_previous_seconds: -0.113
+    delta_vs_previous_percent: -0.99
+
+attempted_optimizations:
+  - commit: 14da9aa9bc
+    optimization: Skip Silver AST idempotency check
+    result: improved
+    note: Largest gain observed; likely removes expensive silverProgram toString + reparse + AST compare path.
+
+  - commit: 11af5c77cc
+    optimization: Avoid exception-driven coercion fallback by using Either and iterative firstOk flow
+    result: improved_slightly
+    note: Modest improvement relative to previous commit.
+
+  - commit: working_tree_experiment
+    optimization: Reuse LangTypesToCol/LangSpecificToCol instances and minor allocation reductions in Resolution.run
+    result: regressed_reverted
+    note: 4-run average was 14.430s for the benchmark command, worse than the earlier 11.336s reference on 11af5c77cc; experiment was reverted.
+
+  - commit: working_tree_experiment
+    optimization: Forall rewrite structural-sharing fast path (reuse unchanged node/trigger trees)
+    result: improved
+    note: Correctness check passed and 4-run average became 10.875s (runs: 11.247, 10.778, 10.294, 11.179), about 4.07% faster than the earlier 11.336s reference.
+
+not_worked_out:
+  - Name Resolution micro-optimization that reused rewriter instances did not improve runtime and was reverted.
+
+hotspots:
+  regenerated_profile:
+    file: profile.pprof.gz
+    generated_from:
+      command: vct examples/concepts/gpgpu/opencl_vector_add.cl --skip-backend --dev-unsafe-optimization --profile
+      commit: 11af5c77cc
+    total_ms: 36833.05
+    top_flat:
+      - name: opencl_vector_add.cl
+        flat_ms: 8584.70
+        flat_percent: 23.31
+        cum_ms: 8584.70
+        cum_percent: 23.31
+      - name: Name Resolution
+        flat_ms: 3865.11
+        flat_percent: 10.49
+        cum_ms: 3865.11
+        cum_percent: 10.49
+      - name: Check
+        flat_ms: 3150.02
+        flat_percent: 8.55
+        cum_ms: 3150.02
+        cum_percent: 8.55
+      - name: Translation
+        flat_ms: 1255.32
+        flat_percent: 3.41
+        cum_ms: 4416.14
+        cum_percent: 11.99
+      - name: simplifyNestedQuantifiers
+        flat_ms: 1130.83
+        flat_percent: 3.07
+        cum_ms: 1130.83
+        cum_percent: 3.07
+      - name: cTypeConversions
+        flat_ms: 843.21
+        flat_percent: 2.29
+        cum_ms: 843.21
+        cum_percent: 2.29
+      - name: simplify
+        flat_ms: 361.16
+        flat_percent: 0.98
+        cum_ms: 6752.63
+        cum_percent: 18.33
+      - name: Transformation
+        flat_ms: 433.97
+        flat_percent: 1.18
+        cum_ms: 17483.06
+        cum_percent: 47.47
+      - name: Parsing
+        flat_ms: 18.12
+        flat_percent: 0.05
+        cum_ms: 8602.82
+        cum_percent: 23.36
+      - name: Verification
+        flat_ms: 0.69
+        flat_percent: 0.00
+        cum_ms: 4416.84
+        cum_percent: 11.99
+
+pprof_best_practices:
+  - "Read both flat and cumulative views: use flat% for direct optimization targets and cum% to locate expensive subtrees."
+  - "Use focused filtering (focus/ignore/show/hide) to reduce noise and isolate one subsystem at a time."
+  - "Prefer iterative optimization: change one hotspot, then reprofile and compare against a baseline profile using diff_base/base and normalize when needed."
+  - "Use source-level inspection (list/weblist) for the hottest entries to convert profile labels into concrete code edits."
+  - "Keep profile capture conditions consistent between runs so differences are attributable to code changes, not environment variance."
+
+pprof_interpretation_notes:
+  - "Current profile is stage/tag-heavy (no main binary symbols available), so optimization should target expensive pipeline stages first."
+  - "Transformation dominates cumulative time (47.47%), suggesting broad downstream cost; simplify has large cum% but low flat%, so inspect its callees."
+  - "Name Resolution and Check are both high flat% and likely to yield direct speedups with lower risk than broad algorithmic changes."
+  - "opencl_vector_add.cl being the largest flat hotspot indicates benchmark-specific expression/permission expansion is a prime target."
+
+next_optimization_candidates:
+  - rank: 1
+    target: Name Resolution
+    reason: "High flat share (10.49%) and likely repeated symbol lookups."
+    suggested_action: "Memoize repeated lookups/resolutions scoped to a single file pass and avoid repeated recomputation in hot loops."
+    expected_impact: medium
+    risk: low
+
+  - rank: 2
+    target: Check
+    reason: "High direct cost (8.55% flat) and isolated stage boundary."
+    suggested_action: "Skip or short-circuit redundant checks under --dev-unsafe-optimization where semantic guarantees are unchanged."
+    expected_impact: medium
+    risk: medium
+
+  - rank: 3
+    target: Transformation subtree
+    reason: "Largest cumulative cost (47.47% cum)."
+    suggested_action: "Use focused pprof runs around simplify / transformation rules and cache intermediate normalized forms for repeated expressions."
+    expected_impact: high
+    risk: medium
+
+profiling_commands_used:
+  - vct examples/concepts/gpgpu/opencl_vector_add.cl --skip-backend --dev-unsafe-optimization --profile
+  - go tool pprof -top profile.pprof.gz
+  - go tool pprof -cum -top profile.pprof.gz
+
+references:
+  - https://github.com/google/pprof/blob/main/doc/README.md
+  - https://go.dev/blog/pprof
