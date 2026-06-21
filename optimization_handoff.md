@@ -26,6 +26,13 @@ Optimize `vct` runtime for `examples/concepts/gpgpu/opencl_vector_add.cl` while 
 - Name Resolution micro-optimization trial in `Resolution.scala` regressed and was reverted.
 - `optimisations.yaml` is the canonical run ledger and should be kept up to date.
 
+## Backend equivalence guard
+- New requirement: optimization changes must preserve generated backend output.
+- Use `--backend-file-base <name>` and compare `<name>-0.vpr` against a stored baseline.
+- Scripted workflow:
+	- `util/verify_backend_equivalence.sh init` before first commit in an optimization series.
+	- `util/verify_backend_equivalence.sh check` after each optimization change.
+
 ## Recommended next steps
 1. Re-run `--profile` on current working tree after any additional optimization and compare against this profile.
 2. If Forall fast path remains stable, generalize structural-sharing pattern to another high-frequency rewrite node.

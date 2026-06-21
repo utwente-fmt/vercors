@@ -1,0 +1,2850 @@
+domain WellFoundedOrder[T]  {
+  
+  function bounded(v: T): Bool 
+  
+  function decreasing(v1: T, v2: T): Bool 
+}
+
+domain IntOrder  {
+  
+  axiom {
+    (forall i: Int ::0 <= i == (bounded(i): Bool))
+  }
+  
+  axiom {
+    (forall i: Int ::(forall j: Int ::i < j == (decreasing(i, j): Bool)))
+  }
+}
+
+domain Any  {
+  
+  
+}
+
+domain Vector[T1]  {
+  
+  function vector_loc(v: Vector[T1], i: Int): T1 
+}
+
+domain PointerCastHelper  {
+  
+  
+}
+
+domain Block  {
+  
+  function block_length(b: Block): Int 
+  
+  function loc(b: Block, i: Int): Ref 
+  
+  function block_address(b: Block): Int 
+  
+  function loc_inv_1(r: Ref): Block 
+  
+  function loc_inv_2(r: Ref): Int 
+  
+  function addr_inv(address: Int): Block 
+  
+  axiom {
+    (forall b: Block :: { block_length(b) } block_length(b) >= 0)
+  }
+  
+  axiom {
+    (forall b: Block, i: Int ::
+      { loc(b, i), loc(b, i) }
+      loc_inv_1(loc(b, i)) == b && loc_inv_2(loc(b, i)) == i)
+  }
+  
+  axiom {
+    (forall b: Block :: { block_address(b) } block_address(b) > 0)
+  }
+}
+
+domain Pointer  {
+  
+  function pointer_block(p: Pointer): Block 
+  
+  function pointer_offset(p: Pointer): Int 
+  
+  function pointer_inv(r: Ref): Pointer 
+  
+  function ptr_address(p: Pointer, stride: Int): Int 
+  
+  axiom {
+    (forall p: Pointer ::
+      { pointer_offset(p), pointer_offset(p) }
+      pointer_offset(p) >= 0 &&
+      pointer_offset(p) < block_length(pointer_block(p)))
+  }
+  
+  axiom {
+    (forall r: Ref :: { pointer_inv(r) } ptrDeref(pointer_inv(r)) == r)
+  }
+  
+  axiom {
+    (forall p: Pointer :: { ptrDeref(p) } pointer_inv(ptrDeref(p)) == p)
+  }
+  
+  axiom {
+    (forall p: Pointer, stride: Int ::
+      { ptr_address(p, stride) }
+      stride > 0 ==>
+      ptr_address(p, stride) ==
+      block_address(pointer_block(p)) + pointer_offset(p) * stride)
+  }
+  
+  axiom {
+    (forall p: Pointer, stride: Int ::
+      { ptr_address(p, stride) }
+      stride > 0 ==> ptr_address(p, stride) > 0)
+  }
+  
+  axiom {
+    (forall p1: Pointer, p2: Pointer, stride: Int ::
+      { ptr_address(p1, stride), ptr_address(p2, stride), pointer_block(p1),
+      pointer_block(p2) }
+      stride > 0 &&
+      (ptr_address(p1, stride) == ptr_address(p2, stride) &&
+      pointer_block(p1) == pointer_block(p2)) ==>
+      p1 == p2)
+  }
+  
+  axiom {
+    ptrAddAxiom()
+  }
+  
+  axiom {
+    ptrAddAxiom2()
+  }
+  
+  axiom {
+    (forall i: Pointer, i1: Int ::
+      { ptr_address(i, i1) }
+      ptr_address(i, i1) <= 18446744073709551615)
+  }
+}
+
+domain Option[T2]  {
+  
+  function none1(): Option[T2] 
+  
+  function some(x: T2): Option[T2] 
+  
+  function option_get(opt: Option[T2]): T2 
+  
+  axiom {
+    (forall x: T2 ::
+      { (some(x): Option[T2]) }
+      (none1(): Option[T2]) != (some(x): Option[T2]))
+  }
+  
+  axiom {
+    (forall x: T2 ::
+      { (some(x): Option[T2]) }
+      (option_get((some(x): Option[T2])): T2) == x)
+  }
+  
+  axiom {
+    (forall opt: Option[T2] ::
+      { (some((option_get(opt): T2)): Option[T2]) }
+      (some((option_get(opt): T2)): Option[T2]) == opt)
+  }
+}
+
+domain Void  {
+  
+  function unit(): Void 
+  
+  axiom {
+    (forall v: Void ::true ==> unit() == v)
+  }
+}
+
+field uint4: Pointer
+
+field float8: Pointer
+
+field ulong8: Pointer
+
+field ulong4: Pointer
+
+field ulong2: Pointer
+
+field ulong3: Pointer
+
+field double8: Pointer
+
+field float3: Pointer
+
+field uint16: Pointer
+
+field long4: Pointer
+
+field long8: Pointer
+
+field int: Int
+
+field uint8: Pointer
+
+field int16: Pointer
+
+field double16: Pointer
+
+field float2: Pointer
+
+field uint3: Pointer
+
+field int3: Pointer
+
+field int8: Pointer
+
+field int4: Pointer
+
+field int2: Pointer
+
+field float4: Pointer
+
+field float16: Pointer
+
+field double3: Pointer
+
+field long16: Pointer
+
+field long2: Pointer
+
+field double4: Pointer
+
+field long3: Pointer
+
+field uint2: Pointer
+
+field ulong16: Pointer
+
+field double2: Pointer
+
+function getWorkDim(): Int
+
+
+function getGlobalSize(dimindx: Int): Int
+
+
+function getGlobalId(dimindx: Int): Int
+
+
+function getLocalSize(dimindx: Int): Int
+
+
+function getEnqueuedLocalSize(dimindx: Int): Int
+
+
+function getLocalId(dimindx: Int): Int
+
+
+function getNumGroups(dimindx: Int): Int
+
+
+function getGroupId(dimindx: Int): Int
+
+
+function getGlobalOffset(dimindx: Int): Int
+
+
+function getGlobalLinearId(): Int
+
+
+function getLocalLinearId(): Int
+
+
+function getSubGroupSize(): Int
+
+
+function getMaxSubGroupSize(): Int
+
+
+function getNumSubGroups(): Int
+
+
+function getEnqueuedNumSubGroups(): Int
+
+
+function getSubGroupId(): Int
+
+
+function getSubGroupLocalId(): Int
+
+
+function anyAs(t: Any): Any
+  decreases
+
+
+function asAny(t: Any): Any
+  ensures anyAs(result) == t
+  decreases
+
+
+function v4loc(a: Vector[Any], i: Int): Any
+  requires 0 <= i
+  requires i < 4
+  decreases
+{
+  (vector_loc(a, i): Any)
+}
+
+function ptrDeref(p: Pointer): Ref
+  decreases
+{
+  loc(pointer_block(p), pointer_offset(p))
+}
+
+function ptrAdd(p: Pointer, offset: Int): Pointer
+  requires 0 <= pointer_offset(p) + offset
+  requires pointer_offset(p) + offset < block_length(pointer_block(p))
+  ensures offset == 0 ==> result == p
+  ensures pointer_offset(result) == pointer_offset(p) + offset
+  ensures pointer_block(result) == pointer_block(p)
+  decreases
+
+
+function ptrAddAxiom(): Bool
+  ensures [(forall p: Pointer, offset: Int, i: Int ::
+      { ptrAdd(ptrAdd(p, offset), i) }
+      0 <= pointer_offset(p) + offset &&
+      pointer_offset(p) + offset < block_length(pointer_block(p)) &&
+      0 <= pointer_offset(p) + offset + i &&
+      pointer_offset(p) + offset + i < block_length(pointer_block(p)) ==>
+      ptrAdd(ptrAdd(p, offset), i) == ptrAdd(p, offset + i)),
+    true]
+  decreases
+{
+  true
+}
+
+function ptrAddAxiom2(): Bool
+  ensures (forall p: Pointer, i: Int, j: Int ::
+      { ptrAdd(p, i), ptrAdd(p, j) }
+      0 <= pointer_offset(p) + i &&
+      pointer_offset(p) + i < block_length(pointer_block(p)) &&
+      0 <= pointer_offset(p) + j &&
+      pointer_offset(p) + j < block_length(pointer_block(p)) ==>
+      (i == j) == (ptrAdd(p, i) == ptrAdd(p, j)))
+  decreases
+{
+  true
+}
+
+function sizeof_int(): Int
+  ensures 2 <= result
+  decreases
+
+
+function v2loc(a: Vector[Any], i: Int): Any
+  requires 0 <= i
+  requires i < 2
+  decreases
+{
+  (vector_loc(a, i): Any)
+}
+
+function optGet(opt: Option[Any]): Any
+  requires opt != (none1(): Option[Any])
+  ensures (some(result): Option[Any]) == opt
+  decreases
+{
+  (option_get(opt): Any)
+}
+
+function optOrElse(opt: Option[Any], alt: Any): Any
+  ensures opt == (none1(): Option[Any]) ==> result == alt
+  ensures opt != (none1(): Option[Any]) ==> result == optGet(opt)
+  decreases
+{
+  (opt == (none1(): Option[Any]) ? alt : optGet(opt))
+}
+
+function optGet1(opt: Option[Pointer]): Pointer
+  requires opt != (none1(): Option[Pointer])
+  ensures (some(result): Option[Pointer]) == opt
+  decreases
+{
+  (option_get(opt): Pointer)
+}
+
+function v2loc1(a: Vector[Int], i: Int): Int
+  requires 0 <= i
+  requires i < 2
+  decreases
+{
+  (vector_loc(a, i): Int)
+}
+
+function vload2(offset: Int, p: Option[Pointer]): Vector[Int]
+  requires p != (none1(): Option[Pointer])
+  requires 0 <= offset
+  requires (offset + 1) * 2 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 2)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 2 + 1)).int, wildcard)
+  ensures p != (none1(): Option[Pointer])
+  ensures 0 <= offset
+  ensures (offset + 1) * 2 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  ensures v2loc1(result, 0) == ptrDeref(ptrAdd(optGet1(p), offset * 2)).int
+  ensures v2loc1(result, 1) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 2 + 1)).int
+
+
+function v3loc(a: Vector[Any], i: Int): Any
+  requires 0 <= i
+  requires i < 3
+  decreases
+{
+  (vector_loc(a, i): Any)
+}
+
+function v3loc1(a: Vector[Int], i: Int): Int
+  requires 0 <= i
+  requires i < 3
+  decreases
+{
+  (vector_loc(a, i): Int)
+}
+
+function vload3(offset: Int, p: Option[Pointer]): Vector[Int]
+  requires p != (none1(): Option[Pointer])
+  requires 0 <= offset
+  requires (offset + 1) * 3 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 3)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 3 + 1)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 3 + 2)).int, wildcard)
+  ensures p != (none1(): Option[Pointer])
+  ensures 0 <= offset
+  ensures (offset + 1) * 3 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  ensures v3loc1(result, 0) == ptrDeref(ptrAdd(optGet1(p), offset * 3)).int
+  ensures v3loc1(result, 1) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 3 + 1)).int
+  ensures v3loc1(result, 2) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 3 + 2)).int
+
+
+function v4loc1(a: Vector[Any], i: Int): Any
+  requires 0 <= i
+  requires i < 4
+  decreases
+{
+  (vector_loc(a, i): Any)
+}
+
+function v4loc2(a: Vector[Int], i: Int): Int
+  requires 0 <= i
+  requires i < 4
+  decreases
+{
+  (vector_loc(a, i): Int)
+}
+
+function vload4(offset: Int, p: Option[Pointer]): Vector[Int]
+  requires p != (none1(): Option[Pointer])
+  requires 0 <= offset
+  requires (offset + 1) * 4 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 4)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 4 + 1)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 4 + 2)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 4 + 3)).int, wildcard)
+  ensures p != (none1(): Option[Pointer])
+  ensures 0 <= offset
+  ensures (offset + 1) * 4 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  ensures v4loc2(result, 0) == ptrDeref(ptrAdd(optGet1(p), offset * 4)).int
+  ensures v4loc2(result, 1) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 4 + 1)).int
+  ensures v4loc2(result, 2) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 4 + 2)).int
+  ensures v4loc2(result, 3) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 4 + 3)).int
+
+
+function v8loc(a: Vector[Any], i: Int): Any
+  requires 0 <= i
+  requires i < 8
+  decreases
+{
+  (vector_loc(a, i): Any)
+}
+
+function v8loc1(a: Vector[Int], i: Int): Int
+  requires 0 <= i
+  requires i < 8
+  decreases
+{
+  (vector_loc(a, i): Int)
+}
+
+function vload8(offset: Int, p: Option[Pointer]): Vector[Int]
+  requires p != (none1(): Option[Pointer])
+  requires 0 <= offset
+  requires (offset + 1) * 8 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 1)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 2)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 3)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 4)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 5)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 6)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 7)).int, wildcard)
+  ensures p != (none1(): Option[Pointer])
+  ensures 0 <= offset
+  ensures (offset + 1) * 8 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  ensures v8loc1(result, 0) == ptrDeref(ptrAdd(optGet1(p), offset * 8)).int
+  ensures v8loc1(result, 1) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 1)).int
+  ensures v8loc1(result, 2) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 2)).int
+  ensures v8loc1(result, 3) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 3)).int
+  ensures v8loc1(result, 4) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 4)).int
+  ensures v8loc1(result, 5) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 5)).int
+  ensures v8loc1(result, 6) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 6)).int
+  ensures v8loc1(result, 7) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 7)).int
+
+
+function v16loc(a: Vector[Any], i: Int): Any
+  requires 0 <= i
+  requires i < 16
+  decreases
+{
+  (vector_loc(a, i): Any)
+}
+
+function v16loc1(a: Vector[Int], i: Int): Int
+  requires 0 <= i
+  requires i < 16
+  decreases
+{
+  (vector_loc(a, i): Int)
+}
+
+function vload16(offset: Int, p: Option[Pointer]): Vector[Int]
+  requires p != (none1(): Option[Pointer])
+  requires 0 <= offset
+  requires (offset + 1) * 16 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 1)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 2)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 3)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 4)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 5)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 6)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 7)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 8)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 9)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 10)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 11)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 12)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 13)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 14)).int, wildcard)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 15)).int, wildcard)
+  ensures p != (none1(): Option[Pointer])
+  ensures 0 <= offset
+  ensures (offset + 1) * 16 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  ensures v16loc1(result, 0) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16)).int
+  ensures v16loc1(result, 1) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 1)).int
+  ensures v16loc1(result, 2) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 2)).int
+  ensures v16loc1(result, 3) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 3)).int
+  ensures v16loc1(result, 4) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 4)).int
+  ensures v16loc1(result, 5) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 5)).int
+  ensures v16loc1(result, 6) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 6)).int
+  ensures v16loc1(result, 7) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 7)).int
+  ensures v16loc1(result, 8) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 8)).int
+  ensures v16loc1(result, 9) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 9)).int
+  ensures v16loc1(result, 10) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 10)).int
+  ensures v16loc1(result, 11) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 11)).int
+  ensures v16loc1(result, 12) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 12)).int
+  ensures v16loc1(result, 13) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 13)).int
+  ensures v16loc1(result, 14) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 14)).int
+  ensures v16loc1(result, 15) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 15)).int
+
+
+function setChoose(xs: Set[Any]): Any
+  requires !(|xs| == 0)
+  ensures (result in xs)
+  decreases
+
+
+function plus_v4(x: Vector[Int], y: Vector[Int]): Vector[Int]
+  ensures v4loc2(result, 0) == v4loc2(x, 0) + v4loc2(y, 0)
+  ensures v4loc2(result, 1) == v4loc2(x, 1) + v4loc2(y, 1)
+  ensures v4loc2(result, 2) == v4loc2(x, 2) + v4loc2(y, 2)
+  ensures v4loc2(result, 3) == v4loc2(x, 3) + v4loc2(y, 3)
+  decreases
+
+
+function setRange(l: Int, r: Int): Set[Int]
+  ensures (forall i: Int ::
+      { (i in result) }
+      (i in result) == (l <= i && i < r))
+  ensures (l <= r ? |result| == r - l : |result| == 0)
+
+
+function seqRange(l: Int, r: Int): Seq[Int]
+  ensures (forall i: Int ::
+      { (i in result) }
+      (i in result) == (l >= i && i < r))
+  ensures (l <= r ? |result| == r - l : |result| == 0)
+  ensures (forall i: Int ::
+      { result[i] }
+      0 <= i && i < r - l ==> result[i] == l + i)
+
+
+function truncmod(a: Int, b: Int): Int
+  requires b != 0
+  decreases
+{
+  (let i ==
+    (a % b) in
+    (a >= 0 || i == 0 ? i : i - (b > 0 ? b : -b)))
+}
+
+function type(type1: Ref): Int
+  ensures result >= 0
+  ensures result <= 0
+  ensures type1 == null ==> result == 0
+  ensures type1 != null ==> result != 0
+  decreases
+
+
+function subtype(subtype1: Int, subtype2: Int): Bool
+  requires subtype1 >= 0
+  requires subtype1 <= 0
+  requires subtype2 >= 0
+  requires subtype2 <= 0
+  decreases
+{
+  (subtype1 == 0 ==> true) && true
+}
+
+method vstore2(tid: Int, data: Vector[Int], offset: Int, p: Option[Pointer])
+  returns (res: Void)
+  requires p != (none1(): Option[Pointer])
+  requires 0 <= offset
+  requires (offset + 1) * 2 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 2)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 2 + 1)).int, write)
+  ensures p != (none1(): Option[Pointer])
+  ensures 0 <= offset
+  ensures (offset + 1) * 2 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 2)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 2 + 1)).int, write)
+  ensures v2loc1(data, 0) == ptrDeref(ptrAdd(optGet1(p), offset * 2)).int
+  ensures v2loc1(data, 1) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 2 + 1)).int
+
+
+method vstore3(tid: Int, data: Vector[Int], offset: Int, p: Option[Pointer])
+  returns (res: Void)
+  requires p != (none1(): Option[Pointer])
+  requires 0 <= offset
+  requires (offset + 1) * 3 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 3)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 3 + 1)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 3 + 2)).int, write)
+  ensures p != (none1(): Option[Pointer])
+  ensures 0 <= offset
+  ensures (offset + 1) * 3 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 3)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 3 + 1)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 3 + 2)).int, write)
+  ensures v3loc1(data, 0) == ptrDeref(ptrAdd(optGet1(p), offset * 3)).int
+  ensures v3loc1(data, 1) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 3 + 1)).int
+  ensures v3loc1(data, 2) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 3 + 2)).int
+
+
+method vstore4(tid: Int, data: Vector[Int], offset: Int, p: Option[Pointer])
+  returns (res: Void)
+  requires p != (none1(): Option[Pointer])
+  requires 0 <= offset
+  requires (offset + 1) * 4 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 4)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 4 + 1)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 4 + 2)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 4 + 3)).int, write)
+  ensures p != (none1(): Option[Pointer])
+  ensures 0 <= offset
+  ensures (offset + 1) * 4 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 4)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 4 + 1)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 4 + 2)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 4 + 3)).int, write)
+  ensures v4loc2(data, 0) == ptrDeref(ptrAdd(optGet1(p), offset * 4)).int
+  ensures v4loc2(data, 1) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 4 + 1)).int
+  ensures v4loc2(data, 2) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 4 + 2)).int
+  ensures v4loc2(data, 3) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 4 + 3)).int
+
+
+method vstore8(tid: Int, data: Vector[Int], offset: Int, p: Option[Pointer])
+  returns (res: Void)
+  requires p != (none1(): Option[Pointer])
+  requires 0 <= offset
+  requires (offset + 1) * 8 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 1)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 2)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 3)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 4)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 5)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 6)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 7)).int, write)
+  ensures p != (none1(): Option[Pointer])
+  ensures 0 <= offset
+  ensures (offset + 1) * 8 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 8)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 1)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 2)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 3)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 4)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 5)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 6)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 8 + 7)).int, write)
+  ensures v8loc1(data, 0) == ptrDeref(ptrAdd(optGet1(p), offset * 8)).int
+  ensures v8loc1(data, 1) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 1)).int
+  ensures v8loc1(data, 2) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 2)).int
+  ensures v8loc1(data, 3) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 3)).int
+  ensures v8loc1(data, 4) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 4)).int
+  ensures v8loc1(data, 5) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 5)).int
+  ensures v8loc1(data, 6) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 6)).int
+  ensures v8loc1(data, 7) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 8 + 7)).int
+
+
+method vstore16(tid: Int, data: Vector[Int], offset: Int, p: Option[Pointer])
+  returns (res: Void)
+  requires p != (none1(): Option[Pointer])
+  requires 0 <= offset
+  requires (offset + 1) * 16 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 1)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 2)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 3)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 4)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 5)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 6)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 7)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 8)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 9)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 10)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 11)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 12)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 13)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 14)).int, write)
+  requires acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 15)).int, write)
+  ensures p != (none1(): Option[Pointer])
+  ensures 0 <= offset
+  ensures (offset + 1) * 16 <=
+    block_length(pointer_block(optGet1(p))) - pointer_offset(optGet1(p))
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 1)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 2)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 3)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 4)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 5)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 6)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 7)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 8)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 9)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 10)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 11)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 12)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 13)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 14)).int, write)
+  ensures acc(ptrDeref(ptrAdd(optGet1(p), offset * 16 + 15)).int, write)
+  ensures v16loc1(data, 0) == ptrDeref(ptrAdd(optGet1(p), offset * 16)).int
+  ensures v16loc1(data, 1) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 1)).int
+  ensures v16loc1(data, 2) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 2)).int
+  ensures v16loc1(data, 3) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 3)).int
+  ensures v16loc1(data, 4) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 4)).int
+  ensures v16loc1(data, 5) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 5)).int
+  ensures v16loc1(data, 6) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 6)).int
+  ensures v16loc1(data, 7) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 7)).int
+  ensures v16loc1(data, 8) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 8)).int
+  ensures v16loc1(data, 9) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 9)).int
+  ensures v16loc1(data, 10) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 10)).int
+  ensures v16loc1(data, 11) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 11)).int
+  ensures v16loc1(data, 12) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 12)).int
+  ensures v16loc1(data, 13) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 13)).int
+  ensures v16loc1(data, 14) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 14)).int
+  ensures v16loc1(data, 15) ==
+    ptrDeref(ptrAdd(optGet1(p), offset * 16 + 15)).int
+
+
+method setChooseFresh(xs: Set[Any]) returns (res: Any)
+  requires !(|xs| == 0)
+  ensures (res in xs)
+  decreases
+
+
+method setChooseFresh1(xs: Set[Int]) returns (res: Int)
+  requires !(|xs| == 0)
+  ensures (res in xs)
+  decreases
+
+
+method addArrays(tid: Int, blockdimX: Int, blockdimY: Int, blockdimZ: Int, griddimX: Int,
+  griddimY: Int, griddimZ: Int, a: Option[Pointer], b: Option[Pointer], c: Option[Pointer],
+  size: Int)
+  returns (res: Void)
+  requires 0 < blockdimX
+  requires 0 < blockdimY
+  requires 0 < blockdimZ
+  requires 0 < griddimX
+  requires 0 < griddimY
+  requires 0 < griddimZ
+  requires getWorkDim() == 1
+  requires blockdimX == 32
+  requires 0 < griddimX
+  requires a != (none1(): Option[Pointer])
+  requires b != (none1(): Option[Pointer])
+  requires c != (none1(): Option[Pointer])
+  requires size <=
+    block_length(pointer_block(optGet1(a))) - pointer_offset(optGet1(a))
+  requires size <=
+    block_length(pointer_block(optGet1(b))) - pointer_offset(optGet1(b))
+  requires size <=
+    block_length(pointer_block(optGet1(c))) - pointer_offset(optGet1(c))
+  requires (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int, 1 *
+      write /
+      2)) &&
+    (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int, 1 *
+      write /
+      2)) &&
+    (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int, 1 *
+      write))
+  requires (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 < truncmod(size, 4) &&
+      (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX)) &&
+      size <=
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int, 1 *
+      write /
+      2)) &&
+    (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 < truncmod(size, 4) &&
+      (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX)) &&
+      size <=
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int, 1 *
+      write /
+      2)) &&
+    (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 < truncmod(size, 4) &&
+      (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX)) &&
+      size <=
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int, 1 *
+      write))
+  ensures 0 < blockdimX
+  ensures 0 < blockdimY
+  ensures 0 < blockdimZ
+  ensures 0 < griddimX
+  ensures 0 < griddimY
+  ensures 0 < griddimZ
+  ensures getWorkDim() == 1
+  ensures blockdimX == 32
+  ensures 0 < griddimX
+  ensures a != (none1(): Option[Pointer])
+  ensures b != (none1(): Option[Pointer])
+  ensures c != (none1(): Option[Pointer])
+  ensures size <=
+    block_length(pointer_block(optGet1(a))) - pointer_offset(optGet1(a))
+  ensures size <=
+    block_length(pointer_block(optGet1(b))) - pointer_offset(optGet1(b))
+  ensures size <=
+    block_length(pointer_block(optGet1(c))) - pointer_offset(optGet1(c))
+  ensures (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int, 1 *
+      write /
+      2)) &&
+    (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int, 1 *
+      write /
+      2)) &&
+    (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int, 1 *
+      write))
+  ensures (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 < truncmod(size, 4) &&
+      (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX)) &&
+      size <=
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int, 1 *
+      write /
+      2)) &&
+    (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 < truncmod(size, 4) &&
+      (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX)) &&
+      size <=
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int, 1 *
+      write /
+      2)) &&
+    (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      true &&
+      (0 < truncmod(size, 4) &&
+      (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+      (0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX)) &&
+      size <=
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 <
+      size) ==>
+      acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int, 1 *
+      write))
+  ensures (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 <
+      size ==>
+      ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int ==
+      ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int +
+      ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int)
+  ensures (forall i_threadidxx_blockidxx: Int ::
+      { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+      0 < truncmod(size, 4) &&
+      i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+      0 <= i_threadidxx_blockidxx &&
+      i_threadidxx_blockidxx < 128 * griddimX &&
+      size <=
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 +
+      3 &&
+      (i_threadidxx_blockidxx \ 128 * blockdimX +
+      i_threadidxx_blockidxx % 128 \ 4) *
+      4 <
+      size ==>
+      ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int ==
+      ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int +
+      ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int)
+{
+  {
+    var exc: Ref
+    exc := null
+    {
+      var return: Void
+      {
+        var threadidxZ: Int
+        var blockidxZ: Int
+        var threadidxY: Int
+        var blockidxY: Int
+        {
+          var flatten: Int
+          flatten := 0
+          threadidxZ := flatten
+        }
+        {
+          var flatten1: Int
+          flatten1 := 0
+          blockidxZ := flatten1
+        }
+        {
+          var flatten2: Int
+          flatten2 := 0
+          threadidxY := flatten2
+        }
+        {
+          var flatten3: Int
+          flatten3 := 0
+          blockidxY := flatten3
+        }
+        exhale true
+        {
+          var blockidxX: Int
+          var blockidxX1: Int
+          {
+            var flatten4: Int
+            flatten4 := 0
+            blockidxX := flatten4
+          }
+          blockidxX1 := griddimX
+          if (0 < griddimX) {
+            var indet: Int
+            inhale indet >= 0
+            inhale indet < 2
+            if (indet == 0) {
+              exhale 0 < blockdimX && 0 < blockdimY && 0 < blockdimZ &&
+                0 < griddimX &&
+                0 < griddimY &&
+                0 < griddimZ &&
+                getWorkDim() == 1 &&
+                blockdimX == 32 &&
+                0 < griddimX &&
+                a != (none1(): Option[Pointer]) &&
+                b != (none1(): Option[Pointer]) &&
+                c != (none1(): Option[Pointer]) &&
+                size <=
+                block_length(pointer_block(optGet1(a))) -
+                pointer_offset(optGet1(a)) &&
+                size <=
+                block_length(pointer_block(optGet1(b))) -
+                pointer_offset(optGet1(b)) &&
+                size <=
+                block_length(pointer_block(optGet1(c))) -
+                pointer_offset(optGet1(c)) &&
+                ((forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int, 1 *
+                  write /
+                  2)) &&
+                (forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int, 1 *
+                  write /
+                  2)) &&
+                (forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int, 1 *
+                  write))) &&
+                ((forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 < truncmod(size, 4) &&
+                  (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX)) &&
+                  size <=
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int, 1 *
+                  write /
+                  2)) &&
+                (forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 < truncmod(size, 4) &&
+                  (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX)) &&
+                  size <=
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int, 1 *
+                  write /
+                  2)) &&
+                (forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 < truncmod(size, 4) &&
+                  (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX)) &&
+                  size <=
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int, 1 *
+                  write)))
+              inhale 0 < blockdimX && 0 < blockdimY && 0 < blockdimZ &&
+                0 < griddimX &&
+                0 < griddimY &&
+                0 < griddimZ &&
+                getWorkDim() == 1 &&
+                blockdimX == 32 &&
+                0 < griddimX &&
+                a != (none1(): Option[Pointer]) &&
+                b != (none1(): Option[Pointer]) &&
+                c != (none1(): Option[Pointer]) &&
+                size <=
+                block_length(pointer_block(optGet1(a))) -
+                pointer_offset(optGet1(a)) &&
+                size <=
+                block_length(pointer_block(optGet1(b))) -
+                pointer_offset(optGet1(b)) &&
+                size <=
+                block_length(pointer_block(optGet1(c))) -
+                pointer_offset(optGet1(c)) &&
+                ((forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int, 1 *
+                  write /
+                  2)) &&
+                (forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int, 1 *
+                  write /
+                  2)) &&
+                (forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int, 1 *
+                  write))) &&
+                ((forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 < truncmod(size, 4) &&
+                  (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX)) &&
+                  size <=
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int, 1 *
+                  write /
+                  2)) &&
+                (forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 < truncmod(size, 4) &&
+                  (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX)) &&
+                  size <=
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int, 1 *
+                  write /
+                  2)) &&
+                (forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)) }
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  true &&
+                  (0 < truncmod(size, 4) &&
+                  (i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+                  (0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX)) &&
+                  size <=
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 <
+                  size) ==>
+                  acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int, 1 *
+                  write))) &&
+                (forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 <
+                  size ==>
+                  ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int ==
+                  ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int +
+                  ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int) &&
+                (forall i_threadidxx_blockidxx: Int ::
+                  { ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)) }
+                  0 < truncmod(size, 4) &&
+                  i_threadidxx_blockidxx % 128 % 4 < truncmod(size, 4) &&
+                  0 <= i_threadidxx_blockidxx &&
+                  i_threadidxx_blockidxx < 128 * griddimX &&
+                  size <=
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 +
+                  3 &&
+                  (i_threadidxx_blockidxx \ 128 * blockdimX +
+                  i_threadidxx_blockidxx % 128 \ 4) *
+                  4 <
+                  size ==>
+                  ptrDeref(ptrAdd(optGet1(c), i_threadidxx_blockidxx)).int ==
+                  ptrDeref(ptrAdd(optGet1(a), i_threadidxx_blockidxx)).int +
+                  ptrDeref(ptrAdd(optGet1(b), i_threadidxx_blockidxx)).int)
+            } elseif (indet == 1) {
+              if (0 < griddimX) {
+                var blockidxX2: Int
+                {
+                  var res1: Int
+                  var flatten5: Int
+                  res1 := setChooseFresh1(setRange(0, griddimX))
+                  flatten5 := res1
+                  blockidxX2 := flatten5
+                }
+                {
+                  var once: Bool
+                  label BEFOREFRAME
+                  {
+                    var excbeforeloop: Ref
+                    excbeforeloop := exc
+                    {
+                      var flatten6: Bool
+                      flatten6 := true
+                      once := flatten6
+                    }
+                    while (once)
+                      invariant exc == excbeforeloop
+                      invariant once ==>
+                        0 < blockdimX && 0 < blockdimY && 0 < blockdimZ &&
+                        0 < griddimX &&
+                        0 < griddimY &&
+                        0 < griddimZ &&
+                        (getWorkDim() == 1 && blockdimX == 32 &&
+                        0 < griddimX &&
+                        a != (none1(): Option[Pointer]) &&
+                        b != (none1(): Option[Pointer]) &&
+                        c != (none1(): Option[Pointer]) &&
+                        size <=
+                        block_length(pointer_block(optGet1(a))) -
+                        pointer_offset(optGet1(a)) &&
+                        size <=
+                        block_length(pointer_block(optGet1(b))) -
+                        pointer_offset(optGet1(b)) &&
+                        size <=
+                        block_length(pointer_block(optGet1(c))) -
+                        pointer_offset(optGet1(c)) &&
+                        ((forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int, 1 *
+                          write /
+                          2)) &&
+                        (forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int, 1 *
+                          write /
+                          2)) &&
+                        (forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int, 1 *
+                          write))) &&
+                        ((forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 < truncmod(size, 4) &&
+                          (i_threadidxx % 4 < truncmod(size, 4) &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32)) &&
+                          size <=
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int, 1 *
+                          write /
+                          2)) &&
+                        (forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 < truncmod(size, 4) &&
+                          (i_threadidxx % 4 < truncmod(size, 4) &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32)) &&
+                          size <=
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int, 1 *
+                          write /
+                          2)) &&
+                        (forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 < truncmod(size, 4) &&
+                          (i_threadidxx % 4 < truncmod(size, 4) &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32)) &&
+                          size <=
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int, 1 *
+                          write)))) &&
+                        [(forperm
+                          obj: Ref [obj.int2] :: obj.int2 ==
+                          old[BEFOREFRAME](obj.int2)) &&
+                        (forperm
+                          obj: Ref [obj.int3] :: obj.int3 ==
+                          old[BEFOREFRAME](obj.int3)) &&
+                        (forperm
+                          obj: Ref [obj.int4] :: obj.int4 ==
+                          old[BEFOREFRAME](obj.int4)) &&
+                        (forperm
+                          obj: Ref [obj.int8] :: obj.int8 ==
+                          old[BEFOREFRAME](obj.int8)) &&
+                        (forperm
+                          obj: Ref [obj.int16] :: obj.int16 ==
+                          old[BEFOREFRAME](obj.int16)) &&
+                        (forperm
+                          obj: Ref [obj.uint2] :: obj.uint2 ==
+                          old[BEFOREFRAME](obj.uint2)) &&
+                        (forperm
+                          obj: Ref [obj.uint3] :: obj.uint3 ==
+                          old[BEFOREFRAME](obj.uint3)) &&
+                        (forperm
+                          obj: Ref [obj.uint4] :: obj.uint4 ==
+                          old[BEFOREFRAME](obj.uint4)) &&
+                        (forperm
+                          obj: Ref [obj.uint8] :: obj.uint8 ==
+                          old[BEFOREFRAME](obj.uint8)) &&
+                        (forperm
+                          obj: Ref [obj.uint16] :: obj.uint16 ==
+                          old[BEFOREFRAME](obj.uint16)) &&
+                        (forperm
+                          obj: Ref [obj.long2] :: obj.long2 ==
+                          old[BEFOREFRAME](obj.long2)) &&
+                        (forperm
+                          obj: Ref [obj.long3] :: obj.long3 ==
+                          old[BEFOREFRAME](obj.long3)) &&
+                        (forperm
+                          obj: Ref [obj.long4] :: obj.long4 ==
+                          old[BEFOREFRAME](obj.long4)) &&
+                        (forperm
+                          obj: Ref [obj.long8] :: obj.long8 ==
+                          old[BEFOREFRAME](obj.long8)) &&
+                        (forperm
+                          obj: Ref [obj.long16] :: obj.long16 ==
+                          old[BEFOREFRAME](obj.long16)) &&
+                        (forperm
+                          obj: Ref [obj.ulong2] :: obj.ulong2 ==
+                          old[BEFOREFRAME](obj.ulong2)) &&
+                        (forperm
+                          obj: Ref [obj.ulong3] :: obj.ulong3 ==
+                          old[BEFOREFRAME](obj.ulong3)) &&
+                        (forperm
+                          obj: Ref [obj.ulong4] :: obj.ulong4 ==
+                          old[BEFOREFRAME](obj.ulong4)) &&
+                        (forperm
+                          obj: Ref [obj.ulong8] :: obj.ulong8 ==
+                          old[BEFOREFRAME](obj.ulong8)) &&
+                        (forperm
+                          obj: Ref [obj.ulong16] :: obj.ulong16 ==
+                          old[BEFOREFRAME](obj.ulong16)) &&
+                        (forperm
+                          obj: Ref [obj.float2] :: obj.float2 ==
+                          old[BEFOREFRAME](obj.float2)) &&
+                        (forperm
+                          obj: Ref [obj.float3] :: obj.float3 ==
+                          old[BEFOREFRAME](obj.float3)) &&
+                        (forperm
+                          obj: Ref [obj.float4] :: obj.float4 ==
+                          old[BEFOREFRAME](obj.float4)) &&
+                        (forperm
+                          obj: Ref [obj.float8] :: obj.float8 ==
+                          old[BEFOREFRAME](obj.float8)) &&
+                        (forperm
+                          obj: Ref [obj.float16] :: obj.float16 ==
+                          old[BEFOREFRAME](obj.float16)) &&
+                        (forperm
+                          obj: Ref [obj.double2] :: obj.double2 ==
+                          old[BEFOREFRAME](obj.double2)) &&
+                        (forperm
+                          obj: Ref [obj.double3] :: obj.double3 ==
+                          old[BEFOREFRAME](obj.double3)) &&
+                        (forperm
+                          obj: Ref [obj.double4] :: obj.double4 ==
+                          old[BEFOREFRAME](obj.double4)) &&
+                        (forperm
+                          obj: Ref [obj.double8] :: obj.double8 ==
+                          old[BEFOREFRAME](obj.double8)) &&
+                        (forperm
+                          obj: Ref [obj.double16] :: obj.double16 ==
+                          old[BEFOREFRAME](obj.double16)) &&
+                        (forperm
+                          obj: Ref [obj.int] :: obj.int ==
+                          old[BEFOREFRAME](obj.int)),
+                        true]
+                      invariant !once ==>
+                        0 < blockdimX && 0 < blockdimY && 0 < blockdimZ &&
+                        0 < griddimX &&
+                        0 < griddimY &&
+                        0 < griddimZ &&
+                        (getWorkDim() == 1 && blockdimX == 32 &&
+                        0 < griddimX &&
+                        a != (none1(): Option[Pointer]) &&
+                        b != (none1(): Option[Pointer]) &&
+                        c != (none1(): Option[Pointer]) &&
+                        size <=
+                        block_length(pointer_block(optGet1(a))) -
+                        pointer_offset(optGet1(a)) &&
+                        size <=
+                        block_length(pointer_block(optGet1(b))) -
+                        pointer_offset(optGet1(b)) &&
+                        size <=
+                        block_length(pointer_block(optGet1(c))) -
+                        pointer_offset(optGet1(c)) &&
+                        ((forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int, 1 *
+                          write /
+                          2)) &&
+                        (forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int, 1 *
+                          write /
+                          2)) &&
+                        (forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int, 1 *
+                          write))) &&
+                        ((forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 < truncmod(size, 4) &&
+                          (i_threadidxx % 4 < truncmod(size, 4) &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32)) &&
+                          size <=
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int, 1 *
+                          write /
+                          2)) &&
+                        (forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 < truncmod(size, 4) &&
+                          (i_threadidxx % 4 < truncmod(size, 4) &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32)) &&
+                          size <=
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int, 1 *
+                          write /
+                          2)) &&
+                        (forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          true &&
+                          (0 < truncmod(size, 4) &&
+                          (i_threadidxx % 4 < truncmod(size, 4) &&
+                          (0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32)) &&
+                          size <=
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 <
+                          size) ==>
+                          acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int, 1 *
+                          write))) &&
+                        (forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 <
+                          size ==>
+                          ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int ==
+                          ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int +
+                          ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int) &&
+                        (forall i_threadidxx: Int ::
+                          { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                          0 < truncmod(size, 4) &&
+                          i_threadidxx % 4 < truncmod(size, 4) &&
+                          0 <= i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                          i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                          4 * 32 &&
+                          size <=
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 +
+                          3 &&
+                          (blockidxX2 * blockdimX +
+                          (i_threadidxx - 4 * (blockidxX2 * blockdimX)) \ 4) *
+                          4 <
+                          size ==>
+                          ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int ==
+                          ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int +
+                          ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int))
+                      decreases 
+                    {
+                      {
+                        var threadidxX: Int
+                        var threadidxX1: Int
+                        {
+                          var flatten7: Int
+                          flatten7 := 0
+                          threadidxX := flatten7
+                        }
+                        threadidxX1 := blockdimX
+                        if (0 < blockdimX) {
+                          var indet1: Int
+                          inhale indet1 >= 0
+                          inhale indet1 < 2
+                          if (indet1 == 0) {
+                            exhale 0 < blockdimX && 0 < blockdimY &&
+                              0 < blockdimZ &&
+                              0 < griddimX &&
+                              0 < griddimY &&
+                              0 < griddimZ &&
+                              getWorkDim() == 1 &&
+                              blockdimX == 32 &&
+                              0 < griddimX &&
+                              a != (none1(): Option[Pointer]) &&
+                              b != (none1(): Option[Pointer]) &&
+                              c != (none1(): Option[Pointer]) &&
+                              size <=
+                              block_length(pointer_block(optGet1(a))) -
+                              pointer_offset(optGet1(a)) &&
+                              size <=
+                              block_length(pointer_block(optGet1(b))) -
+                              pointer_offset(optGet1(b)) &&
+                              size <=
+                              block_length(pointer_block(optGet1(c))) -
+                              pointer_offset(optGet1(c)) &&
+                              ((forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int, 1 *
+                                write /
+                                2)) &&
+                              (forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int, 1 *
+                                write /
+                                2)) &&
+                              (forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int, 1 *
+                                write))) &&
+                              ((forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 < truncmod(size, 4) &&
+                                (i_threadidxx % 4 < truncmod(size, 4) &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32)) &&
+                                size <=
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int, 1 *
+                                write /
+                                2)) &&
+                              (forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 < truncmod(size, 4) &&
+                                (i_threadidxx % 4 < truncmod(size, 4) &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32)) &&
+                                size <=
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int, 1 *
+                                write /
+                                2)) &&
+                              (forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 < truncmod(size, 4) &&
+                                (i_threadidxx % 4 < truncmod(size, 4) &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32)) &&
+                                size <=
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int, 1 *
+                                write)))
+                            inhale 0 < blockdimX && 0 < blockdimY &&
+                              0 < blockdimZ &&
+                              0 < griddimX &&
+                              0 < griddimY &&
+                              0 < griddimZ &&
+                              getWorkDim() == 1 &&
+                              blockdimX == 32 &&
+                              0 < griddimX &&
+                              a != (none1(): Option[Pointer]) &&
+                              b != (none1(): Option[Pointer]) &&
+                              c != (none1(): Option[Pointer]) &&
+                              size <=
+                              block_length(pointer_block(optGet1(a))) -
+                              pointer_offset(optGet1(a)) &&
+                              size <=
+                              block_length(pointer_block(optGet1(b))) -
+                              pointer_offset(optGet1(b)) &&
+                              size <=
+                              block_length(pointer_block(optGet1(c))) -
+                              pointer_offset(optGet1(c)) &&
+                              ((forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int, 1 *
+                                write /
+                                2)) &&
+                              (forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int, 1 *
+                                write /
+                                2)) &&
+                              (forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int, 1 *
+                                write))) &&
+                              ((forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 < truncmod(size, 4) &&
+                                (i_threadidxx % 4 < truncmod(size, 4) &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32)) &&
+                                size <=
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int, 1 *
+                                write /
+                                2)) &&
+                              (forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 < truncmod(size, 4) &&
+                                (i_threadidxx % 4 < truncmod(size, 4) &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32)) &&
+                                size <=
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int, 1 *
+                                write /
+                                2)) &&
+                              (forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(a), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(b), i_threadidxx)) }
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                true &&
+                                (0 < truncmod(size, 4) &&
+                                (i_threadidxx % 4 < truncmod(size, 4) &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32)) &&
+                                size <=
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 <
+                                size) ==>
+                                acc(ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int, 1 *
+                                write))) &&
+                              (forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 <
+                                size ==>
+                                ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int ==
+                                ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int +
+                                ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int) &&
+                              (forall i_threadidxx: Int ::
+                                { ptrDeref(ptrAdd(optGet1(c), i_threadidxx)) }
+                                0 < truncmod(size, 4) &&
+                                (i_threadidxx % 4 < truncmod(size, 4) &&
+                                (0 <=
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) &&
+                                i_threadidxx - 4 * (blockidxX2 * blockdimX) <
+                                4 * 32)) &&
+                                size <=
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 +
+                                3 &&
+                                (blockidxX2 * blockdimX +
+                                (i_threadidxx -
+                                4 * (blockidxX2 * blockdimX)) \
+                                4) *
+                                4 <
+                                size ==>
+                                ptrDeref(ptrAdd(optGet1(c), i_threadidxx)).int ==
+                                ptrDeref(ptrAdd(optGet1(a), i_threadidxx)).int +
+                                ptrDeref(ptrAdd(optGet1(b), i_threadidxx)).int)
+                          } elseif (indet1 == 1) {
+                            if (0 < blockdimX) {
+                              var threadidxX2: Int
+                              {
+                                var res2: Int
+                                var flatten8: Int
+                                res2 := setChooseFresh1(setRange(0, blockdimX))
+                                flatten8 := res2
+                                threadidxX2 := flatten8
+                              }
+                              {
+                                var once1: Bool
+                                label BEFOREFRAME1
+                                {
+                                  var excbeforeloop1: Ref
+                                  excbeforeloop1 := exc
+                                  {
+                                    var flatten9: Bool
+                                    flatten9 := true
+                                    once1 := flatten9
+                                  }
+                                  while (once1)
+                                    invariant exc == excbeforeloop1
+                                    invariant once1 ==>
+                                      0 < blockdimX && 0 < blockdimY &&
+                                      0 < blockdimZ &&
+                                      0 < griddimX &&
+                                      0 < griddimY &&
+                                      0 < griddimZ &&
+                                      (getWorkDim() == 1 && blockdimX == 32 &&
+                                      0 < griddimX &&
+                                      (a != (none1(): Option[Pointer]) &&
+                                      b != (none1(): Option[Pointer]) &&
+                                      c != (none1(): Option[Pointer])) &&
+                                      (size <=
+                                      block_length(pointer_block(optGet1(a))) -
+                                      pointer_offset(optGet1(a)) &&
+                                      size <=
+                                      block_length(pointer_block(optGet1(b))) -
+                                      pointer_offset(optGet1(b)) &&
+                                      size <=
+                                      block_length(pointer_block(optGet1(c))) -
+                                      pointer_offset(optGet1(c))) &&
+                                      ((forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 <
+                                        size &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        4)) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(a), i)).int, 1 *
+                                        write /
+                                        2)) &&
+                                      (forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 <
+                                        size &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        4)) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(b), i)).int, 1 *
+                                        write /
+                                        2)) &&
+                                      (forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 <
+                                        size &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        4)) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(c), i)).int, 1 *
+                                        write))) &&
+                                      ((forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        1 <=
+                                        size &&
+                                        size <
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 +
+                                        1 &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        truncmod(size, 4))) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(a), i)).int, 1 *
+                                        write /
+                                        2)) &&
+                                      (forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        1 <=
+                                        size &&
+                                        size <
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 +
+                                        1 &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        truncmod(size, 4))) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(b), i)).int, 1 *
+                                        write /
+                                        2)) &&
+                                      (forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        1 <=
+                                        size &&
+                                        size <
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 +
+                                        1 &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        truncmod(size, 4))) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(c), i)).int, 1 *
+                                        write)))) &&
+                                      [(forperm
+                                        obj: Ref [obj.int2] :: obj.int2 ==
+                                        old[BEFOREFRAME1](obj.int2)) &&
+                                      (forperm
+                                        obj: Ref [obj.int3] :: obj.int3 ==
+                                        old[BEFOREFRAME1](obj.int3)) &&
+                                      (forperm
+                                        obj: Ref [obj.int4] :: obj.int4 ==
+                                        old[BEFOREFRAME1](obj.int4)) &&
+                                      (forperm
+                                        obj: Ref [obj.int8] :: obj.int8 ==
+                                        old[BEFOREFRAME1](obj.int8)) &&
+                                      (forperm
+                                        obj: Ref [obj.int16] :: obj.int16 ==
+                                        old[BEFOREFRAME1](obj.int16)) &&
+                                      (forperm
+                                        obj: Ref [obj.uint2] :: obj.uint2 ==
+                                        old[BEFOREFRAME1](obj.uint2)) &&
+                                      (forperm
+                                        obj: Ref [obj.uint3] :: obj.uint3 ==
+                                        old[BEFOREFRAME1](obj.uint3)) &&
+                                      (forperm
+                                        obj: Ref [obj.uint4] :: obj.uint4 ==
+                                        old[BEFOREFRAME1](obj.uint4)) &&
+                                      (forperm
+                                        obj: Ref [obj.uint8] :: obj.uint8 ==
+                                        old[BEFOREFRAME1](obj.uint8)) &&
+                                      (forperm
+                                        obj: Ref [obj.uint16] :: obj.uint16 ==
+                                        old[BEFOREFRAME1](obj.uint16)) &&
+                                      (forperm
+                                        obj: Ref [obj.long2] :: obj.long2 ==
+                                        old[BEFOREFRAME1](obj.long2)) &&
+                                      (forperm
+                                        obj: Ref [obj.long3] :: obj.long3 ==
+                                        old[BEFOREFRAME1](obj.long3)) &&
+                                      (forperm
+                                        obj: Ref [obj.long4] :: obj.long4 ==
+                                        old[BEFOREFRAME1](obj.long4)) &&
+                                      (forperm
+                                        obj: Ref [obj.long8] :: obj.long8 ==
+                                        old[BEFOREFRAME1](obj.long8)) &&
+                                      (forperm
+                                        obj: Ref [obj.long16] :: obj.long16 ==
+                                        old[BEFOREFRAME1](obj.long16)) &&
+                                      (forperm
+                                        obj: Ref [obj.ulong2] :: obj.ulong2 ==
+                                        old[BEFOREFRAME1](obj.ulong2)) &&
+                                      (forperm
+                                        obj: Ref [obj.ulong3] :: obj.ulong3 ==
+                                        old[BEFOREFRAME1](obj.ulong3)) &&
+                                      (forperm
+                                        obj: Ref [obj.ulong4] :: obj.ulong4 ==
+                                        old[BEFOREFRAME1](obj.ulong4)) &&
+                                      (forperm
+                                        obj: Ref [obj.ulong8] :: obj.ulong8 ==
+                                        old[BEFOREFRAME1](obj.ulong8)) &&
+                                      (forperm
+                                        obj: Ref [obj.ulong16] :: obj.ulong16 ==
+                                        old[BEFOREFRAME1](obj.ulong16)) &&
+                                      (forperm
+                                        obj: Ref [obj.float2] :: obj.float2 ==
+                                        old[BEFOREFRAME1](obj.float2)) &&
+                                      (forperm
+                                        obj: Ref [obj.float3] :: obj.float3 ==
+                                        old[BEFOREFRAME1](obj.float3)) &&
+                                      (forperm
+                                        obj: Ref [obj.float4] :: obj.float4 ==
+                                        old[BEFOREFRAME1](obj.float4)) &&
+                                      (forperm
+                                        obj: Ref [obj.float8] :: obj.float8 ==
+                                        old[BEFOREFRAME1](obj.float8)) &&
+                                      (forperm
+                                        obj: Ref [obj.float16] :: obj.float16 ==
+                                        old[BEFOREFRAME1](obj.float16)) &&
+                                      (forperm
+                                        obj: Ref [obj.double2] :: obj.double2 ==
+                                        old[BEFOREFRAME1](obj.double2)) &&
+                                      (forperm
+                                        obj: Ref [obj.double3] :: obj.double3 ==
+                                        old[BEFOREFRAME1](obj.double3)) &&
+                                      (forperm
+                                        obj: Ref [obj.double4] :: obj.double4 ==
+                                        old[BEFOREFRAME1](obj.double4)) &&
+                                      (forperm
+                                        obj: Ref [obj.double8] :: obj.double8 ==
+                                        old[BEFOREFRAME1](obj.double8)) &&
+                                      (forperm
+                                        obj: Ref [obj.double16] :: obj.double16 ==
+                                        old[BEFOREFRAME1](obj.double16)) &&
+                                      (forperm
+                                        obj: Ref [obj.int] :: obj.int ==
+                                        old[BEFOREFRAME1](obj.int)),
+                                      true]
+                                    invariant !once1 ==>
+                                      0 < blockdimX && 0 < blockdimY &&
+                                      0 < blockdimZ &&
+                                      0 < griddimX &&
+                                      0 < griddimY &&
+                                      0 < griddimZ &&
+                                      (getWorkDim() == 1 && blockdimX == 32 &&
+                                      0 < griddimX &&
+                                      (a != (none1(): Option[Pointer]) &&
+                                      b != (none1(): Option[Pointer]) &&
+                                      c != (none1(): Option[Pointer])) &&
+                                      (size <=
+                                      block_length(pointer_block(optGet1(a))) -
+                                      pointer_offset(optGet1(a)) &&
+                                      size <=
+                                      block_length(pointer_block(optGet1(b))) -
+                                      pointer_offset(optGet1(b)) &&
+                                      size <=
+                                      block_length(pointer_block(optGet1(c))) -
+                                      pointer_offset(optGet1(c))) &&
+                                      ((forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 <
+                                        size &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        4)) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(a), i)).int, 1 *
+                                        write /
+                                        2)) &&
+                                      (forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 <
+                                        size &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        4)) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(b), i)).int, 1 *
+                                        write /
+                                        2)) &&
+                                      (forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 <
+                                        size &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        4)) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(c), i)).int, 1 *
+                                        write))) &&
+                                      ((forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        1 <=
+                                        size &&
+                                        size <
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 +
+                                        1 &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        truncmod(size, 4))) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(a), i)).int, 1 *
+                                        write /
+                                        2)) &&
+                                      (forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        1 <=
+                                        size &&
+                                        size <
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 +
+                                        1 &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        truncmod(size, 4))) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(b), i)).int, 1 *
+                                        write /
+                                        2)) &&
+                                      (forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(a), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(b), i)) }
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        true &&
+                                        ((blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        1 <=
+                                        size &&
+                                        size <
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 +
+                                        3 +
+                                        1 &&
+                                        (0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        truncmod(size, 4))) ==>
+                                        acc(ptrDeref(ptrAdd(optGet1(c), i)).int, 1 *
+                                        write))) &&
+                                      ((blockidxX2 * blockdimX +
+                                      threadidxX2) *
+                                      4 +
+                                      3 <
+                                      size ==>
+                                      (forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        4 ==>
+                                        ptrDeref(ptrAdd(optGet1(c), i)).int ==
+                                        ptrDeref(ptrAdd(optGet1(a), i)).int +
+                                        ptrDeref(ptrAdd(optGet1(b), i)).int)) &&
+                                      ((blockidxX2 * blockdimX +
+                                      threadidxX2) *
+                                      4 +
+                                      1 <=
+                                      size &&
+                                      size <
+                                      (blockidxX2 * blockdimX + threadidxX2) *
+                                      4 +
+                                      3 +
+                                      1 ==>
+                                      (forall i: Int ::
+                                        { ptrDeref(ptrAdd(optGet1(c), i)) }
+                                        0 <=
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 &&
+                                        i -
+                                        (blockidxX2 * blockdimX +
+                                        threadidxX2) *
+                                        4 <
+                                        truncmod(size, 4) ==>
+                                        ptrDeref(ptrAdd(optGet1(c), i)).int ==
+                                        ptrDeref(ptrAdd(optGet1(a), i)).int +
+                                        ptrDeref(ptrAdd(optGet1(b), i)).int)))
+                                    decreases 
+                                  {
+                                    {
+                                      var tid1: Int
+                                      {
+                                        var flatten10: Int
+                                        flatten10 := blockdimX * blockidxX2 +
+                                          threadidxX2
+                                        tid1 := flatten10
+                                      }
+                                      if (4 * tid1 + 3 < size) {
+                                        var a2: Vector[Int]
+                                        var b2: Vector[Int]
+                                        var c2: Vector[Int]
+                                        {
+                                          var flatten11: Vector[Int]
+                                          flatten11 := vload4(tid1, a)
+                                          a2 := flatten11
+                                        }
+                                        {
+                                          var flatten12: Vector[Int]
+                                          flatten12 := vload4(tid1, b)
+                                          b2 := flatten12
+                                        }
+                                        {
+                                          var flatten13: Vector[Int]
+                                          flatten13 := plus_v4(a2, b2)
+                                          c2 := flatten13
+                                        }
+                                        {
+                                          var res3: Void
+                                          res3 := vstore4(tid, c2, tid1, c)
+                                        }
+                                      } else {
+                                        if (4 * tid1 + 2 < size) {
+                                          var flatten14: Int
+                                          var flatten15: Int
+                                          flatten14 := 4 * tid1 + 2
+                                          flatten15 := ptrDeref(ptrAdd(optGet1(a),
+                                            4 * tid1 + 2)).int +
+                                            ptrDeref(ptrAdd(optGet1(b), 4 *
+                                            tid1 +
+                                            2)).int
+                                          ptrDeref(ptrAdd(optGet1(c), flatten14)).int := flatten15
+                                        }
+                                        if (4 * tid1 + 1 < size) {
+                                          var flatten16: Int
+                                          var flatten17: Int
+                                          flatten16 := 4 * tid1 + 1
+                                          flatten17 := ptrDeref(ptrAdd(optGet1(a),
+                                            4 * tid1 + 1)).int +
+                                            ptrDeref(ptrAdd(optGet1(b), 4 *
+                                            tid1 +
+                                            1)).int
+                                          ptrDeref(ptrAdd(optGet1(c), flatten16)).int := flatten17
+                                        }
+                                        if (4 * tid1 < size) {
+                                          var flatten18: Int
+                                          var flatten19: Int
+                                          flatten18 := 4 * tid1
+                                          flatten19 := ptrDeref(ptrAdd(optGet1(a),
+                                            4 * tid1)).int +
+                                            ptrDeref(ptrAdd(optGet1(b), 4 *
+                                            tid1)).int
+                                          ptrDeref(ptrAdd(optGet1(c), flatten18)).int := flatten19
+                                        }
+                                      }
+                                    }
+                                    {
+                                      var flatten20: Bool
+                                      flatten20 := false
+                                      once1 := flatten20
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                            inhale false
+                          }
+                        }
+                      }
+                      {
+                        var flatten21: Bool
+                        flatten21 := false
+                        once := flatten21
+                      }
+                    }
+                  }
+                }
+              }
+              inhale false
+            }
+          }
+        }
+        inhale true
+      }
+      label END
+      res := return
+    }
+    label BUBBLE
+    assert exc == null
+  }
+}

@@ -6,6 +6,15 @@ benchmark:
   runs_per_revision: 4
   metric: wall_clock_seconds
 
+backend_equivalence:
+  goal: Generated backend output must stay functionally identical across optimization changes.
+  command_with_output: vct examples/concepts/gpgpu/opencl_vector_add.cl --skip-backend --dev-unsafe-optimization --backend-file-base <name>
+  baseline_file: util/perf-baselines/opencl_vector_add_baseline.vpr
+  workflow:
+    - Before first commit of an optimization series, run `util/verify_backend_equivalence.sh init` to store baseline output.
+    - After each optimization change, run `util/verify_backend_equivalence.sh check`.
+    - Only keep optimization commits where the equivalence check reports MATCH.
+
 revisions:
   - commit: f8d7596fe1
     role: baseline
