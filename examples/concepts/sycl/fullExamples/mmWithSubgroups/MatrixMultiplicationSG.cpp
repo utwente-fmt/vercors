@@ -106,18 +106,6 @@ ensures (\forall int gid02=0 .. Mf(), int gl3=0 .. Pf();
 );
 void lemmaPost(int* c);
 
-
-ghost 
-requires i >= 0;
-requires Pf()%tlszf()==0;
-ensures (i * Pf()) % tlszf() == 0;
-void lemma2(int i);
-ghost
-requires a>=0 && b >=0 &&tlszf()>0;
-requires a%tlszf()==0;
-ensures (a+b)%tlszf()==b%tlszf();
-void lemma123(int a, int b);
-
 ghost
 requires Pf()%tlszf()==0;
 requires llid == glid % tlszf();
@@ -141,7 +129,7 @@ requires llid == l0*1+l1;
 requires glid == g0*Pf() + g1;
 requires l1 == g1%tlszf();
 ensures llid == glid%tlszf();
-void lemma1234(int glid, int llid, int g0, int g1, int l0, int l1);
+void lemmaLowerModuloToLid(int glid, int llid, int g0, int g1, int l0, int l1);
 
 ghost
 requires Pf()%tlszf() == 0;
@@ -149,7 +137,7 @@ requires 0 <= g1 && g1 < Pf();
 requires 0 <= l1 && l1 < tlszf();
 requires g1 == gr1*tlszf()+l1;
 ensures g1%tlszf() == l1;
-void lemma12334(int g1, int gr1, int l1);
+void lemmaLowerModuloToG1(int g1, int gr1, int l1);
 
 ghost 
 requires Pf()%tlszf() == 0;
@@ -158,7 +146,7 @@ requires 0 <= g0 && g0 < Mf();
 requires 0 <= g1 && g1 < Pf();
 requires glid == g0*Pf() + g1;
 ensures g0 == glid/Pf();
-void lemma1234445(int glid, int g0, int g1);
+void lemmaLowerDivToGid0(int glid, int g0, int g1);
 @*/
 
 
@@ -244,7 +232,7 @@ void matrixmul(sycl::queue q, int M, int N, int P, int tlsz, int* a, int* b, int
                         //@ ghost lemmalStep(l);
                         // \gtid is the global_linear_id, global_id(0) is then \gtid/P
 
-                        //@ ghost lemma1234445(it.get_global_linear_id(), it.get_global_id(0), it.get_global_id(1));
+                        //@ ghost lemmaLowerDivToGid0(it.get_global_linear_id(), it.get_global_id(0), it.get_global_id(1));
                         //@ assert m == it.get_global_id(0) && m == it.get_global_linear_id()/Pf();
 
                         //@ assert it.get_global_linear_id() == it.get_global_id(0) * Pf() + it.get_global_id(1);
@@ -253,34 +241,34 @@ void matrixmul(sycl::queue q, int M, int N, int P, int tlsz, int* a, int* b, int
                         //@ assert it.get_global_linear_id()/Pf() == (it.get_global_id(0) * Pf() + it.get_global_id(1))/Pf();
 
                         //@ assert it.get_global_linear_id()/Pf() == it.get_global_id(0);
-                        /*@ assert it.get_sub_group().get_local_id() == k ==> 
+                        /*@ assert it.get_sub_group().get_local_id()[0] == k ==>
                             tileA == a_acc[it.get_global_linear_id()/Pf()][l + k];
 
-                            assert it.get_sub_group().get_local_id() == k ==> 
-                            a_acc[it.get_global_linear_id()/Pf()][l + it.get_sub_group().get_local_id()]
+                            assert it.get_sub_group().get_local_id()[0] == k ==>
+                            a_acc[it.get_global_linear_id()/Pf()][l + it.get_sub_group().get_local_id()[0]]
                             ==
-                            a_acc[m][l + it.get_sub_group().get_local_id()]
+                            a_acc[m][l + it.get_sub_group().get_local_id()[0]]
                             ;
                         */
                         
-                        //@ assert it.get_sub_group().get_local_id() == (it.get_local_id(0) * 1 + it.get_local_id(1))%it.get_sub_group().get_local_range(0);
+                        //@ assert it.get_sub_group().get_local_id()[0] == (it.get_local_id(0) * 1 + it.get_local_id(1))%it.get_sub_group().get_local_range().get(0);
                         //@ assert it.get_local_id(0) == 0;
-                        //@ assert (it.get_local_id(0) * 1 + it.get_local_id(1))%it.get_sub_group().get_local_range(0) == it.get_local_id(1)%it.get_sub_group().get_local_range(0);
-                        //@ assert it.get_local_id(1) == it.get_local_id(1)%it.get_sub_group().get_local_range(0);
-                        //@ assert i == it.get_sub_group().get_local_id();
+                        //@ assert (it.get_local_id(0) * 1 + it.get_local_id(1))%it.get_sub_group().get_local_range().get(0) == it.get_local_id(1)%it.get_sub_group().get_local_range().get(0);
+                        //@ assert it.get_local_id(1) == it.get_local_id(1)%it.get_sub_group().get_local_range().get(0);
+                        //@ assert i == it.get_sub_group().get_local_id()[0];
 
-                        //@ assert it.get_global_linear_id()\Pf() < Mf() && tileA == a_acc[it.get_global_linear_id()/Pf()][l + it.get_sub_group().get_local_id()];
+                        //@ assert it.get_global_linear_id()\Pf() < Mf() && tileA == a_acc[it.get_global_linear_id()/Pf()][l + it.get_sub_group().get_local_id()[0]];
 
                         int sg_result = sycl::group_broadcast(it.get_sub_group(), tileA, k)  /*@ sub_group_inv {  \gtid\Pf() < Mf() && \sg_val == a_acc[\gtid/Pf()][l + \sgtid] } */;
                         sum += sg_result * b_acc[l + k][n];
 
                         /*@ 
-                        ghost lemma12334(
+                        ghost lemmaLowerModuloToG1(
                             it.get_global_id(1),
                             it.get_group(1),
                             it.get_local_id(1)
                         );
-                        ghost lemma1234(
+                        ghost lemmaLowerModuloToLid(
                                     it.get_global_linear_id(), 
                                     it.get_local_linear_id(), 
                                     it.get_global_id(0), 
@@ -292,9 +280,9 @@ void matrixmul(sycl::queue q, int M, int N, int P, int tlsz, int* a, int* b, int
                         
                         //@ ghost lemmaGlobalId(it.get_global_linear_id(), it.get_local_linear_id(), k, it.get_global_id(0));
 
-                        //@ assert (it.get_global_linear_id() + k - (it.get_local_linear_id() % it.get_sub_group().get_local_range(0)))/Pf() == it.get_global_id(0);
+                        //@ assert (it.get_global_linear_id() + k - (it.get_local_linear_id() % it.get_sub_group().get_local_range().get(0)))/Pf() == it.get_global_id(0);
 
-                        /*@ assert (it.get_global_linear_id() + k - it.get_local_linear_id() % it.get_sub_group().get_local_range(0)) / Pf() < Mf() &&
+                        /*@ assert (it.get_global_linear_id() + k - it.get_local_linear_id() % it.get_sub_group().get_local_range().get(0)) / Pf() < Mf() &&
                             sg_result == a_acc[m][l + k];
                         */
                     }

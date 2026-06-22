@@ -50,22 +50,22 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                 requires |fzGs()| == T && fzGs()[it.get_global_id(0)] == fzAcc[it.get_global_id(0)] && fzGs()[it.get_global_id(0)] == \old(fz[it.get_global_id(0)]);
                 context 0 <= it.get_global_id(0) && it.get_global_id(0) < T;
                 ensures it.get_global_id(0)%4 == 0 ==>
-                    (it.get_sub_group().get_local_id()+it.get_sub_group().get_local_range(0)   <= it.get_sub_group().get_local_range(0) ==>
-                    it.get_global_id(0)+it.get_sub_group().get_local_range(0)   <= |fxGs()| ==>
-                        fxAcc[it.get_global_id(0)] == sum(fxGs()[it.get_global_id(0)   .. it.get_global_id(0)+it.get_sub_group().get_local_range(0)]));
-                ensures it.get_global_id(0)%4 == 1 ==> (0 <= it.get_sub_group().get_local_id() - 1 ==>
-                    it.get_sub_group().get_local_id()+it.get_sub_group().get_local_range(0)-1 <= it.get_sub_group().get_local_range(0) ==>
-                    it.get_global_id(0)+it.get_sub_group().get_local_range(0)-1 <= |fyGs()| ==>
-                        fxAcc[it.get_global_id(0)] == sum(fyGs()[it.get_global_id(0)-1 .. it.get_global_id(0)+it.get_sub_group().get_local_range(0)-1]));
-                ensures it.get_global_id(0)%4 == 2 ==> (0 <= it.get_sub_group().get_local_id() - 2 ==>
-                    it.get_sub_group().get_local_id()+it.get_sub_group().get_local_range(0)-2 <= it.get_sub_group().get_local_range(0) ==>
-                    it.get_global_id(0)+it.get_sub_group().get_local_range(0)-2 <= |fzGs()| ==>
-                        fxAcc[it.get_global_id(0)] == sum(fzGs()[it.get_global_id(0)-2 .. it.get_global_id(0)+it.get_sub_group().get_local_range(0)-2])); */
+                    (it.get_sub_group().get_local_id()[0]+it.get_sub_group().get_local_range().get(0)   <= it.get_sub_group().get_local_range().get(0) ==>
+                    it.get_global_id(0)+it.get_sub_group().get_local_range().get(0)   <= |fxGs()| ==>
+                        fxAcc[it.get_global_id(0)] == sum(fxGs()[it.get_global_id(0)   .. it.get_global_id(0)+it.get_sub_group().get_local_range().get(0)]));
+                ensures it.get_global_id(0)%4 == 1 ==> (0 <= it.get_sub_group().get_local_id()[0] - 1 ==>
+                    it.get_sub_group().get_local_id()[0]+it.get_sub_group().get_local_range().get(0)-1 <= it.get_sub_group().get_local_range().get(0) ==>
+                    it.get_global_id(0)+it.get_sub_group().get_local_range().get(0)-1 <= |fyGs()| ==>
+                        fxAcc[it.get_global_id(0)] == sum(fyGs()[it.get_global_id(0)-1 .. it.get_global_id(0)+it.get_sub_group().get_local_range().get(0)-1]));
+                ensures it.get_global_id(0)%4 == 2 ==> (0 <= it.get_sub_group().get_local_id()[0] - 2 ==>
+                    it.get_sub_group().get_local_id()[0]+it.get_sub_group().get_local_range().get(0)-2 <= it.get_sub_group().get_local_range().get(0) ==>
+                    it.get_global_id(0)+it.get_sub_group().get_local_range().get(0)-2 <= |fzGs()| ==>
+                        fxAcc[it.get_global_id(0)] == sum(fzGs()[it.get_global_id(0)-2 .. it.get_global_id(0)+it.get_sub_group().get_local_range().get(0)-2])); */
             [=](sycl::nd_item<1> it) {
                 //@ assert true;
                 sycl::sub_group sg = it.get_sub_group();
                 int gid = it.get_global_id(0);
-                int laneId = sg.get_local_id();
+                int laneId = sg.get_local_id()[0];
                 int d1 = 1;
 
                 fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], d1)
@@ -84,11 +84,11 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                 int d2 = 2;
                 fxAcc[gid] += sycl::shift_group_left(sg, fxAcc[gid], d2)
                 /*@ sub_group_inv { (\gtid % 2 == 0) ?
-                    (\sgtid + d1 < sg.get_local_range(0) ==> \gtid+d2 <= |fzGs()| ==> \sg_val == sum(fxGs()[\gtid .. \gtid+d2])) :
+                    (\sgtid + d1 < sg.get_local_range().get(0) ==> \gtid+d2 <= |fzGs()| ==> \sg_val == sum(fxGs()[\gtid .. \gtid+d2])) :
                     (0 <= \sgtid - d1 ==> \sg_val == sum(fyGs()[\gtid-d1 .. \gtid+1])) } */;
 
                 fzAcc[gid] += sycl::shift_group_right(sg, fzAcc[gid], d2)
-                /*@ sub_group_inv { \sgtid+d1 < sg.get_local_range(0) ==> \gtid+d2 <= |fzGs()| ==> \sg_val == sum(fzGs()[\gtid .. \gtid+d2]) } */;
+                /*@ sub_group_inv { \sgtid+d1 < sg.get_local_range().get(0) ==> \gtid+d2 <= |fzGs()| ==> \sg_val == sum(fzGs()[\gtid .. \gtid+d2]) } */;
 
                 /*@ assert lemmaSumOverConcat(fxGs()[gid    .. gid+d2],   fxGs()[gid+d2 .. gid+d2+d2])  && lemmaSumOverABBCisAC(fxGs(), gid,    gid+d2, gid+d2, gid+d2+d2);
                     assert lemmaSumOverConcat(fyGs()[gid-d1 .. gid+1],    fyGs()[gid+1  .. gid+d2+1])   && lemmaSumOverABBCisAC(fyGs(), gid-d1, gid+1,  gid+d2-d1, gid+d2+1);
@@ -103,48 +103,48 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                 /*@ frame 
                     context T > 0 && N > 0 && T > N && T/N > 0 && T%N == 0 && N%sycl::h::warp_sizes()==0;
                     context gid == it.get_global_id(0);
-                    context laneId == sg.get_local_id();
+                    context laneId == sg.get_local_id()[0];
                     context 0 <= it.get_global_id(0) && it.get_global_id(0) < T;
                     context sycl::h::wrpsz_pow() >= 3;
-                    context 4 <= dk && dk <= sg.get_local_range(0);
+                    context 4 <= dk && dk <= sg.get_local_range().get(0);
                     context dk%4==0;
                     requires k1 == 2 && dk == 4;
                     context k1 >= 2 && dk == sycl::h::exp(2,k1) && k1 <= sycl::h::wrpsz_pow();
-                    context sg.get_local_range(0) %2==0;
-                    context dk == sg.get_local_range(0) ==> sycl::h::exp(2,k1) == sg.get_local_range(0);
-                    context dk >= sg.get_local_range(0) ==> dk == sg.get_local_range(0);
-                    context dk < sg.get_local_range(0) ==> k1 < sycl::h::wrpsz_pow();
+                    context sg.get_local_range().get(0) %2==0;
+                    context dk == sg.get_local_range().get(0) ==> sycl::h::exp(2,k1) == sg.get_local_range().get(0);
+                    context dk >= sg.get_local_range().get(0) ==> dk == sg.get_local_range().get(0);
+                    context dk < sg.get_local_range().get(0) ==> k1 < sycl::h::wrpsz_pow();
                     context Perm(fxAcc[gid], write);
                     context |fzGs()| == |fyGs()| && |fxGs()| == |fyGs()| && |fzGs()| == T;
-                    context (gid%4 == 0) ==> (laneId+dk   <= sg.get_local_range(0) && gid+dk   <= |fxGs()|) ==> fxAcc[gid] == sum(fxGs()[gid   .. gid+dk]);
-                    context (gid%4 == 1) ==> (0 <= laneId - 1 && laneId+dk-1 <= sg.get_local_range(0) && gid+dk-1 <= |fyGs()|) ==> fxAcc[gid] == sum(fyGs()[gid-1 .. gid+dk-1]);
-                    context (gid%4 == 2) ==> (0 <= laneId - 2 && laneId+dk-2 <= sg.get_local_range(0) && gid+dk-2 <= |fzGs()|) ==> fxAcc[gid] == sum(fzGs()[gid-2 .. gid+dk-2]);
-                    ensures dk == sg.get_local_range(0);
+                    context (gid%4 == 0) ==> (laneId+dk   <= sg.get_local_range().get(0) && gid+dk   <= |fxGs()|) ==> fxAcc[gid] == sum(fxGs()[gid   .. gid+dk]);
+                    context (gid%4 == 1) ==> (0 <= laneId - 1 && laneId+dk-1 <= sg.get_local_range().get(0) && gid+dk-1 <= |fyGs()|) ==> fxAcc[gid] == sum(fyGs()[gid-1 .. gid+dk-1]);
+                    context (gid%4 == 2) ==> (0 <= laneId - 2 && laneId+dk-2 <= sg.get_local_range().get(0) && gid+dk-2 <= |fzGs()|) ==> fxAcc[gid] == sum(fzGs()[gid-2 .. gid+dk-2]);
+                    ensures dk == sg.get_local_range().get(0);
                 {*/
                 /*@ loop_invariant T > 0 && N > 0 && T > N && T/N > 0 && T%N == 0 && N%sycl::h::warp_sizes()==0;
                     loop_invariant gid == it.get_global_id(0);
-                    loop_invariant laneId == sg.get_local_id();
+                    loop_invariant laneId == sg.get_local_id()[0];
                     loop_invariant 0 <= it.get_global_id(0) && it.get_global_id(0) < T;
                     loop_invariant sycl::h::wrpsz_pow() >= 3;
-                    loop_invariant 4 <= dk && dk <= sg.get_local_range(0);
+                    loop_invariant 4 <= dk && dk <= sg.get_local_range().get(0);
                     loop_invariant dk%4==0;
                     loop_invariant k1 >= 2 && dk == sycl::h::exp(2,k1) && k1 <= sycl::h::wrpsz_pow();
-                    loop_invariant sg.get_local_range(0) %2==0;
-                    loop_invariant dk == sg.get_local_range(0) ==> sycl::h::exp(2,k1) == sg.get_local_range(0);
-                    loop_invariant dk >= sg.get_local_range(0) ==> dk == sg.get_local_range(0);
-                    loop_invariant dk < sg.get_local_range(0) ==> k1 < sycl::h::wrpsz_pow();
+                    loop_invariant sg.get_local_range().get(0) %2==0;
+                    loop_invariant dk == sg.get_local_range().get(0) ==> sycl::h::exp(2,k1) == sg.get_local_range().get(0);
+                    loop_invariant dk >= sg.get_local_range().get(0) ==> dk == sg.get_local_range().get(0);
+                    loop_invariant dk < sg.get_local_range().get(0) ==> k1 < sycl::h::wrpsz_pow();
                     loop_invariant Perm(fxAcc[gid], write);
                     
                     loop_invariant |fzGs()| == |fyGs()| && |fxGs()| == |fyGs()| && |fzGs()| == T;
-                    loop_invariant (gid%4 == 0) ==> (laneId+dk   <= sg.get_local_range(0) && gid+dk   <= |fxGs()|) ==> fxAcc[gid] == sum(fxGs()[gid   .. gid+dk]);
-                    loop_invariant (gid%4 == 1) ==> (0 <= laneId - 1 && laneId+dk-1 <= sg.get_local_range(0) && gid+dk-1 <= |fyGs()|) ==> fxAcc[gid] == sum(fyGs()[gid-1 .. gid+dk-1]);
-                    loop_invariant (gid%4 == 2) ==> (0 <= laneId - 2 && laneId+dk-2 <= sg.get_local_range(0) && gid+dk-2 <= |fzGs()|) ==> fxAcc[gid] == sum(fzGs()[gid-2 .. gid+dk-2]);
+                    loop_invariant (gid%4 == 0) ==> (laneId+dk   <= sg.get_local_range().get(0) && gid+dk   <= |fxGs()|) ==> fxAcc[gid] == sum(fxGs()[gid   .. gid+dk]);
+                    loop_invariant (gid%4 == 1) ==> (0 <= laneId - 1 && laneId+dk-1 <= sg.get_local_range().get(0) && gid+dk-1 <= |fyGs()|) ==> fxAcc[gid] == sum(fyGs()[gid-1 .. gid+dk-1]);
+                    loop_invariant (gid%4 == 2) ==> (0 <= laneId - 2 && laneId+dk-2 <= sg.get_local_range().get(0) && gid+dk-2 <= |fzGs()|) ==> fxAcc[gid] == sum(fzGs()[gid-2 .. gid+dk-2]);
                 */ 
-                for (dk = 4; dk < sg.get_local_range(0); dk = 2 * dk) {
+                for (dk = 4; dk < sg.get_local_range().get(0); dk = 2 * dk) {
                     int sgl_result2 = sycl::shift_group_left(sg, fxAcc[gid], dk)
-                        /*@ sub_group_inv {   (\gtid%4 == 0) ?                     (\sgtid+dk   <= sg.get_local_range(0) ==> \gtid + dk <= |fxGs()| ==> \sg_val == sum(fxGs()[\gtid   .. \gtid+dk]))
-                                            : (\gtid%4 == 1) ? (0 <= \sgtid - 1 ==> \sgtid+dk-1 <= sg.get_local_range(0) ==> \gtid+dk-1 <= |fyGs()| ==> \sg_val == sum(fyGs()[\gtid-1 .. \gtid+dk-1]))
-                                            : (\gtid%4 == 2) ? (0 <= \sgtid - 2 ==> \sgtid+dk-2 <= sg.get_local_range(0) ==> \gtid+dk-2 <= |fzGs()| ==> \sg_val == sum(fzGs()[\gtid-2 .. \gtid+dk-2]))
+                        /*@ sub_group_inv {   (\gtid%4 == 0) ?                     (\sgtid+dk   <= sg.get_local_range().get(0) ==> \gtid + dk <= |fxGs()| ==> \sg_val == sum(fxGs()[\gtid   .. \gtid+dk]))
+                                            : (\gtid%4 == 1) ? (0 <= \sgtid - 1 ==> \sgtid+dk-1 <= sg.get_local_range().get(0) ==> \gtid+dk-1 <= |fyGs()| ==> \sg_val == sum(fyGs()[\gtid-1 .. \gtid+dk-1]))
+                                            : (\gtid%4 == 2) ? (0 <= \sgtid - 2 ==> \sgtid+dk-2 <= sg.get_local_range().get(0) ==> \gtid+dk-2 <= |fzGs()| ==> \sg_val == sum(fzGs()[\gtid-2 .. \gtid+dk-2]))
                                             : true } */;
                     //@ ghost int gsfxAcc = fxAcc[gid];                                         
                     fxAcc[gid] += sgl_result2;
@@ -154,21 +154,21 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                             assert lemmaSumOverConcat(fzGs()[gid-2 .. gid+dk-2],fzGs()[gid+dk-2 .. gid+dk+dk-2]) && lemmaSumOverABBCisAC(fzGs(), gid-2, gid+dk-2, gid+dk-2, gid+dk+dk-2);
                             assert true; */
 
-                    /*@ assert laneId + dk < sg.get_local_range(0) ==>
+                    /*@ assert laneId + dk < sg.get_local_range().get(0) ==>
                                 ((gid + dk) % 4 == 0
-                                    ? laneId + dk + dk <= sg.get_local_range(0) ==>
+                                    ? laneId + dk + dk <= sg.get_local_range().get(0) ==>
                                         gid + dk + dk <= |fxGs()| ==>
                                             sgl_result2 == sum(fxGs()[gid + dk..gid + dk + dk])
                                     : 
                                     (gid + dk) % 4 == 1
                                     ? 0 <= laneId + dk - 1 ==>
-                                        laneId + dk + dk - 1 <= sg.get_local_range(0) ==>
+                                        laneId + dk + dk - 1 <= sg.get_local_range().get(0) ==>
                                         gid + dk + dk - 1 <= |fyGs()| ==>
                                         sgl_result2 == sum(fyGs()[gid + dk - 1 .. gid + dk + dk - 1])
                                     : 
                                     (gid + dk) % 4 == 2
                                     ? 0 <= laneId + dk - 2 ==>
-                                        laneId + dk + dk - 2 <= sg.get_local_range(0) ==>
+                                        laneId + dk + dk - 2 <= sg.get_local_range().get(0) ==>
                                         gid + dk + dk - 2 <= |fzGs()| ==>
                                         sgl_result2 == sum(fzGs()[gid + dk - 2 .. gid + dk + dk - 2])
                                             : true);
@@ -182,17 +182,17 @@ void smartsum(sycl::queue q, int T, int N, int* fx, int* fy, int* fz) {
                             assert mod_add_0(gid,dk);
                             assert sycl::h::add(gid,dk)%4==0;
                             assert mod_add_0(gid,dk) ==> (gid+dk)%4 == 0;
-                            assert (gid%4 == 0) ==> (laneId+dk+dk   <= sg.get_local_range(0) && gid+dk+dk   <= |fxGs()|) ==> fxAcc[gid] == sum(fxGs()[gid   .. gid+dk+dk]);
+                            assert (gid%4 == 0) ==> (laneId+dk+dk   <= sg.get_local_range().get(0) && gid+dk+dk   <= |fxGs()|) ==> fxAcc[gid] == sum(fxGs()[gid   .. gid+dk+dk]);
                         } else if (gid%4==1) {
                             assert mod_add_1(gid,dk);
                             assert sycl::h::add(gid,dk)%4==1;
                             assert mod_add_1(gid,dk) ==> (gid+dk)%4==1;
-                            assert (gid%4 == 1) ==> (0 <= laneId - 1 && laneId+dk+dk-1 <= sg.get_local_range(0) && gid+dk+dk-1 <= |fyGs()|) ==> fxAcc[gid] == sum(fyGs()[gid-1 .. gid+dk+dk-1]);
+                            assert (gid%4 == 1) ==> (0 <= laneId - 1 && laneId+dk+dk-1 <= sg.get_local_range().get(0) && gid+dk+dk-1 <= |fyGs()|) ==> fxAcc[gid] == sum(fyGs()[gid-1 .. gid+dk+dk-1]);
                         } else if (gid%4==2) {
                             assert mod_add_2(gid,dk);
                             assert sycl::h::add(gid,dk)%4==2;
                             assert mod_add_2(gid,dk) ==> (gid+dk)%4==2;
-                            assert (gid%4 == 2) ==> (0 <= laneId - 2 && laneId+dk+dk-2 <= sg.get_local_range(0) && gid+dk+dk-2 <= |fzGs()|) ==> fxAcc[gid] == sum(fzGs()[gid-2 .. gid+dk+dk-2]);
+                            assert (gid%4 == 2) ==> (0 <= laneId - 2 && laneId+dk+dk-2 <= sg.get_local_range().get(0) && gid+dk+dk-2 <= |fzGs()|) ==> fxAcc[gid] == sum(fzGs()[gid-2 .. gid+dk+dk-2]);
                         }
                     */
                     
