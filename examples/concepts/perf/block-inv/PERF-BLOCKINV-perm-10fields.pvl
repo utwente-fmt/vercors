@@ -1,0 +1,30 @@
+//:: cases PERF_BLOCKINV_perm_10fields
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: par block invariant with ten field permissions.
+// checkInvSat (par branch): FramedProof must inhale 10 Perm grants + 10 value constraints.
+class PERF_BLOCKINV_perm_10fields {
+    int a;
+    int b;
+    int c;
+    int d;
+    int e;
+    int f;
+    int g;
+    int h;
+    int i;
+    int j;
+}
+
+context Perm(o.a, write) ** Perm(o.b, write) ** Perm(o.c, write) ** Perm(o.d, write) ** Perm(o.e, write) **
+        Perm(o.f, write) ** Perm(o.g, write) ** Perm(o.h, write) ** Perm(o.i, write) ** Perm(o.j, write) **
+        (o.a >= 0 && o.b >= 0 && o.c >= 0 && o.d >= 0 && o.e >= 0 &&
+         o.f >= 0 && o.g >= 0 && o.h >= 0 && o.i >= 0 && o.j >= 0);
+void work(PERF_BLOCKINV_perm_10fields o) {
+    invariant inv (Perm(o.a, write) ** Perm(o.b, write) ** Perm(o.c, write) ** Perm(o.d, write) ** Perm(o.e, write) **
+                   Perm(o.f, write) ** Perm(o.g, write) ** Perm(o.h, write) ** Perm(o.i, write) ** Perm(o.j, write) **
+                   (o.a >= 0 && o.b >= 0 && o.c >= 0 && o.d >= 0 && o.e >= 0 &&
+                    o.f >= 0 && o.g >= 0 && o.h >= 0 && o.i >= 0 && o.j >= 0)) {
+    }
+}

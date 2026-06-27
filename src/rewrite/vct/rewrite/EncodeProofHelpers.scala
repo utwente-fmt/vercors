@@ -12,11 +12,10 @@ case object EncodeProofHelpers extends RewriterBuilderArg[Boolean] {
   private def Once: Origin =
     Origin(Seq(PreferredName(Seq("once")), LabelContext("frame while")))
 
-  private var indetCounter: Int = 0
-  private def Indet: Origin = {
-    indetCounter += 1
-    Origin(Seq(PreferredName(Seq(s"indet$indetCounter")), LabelContext("indeterminate branch")))
-  }
+  private def Indet: Origin =
+    Origin(
+      Seq(PreferredName(Seq("indet")), LabelContext("indeterminate branch"))
+    )
 
   private def Before: Origin =
     Origin(Seq(PreferredName(Seq("beforeFrame")), LabelContext("before frame")))

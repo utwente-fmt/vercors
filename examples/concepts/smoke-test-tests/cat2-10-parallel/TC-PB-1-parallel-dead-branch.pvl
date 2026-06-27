@@ -1,0 +1,19 @@
+//:: cases TC_PB_1_ParallelDeadBranch
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PB-1: Parallel block — tid is in range, so tid < 0 is dead.
+// tid >= 0 is live. Expected: warning on first branch only.
+requires size > 0;
+void f(int size) {
+    par (int tid = 0 .. size)
+        context 0 < size;
+    {
+        if (tid < 0) {
+            return; // dead
+        }
+        if (tid >= 0) {
+            return; // live: tid is always >= 0
+        }
+    }
+}

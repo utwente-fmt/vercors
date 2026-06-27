@@ -1,0 +1,13 @@
+//:: cases TC_LI_13_InvariantContradictionUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// loop_invariant x > 0 && x < 0 is a contradiction — invariantUnsatisfiable fires,
+// along with invariantNotEstablished; cascade dead code is suppressed.
+requires true;
+void f(int x) {
+    loop_invariant x > 0 && x < 0;
+    while (x != 0) {
+        x = x - 1;
+    }
+}

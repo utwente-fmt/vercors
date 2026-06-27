@@ -1,0 +1,17 @@
+//:: cases TC_PST_20_EnsuresPermFunctionCallUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// Postcondition ensures Perm(n.value, read) ** isFieldFalse(n), where isFieldFalse(n)
+// = (n.value > 0 && n.value < 0) is always false — contradiction, postUnsatisfiable fires.
+
+class TC_PST_20_Node {
+    int value;
+}
+
+requires Perm(n.value, read);
+pure boolean isFieldFalse(TC_PST_20_Node n) = n.value > 0 && n.value < 0;
+
+
+ensures Perm(n.value, read) ** isFieldFalse(n);
+void foo(TC_PST_20_Node n) { }

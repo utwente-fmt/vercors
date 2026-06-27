@@ -2,24 +2,29 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 5 sequential loops, same arithmetic invariant.
-// checkInvSat: 5 independent FramedProofs — expect linear 5x cost vs 1loop.
-// detectDeadCode: 10 inline Refutes; each post-loop check accumulates prior loop state.
+// Performance: 5 sequential loops, forall invariant at each.
+// checkInvSat: 5 independent FramedProofs — linear cost.
+// detectDeadCode: 10 Refutes; the k-th loop's body Refute carries k-1 post-loop forall
+// facts from prior loops accumulated in the path condition, growing progressively heavier.
 requires n >= 0;
 void perf_seq_5(int n) {
-    int i1 = 0;
-    loop_invariant i1 >= 0 && i1 <= n;
-    while (i1 < n) { i1 = i1 + 1; }
-    int i2 = 0;
-    loop_invariant i2 >= 0 && i2 <= n;
-    while (i2 < n) { i2 = i2 + 1; }
-    int i3 = 0;
-    loop_invariant i3 >= 0 && i3 <= n;
-    while (i3 < n) { i3 = i3 + 1; }
-    int i4 = 0;
-    loop_invariant i4 >= 0 && i4 <= n;
-    while (i4 < n) { i4 = i4 + 1; }
-    int i5 = 0;
-    loop_invariant i5 >= 0 && i5 <= n;
-    while (i5 < n) { i5 = i5 + 1; }
+    int i1 = 0; int c1 = 0;
+    loop_invariant i1 >= 0 && i1 <= n && c1 == i1 && (\forall int j = 0 .. i1; j >= 0 && j < n);
+    while (i1 < n) { c1 = c1 + 1; i1 = i1 + 1; }
+
+    int i2 = 0; int c2 = 0;
+    loop_invariant i2 >= 0 && i2 <= n && c2 == i2 && (\forall int j = 0 .. i2; j >= 0 && j < n);
+    while (i2 < n) { c2 = c2 + 1; i2 = i2 + 1; }
+
+    int i3 = 0; int c3 = 0;
+    loop_invariant i3 >= 0 && i3 <= n && c3 == i3 && (\forall int j = 0 .. i3; j >= 0 && j < n);
+    while (i3 < n) { c3 = c3 + 1; i3 = i3 + 1; }
+
+    int i4 = 0; int c4 = 0;
+    loop_invariant i4 >= 0 && i4 <= n && c4 == i4 && (\forall int j = 0 .. i4; j >= 0 && j < n);
+    while (i4 < n) { c4 = c4 + 1; i4 = i4 + 1; }
+
+    int i5 = 0; int c5 = 0;
+    loop_invariant i5 >= 0 && i5 <= n && c5 == i5 && (\forall int j = 0 .. i5; j >= 0 && j < n);
+    while (i5 < n) { c5 = c5 + 1; i5 = i5 + 1; }
 }

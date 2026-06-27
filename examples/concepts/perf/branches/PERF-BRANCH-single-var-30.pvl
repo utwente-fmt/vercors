@@ -1,0 +1,40 @@
+//:: cases PERF_BRANCH_single_var_30
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 30 sequential if statements (no else), all conditions on a
+// single shared variable `a` with increasing thresholds. Compare timing to
+// PERF-BRANCH-indep-30 (independent variables) to isolate variable-sharing cost.
+requires a >= 0;
+void perf_branch_single_var_30(int a) {
+    if (a > 1) { int r1 = a - 1; }
+    if (a > 2) { int r2 = a - 2; }
+    if (a > 3) { int r3 = a - 3; }
+    if (a > 4) { int r4 = a - 4; }
+    if (a > 5) { int r5 = a - 5; }
+    if (a > 6) { int r6 = a - 6; }
+    if (a > 7) { int r7 = a - 7; }
+    if (a > 8) { int r8 = a - 8; }
+    if (a > 9) { int r9 = a - 9; }
+    if (a > 10) { int r10 = a - 10; }
+    if (a > 11) { int r11 = a - 11; }
+    if (a > 12) { int r12 = a - 12; }
+    if (a > 13) { int r13 = a - 13; }
+    if (a > 14) { int r14 = a - 14; }
+    if (a > 15) { int r15 = a - 15; }
+    if (a > 16) { int r16 = a - 16; }
+    if (a > 17) { int r17 = a - 17; }
+    if (a > 18) { int r18 = a - 18; }
+    if (a > 19) { int r19 = a - 19; }
+    if (a > 20) { int r20 = a - 20; }
+    if (a > 21) { int r21 = a - 21; }
+    if (a > 22) { int r22 = a - 22; }
+    if (a > 23) { int r23 = a - 23; }
+    if (a > 24) { int r24 = a - 24; }
+    if (a > 25) { int r25 = a - 25; }
+    if (a > 26) { int r26 = a - 26; }
+    if (a > 27) { int r27 = a - 27; }
+    if (a > 28) { int r28 = a - 28; }
+    if (a > 29) { int r29 = a - 29; }
+    if (a > 30) { int r30 = a - 30; }
+}

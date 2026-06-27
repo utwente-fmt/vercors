@@ -1,0 +1,32 @@
+//:: cases PERF_POST_indep_5_1cond
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: same indep-5-style body as PERF-POST-indep-5.pvl (5 sequential
+// if's, one independent variable per branch), but with only ONE disjunctive
+// postcondition clause (for v1) instead of five.
+// Tests whether the ~4x trace-count multiplier seen in PERF-POST-indep-5.pvl
+// scales with the NUMBER of independent disjunctive postcondition clauses
+// (predicting ~1.3x per clause), or whether any single disjunctive clause
+// already triggers the full multiplier.
+class PERF_POST_indep_5_1cond_Node {
+    int r1;
+    int r2;
+    int r3;
+    int r4;
+    int r5;
+}
+
+requires Perm(c.r1, write) ** Perm(c.r2, write) ** Perm(c.r3, write) **
+         Perm(c.r4, write) ** Perm(c.r5, write);
+requires c.r1 == o1;
+ensures Perm(c.r1, write) ** Perm(c.r2, write) ** Perm(c.r3, write) **
+        Perm(c.r4, write) ** Perm(c.r5, write);
+ensures (v1 > 0 ==> c.r1 == v1) ** (v1 <= 0 ==> c.r1 == o1);
+void perf_post_indep_5_1cond(PERF_POST_indep_5_1cond_Node c, int v1, int v2, int v3, int v4, int v5, int o1) {
+    if (v1 > 0) { c.r1 = v1; }
+    if (v2 > 0) { c.r2 = v2; }
+    if (v3 > 0) { c.r3 = v3; }
+    if (v4 > 0) { c.r4 = v4; }
+    if (v5 > 0) { c.r5 = v5; }
+}

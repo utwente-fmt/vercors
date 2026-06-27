@@ -1,0 +1,41 @@
+//:: cases PERF_BRANCH_no_else_30
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: same 30 conditions as PERF-BRANCH-30, but with the else branch
+// removed — only 30 Refutes instead of 60 (one per "then" branch).
+// Compare to PERF-BRANCH-30 to isolate the cost of the else-branch Refutes
+// from the cost of the conditions themselves.
+requires a >= 0 && b >= 0;
+void perf_branch_no_else_30(int a, int b) {
+    if (a > b) { int s = a - b; }
+    if (a + b > 100) { int t = a + b - 100; }
+    if (a > 50 && b > 50) { int u = a + b; }
+    if (b > a + 10) { int v = b - a; }
+    if (a + b > 200) { int w = a + b; }
+    if (a > b + 20) { int x = a - b - 20; }
+    if (b > 75) { int y = b - 75; }
+    if (a + b > 150 && a > 30) { int z = a + b; }
+    if (a > 40 && b > 40) { int p = a + b - 80; }
+    if (b > a + 30) { int q = b - a - 30; }
+    if (a + b > 300) { int r = a + b; }
+    if (a > 60) { int s2 = a - 60; }
+    if (b > a) { int t2 = b - a; }
+    if (a + b > 50) { int u2 = a; }
+    if (a > 10 && b > 10) { int v2 = a + b - 20; }
+    if (a > b + 5) { int w2 = a - b; }
+    if (a + b > 80) { int x2 = a + b - 80; }
+    if (b > 20 && a > 20) { int y2 = a + b - 40; }
+    if (a > b + 15) { int z2 = a - b - 15; }
+    if (a + b > 120) { int p2 = a + b; }
+    if (a > 25 && b > 25) { int q2 = a + b - 50; }
+    if (b > a + 5) { int r2 = b - a - 5; }
+    if (a + b > 400) { int s3 = a + b; }
+    if (a > 70) { int t3 = a - 70; }
+    if (b > a + 50) { int u3 = b - a; }
+    if (a + b > 250) { int v3 = a + b; }
+    if (a > 80 && b > 80) { int w3 = a + b - 160; }
+    if (b > a + 25) { int x3 = b - a - 25; }
+    if (a + b > 180) { int y3 = a + b - 180; }
+    if (a > 35 && b > 35) { int z3 = a + b - 70; }
+}

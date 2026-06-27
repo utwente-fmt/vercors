@@ -2,21 +2,39 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: loop invariant contains a 3-deep nested function call f(g(h(i))).
-// WD fix adds 3 extra inhales (each function's precondition, depth-first).
-// Compare to funcall-d1: does WD overhead grow with call depth?
+// Performance: two independent 3-deep call chains in the same invariant,
+// repeated across 2 sequential loops (4 chains total, 2x checkInvSat calls).
+// WD fix collects 6 preconditions per loop (3 per chain, depth-first).
+// Compare to funcall-d1: does WD overhead scale with total call count or chain depth?
 requires x > 0;
-pure int step1(int x) = x + 1;
+pure int up1(int x) = x + 1;
 
 requires x > 0;
-pure int step2(int x) = x + 1;
+pure int up2(int x) = x + 1;
 
 requires x > 0;
 pure boolean isPos(int x) = x > 0;
 
+requires x > 0;
+pure int shift1(int x) = x + 2;
+
+requires x > 0;
+pure int shift2(int x) = x + 2;
+
+requires x > 0;
+pure boolean isAbove2(int x) = x > 2;
+
 requires n > 0;
 void perf_inv_funcall_d3(int n) {
     int i = 1;
-    loop_invariant i > 0 && i <= n && isPos(step2(step1(i)));
+    loop_invariant i > 0 && i <= n &&
+        isPos(up2(up1(i))) &&
+        isAbove2(shift2(shift1(i)));
     while (i < n) { i = i + 1; }
+
+    int k = 1;
+    loop_invariant k > 0 && k <= n &&
+        isPos(up2(up1(k))) &&
+        isAbove2(shift2(shift1(k)));
+    while (k < n) { k = k + 1; }
 }

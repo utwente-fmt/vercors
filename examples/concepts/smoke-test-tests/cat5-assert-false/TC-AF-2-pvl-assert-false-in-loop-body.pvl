@@ -1,0 +1,16 @@
+//:: cases TC_AF_2_PvlAssertFalseInLoopBody
+//:: tools silicon
+//:: verdict Fail
+
+// assert false inside a loop body fails (assertFailed) and triggers block cutoff,
+// so the if (x > 5) after it is not instrumented for dead-code checks.
+void f(int x) {
+    loop_invariant true;
+    while (x < 10) {
+        x = x + 1;
+        assert false;    // assertFailed — block cutoff within body
+        if (x > 5) {     // not instrumented (block cutoff)
+            x = 0;
+        }
+    }
+}

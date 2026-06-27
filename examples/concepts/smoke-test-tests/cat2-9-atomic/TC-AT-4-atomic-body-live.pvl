@@ -1,0 +1,15 @@
+//:: cases TC_AT_4_AtomicBodyLive
+//:: tools silicon
+//:: verdict Pass
+
+// TC-AT-4: Atomic block — branches inside are live, no deadBranch expected.
+// The entry-level check on atomic (same treatment as lock obj) also passes
+// here since inv is satisfiable and consistent with the live state.
+requires x > 0;
+void f(int x) {
+    invariant inv (x > 0) {
+        atomic (inv) {
+            assert x > 0;
+        }
+    }
+}

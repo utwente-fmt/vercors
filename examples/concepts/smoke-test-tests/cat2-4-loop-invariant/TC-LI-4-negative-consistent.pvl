@@ -1,0 +1,16 @@
+//:: cases TC_LI_4_NegativeConsistent
+//:: tools silicon
+//:: verdict Pass
+
+// TC-LI-4 (Negative): Post-loop branch is live.
+// After loop: invariant (0 <= x <= 20) AND exit (x >= 10). Branch x >= 10 is always true.
+// refute false passes — the branch is reachable.
+requires x == 0;
+void f(int x) {
+    loop_invariant x >= 0;
+    loop_invariant x <= 20;
+    while (x < 10) { x = x + 1; }
+    if (x >= 10) {
+        refute false; // live: invariant + exit condition guarantee x >= 10
+    }
+}

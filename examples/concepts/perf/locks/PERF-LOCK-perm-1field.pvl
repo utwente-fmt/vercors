@@ -16,7 +16,7 @@ class PERF_LOCK_perm_1field {
     }
 
     requires committed(this);
-    void run() {
+    void work() {
         lock this;
         value = value + 1;
         unlock this;

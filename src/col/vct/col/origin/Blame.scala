@@ -939,6 +939,18 @@ case class ParInvariantNotEstablished(
   override def inlineDescWithSource(node: String, failure: String): String =
     s"`$node` may not be established, since $failure."
 }
+// ParInvariant's own blame field only accepts ParInvariantNotEstablished, so this
+// extends ContractedFailure (an empty marker trait) to be reported through the
+// blame of the enclosing ContractApplicable instead, the same way
+// LockInvariantUnsatisfiable is anchored when no dedicated blame slot exists.
+case class ParInvariantUnsatisfiable(node: ParInvariant[_])
+    extends NodeVerificationFailure with ContractedFailure {
+  override def code: String = "parInvariantUnsatisfiable"
+  override def descInContext: String =
+    "This parallel invariant may be unsatisfiable (equivalent to false)."
+  override def inlineDescWithSource(source: String): String =
+    s"Parallel invariant `$source` may be unsatisfiable."
+}
 case class ParInvariantNotMaintained(
     failure: ContractFailure,
     node: ParAtomic[_],
@@ -1323,12 +1335,17 @@ case class LockNotCommitted(node: Lock[_])
   override def inlineDescWithSource(source: String): String =
     s"Lock target in `$source` may not yet have committed the lock invariant."
 }
-// Extends both LockFailure and UnlockFailure so it can be reported through
-// lock.blame (Blame[LockFailure]) when triggered at a Lock site, or through
-// unlock.blame (Blame[UnlockFailure]) when triggered at an Unlock-only site
-// (a method that receives held(this) as a precondition and never calls lock this).
+// Extends LockFailure and UnlockFailure so it can be reported through
+// lock.blame (Blame[LockFailure]) or unlock.blame (Blame[UnlockFailure]).
+// Also extends ContractedFailure (an empty marker trait) so it can be reported
+// through the blame of any ContractApplicable (e.g. an arbitrary method of the
+// class), which is needed when the lock invariant is checked independently of
+// any lock/unlock site.
 case class LockInvariantUnsatisfiable(node: Node[_])
-    extends NodeVerificationFailure with LockFailure with UnlockFailure {
+    extends NodeVerificationFailure
+    with LockFailure
+    with UnlockFailure
+    with ContractedFailure {
   override def code: String = "lockInvariantUnsatisfiable"
   override def descInContext: String =
     "The lock invariant may be unsatisfiable (equivalent to false)"

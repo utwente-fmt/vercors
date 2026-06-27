@@ -1,0 +1,21 @@
+//:: cases PERF_BLOCKINV_perm_5fields
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: par block invariant with five field permissions.
+// checkInvSat (par branch): FramedProof must inhale 5 Perm grants + 5 value constraints.
+class PERF_BLOCKINV_perm_5fields {
+    int a;
+    int b;
+    int c;
+    int d;
+    int e;
+}
+
+context Perm(o.a, write) ** Perm(o.b, write) ** Perm(o.c, write) ** Perm(o.d, write) ** Perm(o.e, write) **
+        (o.a >= 0 && o.b >= 0 && o.c >= 0 && o.d >= 0 && o.e >= 0);
+void f(PERF_BLOCKINV_perm_5fields o) {
+    invariant inv (Perm(o.a, write) ** Perm(o.b, write) ** Perm(o.c, write) ** Perm(o.d, write) ** Perm(o.e, write) **
+                   (o.a >= 0 && o.b >= 0 && o.c >= 0 && o.d >= 0 && o.e >= 0)) {
+    }
+}

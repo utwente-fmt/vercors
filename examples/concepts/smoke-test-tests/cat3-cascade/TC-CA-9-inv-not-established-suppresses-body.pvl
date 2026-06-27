@@ -1,0 +1,14 @@
+//:: cases TC_CA_9_InvNotEstablishedSuppressesBody
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CA-9: loop_invariant false can never be established. The resulting
+// invariantNotEstablished error suppresses both the loop body deadBranch
+// and the post-loop deadBranch via cascade.
+// Expected errors: 1 (invariantNotEstablished only).
+void f(int x) {
+    loop_invariant false;
+    while (x > 0) {
+        x = x - 1; // body deadBranch suppressed — cascade artifact
+    }
+}

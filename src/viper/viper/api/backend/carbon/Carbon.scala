@@ -46,8 +46,10 @@ case class Carbon(
 
     val plugins =
       SilverPluginManager(Some(
-        Seq("viper.silver.plugin.standard.termination.TerminationPlugin")
-          .mkString(":")
+        Seq(
+          "viper.silver.plugin.standard.termination.TerminationPlugin",
+          "viper.silver.plugin.standard.refute.RefutePlugin",
+        ).mkString(":")
       ))(
         carbon.reporter,
         getLogger("viper.silver.plugin")

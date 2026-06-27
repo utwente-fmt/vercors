@@ -1,0 +1,25 @@
+//:: cases PERF_BRANCH_chain_indep_5
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 5-way if-elseif-...-else chain (mutually exclusive, 6 paths total),
+// each condition on its own INDEPENDENT variable -- same variable count as
+// PERF-BRANCH-indep-5.pvl, but chained (linear path count) instead of sequential
+// (multiplicative path count). Isolates: does variable independence by itself
+// cause exponential blowup, or only when combined with sequential (non-exclusive)
+// branch structure?
+void perf_branch_chain_indep_5(int v1, int v2, int v3, int v4, int v5) {
+    if (v1 > 0) {
+        int s = v1;
+    } else if (v2 > 0) {
+        int s = v2;
+    } else if (v3 > 0) {
+        int s = v3;
+    } else if (v4 > 0) {
+        int s = v4;
+    } else if (v5 > 0) {
+        int s = v5;
+    } else {
+        int s = 0;
+    }
+}

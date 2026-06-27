@@ -1,0 +1,13 @@
+//:: cases TC_AF_4_PvlInhaleFalseGivesWarning
+//:: tools silicon
+//:: verdict Fail
+
+// inhale false emits a DeadBranch warning but, unlike assert false, does not cut off
+// the block, so the following if-branch is also instrumented and reports dead (2 errors).
+void f(int x) {
+    x = x + 1;
+    inhale false;        // DeadBranch warning; code after still instrumented
+    if (x > 0) {         // instrumented — Refute(false) fires (state is ⊥)
+        x = x - 1;
+    }
+}

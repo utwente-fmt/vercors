@@ -1,0 +1,15 @@
+//:: cases TC_BI_5_NestedBlockInvariantUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// Two nested block invariants. The outer invariant (n >= 0) is satisfiable and
+// establishes fine from the precondition; the inner invariant (n > 0 && n < 0)
+// is a contradiction — parInvariantUnsatisfiable fires for the inner one
+// specifically, isolated from the outer invariant and from n's actual value.
+requires n >= 0;
+void f(int n) {
+    invariant outer (n >= 0) {
+        invariant inner (n > 0 && n < 0) {
+        }
+    }
+}

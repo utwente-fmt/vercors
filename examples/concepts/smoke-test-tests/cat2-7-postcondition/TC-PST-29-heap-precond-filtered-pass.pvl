@@ -1,0 +1,12 @@
+//:: cases TC_PST_29_HeapPrecondFilteredPass
+//:: tools silicon
+//:: verdict Pass
+
+// Precondition Perm(n.val, write) ** n.val > 0 is heap-based, so it's filtered out of
+// postSat, which checks the postcondition alone — satisfiable. Normal verification
+// also passes since the empty body preserves perm and value.
+class TC_PST_29_Node { int val; }
+
+requires Perm(n.val, write) ** n.val > 0;
+ensures Perm(n.val, write) ** n.val > 0;
+void foo(TC_PST_29_Node n) { }

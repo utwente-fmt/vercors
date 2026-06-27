@@ -1,0 +1,15 @@
+//:: cases TC_LI_9_PostLoopFalseInvariantAfterCascade
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-9: loop_invariant false fires both invariantUnsatisfiable (sat check)
+// and invariantNotEstablished (the loop itself). Body and post-loop deadBranch
+// are suppressed via cascade.
+// Expected errors: 2 (invariantUnsatisfiable + invariantNotEstablished).
+void f(int x) {
+    loop_invariant false;
+    while (x > 0) {
+        x = x - 1; // suppressed via cascade
+    }
+    int dead = x; // suppressed via cascade
+}

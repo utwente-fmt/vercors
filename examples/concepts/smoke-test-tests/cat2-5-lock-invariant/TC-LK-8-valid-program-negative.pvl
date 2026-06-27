@@ -1,0 +1,37 @@
+//:: cases TC_LK_8_ValidProgramNegative
+//:: tools silicon
+//:: verdict Pass  // Correct: satisfiable invariant, well-written program, no dead code
+
+// TC-LK-8 (Negative): A complete, valid concurrent counter class.
+// Constructor commits the object; methods acquire/release the lock correctly
+// and preserve the invariant. Verifies no false positives (no lockInvUnsat,
+// lockDead, or unlockDead).
+lock_invariant Perm(count, write) ** count >= 0;
+class Counter {
+    int count;
+
+    ensures committed(this);
+    constructor() {
+        count = 0;
+        commit this;
+    }
+
+    context committed(this);
+    void increment() {
+        lock this;
+        // count >= 0 from invariant; count + 1 >= 1 >= 0 — invariant preserved.
+        count = count + 1;
+        unlock this;
+    }
+
+    context committed(this);
+    void decrement() {
+        lock this;
+        if (count > 0) {
+            // count > 0, so count - 1 >= 0 — invariant preserved.
+            count = count - 1;
+        }
+        // If count == 0 we do nothing; invariant trivially preserved.
+        unlock this;
+    }
+}

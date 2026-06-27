@@ -1,0 +1,10 @@
+//:: cases TC_BI_2_InvariantContradictionUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// invariant x > 0 && x < 0 is a contradiction — parInvariantUnsatisfiable fires,
+// along with the normal (ambiguous) "may not be established" error.
+void f(int x) {
+    invariant inv (x > 0 && x < 0) {
+    }
+}

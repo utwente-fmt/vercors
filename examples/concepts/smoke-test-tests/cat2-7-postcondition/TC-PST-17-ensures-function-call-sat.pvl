@@ -1,0 +1,13 @@
+//:: cases TC_PST_17_EnsuresFunctionCallSat
+//:: tools silicon
+//:: verdict Pass
+
+// Postcondition calls checkPos(n), whose precondition (x > 10) matches foo's own
+// precondition, so checkPos(n) holds — postSat is satisfiable and verification passes.
+
+requires x > 10;
+pure boolean checkPos(int x) = x > 10;
+
+requires n > 10;
+ensures checkPos(n);
+void foo(int n) { }

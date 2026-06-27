@@ -1,0 +1,14 @@
+//:: cases TC_CA_13_NegativeLoopAllLive
+//:: tools silicon
+//:: verdict Pass
+
+// TC-CA-13 (Negative): Loop invariant established and maintained, body live.
+// Baseline confirming no cascade/suppression fires when everything is fine.
+// Expected: Pass — no deadBranch or invariant warnings.
+requires x >= 0;
+void f(int x) {
+    loop_invariant x >= 0;
+    while (x < 10) {
+        x = x + 1; // maintains x >= 0; loop terminates at x = 10
+    }
+}

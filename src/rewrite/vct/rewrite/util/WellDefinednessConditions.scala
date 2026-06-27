@@ -5,61 +5,139 @@ import vct.col.origin.Origin
 import vct.col.util.AstBuildHelpers.{foldStar, unfoldStar}
 import vct.col.util.Substitute
 
-/** Collect the well-definedness conditions needed to evaluate an expression in a
-  * specification. For each pure function call in the expression, the function's
-  * precondition (with actual arguments substituted for formals) is included.
-  * Deeper conditions come before shallower ones so that Viper can evaluate each
-  * condition in the context established by prior ones.
+/** Collect the well-definedness conditions needed to evaluate an expression in
+  * a specification. For each pure function call in the expression, the
+  * function's precondition (with actual arguments substituted for formals) is
+  * included. Deeper conditions come before shallower ones so that Viper can
+  * evaluate each condition in the context established by prior ones.
   */
 object WellDefinednessConditions {
 
-  def collect[G](expr: Expr[G], visited: Set[scala.Any] = Set.empty): Seq[Expr[G]] = {
+  def collect[G](
+      expr: Expr[G],
+      visited: Set[AbstractFunction[G]] = Set.empty[AbstractFunction[G]],
+  ): Seq[Expr[G]] = {
     // Add the current function to visited before recursing into subnodes, so
     // that recursive/mutually-recursive calls are not expanded again.
-    val newVisited: Set[scala.Any] = expr match {
-      case inv: FunctionInvocation[G]         => visited + inv.ref.decl
-      case inv: InstanceFunctionInvocation[G] => visited + inv.ref.decl
-      case _                                  => visited
-    }
+    val newVisited: Set[AbstractFunction[G]] =
+      expr match {
+        case inv: FunctionInvocation[G] => visited + inv.ref.decl
+        case inv: InstanceFunctionInvocation[G] => visited + inv.ref.decl
+        case _ => visited
+      }
 
     // Recurse into direct sub-expressions first (depth-first) so their
     // conditions appear before the conditions of the current call.
-    val fromSubnodes: Seq[Expr[G]] =
-      expr.subnodes.collect { case e: Expr[G] => e }
-        .flatMap(collect(_, newVisited))
+    val fromSubnodes: Seq[Expr[G]] = expr.subnodes.collect { case e: Expr[G] =>
+      e
+    }.flatMap(collect(_, newVisited))
 
     // Collect conditions contributed by the current node.
-    val direct: Seq[Expr[G]] = expr match {
-      case inv: FunctionInvocation[G] if !visited.contains(inv.ref.decl) =>
-        val decl = inv.ref.decl
-        implicit val o: Origin = decl.contract.o
-        val pre = foldStar(decl.contract.requires)
-        val argSubs: Map[Expr[G], Expr[G]] =
-          decl.args.zip(inv.args).map { case (param, actual) =>
-            (Local[G](param.ref)(param.o): Expr[G]) -> actual
-          }.toMap
-        unfoldStar(Substitute[G](argSubs).dispatch(pre))
+    val direct: Seq[Expr[G]] =
+      expr match {
+        case inv: FunctionInvocation[G] if !visited.contains(inv.ref.decl) =>
+          val decl = inv.ref.decl
+          implicit val o: Origin = decl.contract.o
+          val pre = foldStar(decl.contract.requires)
+          val argSubs: Map[Expr[G], Expr[G]] =
+            decl.args.zip(inv.args).map { case (param, actual) =>
+              (Local[G](param.ref)(param.o): Expr[G]) -> actual
+            }.toMap
+          unfoldStar(Substitute[G](argSubs).dispatch(pre))
 
-      case inv: InstanceFunctionInvocation[G]
-          if !visited.contains(inv.ref.decl) =>
-        val decl = inv.ref.decl
-        implicit val o: Origin = decl.contract.o
-        val pre = foldStar(decl.contract.requires)
-        // Substitute 'this' with the actual receiver. ThisObject equality is
-        // based on its cls field only (origin is in the second parameter list),
-        // so one map entry covers all ThisObject nodes for this class.
-        val thisOpt = pre.collect { case t: ThisObject[G] => t }.headOption
-        val thisSubs: Map[Expr[G], Expr[G]] =
-          thisOpt.map(t => (t: Expr[G]) -> inv.obj).toMap
-        val argSubs: Map[Expr[G], Expr[G]] =
-          decl.args.zip(inv.args).map { case (param, actual) =>
-            (Local[G](param.ref)(param.o): Expr[G]) -> actual
-          }.toMap
-        unfoldStar(Substitute[G](thisSubs ++ argSubs).dispatch(pre))
+        case inv: InstanceFunctionInvocation[G]
+            if !visited.contains(inv.ref.decl) =>
+          val decl = inv.ref.decl
+          implicit val o: Origin = decl.contract.o
+          val pre = foldStar(decl.contract.requires)
+          // Substitute 'this' with the actual receiver. ThisObject equality is
+          // based on its cls field only (origin is in the second parameter list),
+          // so one map entry covers all ThisObject nodes for this class.
+          val thisOpt = pre.collect { case t: ThisObject[G] => t }.headOption
+          val thisSubs: Map[Expr[G], Expr[G]] =
+            thisOpt.map(t => (t: Expr[G]) -> inv.obj).toMap
+          val argSubs: Map[Expr[G], Expr[G]] =
+            decl.args.zip(inv.args).map { case (param, actual) =>
+              (Local[G](param.ref)(param.o): Expr[G]) -> actual
+            }.toMap
+          unfoldStar(Substitute[G](thisSubs ++ argSubs).dispatch(pre))
 
-      case _ => Nil
-    }
+        case _ => Nil
+      }
 
     fromSubnodes ++ direct
+  }
+
+  /** Splits a `**`-conjoined contract predicate (requires/ensures) into its
+    * individual conjuncts.
+    */
+  def splitPred[G](pred: AccountedPredicate[G]): Seq[Expr[G]] =
+    pred match {
+      case UnitAccountedPredicate(e) => unfoldStar(e)
+      case SplitAccountedPredicate(l, r) => splitPred(l) ++ splitPred(r)
+    }
+
+  /** Whether an expression is free of heap-dependent constructs (permissions,
+    * field/array/model dereferences, predicates, etc.), i.e. it can be safely
+    * inhaled into a heap state different from the one it was taken from.
+    */
+  def isNonHeap[G](expr: Expr[G]): Boolean =
+    expr match {
+      case BooleanValue(false) => false
+      case _ =>
+        !expr.exists {
+          case _: Perm[G] | _: PointsTo[G] | _: Value[G] | _: CurPerm[G] => true
+          case _: Scale[G] | _: ScaleByParBlock[G] => true
+          case _: PermPointer[G] | _: PermPointerIndex[G] => true
+          case _: PredicateApplyExpr[G] | _: ForPerm[G] |
+              _: ForPermWithValue[G] =>
+            true
+          case _: Held[G] | _: Wand[G] | _: Committed[G] => true
+          case _: Invocation[G] => true
+          case _: HeapDeref[G] | _: DerefPointer[G] | _: ModelDeref[G] => true
+          case _: ArraySubscript[G] => true
+          case _: Unfolding[G] => true
+          case _: ModelPerm[G] | _: ActionPerm[G] => true
+          case _: ResourceOfResourceValue[G] | _: ResourceValue[G] => true
+        }
+    }
+
+  /** Extracts the largest part of `expr` that is free of heap-dependent
+    * constructs (see [[isNonHeap]]), descending into `&&`/`**`/`==>`/`?:` where
+    * the heap-dependent parts are confined to branches guarded by a non-heap
+    * condition. E.g. `a > 0 ==> (Perm(x,write) ** b > 0)` becomes `a > 0 ==> b
+    * > 0`: the permission cannot be granted here, but the pure fact `b > 0`
+    * (under the same guard) still can be.
+    *
+    * Returns `None` if no part of `expr` can be safely extracted.
+    */
+  def extractNonHeap[G](expr: Expr[G]): Option[Expr[G]] = {
+    implicit val o: Origin = expr.o
+    expr match {
+      case _ if isNonHeap(expr) => Some(expr)
+      case And(l, r) =>
+        (extractNonHeap(l), extractNonHeap(r)) match {
+          case (Some(l2), Some(r2)) => Some(And(l2, r2))
+          case (Some(l2), None) => Some(l2)
+          case (None, Some(r2)) => Some(r2)
+          case (None, None) => None
+        }
+      case Star(l, r) =>
+        (extractNonHeap(l), extractNonHeap(r)) match {
+          case (Some(l2), Some(r2)) => Some(And(l2, r2))
+          case (Some(l2), None) => Some(l2)
+          case (None, Some(r2)) => Some(r2)
+          case (None, None) => None
+        }
+      case Implies(c, r) if isNonHeap(c) => extractNonHeap(r).map(Implies(c, _))
+      case Select(c, l, r) if isNonHeap(c) =>
+        (extractNonHeap(l), extractNonHeap(r)) match {
+          case (Some(l2), Some(r2)) => Some(Select(c, l2, r2))
+          case (Some(l2), None) => Some(Implies(c, l2))
+          case (None, Some(r2)) => Some(Implies(Not(c), r2))
+          case (None, None) => None
+        }
+      case _ => None
+    }
   }
 }

@@ -2,19 +2,31 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: worst-case single invariant — Perm + forall + function call combined.
-// WD fix adds function precondition as extra inhale. Heap reasoning from Perm.
-// Quantifier from forall. All three expensive dimensions active simultaneously.
-requires x >= 0;
-pure boolean nonNeg(int x) = x >= 0;
-
+// Performance: 1 Perm + 2 forall quantifiers — heap and quantifier costs combined,
+// repeated across 2 methods (2x checkInvSat calls in this file).
+// Each FramedProof must handle both heap encoding (Perm) and trigger instantiation (forall).
+// Compare to perm-1field + forall to see if costs add linearly or interact.
 class PERF_INV_combined_Node {
-    int value;
+    int v;
+    int w;
 
-    requires Perm(this.value, write) ** this.value >= 0;
-    void run(int n) {
-        loop_invariant Perm(this.value, write) ** this.value >= 0 && this.value <= n &&
-                       nonNeg(this.value) && (\forall int j = 0 .. this.value; j >= 0);
-        while (this.value < n) { this.value = this.value + 1; }
+    requires Perm(this.v, write) ** this.v >= 0 ** this.v <= n;
+    void work1(int n) {
+        loop_invariant
+            Perm(this.v, write) **
+            this.v >= 0 ** this.v <= n **
+            (\forall int j = 0 .. this.v; j >= 0 && j < n && n - j > 0 && n - j <= n) **
+            (\forall int j = 0 .. this.v; j >= 0 && j + this.v >= 0 && j + this.v <= 2 * n);
+        while (this.v < n) { this.v = this.v + 1; }
+    }
+
+    requires Perm(this.w, write) ** this.w >= 0 ** this.w <= n;
+    void work2(int n) {
+        loop_invariant
+            Perm(this.w, write) **
+            this.w >= 0 ** this.w <= n **
+            (\forall int j = 0 .. this.w; j >= 0 && j < n && n - j > 0 && n - j <= n) **
+            (\forall int j = 0 .. this.w; j >= 0 && j + this.w >= 0 && j + this.w <= 2 * n);
+        while (this.w < n) { this.w = this.w + 1; }
     }
 }

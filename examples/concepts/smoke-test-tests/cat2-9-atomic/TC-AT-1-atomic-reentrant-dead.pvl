@@ -1,0 +1,23 @@
+//:: cases TC_AT_1_AtomicReentrantDead
+//:: tools silicon
+//:: verdict Fail
+
+// TC-AT-1: atomic(inv) inhales inv's invariant at entry, the same way lock obj
+// does. Re-entering the same invariant via a nested atomic while it is already
+// held duplicates its permission (Perm(c.f, write) ** Perm(c.f, write)),
+// making the inner atomic's body dead — analogous to a double lock obj.
+class TC_AT_1_Cell {
+    int f;
+}
+
+context Perm(c.f, write);
+void test(TC_AT_1_Cell c) {
+    invariant inv (Perm(c.f, write)) {
+        atomic (inv) {
+            atomic (inv) {
+                // dead: Perm(c.f, write) is now held twice
+                c.f = c.f + 1;
+            }
+        }
+    }
+}

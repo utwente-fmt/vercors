@@ -2,22 +2,28 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 3-level nested loops, arithmetic invariant at each level.
-// checkInvSat: 3 isolated FramedProofs — same cost as 3 sequential for checkInvSat.
-// detectDeadCode: innermost body Refute carries 3 layers of invariants + conditions.
+// Performance: 3-level nested loops, forall invariant at each level.
+// checkInvSat: 3 FramedProofs — same cost as 3 sequential (isolated).
+// detectDeadCode: innermost body Refute carries 3 stacked forall formulas simultaneously.
+// 3 quantifiers in one path condition is noticeably heavier than 2 (PERF-NEST-2level).
 requires n >= 0 && m >= 0 && p >= 0;
 void perf_nest_3(int n, int m, int p) {
-    int i = 0;
-    loop_invariant i >= 0 && i <= n;
+    int i = 0; int ci = 0;
+    loop_invariant i >= 0 && i <= n && ci == i && (\forall int k = 0 .. i; k >= 0 && k < n);
     while (i < n) {
-        int j = 0;
-        loop_invariant j >= 0 && j <= m;
+        int j = 0; int cj = 0;
+        loop_invariant j >= 0 && j <= m && cj == j && (\forall int k = 0 .. j; k >= 0 && k < m);
         while (j < m) {
-            int k = 0;
-            loop_invariant k >= 0 && k <= p;
-            while (k < p) { k = k + 1; }
+            int l = 0; int cl = 0;
+            loop_invariant l >= 0 && l <= p && cl == l && (\forall int k = 0 .. l; k >= 0 && k < p);
+            while (l < p) {
+                cl = cl + 1;
+                l = l + 1;
+            }
+            cj = cj + 1;
             j = j + 1;
         }
+        ci = ci + 1;
         i = i + 1;
     }
 }

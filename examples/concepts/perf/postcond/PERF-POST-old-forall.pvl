@@ -2,10 +2,17 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: postcondition with \old inside a forall range.
+// Performance: postcondition with \old inside a forall range, where \old applies
+// to a heap field (Perm-guarded), so it is semantically meaningful — \old of a
+// value parameter would just equal the parameter itself.
 // \old is left in place by eliminateOldInTriggers (only strips from trigger positions).
-// Combines quantifier reasoning with pre-state reference — the pattern from ArrayList.java
-// that previously caused Viper trigger consistency errors.
-requires n >= 0;
-ensures (\forall int i = 0 .. \old(n); i >= 0 && i < n + 1);
-void perf_post_old_forall(int n) { }
+class PERF_POST_old_forall {
+    int n;
+
+    requires Perm(n, write) ** n >= 0;
+    ensures Perm(n, write) ** n == \old(n) + 1;
+    ensures (\forall int i = 0 .. \old(n); i >= 0 && i < n);
+    void bump() {
+        n = n + 1;
+    }
+}

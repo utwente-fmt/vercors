@@ -10,33 +10,33 @@ lock_invariant Perm(value, write) ** value >= 0;
 class PERF_LOCK_A {
     int value;
     ensures committed(this); constructor() { value = 0; commit this; }
-    requires committed(this); void run() { lock this; value = value + 1; unlock this; }
+    requires committed(this); void work() { lock this; value = value + 1; unlock this; }
 }
 
 lock_invariant Perm(value, write) ** value >= 0;
 class PERF_LOCK_B {
     int value;
     ensures committed(this); constructor() { value = 0; commit this; }
-    requires committed(this); void run() { lock this; value = value + 1; unlock this; }
+    requires committed(this); void work() { lock this; value = value + 1; unlock this; }
 }
 
 lock_invariant Perm(value, write) ** value >= 0;
 class PERF_LOCK_C {
     int value;
     ensures committed(this); constructor() { value = 0; commit this; }
-    requires committed(this); void run() { lock this; value = value + 1; unlock this; }
+    requires committed(this); void work() { lock this; value = value + 1; unlock this; }
 }
 
 lock_invariant Perm(value, write) ** value >= 0;
 class PERF_LOCK_D {
     int value;
     ensures committed(this); constructor() { value = 0; commit this; }
-    requires committed(this); void run() { lock this; value = value + 1; unlock this; }
+    requires committed(this); void work() { lock this; value = value + 1; unlock this; }
 }
 
 lock_invariant Perm(value, write) ** value >= 0;
 class PERF_LOCK_E {
     int value;
     ensures committed(this); constructor() { value = 0; commit this; }
-    requires committed(this); void run() { lock this; value = value + 1; unlock this; }
+    requires committed(this); void work() { lock this; value = value + 1; unlock this; }
 }

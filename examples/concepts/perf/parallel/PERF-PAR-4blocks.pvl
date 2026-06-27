@@ -2,33 +2,37 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 4 sequential parallel blocks, each with live branches inside.
-// detectDeadCode instruments each par block body separately.
-// Compare to PERF-BRANCH-5: same number of branches but split across parallel contexts.
-requires n > 0 && m > 0;
-void perf_par_4blocks(int n, int m, int x) {
+// Performance: 4 sequential parallel blocks, each with multi-variable branch conditions.
+// detectDeadCode: 4 par block body Refutes + branch arm Refutes per block.
+// Compare to PERF-BRANCH-15: similar branch count but split across 4 parallel contexts.
+requires n > 0 && m > 0 && a >= 0 && b >= 0;
+void perf_par_4blocks(int n, int m, int a, int b) {
     par (int tid = 0 .. n)
         context true;
     {
-        if (x > 0) { }
-        if (x <= 0) { }
+        if (a + b > 100) { int s = a + b - 100; } else { int s = 0; }
+        if (a > b + 20) { int t = a - b; } else { int t = b - a; }
+        if (a > 50 && b > 50) { int u = a + b; } else { int u = 0; }
     }
     par (int tid2 = 0 .. m)
         context true;
     {
-        if (x > 0) { }
-        if (x <= 0) { }
+        if (a + b > 200) { int s = a + b - 200; } else { int s = 0; }
+        if (b > a + 30) { int t = b - a - 30; } else { int t = 0; }
+        if (a > 40 && b > 40) { int u = a + b - 80; } else { int u = 0; }
     }
     par (int tid3 = 0 .. n)
         context true;
     {
-        if (x > 0) { }
-        if (x <= 0) { }
+        if (a + b > 150) { int s = a + b - 150; } else { int s = 0; }
+        if (a > b + 10) { int t = a - b - 10; } else { int t = 0; }
+        if (a > 30 && b > 30) { int u = a + b - 60; } else { int u = 0; }
     }
     par (int tid4 = 0 .. m)
         context true;
     {
-        if (x > 0) { }
-        if (x <= 0) { }
+        if (a + b > 300) { int s = a + b - 300; } else { int s = 0; }
+        if (b > a + 50) { int t = b - a - 50; } else { int t = 0; }
+        if (a > 60 && b > 60) { int u = a + b - 120; } else { int u = 0; }
     }
 }

@@ -1,0 +1,17 @@
+//:: cases TC_BI_4_InvariantPermDuplicateUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// Perm(c.f, write) ** Perm(c.f, write) is a resource invariant with no
+// satisfying heap state (no state can hold more than full permission to the
+// same field). Inhaling it in the isolated context immediately produces an
+// inconsistent heap, triggering parInvariantUnsatisfiable.
+class TC_BI_4_Cell {
+    int f;
+}
+
+context Perm(c.f, write);
+void test(TC_BI_4_Cell c) {
+    invariant inv (Perm(c.f, write) ** Perm(c.f, write)) {
+    }
+}

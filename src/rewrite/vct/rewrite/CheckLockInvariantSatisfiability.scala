@@ -1,76 +1,86 @@
 package vct.rewrite
 
-import scala.collection.mutable
 import vct.col.ast._
-import vct.col.check.UnreachableAfterTypeCheck
 import vct.col.origin._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
+import vct.col.rewrite.util.Extract
 import vct.col.util.AstBuildHelpers._
 
-// Checks that lock invariants are satisfiable. On the first lock or unlock for a given
-// class, generates an isolated FramedProof that inhales the invariant and refutes false.
-// If the invariant is contradictory, refute fires and lockInvariantUnsatisfiable is reported.
-case object CheckLockInvariantSatisfiability extends RewriterBuilder {
+// Checks that lock invariants are satisfiable. For each by-reference class with a
+// non-trivial lock invariant, generates a standalone procedure that inhales the
+// invariant and refutes false. If that refute fires, the invariant is contradictory
+// and lockInvariantUnsatisfiable is reported. This is independent of whether the
+// class is ever locked/unlocked anywhere in the program.
+case object CheckLockInvariantSatisfiability
+    extends RewriterBuilderArg[Boolean] {
   override def key: String = "checkLockInvSat"
   override def desc: String =
     "Check that lock invariants are not internally contradictory (i.e. unsatisfiable)."
 
-  case class LockInvariantUnsatisfiableBlame(stmt: Statement[_])
-      extends Blame[RefuteFailed] {
+  // The lock invariant itself (ByReferenceClass.intrinsicLockInvariant) carries no
+  // blame, so we anchor the report to an arbitrary ContractApplicable declared in
+  // the class (e.g. a method), whose blame was set up when it was parsed from source.
+  case class LockInvariantUnsatisfiableBlame(
+      cls: ByReferenceClass[_],
+      anchor: ContractApplicable[_],
+  ) extends Blame[RefuteFailed] {
     override def blame(error: RefuteFailed): Unit =
-      stmt match {
-        case lock: Lock[_]     => lock.blame.blame(LockInvariantUnsatisfiable(lock))
-        case unlock: Unlock[_] => unlock.blame.blame(LockInvariantUnsatisfiable(unlock))
-        case _                 =>
-      }
+      anchor.blame.blame(LockInvariantUnsatisfiable(cls))
   }
 }
 
-case class CheckLockInvariantSatisfiability[Pre <: Generation]() extends Rewriter[Pre] {
+case class CheckLockInvariantSatisfiability[Pre <: Generation](
+    doCheck: Boolean = true
+) extends Rewriter[Pre] {
   import CheckLockInvariantSatisfiability._
 
-  val checkedClasses: mutable.Set[ByReferenceClass[Pre]] = mutable.Set()
-
-  def getClass(obj: Expr[Pre]): ByReferenceClass[Pre] =
-    obj.t match {
-      case t: TByReferenceClass[Pre] => t.cls.decl.asInstanceOf[ByReferenceClass[Pre]]
-      case _ =>
-        throw UnreachableAfterTypeCheck("Lock target is not a by-reference class.", obj)
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case cls: ByReferenceClass[Pre] =>
+        super.dispatch(decl)
+        if (doCheck && cls.intrinsicLockInvariant != tt[Pre])
+          checkLockInvariantSat(cls)
+      case _ => super.dispatch(decl)
     }
 
-  private def satCheck(inv: Expr[Pre], stmt: Statement[Pre])(implicit
-      o: Origin
-  ): Statement[Post] =
-    Extract(
-      FramedProof(
-        tt,
-        Block[Post](Seq[Statement[Post]](
-          Inhale(dispatch(inv)),
-          Refute(ff)(LockInvariantUnsatisfiableBlame(stmt)),
-        )),
-        tt,
-      )(PanicBlame("FramedProof with trivial pre/post cannot fail")),
-      None,
-    )(PanicBlame("Extract without termination measure cannot fail"))
+  private def checkLockInvariantSat(cls: ByReferenceClass[Pre]): Unit = {
+    implicit val o: Origin = cls.o.where(prefix = "checkLockInvSat")
 
-  override def dispatch(stat: Statement[Pre]): Statement[Post] =
-    stat match {
-      case lock @ Lock(obj) =>
-        val cls = getClass(obj)
-        if (cls.intrinsicLockInvariant != tt[Pre] && !checkedClasses.contains(cls)) {
-          checkedClasses += cls
-          implicit val o: Origin = lock.o.where(prefix = "checkLockInvSat")
-          Block[Post](Seq[Statement[Post]](satCheck(cls.intrinsicLockInvariant, lock), lock.rewriteDefault()))
-        } else lock.rewriteDefault()
+    // The default constructor that PVL generates for classes without an explicit
+    // constructor has a PanicBlame (it cannot fail), which would not be reported.
+    // Pick a declaration that was actually parsed from source instead.
+    cls.decls.collectFirst {
+      case ca: ContractApplicable[Pre] if !ca.blame.isInstanceOf[PanicBlame] =>
+        ca
+    } match {
+      case None => // No declaration to anchor the report to: nothing to check.
+      case Some(anchor) =>
+        val extractObj = Extract[Pre]()
+        val extracted = extractObj.extract(cls.intrinsicLockInvariant)
+        val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
 
-      case unlock @ Unlock(obj) =>
-        val cls = getClass(obj)
-        if (cls.intrinsicLockInvariant != tt[Pre] && !checkedClasses.contains(cls)) {
-          checkedClasses += cls
-          implicit val o: Origin = unlock.o.where(prefix = "checkLockInvSat")
-          Block[Post](Seq[Statement[Post]](satCheck(cls.intrinsicLockInvariant, unlock), unlock.rewriteDefault()))
-        } else unlock.rewriteDefault()
-
-      case other => other.rewriteDefault()
+        variables.scope {
+          localHeapVariables.scope {
+            globalDeclarations.declare(procedure(
+              blame = PanicBlame(
+                "The postcondition of a lock-invariant-sat check is empty"
+              ),
+              contractBlame = UnsafeDontCare.Satisfiability(
+                "the precondition of a check-lock-inv-sat method is only there to check it."
+              ),
+              requires = UnitAccountedPredicate(tt)(extracted.o),
+              typeArgs = variables.dispatch(ts.keys),
+              args = variables.dispatch(in.keys),
+              body = Some(Scope[Post](
+                Nil,
+                Block(Seq(
+                  Inhale(dispatch(extracted)),
+                  Refute(ff)(LockInvariantUnsatisfiableBlame(cls, anchor)),
+                )),
+              )),
+            ))
+          }
+        }
     }
+  }
 }

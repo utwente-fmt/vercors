@@ -1,0 +1,17 @@
+//:: cases TC_CA_5_LiveOuterDeadInnerFires
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CA-5: The outer if (x > 0) is live (precondition x > 0 satisfies it), but
+// the nested inner if (x < 0) is dead and fires its own deadBranch — a live
+// outer branch does not suppress dead branches nested inside it.
+// Expected errors: 1 (inner dead branch).
+requires x > 0;
+void f(int x) {
+    if (x > 0) { // live outer — outerBlame does not fire
+        if (x < 0) { // dead inner — fires because ancestorFired = false
+            x = x + 1;
+        }
+        x = x - 1;
+    }
+}

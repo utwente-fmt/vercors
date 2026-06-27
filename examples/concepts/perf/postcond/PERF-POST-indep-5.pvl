@@ -1,0 +1,39 @@
+//:: cases PERF_POST_indep_5
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: indep-5-style body (5 sequential if's, no else, one independent
+// variable per branch — see PERF-BRANCH-indep-5.pvl, 279 branch traces standalone),
+// but each branch writes to a field, and the postcondition spells out both
+// outcomes (changed / unchanged) for every field.
+// Tests whether checkPostSat inherits the same exponential trace count as
+// detectDeadCode for this structure, or whether it's checked against a
+// summarized/havoced post-state that avoids the per-path blowup.
+// Note: avoids \old(...) in postconditions; pre-state field values are passed
+// in explicitly as parameters (o1..o5) instead.
+class PERF_POST_indep_5_Node {
+    int r1;
+    int r2;
+    int r3;
+    int r4;
+    int r5;
+}
+
+requires Perm(c.r1, write) ** Perm(c.r2, write) ** Perm(c.r3, write) **
+         Perm(c.r4, write) ** Perm(c.r5, write);
+requires c.r1 == o1 && c.r2 == o2 && c.r3 == o3 && c.r4 == o4 && c.r5 == o5;
+ensures Perm(c.r1, write) ** Perm(c.r2, write) ** Perm(c.r3, write) **
+        Perm(c.r4, write) ** Perm(c.r5, write);
+ensures (v1 > 0 ==> c.r1 == v1) ** (v1 <= 0 ==> c.r1 == o1);
+ensures (v2 > 0 ==> c.r2 == v2) ** (v2 <= 0 ==> c.r2 == o2);
+ensures (v3 > 0 ==> c.r3 == v3) ** (v3 <= 0 ==> c.r3 == o3);
+ensures (v4 > 0 ==> c.r4 == v4) ** (v4 <= 0 ==> c.r4 == o4);
+ensures (v5 > 0 ==> c.r5 == v5) ** (v5 <= 0 ==> c.r5 == o5);
+void perf_post_indep_5(PERF_POST_indep_5_Node c, int v1, int v2, int v3, int v4, int v5,
+                        int o1, int o2, int o3, int o4, int o5) {
+    if (v1 > 0) { c.r1 = v1; }
+    if (v2 > 0) { c.r2 = v2; }
+    if (v3 > 0) { c.r3 = v3; }
+    if (v4 > 0) { c.r4 = v4; }
+    if (v5 > 0) { c.r5 = v5; }
+}

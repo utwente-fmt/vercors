@@ -2,16 +2,79 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: single loop with a rich arithmetic invariant — many conjuncts, no heap.
-// Baseline for comparing against Perm and forall variants.
-// The invariant forces the solver to track several related integer constraints simultaneously.
+// Performance: 7 variables, 24 conjuncts tracking inter-variable sum bounds,
+// repeated across 3 sequential loops (3x checkInvSat calls in this file).
+// No heap, no quantifiers — isolates pure integer reasoning cost for checkInvSat,
+// and the 3x repetition makes the per-invariant cost a large enough share of the
+// total runtime to separate from JVM startup noise.
 requires n >= 0;
 void perf_inv_arith(int n) {
-    int i = 0;
-    int cnt = 0;
-    loop_invariant i >= 0 && i <= n && cnt >= 0 && cnt <= i && n - i >= 0 && i + cnt >= 0;
+    int i = 0; int a = 0; int b = 0; int c = 0; int d = 0; int e = 0; int f = 0;
+    loop_invariant
+        i >= 0 && i <= n &&
+        a >= 0 && a <= i && a <= n &&
+        b >= 0 && b <= i && b <= n &&
+        c >= 0 && c <= i && c <= n &&
+        d >= 0 && d <= i && d <= n &&
+        e >= 0 && e <= i && e <= n &&
+        f >= 0 && f <= i && f <= n &&
+        a + b >= 0 && a + b <= 2 * n &&
+        b + c >= 0 && b + c <= 2 * n &&
+        c + d >= 0 && c + d <= 2 * n &&
+        d + e >= 0 && d + e <= 2 * n &&
+        e + f >= 0 && e + f <= 2 * n &&
+        a + b + c >= 0 && a + b + c <= 3 * n &&
+        c + d + e >= 0 && c + d + e <= 3 * n &&
+        a + b + c + d + e + f >= 0 && a + b + c + d + e + f <= 6 * n &&
+        n - i >= 0 && n - a >= 0 && n - b >= 0 && n - c >= 0;
     while (i < n) {
-        cnt = cnt + 1;
-        i = i + 1;
+        i = i + 1; a = a + 1; b = b + 1;
+        c = c + 1; d = d + 1; e = e + 1; f = f + 1;
+    }
+
+    int i2 = 0; int a2 = 0; int b2 = 0; int c2 = 0; int d2 = 0; int e2 = 0; int f2 = 0;
+    loop_invariant
+        i2 >= 0 && i2 <= n &&
+        a2 >= 0 && a2 <= i2 && a2 <= n &&
+        b2 >= 0 && b2 <= i2 && b2 <= n &&
+        c2 >= 0 && c2 <= i2 && c2 <= n &&
+        d2 >= 0 && d2 <= i2 && d2 <= n &&
+        e2 >= 0 && e2 <= i2 && e2 <= n &&
+        f2 >= 0 && f2 <= i2 && f2 <= n &&
+        a2 + b2 >= 0 && a2 + b2 <= 2 * n &&
+        b2 + c2 >= 0 && b2 + c2 <= 2 * n &&
+        c2 + d2 >= 0 && c2 + d2 <= 2 * n &&
+        d2 + e2 >= 0 && d2 + e2 <= 2 * n &&
+        e2 + f2 >= 0 && e2 + f2 <= 2 * n &&
+        a2 + b2 + c2 >= 0 && a2 + b2 + c2 <= 3 * n &&
+        c2 + d2 + e2 >= 0 && c2 + d2 + e2 <= 3 * n &&
+        a2 + b2 + c2 + d2 + e2 + f2 >= 0 && a2 + b2 + c2 + d2 + e2 + f2 <= 6 * n &&
+        n - i2 >= 0 && n - a2 >= 0 && n - b2 >= 0 && n - c2 >= 0;
+    while (i2 < n) {
+        i2 = i2 + 1; a2 = a2 + 1; b2 = b2 + 1;
+        c2 = c2 + 1; d2 = d2 + 1; e2 = e2 + 1; f2 = f2 + 1;
+    }
+
+    int i3 = 0; int a3 = 0; int b3 = 0; int c3 = 0; int d3 = 0; int e3 = 0; int f3 = 0;
+    loop_invariant
+        i3 >= 0 && i3 <= n &&
+        a3 >= 0 && a3 <= i3 && a3 <= n &&
+        b3 >= 0 && b3 <= i3 && b3 <= n &&
+        c3 >= 0 && c3 <= i3 && c3 <= n &&
+        d3 >= 0 && d3 <= i3 && d3 <= n &&
+        e3 >= 0 && e3 <= i3 && e3 <= n &&
+        f3 >= 0 && f3 <= i3 && f3 <= n &&
+        a3 + b3 >= 0 && a3 + b3 <= 2 * n &&
+        b3 + c3 >= 0 && b3 + c3 <= 2 * n &&
+        c3 + d3 >= 0 && c3 + d3 <= 2 * n &&
+        d3 + e3 >= 0 && d3 + e3 <= 2 * n &&
+        e3 + f3 >= 0 && e3 + f3 <= 2 * n &&
+        a3 + b3 + c3 >= 0 && a3 + b3 + c3 <= 3 * n &&
+        c3 + d3 + e3 >= 0 && c3 + d3 + e3 <= 3 * n &&
+        a3 + b3 + c3 + d3 + e3 + f3 >= 0 && a3 + b3 + c3 + d3 + e3 + f3 <= 6 * n &&
+        n - i3 >= 0 && n - a3 >= 0 && n - b3 >= 0 && n - c3 >= 0;
+    while (i3 < n) {
+        i3 = i3 + 1; a3 = a3 + 1; b3 = b3 + 1;
+        c3 = c3 + 1; d3 = d3 + 1; e3 = e3 + 1; f3 = f3 + 1;
     }
 }

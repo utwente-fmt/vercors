@@ -1,0 +1,9 @@
+//:: cases TC_PST_7_EnsuresSatisfiableVoid
+//:: tools silicon
+//:: verdict Pass
+
+// Void method with postcondition n > 0, satisfiable given precondition n > 0.
+// postUnsatisfiable must not fire; normal verification also passes.
+requires n > 0;
+ensures n > 0;
+void f(int n) { }

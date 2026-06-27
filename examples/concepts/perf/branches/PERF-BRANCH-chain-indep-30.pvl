@@ -1,0 +1,73 @@
+//:: cases PERF_BRANCH_chain_indep_30
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 30-way if-elseif-...-else chain (mutually exclusive, 31 paths total),
+// but each condition uses a distinct INDEPENDENT variable (unlike PERF-BRANCH-chain-30,
+// which reuses 2 shared variables). Isolates: does variable independence matter when the
+// branch *structure* keeps the path count linear (chain) instead of multiplicative (sequential)?
+void perf_branch_chain_indep_30(int v1, int v2, int v3, int v4, int v5, int v6, int v7, int v8, int v9, int v10, int v11, int v12, int v13, int v14, int v15, int v16, int v17, int v18, int v19, int v20, int v21, int v22, int v23, int v24, int v25, int v26, int v27, int v28, int v29, int v30) {
+    if (v1 > 0) {
+        int s = v1;
+    } else if (v2 > 0) {
+        int s = v2;
+    } else if (v3 > 0) {
+        int s = v3;
+    } else if (v4 > 0) {
+        int s = v4;
+    } else if (v5 > 0) {
+        int s = v5;
+    } else if (v6 > 0) {
+        int s = v6;
+    } else if (v7 > 0) {
+        int s = v7;
+    } else if (v8 > 0) {
+        int s = v8;
+    } else if (v9 > 0) {
+        int s = v9;
+    } else if (v10 > 0) {
+        int s = v10;
+    } else if (v11 > 0) {
+        int s = v11;
+    } else if (v12 > 0) {
+        int s = v12;
+    } else if (v13 > 0) {
+        int s = v13;
+    } else if (v14 > 0) {
+        int s = v14;
+    } else if (v15 > 0) {
+        int s = v15;
+    } else if (v16 > 0) {
+        int s = v16;
+    } else if (v17 > 0) {
+        int s = v17;
+    } else if (v18 > 0) {
+        int s = v18;
+    } else if (v19 > 0) {
+        int s = v19;
+    } else if (v20 > 0) {
+        int s = v20;
+    } else if (v21 > 0) {
+        int s = v21;
+    } else if (v22 > 0) {
+        int s = v22;
+    } else if (v23 > 0) {
+        int s = v23;
+    } else if (v24 > 0) {
+        int s = v24;
+    } else if (v25 > 0) {
+        int s = v25;
+    } else if (v26 > 0) {
+        int s = v26;
+    } else if (v27 > 0) {
+        int s = v27;
+    } else if (v28 > 0) {
+        int s = v28;
+    } else if (v29 > 0) {
+        int s = v29;
+    } else if (v30 > 0) {
+        int s = v30;
+    } else {
+        int s = 0;
+    }
+}

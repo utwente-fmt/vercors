@@ -1,0 +1,16 @@
+//:: cases TC_LI_8_PostLoopContextEverywhereDead
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-8: context_everywhere propagates x > 10 into the loop invariant,
+// making it stronger than the loop condition x > 0. The post-loop state
+// (x > 10 AND x <= 0) is unsatisfiable, so the post-loop deadBranch fires.
+// Expected errors: 1 (deadBranch for code after loop).
+requires x > 10;
+context_everywhere x > 10;
+void f(int x) {
+    while (x > 0) {
+        x = x + 1; // maintains x > 10; loop never exits
+    }
+    int dead = x; // unreachable: post-loop state is unsatisfiable
+}

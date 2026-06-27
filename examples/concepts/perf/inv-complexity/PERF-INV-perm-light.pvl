@@ -1,0 +1,20 @@
+//:: cases PERF_INV_perm_light
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: light pair for PERF-INV-perm-1field — 1 Perm + 2 arithmetic
+// constraints on a single field, a single method/loop (1x checkInvSat call),
+// instead of 1 Perm + 8 constraints x 3 methods.
+// Compare to PERF-INV-perm-1field to see whether the heap-encoding cost of
+// FramedProof scales with the number of conjuncts in the Perm invariant.
+class PERF_INV_perm_light_Node {
+    int v1;
+
+    requires Perm(this.v1, write) ** this.v1 >= 0 ** this.v1 <= n;
+    void work1(int n) {
+        loop_invariant
+            Perm(this.v1, write) **
+            this.v1 >= 0 ** this.v1 <= n;
+        while (this.v1 < n) { this.v1 = this.v1 + 1; }
+    }
+}

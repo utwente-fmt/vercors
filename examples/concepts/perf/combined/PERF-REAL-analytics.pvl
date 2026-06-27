@@ -1,0 +1,110 @@
+//:: cases PERF_REAL_analytics
+//:: tools silicon
+//:: verdict Pass
+
+// Real-life combined: six-stream analytics function — each stream runs a
+// sequential loop with a forall invariant and a 3-way branch per step, then
+// returns a non-negative result bounded by a postcondition. Expected: Pass.
+
+requires n >= 0 && lo >= 0 && hi >= lo && hi < n + 1;
+ensures \result >= 0;
+int analytics(int n, int lo, int hi) {
+
+    // stream A: classify by position within [lo, hi] range
+    int a = 0;
+    int ia = 0;
+    loop_invariant ia >= 0 && ia <= n && a >= 0 &&
+                   (\forall int j = 0 .. ia; j >= 0 && j < n + 1);
+    while (ia < n) {
+        if (ia < lo) {
+            a = a + 1;
+        } else if (ia <= hi) {
+            a = a + 2;
+        } else {
+            a = a + 1;
+        }
+        ia = ia + 1;
+    }
+
+    // stream B: classify by combined offset condition
+    int b = 0;
+    int ib = 0;
+    loop_invariant ib >= 0 && ib <= n && b >= 0 &&
+                   (\forall int j = 0 .. ib; j >= 0 && j < n + 1);
+    while (ib < n) {
+        if (ib + lo > hi + 1) {
+            b = b + 3;
+        } else if (ib > lo) {
+            b = b + 2;
+        } else {
+            b = b + 1;
+        }
+        ib = ib + 1;
+    }
+
+    // stream C: weighted sum with dual-boundary condition
+    int c = 0;
+    int ic = 0;
+    loop_invariant ic >= 0 && ic <= n && c >= 0 &&
+                   (\forall int j = 0 .. ic; j >= 0 && j < n + 1);
+    while (ic < n) {
+        if (ic > hi && lo > 0) {
+            c = c + 4;
+        } else if (ic >= lo) {
+            c = c + 2;
+        } else {
+            c = c + 1;
+        }
+        ic = ic + 1;
+    }
+
+    // stream D: classify by mirrored position within [lo, hi] range
+    int d = 0;
+    int idd = 0;
+    loop_invariant idd >= 0 && idd <= n && d >= 0 &&
+                   (\forall int j = 0 .. idd; j >= 0 && j < n + 1);
+    while (idd < n) {
+        if (idd > hi) {
+            d = d + 1;
+        } else if (idd >= lo) {
+            d = d + 2;
+        } else {
+            d = d + 1;
+        }
+        idd = idd + 1;
+    }
+
+    // stream E: classify by combined offset condition (reversed)
+    int e = 0;
+    int ie = 0;
+    loop_invariant ie >= 0 && ie <= n && e >= 0 &&
+                   (\forall int j = 0 .. ie; j >= 0 && j < n + 1);
+    while (ie < n) {
+        if (hi + lo > ie + 1) {
+            e = e + 3;
+        } else if (hi > ie) {
+            e = e + 2;
+        } else {
+            e = e + 1;
+        }
+        ie = ie + 1;
+    }
+
+    // stream F: weighted sum with dual-boundary condition (reversed)
+    int f = 0;
+    int ifi = 0;
+    loop_invariant ifi >= 0 && ifi <= n && f >= 0 &&
+                   (\forall int j = 0 .. ifi; j >= 0 && j < n + 1);
+    while (ifi < n) {
+        if (ifi < lo && hi > 0) {
+            f = f + 4;
+        } else if (ifi <= hi) {
+            f = f + 2;
+        } else {
+            f = f + 1;
+        }
+        ifi = ifi + 1;
+    }
+
+    return a + b + c + d + e + f;
+}

@@ -1,0 +1,16 @@
+class Node {
+    int value;
+}
+
+requires Perm(n.value, write);
+pure boolean isPositive(Node n) = n.value > 0;
+
+// Satisfiable: x.value = 1 witnesses the invariant.
+// But invariantUnsatisfiable fires incorrectly.
+requires Perm(x.value, write) ** x.value > 0;
+void increment(Node x) {
+    loop_invariant Perm(x.value, write) ** isPositive(x);
+    while (x.value < 100) {
+        x.value = x.value + 1;
+    }
+}

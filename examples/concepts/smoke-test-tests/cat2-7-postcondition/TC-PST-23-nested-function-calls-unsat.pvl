@@ -1,0 +1,13 @@
+//:: cases TC_PST_23_NestedFunctionCallsUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// Postcondition isPos(n) && isPos(negate(n)) means n > 0 && n < 0 — a contradiction,
+// so postUnsatisfiable fires.
+
+pure int negate(int n) = -n;
+
+pure boolean isPos(int x) = x > 0;
+
+ensures isPos(n) && isPos(negate(n));
+void foo(int n) { }

@@ -1,0 +1,21 @@
+//:: cases TC_LK_5_LockDeadWithoutInvUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LK-5: lockDead fires WITHOUT lockInvariantUnsatisfiable.
+// The lock invariant (val > 0) is fine on its own, but an assume inside the
+// method (flag == 2) contradicts the precondition (flag == 1), making the
+// state dead before 'lock this' is reached.
+// Contrast with TC-LK-2, where the invariant itself is unsatisfiable.
+lock_invariant Perm(val, write) ** val > 0;
+class LiveInvDeadContext {
+    int val;
+    int flag;
+
+    requires committed(this) ** Perm(flag, write) ** flag == 1;
+    void method() {
+        assume flag == 2; // contradicts flag == 1 — deadBranch fires here
+        lock this;        // lockDead fires: state already dead before lock
+        unlock this;      // unlockDead fires: dead state persists
+    }
+}

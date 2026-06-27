@@ -2,12 +2,25 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: loop invariant with a forall quantifier over the iteration range.
-// Quantifier instantiation is expensive for SMT — compare to PERF-INV-arithmetic.
-// The forall forces the solver to reason about all values 0..i simultaneously.
+// Performance: 4 independent forall quantifiers over the loop range, repeated
+// across 2 sequential loops (8 foralls total, 2x checkInvSat calls).
+// Each forall forces Silicon to instantiate triggers for every j in 0..i.
+// Compare to PERF-INV-arithmetic: same variable count but quantifier instantiation dominates.
 requires n >= 0;
 void perf_inv_forall(int n) {
     int i = 0;
-    loop_invariant i >= 0 && i <= n && (\forall int j = 0 .. i; j >= 0 && j < n);
+    loop_invariant i >= 0 && i <= n &&
+        (\forall int j = 0 .. i; j >= 0 && j < n && n - j > 0 && n - j <= n) &&
+        (\forall int j = 0 .. i; j >= 0 && j < i && i - j > 0 && i - j <= i) &&
+        (\forall int j = 0 .. i; j >= 0 && j + i >= 0 && j + i <= 2 * n) &&
+        (\forall int j = 0 .. i; j >= 0 && n - j >= 0 && n - j + i >= 0);
     while (i < n) { i = i + 1; }
+
+    int k = 0;
+    loop_invariant k >= 0 && k <= n &&
+        (\forall int j = 0 .. k; j >= 0 && j < n && n - j > 0 && n - j <= n) &&
+        (\forall int j = 0 .. k; j >= 0 && j < k && k - j > 0 && k - j <= k) &&
+        (\forall int j = 0 .. k; j >= 0 && j + k >= 0 && j + k <= 2 * n) &&
+        (\forall int j = 0 .. k; j >= 0 && n - j >= 0 && n - j + k >= 0);
+    while (k < n) { k = k + 1; }
 }

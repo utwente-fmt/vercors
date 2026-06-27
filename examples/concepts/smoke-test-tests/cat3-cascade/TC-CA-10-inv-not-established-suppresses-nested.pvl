@@ -1,0 +1,16 @@
+//:: cases TC_CA_10_InvNotEstablishedSuppressesNested
+//:: tools silicon
+//:: verdict Fail
+
+// loop_invariant false makes the whole body dead; nested branches inside it are
+// suppressed via the cascade rather than firing their own deadBranch errors.
+// Expected: only invariantNotEstablished fires.
+void f(int x) {
+    loop_invariant false;
+    while (x > 0) {
+        if (x > 5) {       // suppressed via cascade
+            x = x + 1;
+        }
+        x = x - 1;         // suppressed via cascade
+    }
+}

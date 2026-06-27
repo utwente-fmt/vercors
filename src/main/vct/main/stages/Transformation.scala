@@ -31,8 +31,8 @@ import vct.col.rewrite._
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
   CTypeConversions,
+  CheckInvariantSatisfiability,
   CheckLockInvariantSatisfiability,
-  CheckLoopInvariantSatisfiability,
   CollectLocalDeclarations,
   DetectDeadCode,
   DisambiguateLocation,
@@ -184,6 +184,7 @@ object Transformation extends LazyLogging {
           checkPostSat = options.devCheckPostSat,
           detectDead = options.devDetectDead,
           checkLoopInvSat = options.devCheckLoopInvSat,
+          checkLockInvSat = options.devCheckLockInvSat,
           inferHeapContextIntoFrame = options.inferHeapContextIntoFrame,
           bipResults = bipResults,
           splitVerificationByProcedure =
@@ -370,6 +371,7 @@ case class SilverTransformation(
     checkPostSat: Boolean = true,
     detectDead: Boolean = true,
     checkLoopInvSat: Boolean = true,
+    checkLockInvSat: Boolean = true,
     splitVerificationByProcedure: Boolean = false,
     override val optimizeUnsafe: Boolean = false,
     generatePermissions: Boolean = false,
@@ -445,15 +447,24 @@ case class SilverTransformation(
         GivenYieldsToArgs,
         CheckProcessAlgebra,
         EncodeCurrentThread,
-        CheckLockInvariantSatisfiability,
+        CheckLockInvariantSatisfiability
+          .withArg(
+            checkLockInvSat
+          ), // before EncodeIntrinsicLock so intrinsicLockInvariant still exists on the class
         EncodeIntrinsicLock,
         EncodeForkJoin,
         // PureMethodsToFunctions should be before InlineApplicables since InlineApplicables treats functions and methods differently
         PureMethodsToFunctions,
         InlineApplicables,
         InlineTrivialLets,
-        DetectDeadCode.withArg(detectDead),  //before RefuteToInvertedAssert so inserted Refute nodes are transformed, and before ParBlockEncoder so ParBlock/ParAtomic still exist
-        CheckLoopInvariantSatisfiability.withArg(checkLoopInvSat),  //before EncodeExtract (encodes Extract+FramedProof) and before EncodeProofHelpers (encodes FramedProof)
+        DetectDeadCode
+          .withArg(
+            detectDead
+          ), // before RefuteToInvertedAssert so inserted Refute nodes are transformed, and before ParBlockEncoder so ParBlock/ParAtomic still exist
+        CheckInvariantSatisfiability
+          .withArg(
+            checkLoopInvSat
+          ), // before EncodeExtract (encodes Extract+FramedProof) and before EncodeProofHelpers (encodes FramedProof); also before ParBlockEncoder so ParInvariant still exists
         RefuteToInvertedAssert,
         ExplicitResourceValues,
         EncodeResourceValues,
@@ -498,7 +509,6 @@ case class SilverTransformation(
         ResolveExpressionSideEffects,
         EncodeTryThrowSignals,
         MonomorphizeClass,
-        // DetectDeadCode is placed before RefuteToInvertedAssert above
         // No more classes
         ClassToRef,
         HeapVariableToRef,

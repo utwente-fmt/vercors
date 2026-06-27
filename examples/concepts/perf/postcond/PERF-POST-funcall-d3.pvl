@@ -14,6 +14,6 @@ pure int lift2(int x) = x + 1;
 requires x > 0;
 pure boolean above0(int x) = x > 0;
 
-requires false;
+requires n > 0;
 ensures above0(lift2(lift1(n))) && n > 0;
 void perf_post_funcall_d3(int n) { }

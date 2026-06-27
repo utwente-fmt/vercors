@@ -2,33 +2,41 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 5-level nested loops, arithmetic invariant at each level.
-// checkInvSat: 5 isolated FramedProofs — should match 5 sequential loops in cost.
-// detectDeadCode: innermost body Refute carries 5 layers of path conditions.
-// Key experiment: compare detectDeadCode time here vs PERF-SEQ-15loops.
+// Performance: 5-level nested loops, forall invariant at each level.
+// checkInvSat: 5 FramedProofs — same as 5 sequential loops.
+// detectDeadCode: innermost body Refute carries 5 stacked forall formulas simultaneously.
+// Key experiment: 5 quantifiers in one path condition vs 5 sequential (PERF-SEQ-5loops)
+// where the 5th loop only carries 4 prior post-loop foralls. Nesting amplifies the cost.
 requires a >= 0 && b >= 0 && c >= 0 && d >= 0 && e >= 0;
 void perf_nest_5(int a, int b, int c, int d, int e) {
-    int i = 0;
-    loop_invariant i >= 0 && i <= a;
+    int i = 0; int ci = 0;
+    loop_invariant i >= 0 && i <= a && ci == i && (\forall int k = 0 .. i; k >= 0 && k < a);
     while (i < a) {
-        int j = 0;
-        loop_invariant j >= 0 && j <= b;
+        int j = 0; int cj = 0;
+        loop_invariant j >= 0 && j <= b && cj == j && (\forall int k = 0 .. j; k >= 0 && k < b);
         while (j < b) {
-            int k = 0;
-            loop_invariant k >= 0 && k <= c;
-            while (k < c) {
-                int l = 0;
-                loop_invariant l >= 0 && l <= d;
-                while (l < d) {
-                    int m = 0;
-                    loop_invariant m >= 0 && m <= e;
-                    while (m < e) { m = m + 1; }
-                    l = l + 1;
+            int l = 0; int cl = 0;
+            loop_invariant l >= 0 && l <= c && cl == l && (\forall int k = 0 .. l; k >= 0 && k < c);
+            while (l < c) {
+                int p = 0; int cp = 0;
+                loop_invariant p >= 0 && p <= d && cp == p && (\forall int k = 0 .. p; k >= 0 && k < d);
+                while (p < d) {
+                    int q = 0; int cq = 0;
+                    loop_invariant q >= 0 && q <= e && cq == q && (\forall int k = 0 .. q; k >= 0 && k < e);
+                    while (q < e) {
+                        cq = cq + 1;
+                        q = q + 1;
+                    }
+                    cp = cp + 1;
+                    p = p + 1;
                 }
-                k = k + 1;
+                cl = cl + 1;
+                l = l + 1;
             }
+            cj = cj + 1;
             j = j + 1;
         }
+        ci = ci + 1;
         i = i + 1;
     }
 }

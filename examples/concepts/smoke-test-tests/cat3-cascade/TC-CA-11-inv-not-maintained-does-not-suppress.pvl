@@ -1,0 +1,18 @@
+//:: cases TC_CA_11_InvNotMaintainedDoesNotSuppress
+//:: tools silicon
+//:: verdict Fail
+
+// invariantNotMaintained (x = x - 1 can break x > 0 when x = 1) does NOT suppress
+// other errors. The body itself is live, but the inner branch (x < 0) is dead
+// and still fires its own deadBranch.
+// Expected errors: 2 (invariantNotMaintained + deadBranch for inner if).
+requires x > 0;
+void f(int x) {
+    loop_invariant x > 0;
+    while (x < 10) {
+        x = x - 1;   // invariantNotMaintained: x-1 may be 0 (when x=1), violating x > 0
+        if (x < 0) { // dead: after decrement x >= 0 (since x_old >= 1), x < 0 impossible
+            x = x + 5;
+        }
+    }
+}

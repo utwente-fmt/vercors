@@ -2,16 +2,36 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: postcondition calls an instance function requiring Perm on a field.
-// WD fix prepends Perm(c.value, read) as an extra inhale before the postcondition sat check.
-// Tests heap reasoning overhead in the postcondition checker.
+// Performance: postcondition calls 5 instance functions, each requiring Perm
+// on a distinct field.
+// WD fix prepends a Perm inhale for every such call before the postcondition
+// sat check, so this amplifies that cost 5x compared to a single field.
 class PERF_POST_perm_Node {
-    int value;
+    int a;
+    int b;
+    int c;
+    int d;
+    int e;
 
-    requires Perm(this.value, read) ** this.value > 0;
-    pure boolean isPositive() = this.value > 0;
+    requires Perm(this.a, read) ** this.a > 0;
+    pure boolean isPositiveA() = this.a > 0;
+
+    requires Perm(this.b, read) ** this.b > 0;
+    pure boolean isPositiveB() = this.b > 0;
+
+    requires Perm(this.c, read) ** this.c > 0;
+    pure boolean isPositiveC() = this.c > 0;
+
+    requires Perm(this.d, read) ** this.d > 0;
+    pure boolean isPositiveD() = this.d > 0;
+
+    requires Perm(this.e, read) ** this.e > 0;
+    pure boolean isPositiveE() = this.e > 0;
 }
 
-requires Perm(c.value, read) ** c.value > 0;
-ensures c.isPositive();
+requires Perm(c.a, read) ** Perm(c.b, read) ** Perm(c.c, read) ** Perm(c.d, read) ** Perm(c.e, read) **
+         c.a > 0 ** c.b > 0 ** c.c > 0 ** c.d > 0 ** c.e > 0;
+ensures Perm(c.a, read) ** Perm(c.b, read) ** Perm(c.c, read) ** Perm(c.d, read) ** Perm(c.e, read) **
+        c.a > 0 ** c.b > 0 ** c.c > 0 ** c.d > 0 ** c.e > 0;
+ensures c.isPositiveA() && c.isPositiveB() && c.isPositiveC() && c.isPositiveD() && c.isPositiveE();
 void perf_post_perm(PERF_POST_perm_Node c) { }

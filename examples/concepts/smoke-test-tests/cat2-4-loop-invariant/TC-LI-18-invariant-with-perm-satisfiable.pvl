@@ -1,0 +1,15 @@
+//:: cases TC_LI_18_InvariantWithPermSatisfiable
+//:: tools silicon
+//:: verdict Pass
+
+// loop_invariant with a heap permission and a value constraint is satisfiable,
+// checking that invSat correctly handles resource-based invariants.
+class Cell {
+    int val;
+
+    requires Perm(this.val, write) ** this.val >= 0;
+    void count() {
+        loop_invariant Perm(this.val, write) ** this.val >= 0;
+        while (this.val < 10) { this.val = this.val + 1; }
+    }
+}

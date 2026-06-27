@@ -1,0 +1,22 @@
+//:: cases TC_AF_1_PvlAssertFalseMidBlock
+//:: tools silicon
+//:: verdict Fail
+
+// assert false mid-block fails (assertFailed) on this live path and triggers block
+// cutoff, so the if/while after it are not checked for reachability.
+requires x > 0;
+void f(int x) {
+    x = x + 1;
+    if(x<0){
+        assert false;              // assertFailed — block cutoff starts here
+        if (x == 2) {              // not instrumented (block cutoff)
+            x = x - 1;
+        }
+        loop_invariant x > 0;
+        while (x > 1) {            // not instrumented (block cutoff)
+            x = x - 1;
+        }
+        x = x + 2;
+
+    }
+}

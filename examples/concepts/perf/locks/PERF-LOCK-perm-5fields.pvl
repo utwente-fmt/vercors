@@ -6,7 +6,7 @@
 // checkLockInvSat: FramedProof must inhale 5 Perm grants + 5 value constraints.
 // Compare to PERF-LOCK-perm-1field: does permission count in lock invariant drive cost?
 lock_invariant Perm(a, write) ** Perm(b, write) ** Perm(c, write) ** Perm(d, write) ** Perm(e, write) **
-              a >= 0 && b >= 0 && c >= 0 && d >= 0 && e >= 0;
+              (a >= 0 && b >= 0 && c >= 0 && d >= 0 && e >= 0);
 class PERF_LOCK_perm_5fields {
     int a;
     int b;
@@ -21,7 +21,7 @@ class PERF_LOCK_perm_5fields {
     }
 
     requires committed(this);
-    void run() {
+    void work() {
         lock this;
         a = a + 1;
         unlock this;

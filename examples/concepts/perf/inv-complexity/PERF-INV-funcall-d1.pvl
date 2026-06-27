@@ -2,15 +2,26 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: loop invariant calls a pure function at depth 1.
-// WD fix adds 1 extra inhale (the function's precondition) before the sat check.
-// Baseline for comparing against funcall-d3 to measure WD collection overhead.
+// Performance: invariant with 3 function calls at depth 1 (each called directly),
+// repeated across 2 sequential loops (6 calls total, 2x checkInvSat calls).
+// WD fix adds 3 extra inhales per loop — one precondition per call — before the sat check.
+// Baseline: how much does WD collection cost per function call in the invariant?
 requires x > 0;
-pure boolean isPositive(int x) = x > 0;
+pure boolean isPos(int x) = x > 0;
+
+requires x >= 0;
+pure boolean isNonNeg(int x) = x >= 0;
+
+requires x >= 0 && y >= 0;
+pure boolean sumPos(int x, int y) = x + y >= 0;
 
 requires n > 0;
 void perf_inv_funcall_d1(int n) {
     int i = 1;
-    loop_invariant i > 0 && i <= n && isPositive(i);
+    loop_invariant i > 0 && i <= n && isPos(i) && isNonNeg(i) && sumPos(i, n);
     while (i < n) { i = i + 1; }
+
+    int k = 1;
+    loop_invariant k > 0 && k <= n && isPos(k) && isNonNeg(k) && sumPos(k, n);
+    while (k < n) { k = k + 1; }
 }

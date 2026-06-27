@@ -1,0 +1,13 @@
+//:: cases TC_LI_12_InvariantFalseUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// loop_invariant false is trivially unsatisfiable — invariantUnsatisfiable and
+// invariantNotEstablished fire; body and post-loop dead code checks are suppressed
+// as cascades.
+void f(int x) {
+    loop_invariant false;
+    while (x > 0) {
+        x = x - 1;
+    }
+}

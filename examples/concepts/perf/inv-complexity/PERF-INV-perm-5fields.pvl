@@ -2,9 +2,11 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: loop invariant with five heap permissions.
-// Tests whether permission count within a single invariant drives cost.
-// Compare to PERF-INV-perm-1field: 5 Perm vs 1 Perm, same structure.
+// Performance: 5 Perms + per-field constraints (20 conjuncts), repeated across
+// 2 methods (2x checkInvSat calls in this file).
+// Only the loop-controlled field changes — the other 4 hold their initial
+// non-negative values. 5 heap locations in the FramedProof vs 1 in perm-1field;
+// isolates scaling of heap encoding, amplified by the 2x repetition.
 class PERF_INV_perm_5fields_Node {
     int a;
     int b;
@@ -14,12 +16,35 @@ class PERF_INV_perm_5fields_Node {
 
     requires Perm(this.a, write) ** Perm(this.b, write) ** Perm(this.c, write) **
              Perm(this.d, write) ** Perm(this.e, write) **
-             this.a >= 0 && this.b >= 0 && this.c >= 0 && this.d >= 0 && this.e >= 0;
-    void run(int n) {
-        loop_invariant Perm(this.a, write) ** Perm(this.b, write) ** Perm(this.c, write) **
-                       Perm(this.d, write) ** Perm(this.e, write) **
-                       this.a >= 0 && this.b >= 0 && this.c >= 0 && this.d >= 0 && this.e >= 0 &&
-                       this.a <= n;
+             this.a >= 0 ** this.a <= n **
+             this.b >= 0 ** this.c >= 0 ** this.d >= 0 ** this.e >= 0;
+    void work1(int n) {
+        loop_invariant
+            Perm(this.a, write) ** Perm(this.b, write) ** Perm(this.c, write) **
+            Perm(this.d, write) ** Perm(this.e, write) **
+            this.a >= 0 ** this.a <= n **
+            this.a + 1 > 0 ** n - this.a >= 0 **
+            this.b >= 0 ** this.b + 1 > 0 ** this.b + 2 > 1 **
+            this.c >= 0 ** this.c + 1 > 0 ** this.c + 2 > 1 **
+            this.d >= 0 ** this.d + 1 > 0 ** this.d + 2 > 1 **
+            this.e >= 0 ** this.e + 1 > 0 ** this.e + 2 > 1;
         while (this.a < n) { this.a = this.a + 1; }
+    }
+
+    requires Perm(this.a, write) ** Perm(this.b, write) ** Perm(this.c, write) **
+             Perm(this.d, write) ** Perm(this.e, write) **
+             this.b >= 0 ** this.b <= n **
+             this.a >= 0 ** this.c >= 0 ** this.d >= 0 ** this.e >= 0;
+    void work2(int n) {
+        loop_invariant
+            Perm(this.a, write) ** Perm(this.b, write) ** Perm(this.c, write) **
+            Perm(this.d, write) ** Perm(this.e, write) **
+            this.b >= 0 ** this.b <= n **
+            this.b + 1 > 0 ** n - this.b >= 0 **
+            this.a >= 0 ** this.a + 1 > 0 ** this.a + 2 > 1 **
+            this.c >= 0 ** this.c + 1 > 0 ** this.c + 2 > 1 **
+            this.d >= 0 ** this.d + 1 > 0 ** this.d + 2 > 1 **
+            this.e >= 0 ** this.e + 1 > 0 ** this.e + 2 > 1;
+        while (this.b < n) { this.b = this.b + 1; }
     }
 }

@@ -1,0 +1,16 @@
+//:: cases PERF_PRECOND_perm
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: precondition calls an instance function requiring Perm on a field.
+// Tests heap reasoning overhead in the precondition checker (checkSat).
+class PERF_PRECOND_perm_Node {
+    int value;
+
+    requires Perm(this.value, read) ** this.value > 0;
+    pure boolean isPositive() = this.value > 0;
+}
+
+requires Perm(c.value, read) ** c.value > 0;
+requires c.isPositive();
+void perf_precond_perm(PERF_PRECOND_perm_Node c) { }

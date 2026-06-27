@@ -1,0 +1,15 @@
+//:: cases TC_PST_22_NestedFunctionCallsSat
+//:: tools silicon
+//:: verdict Pass
+
+// Postcondition nests two pure function calls: isLargeEnough(increment(n)).
+// For n > 0, increment(n) = n+1 > 1, so isLargeEnough holds — postSat is satisfiable
+// and normal verification also passes.
+
+pure int increment(int n) = n + 1;
+
+pure boolean isLargeEnough(int x) = x > 1;
+
+requires n > 0;
+ensures isLargeEnough(increment(n));
+void foo(int n) { }

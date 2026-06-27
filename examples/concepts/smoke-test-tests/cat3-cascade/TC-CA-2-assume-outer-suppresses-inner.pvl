@@ -1,0 +1,17 @@
+//:: cases TC_CA_2_AssumeOuterSuppressesInner
+//:: tools silicon
+//:: verdict Fail
+
+// TC-CA-2: assume false makes the state contradictory, firing a post-assume
+// deadBranch. The outer if (x > 0) also fires independently, and the nested
+// inner if is suppressed via cascade.
+// Expected errors: 2 (post-assume + outer if). Inner if: suppressed.
+void f(int x) {
+    assume false; // post-assume check fires — state immediately contradictory
+    if (x > 0) { // outer dead — fires independently
+        if (x == 1) { // inner dead — suppressed by outer if blame
+            x = x + 1;
+        }
+        x = x - 1;
+    }
+}

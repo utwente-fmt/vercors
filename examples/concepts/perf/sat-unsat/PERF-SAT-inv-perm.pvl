@@ -8,7 +8,7 @@ class PERF_SAT_inv_perm_Node {
     int value;
 
     requires Perm(this.value, write) ** this.value >= 0;
-    void run(int n) {
+    void work(int n) {
         loop_invariant Perm(this.value, write) ** this.value >= 0 && this.value <= n;
         while (this.value < n) { this.value = this.value + 1; }
     }

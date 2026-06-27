@@ -1,0 +1,12 @@
+//:: cases TC_AS_6_GhostAssume
+//:: tools silicon
+//:: verdict Fail
+
+// Ghost code is erased to regular COL nodes before DetectDeadCode runs, so a ghost
+// assume narrows the state just like a regular assume.
+void f(int x) {
+    ghost assume x > 0; // ghost assume: stripped to regular Assume(x > 0) in COL
+    if (x < 0) {
+        x = x + 1; // dead: ghost assume applies to the state
+    }
+}

@@ -1,0 +1,20 @@
+//:: cases TC_AT_5_AtomicComplexInvariantDead
+//:: tools silicon
+//:: verdict Fail
+
+// TC-AT-5: Invariant (x > 0 && y > 0) is inhaled inside atomic.
+// Branch x < 0 is dead (contradicts x > 0 from invariant).
+// Branch y > 0 is live (guaranteed by invariant).
+requires x > 0 && y > 0;
+void f(int x, int y) {
+    invariant inv (x > 0 && y > 0) {
+        atomic (inv) {
+            if (x < 0) {
+                assert false; // dead: invariant guarantees x > 0
+            }
+            if (y > 0) {
+                assert true; // live: invariant guarantees y > 0
+            }
+        }
+    }
+}

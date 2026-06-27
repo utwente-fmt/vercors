@@ -1,0 +1,15 @@
+//:: cases TC_LI_21_InvariantFunctionCallUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// Loop invariant calls impossible(x), whose precondition x >= 0 makes its body
+// (x < 0) always false — contradiction, invariantUnsatisfiable fires.
+
+requires x >= 0;
+pure boolean impossible(int x) = x < 0;
+
+void foo(int n) {
+    int x = 0;
+    loop_invariant x >= 0 && impossible(x);
+    while (x < 10) { x = x + 1; }
+}

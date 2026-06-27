@@ -1,0 +1,11 @@
+//:: cases TC_PST_18_EnsuresFunctionCallUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// Postcondition calls neverTrue(n), whose body (n > 0 && n < 0) is always false —
+// contradiction, postUnsatisfiable fires.
+
+pure boolean neverTrue(int n) = n > 0 && n < 0;
+
+ensures neverTrue(n);
+void foo(int n) { }

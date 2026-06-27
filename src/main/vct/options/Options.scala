@@ -191,11 +191,15 @@ case object Options {
         .action((_, c) => c.copy(devCheckPostSat = false))
         .text("Do not check the satisfiability of postconditions"),
       opt[Unit]("dev-no-dead").maybeHidden()
-        .action((_, c) => c.copy(devDetectDead = false))
-        .text("Disable dead code detection (refute false after branches/loops/assumes)"),
+        .action((_, c) => c.copy(devDetectDead = false)).text(
+          "Disable dead code detection (refute false after branches/loops/assumes)"
+        ),
       opt[Unit]("dev-no-loop-inv-sat").maybeHidden()
         .action((_, c) => c.copy(devCheckLoopInvSat = false))
         .text("Do not check the satisfiability of loop invariants"),
+      opt[Unit]("dev-no-lock-inv-sat").maybeHidden()
+        .action((_, c) => c.copy(devCheckLockInvSat = false))
+        .text("Do not check the satisfiability of lock invariants"),
       opt[String]("dev-simplify-debug-in").unbounded().maybeHidden()
         .valueName("<declaration>").action((decl, c) =>
           c.copy(devSimplifyDebugIn = c.devSimplifyDebugIn :+ decl)
@@ -539,6 +543,7 @@ case class Options(
     devCheckPostSat: Boolean = true,
     devDetectDead: Boolean = true,
     devCheckLoopInvSat: Boolean = true,
+    devCheckLockInvSat: Boolean = true,
     devSimplifyDebugIn: Seq[String] = Nil,
     devSimplifyDebugMatch: Boolean = false,
     devSimplifyDebugMatchShort: Boolean = true,

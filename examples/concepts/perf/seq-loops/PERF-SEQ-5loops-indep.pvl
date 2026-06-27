@@ -1,0 +1,32 @@
+//:: cases PERF_SEQ_5loops_indep
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 5 sequential loops, same structure as PERF-SEQ-5loops, but each
+// loop's bound is an INDEPENDENT parameter (n1..n5) instead of a single shared `n`.
+// Mirrors the indep-N branch series (TESTING-PLAN.md section 12): each loop's
+// continue/exit fork now depends on a variable no other loop's invariant touches.
+// Tests whether independent loop guards cause the same multiplicative trace growth
+// as independent if-conditions, or whether loop invariants constrain the path count.
+requires n1 >= 0 && n2 >= 0 && n3 >= 0 && n4 >= 0 && n5 >= 0;
+void perf_seq_5_indep(int n1, int n2, int n3, int n4, int n5) {
+    int i1 = 0; int c1 = 0;
+    loop_invariant i1 >= 0 && i1 <= n1 && c1 == i1 && (\forall int j = 0 .. i1; j >= 0 && j < n1);
+    while (i1 < n1) { c1 = c1 + 1; i1 = i1 + 1; }
+
+    int i2 = 0; int c2 = 0;
+    loop_invariant i2 >= 0 && i2 <= n2 && c2 == i2 && (\forall int j = 0 .. i2; j >= 0 && j < n2);
+    while (i2 < n2) { c2 = c2 + 1; i2 = i2 + 1; }
+
+    int i3 = 0; int c3 = 0;
+    loop_invariant i3 >= 0 && i3 <= n3 && c3 == i3 && (\forall int j = 0 .. i3; j >= 0 && j < n3);
+    while (i3 < n3) { c3 = c3 + 1; i3 = i3 + 1; }
+
+    int i4 = 0; int c4 = 0;
+    loop_invariant i4 >= 0 && i4 <= n4 && c4 == i4 && (\forall int j = 0 .. i4; j >= 0 && j < n4);
+    while (i4 < n4) { c4 = c4 + 1; i4 = i4 + 1; }
+
+    int i5 = 0; int c5 = 0;
+    loop_invariant i5 >= 0 && i5 <= n5 && c5 == i5 && (\forall int j = 0 .. i5; j >= 0 && j < n5);
+    while (i5 < n5) { c5 = c5 + 1; i5 = i5 + 1; }
+}

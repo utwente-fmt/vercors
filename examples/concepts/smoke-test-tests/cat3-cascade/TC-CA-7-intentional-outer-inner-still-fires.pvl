@@ -1,0 +1,17 @@
+//:: cases TC_CA_7_IntentionalOuterInnerStillFires
+//:: tools silicon
+//:: verdict Fail
+
+// assert false marks the outer dead branch (x < 0) as intentional, so it
+// produces no warning. The inner branch (x > 5) is also dead but is NOT
+// marked intentional, so it still fires its own deadBranch.
+// Expected: Fail — inner branch fires despite outer being intentional.
+requires x > 0;
+void f(int x) {
+    if (x > 5) {
+        assert false; // outer intentional — no outer deadBranch
+        if (x > 5) {  // inner dead — NOT suppressed; fires independently
+            x = x + 1;
+        }
+    }
+}

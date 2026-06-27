@@ -1,0 +1,17 @@
+//:: cases PERF_PRECOND_10methods
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 10 methods each with a non-trivial precondition.
+// checkSat: generates 10 independent standalone procedures.
+// Compare to PERF-PRECOND-simple: should be approximately 10x the cost.
+requires n >= 0 && n < 1000000; void perf_precond_m1(int n) { }
+requires n >= 0 && n < 1000000; void perf_precond_m2(int n) { }
+requires n >= 0 && n < 1000000; void perf_precond_m3(int n) { }
+requires n >= 0 && n < 1000000; void perf_precond_m4(int n) { }
+requires n >= 0 && n < 1000000; void perf_precond_m5(int n) { }
+requires n >= 0 && n < 1000000; void perf_precond_m6(int n) { }
+requires n >= 0 && n < 1000000; void perf_precond_m7(int n) { }
+requires n >= 0 && n < 1000000; void perf_precond_m8(int n) { }
+requires n >= 0 && n < 1000000; void perf_precond_m9(int n) { }
+requires n >= 0 && n < 1000000; void perf_precond_m10(int n) { }

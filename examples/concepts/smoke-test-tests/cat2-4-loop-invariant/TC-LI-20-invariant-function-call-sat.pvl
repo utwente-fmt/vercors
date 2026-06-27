@@ -1,0 +1,18 @@
+//:: cases TC_LI_20_InvariantFunctionCallSat
+//:: tools silicon
+//:: verdict Pass
+
+// Loop invariant calls nonNeg(x), whose precondition x >= 0 is also an invariant.
+// x = 0 satisfies both, so invSat must not fire; normal verification also passes.
+
+requires x >= 0;
+pure boolean nonNeg(int x) = x >= 0;
+
+requires x >= 0;
+void foo(int x) {
+    loop_invariant x >= 0;
+    loop_invariant nonNeg(x);
+    while (x > 0) {
+        x = x - 1;
+    }
+}

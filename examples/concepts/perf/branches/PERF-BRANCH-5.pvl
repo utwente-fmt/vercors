@@ -2,13 +2,15 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 5 sequential if-else branches, all live (no precondition restricts x).
-// detectDeadCode: 10 inline Refutes (2 per branch). Baseline for branch scaling tests.
-// Compare to PERF-SEQ-1loop to see branch vs loop instrumentation cost difference.
-void perf_branch_5(int x) {
-    if (x > 0) { } else { }
-    if (x > 10) { } else { }
-    if (x > 100) { } else { }
-    if (x > 1000) { } else { }
-    if (x > 10000) { } else { }
+// Performance: 5 sequential if-else branches, two variables, non-empty bodies.
+// detectDeadCode: 10 Refutes; each checks a multi-variable path condition.
+// Bodies assign to locals so Silicon tracks symbolic values per branch.
+// Compare to PERF-SEQ-1loop to see branch vs loop instrumentation cost.
+requires a >= 0 && b >= 0;
+void perf_branch_5(int a, int b) {
+    if (a > b) { int s = a - b; } else { int s = b - a; }
+    if (a + b > 100) { int t = a + b - 100; } else { int t = 100 - a - b; }
+    if (a > 50 && b > 50) { int u = a + b; } else { int u = a - b; }
+    if (b > a + 10) { int v = b - a; } else { int v = a - b; }
+    if (a + b > 200) { int w = a + b; } else { int w = 0; }
 }

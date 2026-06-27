@@ -1,0 +1,20 @@
+//:: cases TC_PST_19_EnsuresPermFunctionCallSat
+//:: tools silicon
+//:: verdict Pass
+
+// TC-PST-19: postcondition calls a pure function requiring permission on a
+// field, and also grants that permission (Perm(n.value, write)), so the
+// postSat check can see isFieldPos(n) == (n.value > 0), which is satisfiable.
+// Expected: Pass — postUnsatisfiable must not fire.
+
+class TC_PST_19_Node {
+    int value;
+}
+
+requires Perm(n.value, write);
+pure boolean isFieldPos(TC_PST_19_Node n) = n.value > 0 || n.value < 0;
+
+requires Perm(n.value, write) ** n.value > 0;
+ensures Perm(n.value, write) ** isFieldPos(n);
+void foo(TC_PST_19_Node n) { }
+

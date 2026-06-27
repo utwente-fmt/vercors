@@ -1,0 +1,18 @@
+//:: cases TC_PST_31_RequiresSelectExtractsNonHeapUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// TC-PST-31: foo's precondition is a ternary mixing a permission with a pure
+// fact (`a > 0 ? (Perm(x,write) ** a > 100) : a > 100`). The extracted non-heap
+// part (`a > 100`) contradicts the postcondition (`a > 0 && a < 10`), so
+// postUnsatisfiable correctly fires.
+class TC_PST_31 {
+    int x;
+
+    requires a > 0 ? (Perm(x, write) ** a > 100) : a > 100;
+    ensures a > 0;
+    ensures a < 10;
+    void foo(int a) {
+        assume false;
+    }
+}

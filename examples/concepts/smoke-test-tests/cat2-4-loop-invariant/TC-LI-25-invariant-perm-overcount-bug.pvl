@@ -1,0 +1,21 @@
+//:: cases TC_LI_25_InvariantPermOvercountBug
+//:: tools silicon
+//:: verdict Pass
+
+// TC-LI-25: The invariant explicitly holds Perm(x.value, write) and also calls
+// isWritePos(x), which itself requires Perm(x.value, write). If the WD check
+// double-counts this permission, invariantUnsatisfiable fires incorrectly.
+// Expected: Pass.
+
+class TC_LI_25_Node {
+    int value;
+}
+
+requires Perm(n.value, write);
+pure boolean isWritePos(TC_LI_25_Node n) = n.value > 0;
+
+requires false;
+void foo(TC_LI_25_Node x) {
+    loop_invariant Perm(x.value, write) ** isWritePos(x);
+    while (true) { }
+}

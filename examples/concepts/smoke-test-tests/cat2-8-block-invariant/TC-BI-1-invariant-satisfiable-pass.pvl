@@ -1,0 +1,11 @@
+//:: cases TC_BI_1_InvariantSatisfiablePass
+//:: tools silicon
+//:: verdict Pass
+
+// TC-BI-1 (Negative): invariant x >= 0 is satisfiable — x = 0 witnesses it.
+// The invariant satisfiability check must NOT fire.
+requires x >= 0;
+void f(int x) {
+    invariant inv (x >= 0) {
+    }
+}

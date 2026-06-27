@@ -1,0 +1,170 @@
+//:: cases PERF_REAL_parallel_pipeline
+//:: tools silicon
+//:: verdict Pass
+
+// Real-life combined: a data pipeline exercising lock, seq-loop, and par-branches
+// together — a lock-guarded aggregator class (4 fields) plus a top-level pipeline
+// function with a forall prep loop and eight parallel processing stages (each
+// with a 4-way chain branch). Expected: Pass.
+
+lock_invariant Perm(accepted, write) ** Perm(rejected, write) ** Perm(retried, write) ** Perm(dropped, write) **
+               accepted >= 0 ** rejected >= 0 ** retried >= 0 ** dropped >= 0;
+class PERF_REAL_Aggregator {
+    int accepted;
+    int rejected;
+    int retried;
+    int dropped;
+
+    ensures committed(this);
+    constructor() { accepted = 0; rejected = 0; retried = 0; dropped = 0; commit this; }
+
+    requires committed(this) ** v >= 0;
+    ensures committed(this);
+    void accept(int v) {
+        lock this;
+        this.accepted = this.accepted + v;
+        unlock this;
+    }
+
+    requires committed(this) ** v >= 0;
+    ensures committed(this);
+    void reject(int v) {
+        lock this;
+        this.rejected = this.rejected + v;
+        unlock this;
+    }
+
+    requires committed(this) ** v >= 0;
+    ensures committed(this);
+    void retry(int v) {
+        lock this;
+        this.retried = this.retried + v;
+        unlock this;
+    }
+
+    requires committed(this) ** v >= 0;
+    ensures committed(this);
+    void drop(int v) {
+        lock this;
+        this.dropped = this.dropped + v;
+        unlock this;
+    }
+}
+
+requires n > 0 && a >= 0 && b >= 0 && k >= 0 && k < n;
+void pipeline(int n, int a, int b, int k) {
+
+    // prep: compute a threshold under a forall invariant
+    int thresh = 0;
+    int j = 0;
+    loop_invariant j >= 0 && j <= k && thresh >= 0 &&
+                   (\forall int x = 0 .. j; x >= 0 && x < k + 1);
+    while (j < k) {
+        if (a > b + j) { thresh = thresh + 2; } else { thresh = thresh + 1; }
+        j = j + 1;
+    }
+
+    // stage 1: filter by combined threshold
+    par (int tid = 0 .. n) context true; {
+        if (a + tid > b + thresh) {
+            int r = a + tid - b;
+        } else if (a + tid > b) {
+            int r = a + tid;
+        } else if (b > a + tid) {
+            int r = b - a;
+        } else {
+            int r = 0;
+        }
+    }
+
+    // stage 2: classify by independent conditions
+    par (int tid2 = 0 .. n) context true; {
+        if (tid2 < a && tid2 < b) {
+            int r = 0;
+        } else if (tid2 >= a && tid2 < b) {
+            int r = tid2 - a;
+        } else if (tid2 < a && tid2 >= b) {
+            int r = tid2 - b;
+        } else {
+            int r = tid2;
+        }
+    }
+
+    // stage 3: score by distance from thresh
+    par (int tid3 = 0 .. n) context true; {
+        if (a + b > tid3 + thresh) {
+            int r = a + b - tid3;
+        } else if (a > tid3) {
+            int r = a - tid3;
+        } else if (b > tid3) {
+            int r = b - tid3;
+        } else {
+            int r = 0;
+        }
+    }
+
+    // stage 4: route by combined multi-variable condition
+    par (int tid4 = 0 .. n) context true; {
+        if (tid4 + a > b + thresh + k) {
+            int r = 1;
+        } else if (tid4 + a > b + thresh) {
+            int r = 2;
+        } else if (tid4 > thresh) {
+            int r = 3;
+        } else {
+            int r = 4;
+        }
+    }
+
+    // stage 5: filter by mirrored combined threshold
+    par (int tid5 = 0 .. n) context true; {
+        if (b + tid5 > a + thresh) {
+            int r = b + tid5 - a;
+        } else if (b + tid5 > a) {
+            int r = b + tid5;
+        } else if (a > b + tid5) {
+            int r = a - b;
+        } else {
+            int r = 0;
+        }
+    }
+
+    // stage 6: classify by independent conditions (mirrored)
+    par (int tid6 = 0 .. n) context true; {
+        if (tid6 < b && tid6 < a) {
+            int r = 0;
+        } else if (tid6 >= b && tid6 < a) {
+            int r = tid6 - b;
+        } else if (tid6 < b && tid6 >= a) {
+            int r = tid6 - a;
+        } else {
+            int r = tid6;
+        }
+    }
+
+    // stage 7: score by distance from thresh (mirrored)
+    par (int tid7 = 0 .. n) context true; {
+        if (b + a > tid7 + thresh) {
+            int r = b + a - tid7;
+        } else if (b > tid7) {
+            int r = b - tid7;
+        } else if (a > tid7) {
+            int r = a - tid7;
+        } else {
+            int r = 0;
+        }
+    }
+
+    // stage 8: route by combined multi-variable condition (mirrored)
+    par (int tid8 = 0 .. n) context true; {
+        if (tid8 + b > a + thresh + k) {
+            int r = 1;
+        } else if (tid8 + b > a + thresh) {
+            int r = 2;
+        } else if (tid8 > thresh) {
+            int r = 3;
+        } else {
+            int r = 4;
+        }
+    }
+}

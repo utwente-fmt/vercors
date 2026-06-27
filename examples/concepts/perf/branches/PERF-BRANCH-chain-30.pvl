@@ -1,0 +1,71 @@
+//:: cases PERF_BRANCH_chain_30
+//:: tools silicon
+//:: verdict Pass
+
+// Performance: 30-way chain with two-variable conditions, all branches live.
+// detectDeadCode: 30 Refutes; the final else carries 29 accumulated multi-variable negations.
+// May be very slow or timeout — that result is itself informative about chain scaling.
+requires a >= 0 && b >= 0 && a + b <= 6000;
+void perf_branch_chain_30(int a, int b) {
+    if (a + b > 5500) {
+        int s = a + b - 5500;
+    } else if (a > b + 1500) {
+        int s = a - b - 1500;
+    } else if (b > a + 1400) {
+        int s = b - a - 1400;
+    } else if (a + b > 5000) {
+        int s = a + b - 5000;
+    } else if (a > b + 1200) {
+        int s = a - b - 1200;
+    } else if (b > a + 1100) {
+        int s = b - a - 1100;
+    } else if (a + b > 4500) {
+        int s = a + b - 4500;
+    } else if (a > b + 900) {
+        int s = a - b - 900;
+    } else if (b > a + 800) {
+        int s = b - a - 800;
+    } else if (a + b > 4000) {
+        int s = a + b - 4000;
+    } else if (a > b + 700) {
+        int s = a - b - 700;
+    } else if (b > a + 600) {
+        int s = b - a - 600;
+    } else if (a + b > 3500) {
+        int s = a + b - 3500;
+    } else if (a > b + 500) {
+        int s = a - b - 500;
+    } else if (b > a + 450) {
+        int s = b - a - 450;
+    } else if (a + b > 3000) {
+        int s = a + b - 3000;
+    } else if (a > b + 400) {
+        int s = a - b - 400;
+    } else if (b > a + 350) {
+        int s = b - a - 350;
+    } else if (a + b > 2500) {
+        int s = a + b - 2500;
+    } else if (a > b + 300) {
+        int s = a - b - 300;
+    } else if (b > a + 250) {
+        int s = b - a - 250;
+    } else if (a + b > 2000) {
+        int s = a + b - 2000;
+    } else if (a > b + 200) {
+        int s = a - b - 200;
+    } else if (b > a + 150) {
+        int s = b - a - 150;
+    } else if (a + b > 1500) {
+        int s = a + b - 1500;
+    } else if (a > b + 100) {
+        int s = a - b - 100;
+    } else if (b > a + 80) {
+        int s = b - a - 80;
+    } else if (a + b > 800) {
+        int s = a + b - 800;
+    } else if (a > b + 30) {
+        int s = a - b - 30;
+    } else {
+        int s = 0;
+    }
+}

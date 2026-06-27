@@ -1,0 +1,19 @@
+//:: cases TC_AT_2_AtomicPermInvariantLive
+//:: tools silicon
+//:: verdict Pass
+
+// TC-AT-2 (Negative): a single, non-nested atomic(inv) borrowing a
+// permission-bearing invariant. The new entry-level check on atomic must not
+// false-positive on the normal, legitimate use of atomic.
+class TC_AT_2_Cell {
+    int f;
+}
+
+context Perm(c.f, write);
+void test(TC_AT_2_Cell c) {
+    invariant inv (Perm(c.f, write)) {
+        atomic (inv) {
+            c.f = c.f + 1;
+        }
+    }
+}

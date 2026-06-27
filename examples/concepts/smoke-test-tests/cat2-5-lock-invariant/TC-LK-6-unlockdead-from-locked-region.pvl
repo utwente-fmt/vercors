@@ -1,0 +1,19 @@
+//:: cases TC_LK_6_UnlockDeadFromLockedRegion
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LK-6: unlockDead fires due to dead code introduced INSIDE the locked region.
+// The lock invariant (val > 0) is fine, so lockInvariantUnsatisfiable and lockDead
+// do not fire. But 'assume val < 0' inside the lock contradicts val > 0, making
+// the state dead by the time unlock is reached.
+lock_invariant Perm(val, write) ** val > 0;
+class DeadInsideLockedRegion {
+    int val;
+
+    requires committed(this);
+    void method() {
+        lock this;
+        assume val < 0; // contradicts val > 0 — deadBranch fires here
+        unlock this;    // unlockDead fires: dead state persists
+    }
+}

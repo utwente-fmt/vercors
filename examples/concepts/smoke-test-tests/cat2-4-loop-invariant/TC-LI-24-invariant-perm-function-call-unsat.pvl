@@ -1,0 +1,21 @@
+//:: cases TC_LI_24_InvariantPermFunctionCallUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// TC-LI-24: Loop invariant calls a pure function (impossiblePerm) whose body
+// is always false (n.value > 0 && n.value < 0), so the invariant's sat check
+// inhales a contradictory state and invariantUnsatisfiable fires.
+// Expected: Fail.
+
+class TC_LI_24_Node {
+    int value;
+}
+
+requires Perm(n.value, write);
+pure boolean impossiblePerm(TC_LI_24_Node n) = n.value > 0 && n.value < 0;
+
+requires Perm(x.value, write);
+void foo(TC_LI_24_Node x) {
+    loop_invariant impossiblePerm(x);
+    while (true) { }
+}

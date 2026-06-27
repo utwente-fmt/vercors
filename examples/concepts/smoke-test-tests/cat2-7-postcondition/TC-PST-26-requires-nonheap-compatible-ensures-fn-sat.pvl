@@ -1,0 +1,12 @@
+//:: cases TC_PST_26_RequiresNonHeapCompatibleEnsuresFnSat
+//:: tools silicon
+//:: verdict Pass
+
+// foo's precondition n > 0 is compatible with its postcondition isPos(n) (n > 0),
+// so postSat is satisfiable and normal verification passes too.
+
+pure boolean isPos(int n) = n > 0;
+
+requires n > 0;
+ensures isPos(n);
+void foo(int n) { }

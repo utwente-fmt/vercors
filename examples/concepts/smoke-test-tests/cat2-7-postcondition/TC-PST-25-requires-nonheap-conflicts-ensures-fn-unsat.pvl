@@ -1,0 +1,14 @@
+//:: cases TC_PST_25_RequiresNonHeapConflictsEnsuresFnUnsat
+//:: tools silicon
+//:: verdict Fail
+
+// foo's precondition n > 0 conflicts with its postcondition isNeg(n) (n < 0);
+// combining them is infeasible, so postUnsatisfiable fires.
+
+pure boolean isNeg(int n) = n < 0;
+
+requires n > 0;
+ensures isNeg(n);
+void foo(int n) {
+    assume false;  // makes normal verification vacuous; only postUnsatisfiable fires
+}

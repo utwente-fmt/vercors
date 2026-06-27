@@ -8,9 +8,11 @@
 */
 public class Unsat {
 
+  /*[/expect unsatisfiable]*/
   /*@
     requires 1==0;
   @*/
-  public void bad();
+  public void bad(){
+  }
+  /*[/end]*/
 }
-

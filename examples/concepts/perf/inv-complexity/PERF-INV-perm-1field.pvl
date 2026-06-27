@@ -2,15 +2,57 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: loop invariant with one heap permission.
-// Forces heap reasoning in the FramedProof: starts with empty heap, inhales Perm, then refutes.
-// Compare timing to PERF-INV-arithmetic to isolate the cost of heap vs pure arithmetic.
+// Performance: 1 Perm + 8 arithmetic constraints on the field, repeated across
+// 3 methods (3x checkInvSat calls in this file, one per field/loop).
+// FramedProof starts from empty heap; Inhale grants ownership plus all conditions.
+// Compare to PERF-INV-arithmetic: heap encoding cost on top of arithmetic reasoning.
 class PERF_INV_perm_1field_Node {
-    int value;
+    int v1;
+    int v2;
+    int v3;
 
-    requires Perm(this.value, write) ** this.value >= 0;
-    void run(int n) {
-        loop_invariant Perm(this.value, write) ** this.value >= 0 && this.value <= n;
-        while (this.value < n) { this.value = this.value + 1; }
+    requires Perm(this.v1, write) ** this.v1 >= 0 ** this.v1 <= n;
+    void work1(int n) {
+        loop_invariant
+            Perm(this.v1, write) **
+            this.v1 >= 0 ** this.v1 <= n **
+            this.v1 + 1 > 0 **
+            this.v1 + 2 > 1 **
+            this.v1 + 3 > 2 **
+            n - this.v1 >= 0 **
+            n - this.v1 + 1 > 0 **
+            n - this.v1 + 2 > 1 **
+            n - this.v1 + 3 > 2;
+        while (this.v1 < n) { this.v1 = this.v1 + 1; }
+    }
+
+    requires Perm(this.v2, write) ** this.v2 >= 0 ** this.v2 <= n;
+    void work2(int n) {
+        loop_invariant
+            Perm(this.v2, write) **
+            this.v2 >= 0 ** this.v2 <= n **
+            this.v2 + 1 > 0 **
+            this.v2 + 2 > 1 **
+            this.v2 + 3 > 2 **
+            n - this.v2 >= 0 **
+            n - this.v2 + 1 > 0 **
+            n - this.v2 + 2 > 1 **
+            n - this.v2 + 3 > 2;
+        while (this.v2 < n) { this.v2 = this.v2 + 1; }
+    }
+
+    requires Perm(this.v3, write) ** this.v3 >= 0 ** this.v3 <= n;
+    void work3(int n) {
+        loop_invariant
+            Perm(this.v3, write) **
+            this.v3 >= 0 ** this.v3 <= n **
+            this.v3 + 1 > 0 **
+            this.v3 + 2 > 1 **
+            this.v3 + 3 > 2 **
+            n - this.v3 >= 0 **
+            n - this.v3 + 1 > 0 **
+            n - this.v3 + 2 > 1 **
+            n - this.v3 + 3 > 2;
+        while (this.v3 < n) { this.v3 = this.v3 + 1; }
     }
 }
