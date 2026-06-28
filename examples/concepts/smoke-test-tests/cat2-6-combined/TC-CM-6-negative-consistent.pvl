@@ -7,6 +7,6 @@ requires x > 0;
 void f(int x) {
     assume x < 100;
     if (x > 5) {
-        refute false; // live: x could be 6..99, satisfying all constraints
+        // live: x could be 6..99, satisfying all constraints
     }
 }

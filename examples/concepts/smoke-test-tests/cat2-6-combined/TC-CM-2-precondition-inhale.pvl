@@ -7,6 +7,6 @@ requires x > 0;
 void f(int x) {
     inhale x < 5;
     if (x > 10) {
-        refute false; // dead: x in (0,5) but x > 10 impossible
+        return; // dead: x in (0,5) but x > 10 impossible
     }
 }

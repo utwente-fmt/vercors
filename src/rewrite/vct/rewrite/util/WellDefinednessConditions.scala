@@ -5,11 +5,9 @@ import vct.col.origin.Origin
 import vct.col.util.AstBuildHelpers.{foldStar, unfoldStar}
 import vct.col.util.Substitute
 
-/** Collect the well-definedness conditions needed to evaluate an expression in
-  * a specification. For each pure function call in the expression, the
-  * function's precondition (with actual arguments substituted for formals) is
-  * included. Deeper conditions come before shallower ones so that Viper can
-  * evaluate each condition in the context established by prior ones.
+/** Collects the precondition of each pure function called within `expr`, args
+  * substituted for formals, ordered deepest-first so Viper can evaluate each in
+  * the context the prior ones established.
   */
 object WellDefinednessConditions {
 
@@ -26,13 +24,10 @@ object WellDefinednessConditions {
         case _ => visited
       }
 
-    // Recurse into direct sub-expressions first (depth-first) so their
-    // conditions appear before the conditions of the current call.
     val fromSubnodes: Seq[Expr[G]] = expr.subnodes.collect { case e: Expr[G] =>
       e
     }.flatMap(collect(_, newVisited))
 
-    // Collect conditions contributed by the current node.
     val direct: Seq[Expr[G]] =
       expr match {
         case inv: FunctionInvocation[G] if !visited.contains(inv.ref.decl) =>
@@ -102,14 +97,9 @@ object WellDefinednessConditions {
         }
     }
 
-  /** Extracts the largest part of `expr` that is free of heap-dependent
-    * constructs (see [[isNonHeap]]), descending into `&&`/`**`/`==>`/`?:` where
-    * the heap-dependent parts are confined to branches guarded by a non-heap
-    * condition. E.g. `a > 0 ==> (Perm(x,write) ** b > 0)` becomes `a > 0 ==> b
-    * > 0`: the permission cannot be granted here, but the pure fact `b > 0`
-    * (under the same guard) still can be.
-    *
-    * Returns `None` if no part of `expr` can be safely extracted.
+  /** Extracts the heap-free part of `expr` (see [[isNonHeap]]), descending into
+    * `&&`/`**`/`==>`/`?:` so a pure conjunct isn't lost just because it's
+    * paired with a heap-dependent one. `None` if nothing can be extracted.
     */
   def extractNonHeap[G](expr: Expr[G]): Option[Expr[G]] = {
     implicit val o: Origin = expr.o

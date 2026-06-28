@@ -7,11 +7,9 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.rewrite.util.WellDefinednessConditions
 import vct.col.util.AstBuildHelpers._
 
-// Checks that loop invariants and parallel (block) invariants are satisfiable by
-// inhaling the invariant in an isolated FramedProof and then refuting false. If
-// refute fires, the invariant is unsatisfiable. WD conditions are inhaled in
-// separate statements before the invariant so each one is in the prover state
-// when the next expression's Well Definedness is checked.
+// Checks loop/par invariants are satisfiable: inhale into an isolated FramedProof
+// and refute false; a fired refute means unsatisfiable. WD conditions are inhaled
+// one statement at a time so each is in scope when the next is checked.
 case object CheckInvariantSatisfiability extends RewriterBuilderArg[Boolean] {
   override def key: String = "checkInvSat"
   override def desc: String =
@@ -23,9 +21,8 @@ case object CheckInvariantSatisfiability extends RewriterBuilderArg[Boolean] {
       li.blame.blame(LoopInvariantUnsatisfiable(li))
   }
 
-  // ParInvariant's own blame field only accepts ParInvariantNotEstablished, so
-  // this is anchored to the enclosing ContractApplicable's blame instead (see
-  // ParInvariantUnsatisfiable in Blame.scala for why that is safe).
+  // ParInvariant's own blame only accepts ParInvariantNotEstablished, so this
+  // anchors to the enclosing ContractApplicable instead.
   case class ParInvariantUnsatisfiableBlame(
       parInv: ParInvariant[_],
       anchor: ContractApplicable[_],
@@ -34,12 +31,8 @@ case object CheckInvariantSatisfiability extends RewriterBuilderArg[Boolean] {
       anchor.blame.blame(ParInvariantUnsatisfiable(parInv))
   }
 
-  // The FramedProof wrapping this check starts from an empty heap, so e.g.
-  // \old(field) has no permission in its old-state snapshot and is reported
-  // as not well-formed. That is an artifact of this synthetic check, not a
-  // real problem with the invariant: the invariant's well-definedness is
-  // already checked in its real position with its real heap state, so any
-  // well-definedness error here would just be a duplicate of that one.
+  // The empty heap here can spuriously flag well-definedness errors that don't
+  // occur in the invariant's real position; suppress to avoid a duplicate report.
   case class IgnoreWellformednessInInvSat[T <: VerificationFailure]()
       extends Blame[T] {
     override def blame(error: T): Unit = ()
@@ -102,12 +95,10 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
       stat.rewriteDefault()
     else
       stat match {
-        // \old(...) cannot be checked here: the FramedProof below starts from an
-        // empty heap, so \old(field) has no permission in its old-state snapshot,
-        // and \old(e) does not generally denote the same value as e (e.g.
-        // "x == \old(x) + i" is satisfiable, but "x == x + i" is not for nonzero
-        // i — they are not equivalent). Rather than risk a false unsatisfiable,
-        // skip the satisfiability check entirely for invariants containing \old(...).
+        // \old(e) isn't generally equivalent to e (e.g. "x == \old(x) + i" is sat,
+        // "x == x + i" isn't for nonzero i), and the empty heap below has no old-state
+        // snapshot anyway, so skip invariants containing \old(...) rather than risk a
+        // false unsatisfiable.
         case loop @ Loop(_, _, _, LoopInvariant(inv, _), _) if hasOld(inv) =>
           loop.rewriteDefault()
         case parInv @ ParInvariant(_, inv, _) if hasOld(inv) =>

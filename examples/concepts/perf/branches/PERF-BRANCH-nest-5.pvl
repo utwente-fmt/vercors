@@ -1,0 +1,134 @@
+//:: cases PERF_BRANCH_nest_5
+//:: tools silicon
+//:: verdict Pass
+
+// Fully nested if-else, 5 levels deep — 62 Refutes total.
+// Compare to flat sequential branches with the same Refute count: nesting vs count.
+// Also compare to PERF-BRANCH-nest-7 to see how nesting depth scales (5 vs 7 levels).
+void perf_branch_nest_5(int x1, int x2, int x3, int x4, int x5) {
+    if (x1 > 0) {
+        if (x2 > 0) {
+            if (x3 > 0) {
+                if (x4 > 0) {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                } else {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                }
+            } else {
+                if (x4 > 0) {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                } else {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                }
+            }
+        } else {
+            if (x3 > 0) {
+                if (x4 > 0) {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                } else {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                }
+            } else {
+                if (x4 > 0) {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                } else {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                }
+            }
+        }
+    } else {
+        if (x2 > 0) {
+            if (x3 > 0) {
+                if (x4 > 0) {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                } else {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                }
+            } else {
+                if (x4 > 0) {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                } else {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                }
+            }
+        } else {
+            if (x3 > 0) {
+                if (x4 > 0) {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                } else {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                }
+            } else {
+                if (x4 > 0) {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                } else {
+                    if (x5 > 0) {
+                        int v = 1;
+                    } else {
+                        int v = 1;
+                    }
+                }
+            }
+        }
+    }
+}

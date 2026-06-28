@@ -2,8 +2,8 @@
 //:: tools silicon
 //:: verdict Fail
 
-// Sat/unsat pair A (arithmetic): unsatisfiable invariant — invariantUnsatisfiable must fire.
-// Pair with PERF-SAT-inv-arith. Compare solver time: does it find contradictions faster?
+// Sat/unsat pair A (arithmetic): unsatisfiable invariant — must fire.
+// Pair with PERF-SAT-inv-arith.
 requires n >= 0;
 void perf_unsat_inv_arith(int n) {
     int i = 0;

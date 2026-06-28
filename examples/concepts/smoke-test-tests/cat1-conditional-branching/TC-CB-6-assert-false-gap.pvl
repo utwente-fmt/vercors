@@ -2,10 +2,12 @@
 //:: tools silicon
 //:: verdict Fail
 
-// Unlike assume/inhale false, assert false doesn't narrow the state.
+// assert false fails, but Silicon then stops checking the rest of this method
+// entirely — no deadBranch fires below not because the branch is proven live,
+// but because its Refute(false) check is never evaluated at all.
 void f(int x) {
     assert false; // assertFailed: state is feasible, so false never holds
     if (x > 0) {
-        x = x + 1; // NOT dead: assert false does not narrow the state
+        x = x + 1; // never checked: would fire deadBranch even if genuinely dead
     }
 }

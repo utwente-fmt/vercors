@@ -10,6 +10,6 @@ class TC_PST_31 {
     ensures a > 0;
     ensures a < 10;
     void foo(int a) {
-        assume false;
+        assume false; // deadBranch fires here too (literal assume false); also postUnsatisfiable
     }
 }

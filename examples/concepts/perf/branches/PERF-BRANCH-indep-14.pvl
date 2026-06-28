@@ -4,7 +4,6 @@
 
 // Performance: 14 sequential if statements (no else), one independent variable per branch.
 // Part of the indep-N series (5,10,12,13,14,15,20,...) used to map the 2^n trace-count
-// curve at sizes small enough to complete (see TESTING-PLAN.md section 12).
 void perf_branch_indep_14(int v1, int v2, int v3, int v4, int v5, int v6, int v7, int v8, int v9, int v10, int v11, int v12, int v13, int v14) {
     if (v1 > 0) { int r1 = v1; }
     if (v2 > 0) { int r2 = v2; }

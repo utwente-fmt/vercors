@@ -9,5 +9,5 @@ pure boolean isNeg(int n) = n < 0;
 requires n > 0;
 ensures isNeg(n);
 void foo(int n) {
-    assume false;  // makes normal verification vacuous; only postUnsatisfiable fires
+    assume false;  // deadBranch fires here too (literal assume false); also postUnsatisfiable
 }

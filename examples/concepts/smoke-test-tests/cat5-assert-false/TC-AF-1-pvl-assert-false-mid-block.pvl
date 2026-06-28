@@ -3,19 +3,16 @@
 //:: verdict Fail
 
 // assert false on a live path cuts off instrumentation for the rest of the block.
-requires x > 0;
 void f(int x) {
-    x = x + 1;
-    if(x<0){
+    if (x < 0) {                  // live: x is unconstrained, x < 0 is satisfiable
         assert false;              // assertFailed — block cutoff starts here
-        if (x == 2) {              // not instrumented (block cutoff)
+        if (x == -2) {             // not instrumented (block cutoff)
             x = x - 1;
         }
-        loop_invariant x > 0;
-        while (x > 1) {            // not instrumented (block cutoff)
-            x = x - 1;
+        loop_invariant x < 0;
+        while (x < -1) {           // not instrumented (block cutoff)
+            x = x + 1;
         }
         x = x + 2;
-
     }
 }

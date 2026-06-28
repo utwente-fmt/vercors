@@ -10,7 +10,7 @@ class SatInvClass {
     ensures committed(this);
     constructor() {
         val = 1;
-        commit this;  // fold lockInv: needs Perm(val,write) ** val>0  →  1>0 holds
+        commit this;  // fold lockInv
     }
 
     requires committed(this);

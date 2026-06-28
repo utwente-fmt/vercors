@@ -10,6 +10,6 @@ void f(int x) {
     loop_invariant x > 0;
     while (x < 10) { x = x + 1; }
     if (x < 0) {
-        refute false; // dead: all constraints together exclude x < 0
+        return; // dead: all constraints together exclude x < 0
     }
 }

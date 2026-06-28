@@ -2,7 +2,10 @@
 //:: tools silicon
 //:: verdict Fail
 
-// Same as TC-AF-1 but the cutoff is inside a loop body.
+// Same as TC-AF-1 but the cutoff is inside a loop body. The assert false also
+// causes a knock-on, misleading deadBranch on the unrelated post-loop check
+// below, even though code after the loop is genuinely reachable (e.g. x=10
+// skips the loop body entirely). Two errors fire: assertFailed and deadBranch.
 void f(int x) {
     loop_invariant true;
     while (x < 10) {

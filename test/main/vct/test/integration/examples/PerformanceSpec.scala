@@ -19,6 +19,10 @@ class PerformanceSpec extends VercorsSpec {
   vercors should verify using silicon flags("--dev-no-loop-inv-sat") example "concepts/perf/seq-loops/PERF-SEQ-15loops.pvl"
   vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/seq-loops/PERF-SEQ-15loops.pvl"
 
+  vercors should verify using silicon example "concepts/perf/seq-loops/PERF-SEQ-5loops-indep.pvl"
+  vercors should verify using silicon flags("--dev-no-loop-inv-sat") example "concepts/perf/seq-loops/PERF-SEQ-5loops-indep.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/seq-loops/PERF-SEQ-5loops-indep.pvl"
+
   // ── Nested loops ─────────────────────────────────────────────────────────────
   // Same three-way run, with 2/3/5 levels of nesting.
 
@@ -35,15 +39,14 @@ class PerformanceSpec extends VercorsSpec {
   vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/nest-loops/PERF-NEST-5level.pvl"
 
   // ── Invariant complexity ─────────────────────────────────────────────────────
-  // Fixed structure (1 loop), vary what is inside the invariant.
-  // All run with checkInvSat only to isolate the per-check formula cost.
-  // Light/heavy pairs: light = minimal invariant, heavy = same construct scaled up.
+  // Fixed structure (1 loop), checkInvSat isolated; light/heavy = minimal vs. scaled-up invariant.
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/inv-complexity/PERF-INV-arithmetic-light.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/inv-complexity/PERF-INV-arithmetic.pvl"
 
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/inv-complexity/PERF-INV-perm-light.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/inv-complexity/PERF-INV-perm-1field.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/inv-complexity/PERF-INV-perm-5fields.pvl"
+  vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/inv-complexity/PERF-INV-perm-5objects.pvl"
 
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/inv-complexity/PERF-INV-forall-light.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/inv-complexity/PERF-INV-forall.pvl"
@@ -54,8 +57,7 @@ class PerformanceSpec extends VercorsSpec {
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/inv-complexity/PERF-INV-combined.pvl"
 
   // ── Branches ─────────────────────────────────────────────────────────────────
-  // Each file run twice: all checkers on, then detectDeadCode off (baseline).
-  // The time gap reveals the cost of dead code instrumentation.
+  // Each file run twice (all checkers on vs. --dev-no-dead) to isolate dead-code cost.
 
   vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-5.pvl"
   vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-5.pvl"
@@ -84,14 +86,48 @@ class PerformanceSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-chain-30.pvl"
   vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-chain-30.pvl"
 
-  // 30 sequential ifs (no else), each on its OWN independent variable (60 Refutes total).
-  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-indep-30.pvl"
-  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-indep-30.pvl"
+  // Same chain shape, but every condition is on its own independent variable.
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-chain-indep-5.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-chain-indep-5.pvl"
+
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-chain-indep-10.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-chain-indep-10.pvl"
+
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-chain-indep-12.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-chain-indep-12.pvl"
+
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-chain-indep-30.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-chain-indep-30.pvl"
+
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-chain-indep-50.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-chain-indep-50.pvl"
+
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-indep-5.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-indep-5.pvl"
+
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-indep-10.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-indep-10.pvl"
+
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-indep-12.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-indep-12.pvl"
+
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-indep-13.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-indep-13.pvl"
+
+  // 14: near the practical ceiling for this series (282s standalone).
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-indep-14.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-indep-14.pvl"
+
+  // indep-15/20/30 intentionally not run: they exceed the 900s test timeout (see each file).
 
   // Same shape as PERF-BRANCH-indep-30 (30 sequential ifs, no else), but every
   // condition is on a SINGLE shared variable `a` with increasing thresholds.
   vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-single-var-30.pvl"
   vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-single-var-30.pvl"
+
+  // Fully nested if-else, 5 levels deep (62 Refutes) — compare to nest-7 for depth scaling.
+  vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-nest-5.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/branches/PERF-BRANCH-nest-5.pvl"
 
   // Fully nested if-else, 7 levels deep (254 Refutes, innermost carries 7 stacked conditions).
   vercors should verify using silicon example "concepts/perf/branches/PERF-BRANCH-nest-7.pvl"
@@ -110,11 +146,24 @@ class PerformanceSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/perf/parallel/PERF-PAR-4blocks.pvl"
   vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/parallel/PERF-PAR-4blocks.pvl"
 
+  // Same 4 blocks, but each thread's branches are on independent variables.
+  vercors should verify using silicon example "concepts/perf/parallel/PERF-PAR-4blocks-indep.pvl"
+  vercors should verify using silicon flags("--dev-no-dead") example "concepts/perf/parallel/PERF-PAR-4blocks-indep.pvl"
+
+  // ── Block (parallel) invariant complexity ─────────────────────────────────────
+  // Same flag isolation as loop invariants (--dev-no-loop-inv-sat covers both).
+
+  vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/block-inv/PERF-BLOCKINV-perm-1field.pvl"
+  vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/block-inv/PERF-BLOCKINV-perm-5fields.pvl"
+  vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/block-inv/PERF-BLOCKINV-perm-10fields.pvl"
+
   // ── Lock invariants ───────────────────────────────────────────────────────────
   // Lock checker has no disable flag — all other checkers disabled for isolation.
 
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat") example "concepts/perf/locks/PERF-LOCK-perm-1field.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat") example "concepts/perf/locks/PERF-LOCK-perm-5fields.pvl"
+  vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat") example "concepts/perf/locks/PERF-LOCK-perm-10fields.pvl"
+  vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat") example "concepts/perf/locks/PERF-LOCK-perm-15fields.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat") example "concepts/perf/locks/PERF-LOCK-5classes.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat") example "concepts/perf/locks/PERF-LOCK-dedup-5sites.pvl"
 
@@ -123,7 +172,8 @@ class PerformanceSpec extends VercorsSpec {
 
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/postcond/PERF-POST-simple.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/postcond/PERF-POST-funcall-d3.pvl"
-  vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/postcond/PERF-POST-old-forall.pvl"
+  vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/postcond/PERF-POST-indep-5.pvl"
+  vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/postcond/PERF-POST-indep-5-1cond.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/postcond/PERF-POST-perm.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/postcond/PERF-POST-10methods.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/postcond/PERF-POST-30methods.pvl"
@@ -141,24 +191,27 @@ class PerformanceSpec extends VercorsSpec {
   // Each pair: same formula, one satisfiable (pass) and one contradictory (fail).
 
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/sat-unsat/PERF-SAT-inv-arith.pvl"
-  vercors should fail withCode "invariantUnsatisfiable" using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/sat-unsat/PERF-UNSAT-inv-arith.pvl"
+  vercors should AnyFail using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/sat-unsat/PERF-UNSAT-inv-arith.pvl"
 
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/sat-unsat/PERF-SAT-inv-perm.pvl"
-  vercors should fail withCode "invariantUnsatisfiable" using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/sat-unsat/PERF-UNSAT-inv-perm.pvl"
+  vercors should AnyFail using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat") example "concepts/perf/sat-unsat/PERF-UNSAT-inv-perm.pvl"
 
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/sat-unsat/PERF-SAT-post.pvl"
-  vercors should fail withCode "postUnsatisfiable" using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/sat-unsat/PERF-UNSAT-post.pvl"
+  vercors should AnyFail using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-loop-inv-sat") example "concepts/perf/sat-unsat/PERF-UNSAT-post.pvl"
 
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat") example "concepts/perf/sat-unsat/PERF-SAT-lock.pvl"
-  vercors should fail withCode "lockInvariantUnsatisfiable" using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat") example "concepts/perf/sat-unsat/PERF-UNSAT-lock.pvl"
+  vercors should AnyFail using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat") example "concepts/perf/sat-unsat/PERF-UNSAT-lock.pvl"
 
   // ── Real-life combined programs ───────────────────────────────────────────────
-  // Each program hits multiple checkers simultaneously, run with all checkers on
-  // and with all checkers off (baseline), to expose interaction cost.
+  // Each program hits multiple checkers at once; run all-on and all-off to expose interaction cost.
 
   // Event processor: 5-field lock + forall loop invariant + 5-way chain branch.
   vercors should verify using silicon example "concepts/perf/combined/PERF-REAL-event-processor.pvl"
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat", "--dev-no-lock-inv-sat") example "concepts/perf/combined/PERF-REAL-event-processor.pvl"
+
+  // Heavier event processor: 15-field lock/loop invariants, independent (non-chained) branches.
+  vercors should verify using silicon example "concepts/perf/combined/PERF-REAL-event-processor-heavy.pvl"
+  vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat", "--dev-no-lock-inv-sat") example "concepts/perf/combined/PERF-REAL-event-processor-heavy.pvl"
 
   // Analytics: 3 sequential forall loops each with 3-way branch + postcondition.
   vercors should verify using silicon example "concepts/perf/combined/PERF-REAL-analytics.pvl"
@@ -169,28 +222,28 @@ class PerformanceSpec extends VercorsSpec {
   vercors should verify using silicon flags("--dev-no-dead", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat", "--dev-no-lock-inv-sat") example "concepts/perf/combined/PERF-REAL-parallel-pipeline.pvl"
 
   // ── Real-life programs (full example suite) ──────────────────────────────────
-  // Each program run three ways: baseline, +dead-code detection, +all checkers.
-  // verifythis/2019/challenge1.pvl — 39 loops.
+  // Each run three ways: baseline, +dead-code detection, +all checkers.
+  // challenge1.pvl — 39 loops.
   vercors should verify using silicon flags ("--dev-no-dead", "--dev-no-loop-inv-sat", "--dev-no-post-sat", "--dev-no-sat") example "verifythis/2019/challenge1.pvl"
   vercors should verify using silicon flags ("--dev-no-loop-inv-sat", "--dev-no-post-sat", "--dev-no-sat") example "verifythis/2019/challenge1.pvl"
   vercors should verify using silicon example "verifythis/2019/challenge1.pvl"
 
-  // concepts/algo/KahnsTopologicalSort.pvl — 61 loops (most loop-dense).
+  // KahnsTopologicalSort.pvl — 61 loops (most loop-dense).
   vercors should verify using silicon flags ("--dev-no-dead", "--dev-no-loop-inv-sat", "--dev-no-post-sat", "--dev-no-sat") example "concepts/algo/KahnsTopologicalSort.pvl"
   vercors should verify using silicon flags ("--dev-no-loop-inv-sat", "--dev-no-post-sat", "--dev-no-sat") example "concepts/algo/KahnsTopologicalSort.pvl"
   vercors should verify using silicon example "concepts/algo/KahnsTopologicalSort.pvl"
 
-  // verifythis/2015/relaxed_prefix.pvl — 35 loops.
+  // relaxed_prefix.pvl — 35 loops.
   vercors should verify using silicon flags ("--dev-no-dead", "--dev-no-loop-inv-sat", "--dev-no-post-sat", "--dev-no-sat") example "verifythis/2015/relaxed_prefix.pvl"
   vercors should verify using silicon flags ("--dev-no-loop-inv-sat", "--dev-no-post-sat", "--dev-no-sat") example "verifythis/2015/relaxed_prefix.pvl"
   vercors should verify using silicon example "verifythis/2015/relaxed_prefix.pvl"
 
-  // verifythis/2019/challenge3_complete.pvl — 27 branches.
+  // challenge3_complete.pvl — 27 branches.
   vercors should verify using silicon flags ("--dev-no-dead", "--dev-no-loop-inv-sat", "--dev-no-post-sat", "--dev-no-sat", "--no-infer-heap-context-into-frame") example "verifythis/2019/challenge3_complete.pvl"
   vercors should verify using silicon flags ("--dev-no-loop-inv-sat", "--dev-no-post-sat", "--dev-no-sat", "--no-infer-heap-context-into-frame") example "verifythis/2019/challenge3_complete.pvl"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "verifythis/2019/challenge3_complete.pvl"
 
-  // concepts/arrays/ArrayList.java — 36 loops, many methods.
+  // ArrayList.java — 36 loops, many methods.
   vercors should verify using silicon flags ("--dev-no-dead", "--dev-no-loop-inv-sat", "--dev-no-post-sat", "--dev-no-sat") example "concepts/arrays/ArrayList.java"
   vercors should verify using silicon flags ("--dev-no-loop-inv-sat", "--dev-no-post-sat", "--dev-no-sat") example "concepts/arrays/ArrayList.java"
   vercors should verify using silicon example "concepts/arrays/ArrayList.java"

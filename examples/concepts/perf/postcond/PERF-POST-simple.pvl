@@ -2,7 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: simple postcondition, no function calls, no \old, no heap.
+// Performance: simple postcondition, no function calls, no heap.
 // checkPostSat: generates standalone procedure, inhales ensures, asserts false.
 // Baseline for postcondition checker complexity tests.
 requires false;

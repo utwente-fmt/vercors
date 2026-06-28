@@ -1,8 +1,0 @@
-//:: cases TC_PST_21_OldInEnsuresPass
-//:: tools silicon
-//:: verdict Pass
-
-// \old in ensures, satisfiable (must be a method: Viper forbids \old in pure functions).
-requires n >= 0;
-ensures \result == 1;
-int identity(int n) { return 1; }

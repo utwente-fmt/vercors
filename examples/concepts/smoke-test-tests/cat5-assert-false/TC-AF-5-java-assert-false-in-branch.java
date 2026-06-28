@@ -2,7 +2,12 @@
 //:: tools silicon
 //:: verdict Fail
 
-// Same as TC-AF-1 but via Java.
+// Same as TC-AF-1 but via Java, plus a second, unrelated if (x > 0) afterward.
+// The assert false also makes Silicon stop checking the rest of THIS path, so
+// the only path reaching the second if is the one where the first condition
+// was false (x <= 0) — making it look dead there too. Two errors fire:
+// assertFailed, and a misleading deadBranch on the second if, which is
+// genuinely reachable in real execution (e.g. starting from x = 3).
 class TC_AF_5_JavaAssertFalseInBranch {
     void f(int x) {
         if (x > 0) {
@@ -13,7 +18,7 @@ class TC_AF_5_JavaAssertFalseInBranch {
             x = x - 1;
         }
         if (x > 0) {
-            x = x - 1;        // instrumented — check passes (x > 0 is satisfiable)
+            x = x - 1;        // misleadingly reported dead — see comment above
         }
     }
 }

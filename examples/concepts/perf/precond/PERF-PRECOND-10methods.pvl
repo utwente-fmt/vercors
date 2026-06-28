@@ -4,7 +4,6 @@
 
 // Performance: 10 methods each with a non-trivial precondition.
 // checkSat: generates 10 independent standalone procedures.
-// Compare to PERF-PRECOND-simple: should be approximately 10x the cost.
 requires n >= 0 && n < 1000000; void perf_precond_m1(int n) { }
 requires n >= 0 && n < 1000000; void perf_precond_m2(int n) { }
 requires n >= 0 && n < 1000000; void perf_precond_m3(int n) { }

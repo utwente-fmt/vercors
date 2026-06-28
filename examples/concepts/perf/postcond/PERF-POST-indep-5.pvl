@@ -4,8 +4,8 @@
 
 // indep-5 body (see PERF-BRANCH-indep-5, 279 traces) with per-field writes and a
 // postcondition spelling out both outcomes. Tests whether checkPostSat inherits
-// detectDeadCode's exponential trace count. Pre-state passed as params (o1..o5),
-// not \old(...).
+// detectDeadCode's exponential trace count. Pre-state passed explicitly as
+// params (o1..o5) instead.
 class PERF_POST_indep_5_Node {
     int r1;
     int r2;

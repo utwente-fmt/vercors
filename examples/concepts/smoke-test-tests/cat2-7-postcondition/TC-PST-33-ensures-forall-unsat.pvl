@@ -1,0 +1,14 @@
+//:: cases TC_PST_33_EnsuresForallUnsatNotCaught
+//:: tools silicon
+//:: verdict Fail
+
+// Known limitation: this \forall postcondition is unsatisfiable (its i=0
+// instance is \result > 0 && \result < 0), but checkPostSat inhales it
+// without a trigger, so Z3 never instantiates it and postUnsatisfiable does
+// NOT fire. Only the normal postFailed check catches this, for the wrong
+// reason. Same gap exists for checkInvSat on quantified loop invariants.
+requires n > 0;
+ensures (\forall int i = 0 .. n; \result > i && \result < 0);
+int f(int n) {
+    return 0;
+}

@@ -3,7 +3,6 @@
 //:: verdict Pass
 
 // 1 Perm + 2 foralls combined, x2 methods.
-// Compare to perm-1field + forall separately: do costs add linearly or interact?
 class PERF_INV_combined_Node {
     int v;
     int w;

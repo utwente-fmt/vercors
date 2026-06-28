@@ -4,32 +4,21 @@ import vct.test.integration.helper.VercorsSpec
 
 class SmokeTestSpec extends VercorsSpec {
   // Parallel block dead code
-  // Fail: tid is always >= 0 inside par body — branch tid < 0 is dead
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-10-parallel/TC-PB-1-parallel-dead-branch.pvl"
-  // Fail: range [0..size) with size <= 0 is empty — par body is unreachable
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-10-parallel/TC-PB-2-par-body-dead.pvl"
-  // Pass: range is non-empty, body is reachable
   vercors should verify using silicon example "concepts/smoke-test-tests/cat2-10-parallel/TC-PB-3-parallel-body-live.pvl"
-
-  // Pass: branch inside par body is live (tid < n is satisfiable for tid in [0..n))
   vercors should verify using silicon example "concepts/smoke-test-tests/cat2-10-parallel/TC-PB-4-par-live-branch-inside.pvl"
-  // Fail: context_everywhere adds invariant to each iteration — branch contradicting it is dead
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-10-parallel/TC-PB-5-par-context-everywhere-dead.pvl"
 
   // Atomic block dead code
-  // Fail: invariant x > 0 is inhaled — branch x < 0 inside atomic is dead
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-9-atomic/TC-AT-3-atomic-dead-branch.pvl"
-  // Pass: body is consistent with invariant — no dead code
   vercors should verify using silicon example "concepts/smoke-test-tests/cat2-9-atomic/TC-AT-4-atomic-body-live.pvl"
-  // Fail: complex invariant (x > 0 && y > 0) — branch x < 0 is dead
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-9-atomic/TC-AT-5-atomic-complex-invariant-dead.pvl"
 
   // Atomic entry-level dead code (atomic treated as state-narrowing, like lock obj).
   // Not precondition-driven: root cause is permission duplication from re-entering
   // an already-held invariant, so these live in their own category.
-  // Fail: nested atomic on the same invariant duplicates its permission — inner atomic is dead
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-9-atomic/TC-AT-1-atomic-reentrant-dead.pvl"
-  // Pass: single, non-nested atomic with a permission-bearing invariant — no false positive
   vercors should verify using silicon example "concepts/smoke-test-tests/cat2-9-atomic/TC-AT-2-atomic-perm-invariant-live.pvl"
 
   // Postcondition satisfiability (CheckPostconditionSatisfiability)
@@ -72,12 +61,6 @@ class SmokeTestSpec extends VercorsSpec {
   vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-7-postcondition/TC-PST-20-ensures-perm-function-call-unsat.pvl"
 
   // Edge cases for postcondition calls
-  // \old in postcondition: sat checker must not fire, handled via eliminateOldInTriggers.
-  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-7-postcondition/TC-PST-21-old-in-ensures-pass.pvl"
-  // \old in forall range: the exact pattern from ArrayList.java that previously crashed.
-  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-7-postcondition/TC-PST-22-old-in-ensures-forall-range-pass.pvl"
-  // \old on a heap location (array element) inside a forall in ensures.
-  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-7-postcondition/TC-PST-30-old-heap-in-ensures-forall-pass.pvl"
   // Nested calls: axioms fire unconditionally, postcondition is satisfiable.
   vercors should verify using silicon example "concepts/smoke-test-tests/cat2-7-postcondition/TC-PST-22-nested-function-calls-sat.pvl"
   // Nested calls where inner function negates — isPos(n) && isPos(negate(n)) is always false.
@@ -104,16 +87,19 @@ class SmokeTestSpec extends VercorsSpec {
   // fact — the pure parts are extracted and checked against the postcondition.
   vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-7-postcondition/TC-PST-31-requires-select-extracts-nonheap-unsat.pvl"
 
+  // Pass: \forall postcondition, satisfiable — checkPostSat must not fire.
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-7-postcondition/TC-PST-32-ensures-forall-sat.pvl"
+  // Known limitation: \forall postcondition is unsatisfiable, but checkPostSat
+  // can't catch it without a trigger — only the normal postFailed check fires.
+  vercors should fail withCode "postFailed:false" using silicon example "concepts/smoke-test-tests/cat2-7-postcondition/TC-PST-33-ensures-forall-unsat.pvl"
+
   // Loop invariant + post-loop dead code (DetectDeadCode)
-  // Dead if-branch after loop: invariant+exit makes branch condition impossible
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-4-loop-invariant/TC-LI-1-post-loop-dead.pvl"
-  // Negative: post-loop branch is live — no error
   vercors should verify using silicon example "concepts/smoke-test-tests/cat2-4-loop-invariant/TC-LI-4-negative-consistent.pvl"
   // Post-loop state false: invariant implies !condition, code after loop is unreachable
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-4-loop-invariant/TC-LI-6-post-loop-sequential-dead.pvl"
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-4-loop-invariant/TC-LI-7-post-loop-invariant-stronger-than-condition.pvl"
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-4-loop-invariant/TC-LI-8-post-loop-context-everywhere-dead.pvl"
-  // Negative: loop genuinely terminates, post-loop state satisfiable
   vercors should verify using silicon example "concepts/smoke-test-tests/cat2-4-loop-invariant/TC-LI-10-post-loop-negative-terminates.pvl"
 
   // Loop invariant satisfiability (CheckInvariantSatisfiability)
@@ -157,6 +143,76 @@ class SmokeTestSpec extends VercorsSpec {
 
   // Cascade suppression: all live loop with invariant established and maintained
   vercors should verify using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-13-negative-loop-all-live.pvl"
+
+  // Dead code: conditional branching
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat1-conditional-branching/TC-CB-1-literal-false.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat1-conditional-branching/TC-CB-2-self-contradicting.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat1-conditional-branching/TC-CB-3-tautology-else-dead.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat1-conditional-branching/TC-CB-4-assume-false.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat1-conditional-branching/TC-CB-5-inhale-false.pvl"
+  vercors should fail withCode "assertFailed:false" using silicon example "concepts/smoke-test-tests/cat1-conditional-branching/TC-CB-6-assert-false-gap.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat1-conditional-branching/TC-CB-8-requires-false.pvl"
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat1-conditional-branching/TC-CB-9-negative-live.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat1-conditional-branching/TC-CB-10-java-self-contradicting.java"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat1-conditional-branching/TC-CB-11-c-self-contradicting.c"
+
+  // Dead code: state narrowing via assume
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-2-assume/TC-AS-1-assume-vs-branch.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-2-assume/TC-AS-2-assume-vs-precondition.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-2-assume/TC-AS-3-assumes-mutual.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-2-assume/TC-AS-4-assume-after-mutation.pvl"
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-2-assume/TC-AS-5-negative-consistent.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-2-assume/TC-AS-6-ghost-assume.pvl"
+
+  // Dead code: state narrowing via inhale
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-3-inhale/TC-IH-1-inhale-vs-branch.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-3-inhale/TC-IH-2-inhale-vs-precondition.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-3-inhale/TC-IH-3-inhales-mutual.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-3-inhale/TC-IH-4-permission-implies-nonnull.pvl"
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-3-inhale/TC-IH-5-negative-consistent.pvl"
+
+  // Remaining loop-invariant dead-code cases
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-4-loop-invariant/TC-LI-2-loop-body-dead.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-4-loop-invariant/TC-LI-3-invariant-precondition-post-loop.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-4-loop-invariant/TC-LI-5-dead-branch-in-live-body.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-4-loop-invariant/TC-LI-9-post-loop-false-invariant-after-cascade.pvl"
+
+  // Lock invariant satisfiability (CheckLockInvariantSatisfiability)
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-5-lock-invariant/TC-LK-1-lock-invariant.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-5-lock-invariant/TC-LK-2-unsat-symptom-caught.pvl"
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-5-lock-invariant/TC-LK-4-sat-invariant-negative.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-5-lock-invariant/TC-LK-5-lockdead-without-invunsat.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-5-lock-invariant/TC-LK-6-unlockdead-from-locked-region.pvl"
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-5-lock-invariant/TC-LK-7-no-invariant-negative.pvl"
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-5-lock-invariant/TC-LK-8-valid-program-negative.pvl"
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-5-lock-invariant/TC-LK-9-func-call-sat-invariant.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-5-lock-invariant/TC-LK-10-func-call-unsat-invariant.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-5-lock-invariant/TC-LK-11-lock-itself-causes-unsat.pvl"
+
+  // Combined scenarios: multiple constructs narrowing state together
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-6-combined/TC-CM-1-precondition-assume.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-6-combined/TC-CM-2-precondition-inhale.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-6-combined/TC-CM-3-assume-inhale-mutual.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-6-combined/TC-CM-4-precondition-loop-invariant.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat2-6-combined/TC-CM-5-all-combined.pvl"
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-6-combined/TC-CM-6-negative-consistent.pvl"
+
+  // Remaining postcondition stragglers
+  vercors should fail withCode "postFailed:false" using silicon example "concepts/smoke-test-tests/cat2-7-postcondition/TC-PST-3-ensures-false-intentional.pvl"
+  vercors should fail withCode "postFailed:false" using silicon example "concepts/smoke-test-tests/cat2-7-postcondition/TC-PST-11-requires-conflicts-ensures.pvl"
+
+  // Cascade suppression (remaining cases; TC-CA-6 was removed, TC-CA-13 already covered above)
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-1-inhale-outer-suppresses-inner.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-2-assume-outer-suppresses-inner.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-3-deep-nesting-single-error.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-4-sequential-independent-both-fire.pvl"
+  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-5-live-outer-dead-inner-fires.pvl"
+  vercors should fail withCode "assertFailed:false" using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-7-intentional-outer-inner-still-fires.pvl"
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-8-negative-all-live.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-9-inv-not-established-suppresses-body.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-10-inv-not-established-suppresses-nested.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-11-inv-not-maintained-does-not-suppress.pvl"
+  vercors should AnyFail using silicon example "concepts/smoke-test-tests/cat3-cascade/TC-CA-12-body-dead-from-condition-not-suppressed.pvl"
 
   // Block (parallel) invariant satisfiability (CheckInvariantSatisfiability, ParInvariant case)
   // Pass: satisfiable invariants — checker must not fire

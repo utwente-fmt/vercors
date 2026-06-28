@@ -1,0 +1,10 @@
+//:: cases TC_PST_32_EnsuresForallSat
+//:: tools silicon
+//:: verdict Pass
+
+// Postcondition with a \forall quantifier, satisfiable (\result = 0 witnesses it).
+requires n >= 0;
+ensures (\forall int i = 0 .. n; \result <= i);
+int f(int n) {
+    return 0;
+}
