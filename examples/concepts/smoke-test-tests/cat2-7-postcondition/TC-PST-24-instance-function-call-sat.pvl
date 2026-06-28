@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-PST-24: postcondition calls an instance function (c.isPositive()) and
-// also grants Perm(c.value, read), so the postSat check can inhale both and
-// see c.isPositive() == (c.value > 0), which is satisfiable.
-// Expected: Pass — postUnsatisfiable must not fire.
+// Same as TC-PST-19 but the function call is an instance method.
 
 class TC_PST_24_Container {
     int value;

@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-CA-5: The outer if (x > 0) is live (precondition x > 0 satisfies it), but
-// the nested inner if (x < 0) is dead and fires its own deadBranch — a live
-// outer branch does not suppress dead branches nested inside it.
-// Expected errors: 1 (inner dead branch).
+// A live outer branch does not suppress a dead branch nested inside it.
+// Expected errors: 1.
 requires x > 0;
 void f(int x) {
     if (x > 0) { // live outer — outerBlame does not fire

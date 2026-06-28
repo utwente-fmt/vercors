@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 4 independent forall quantifiers over the loop range, repeated
-// across 2 sequential loops (8 foralls total, 2x checkInvSat calls).
-// Each forall forces Silicon to instantiate triggers for every j in 0..i.
-// Compare to PERF-INV-arithmetic: same variable count but quantifier instantiation dominates.
+// 4 forall quantifiers x 2 loops (8 total) — trigger instantiation per j in 0..i.
+// Compare to PERF-INV-arithmetic: same var count, quantifiers dominate here instead.
 requires n >= 0;
 void perf_inv_forall(int n) {
     int i = 0;

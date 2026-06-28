@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// A block invariant with a heap permission and a value constraint is
-// satisfiable, checking that the satisfiability check correctly handles
-// resource-based invariants, not just pure ones.
+// Resource-based block invariant (permission + value), satisfiable.
 class TC_BI_3_Cell {
     int val;
 }

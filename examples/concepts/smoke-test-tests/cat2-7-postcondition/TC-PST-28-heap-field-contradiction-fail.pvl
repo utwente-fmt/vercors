@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-PST-28: Postcondition claims n.val > 0 AND n.val < 0 — no integer can be both.
-// PostSat check: inhale Perm(n.val, write); inhale n.val > 0 ** n.val < 0
-// — infeasible — postUnsatisfiable fires.
+// Same as TC-PST-27 but the field constraint contradicts itself.
 class TC_PST_28_Node { int val; }
 
 requires Perm(n.val, write);

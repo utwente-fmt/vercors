@@ -1,8 +1,8 @@
 //:: cases TC_LK_4_SatInvariantNegative
 //:: tools silicon
-//:: verdict Pass  // Correct: satisfiable invariant, no dead code anywhere
+//:: verdict Pass
 
-// TC-LK-4 (Negative): satisfiable lock invariant, no dead code anywhere.
+// Negative: satisfiable lock invariant, no dead code anywhere.
 lock_invariant Perm(val, write) ** val > 0;
 class SatInvClass {
     int val;

@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-CB-5: inhale false adds an unsatisfiable resource to the state,
-// making it immediately contradictory. All subsequent branches are dead.
+// Same as TC-CB-4 but via inhale instead of assume.
 void f(int x) {
     inhale false; // state immediately contradictory
     if (x > 0) {

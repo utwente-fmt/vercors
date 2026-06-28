@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-AF-5 (Java): assert false as the first statement of a live branch body
-// cuts off instrumentation for the rest of that block (nested if and trailing
-// assignment are not checked). The assert false itself fails.
-// Expected errors: 1 (assertFailed from assert false).
+// Same as TC-AF-1 but via Java.
 class TC_AF_5_JavaAssertFalseInBranch {
     void f(int x) {
         if (x > 0) {

@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: invariant with 3 function calls at depth 1 (each called directly),
-// repeated across 2 sequential loops (6 calls total, 2x checkInvSat calls).
-// WD fix adds 3 extra inhales per loop — one precondition per call — before the sat check.
-// Baseline: how much does WD collection cost per function call in the invariant?
+// Invariant with 3 depth-1 function calls, x2 loops (6 calls total).
+// Baseline: WD-collection cost per function call in the invariant.
 requires x > 0;
 pure boolean isPos(int x) = x > 0;
 

@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-PST-15 (C): Postcondition \result > 0 is satisfiable on its own (e.g., result=1).
-// Verifies the postSat checker works correctly through the C frontend.
+// Same as TC-PST-1 but via C.
 /*@ ensures \result > 0; @*/
 int f(int x) {
     return 1;

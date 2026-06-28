@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// Two nested loops, each with its own loop_invariant. The outer invariant is
-// satisfiable; the inner invariant (j > 0 && j < 0) is a contradiction —
-// invariantUnsatisfiable fires for the inner loop.
+// Nested loops — only the inner invariant is unsatisfiable.
 void f(int n) {
     loop_invariant n >= 0;
     while (n > 0) {

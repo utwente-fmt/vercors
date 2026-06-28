@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-PST-30: \old applied to a heap location (array element) inside a \forall
-// in an ensures clause. Unlike TC-PST-22 (\old on an immutable parameter, a
-// no-op), here \old(ar[i]) captures the pre-state value of array elements left
-// untouched by the method. Same shape as used throughout ArrayList.java.
+// \old on a heap-array element inside a \forall, unlike \old on a value param.
 context ar != null;
 context (\forall* int i; 0 <= i && i < ar.length; Perm(ar[i], write));
 requires ar.length > 0;

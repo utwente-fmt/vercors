@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// Loop invariant calls impossible(x), whose precondition x >= 0 makes its body
-// (x < 0) always false — contradiction, invariantUnsatisfiable fires.
+// Same as TC-LI-20 but the called function is always false.
 
 requires x >= 0;
 pure boolean impossible(int x) = x < 0;

@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: light pair for PERF-INV-arithmetic — 2 variables, 6 conjuncts,
-// a single loop (1x checkInvSat call). No heap, no quantifiers.
-// Compare to PERF-INV-arithmetic (7 vars/24 conjuncts x 3 loops) to see whether
-// checkInvSat cost for pure integer invariants scales with conjunct/variable count.
+// Light pair for PERF-INV-arithmetic: 2 vars/6 conjuncts, 1 loop, no heap.
+// Compare to see whether checkInvSat scales with conjunct/variable count.
 requires n >= 0;
 void perf_inv_arith_light(int n) {
     int i = 0; int a = 0;

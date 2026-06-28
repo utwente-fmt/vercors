@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-PST-10: Non-trivial precondition requires x > 10 combined with ensures x > 0.
-// The postcondition x > 0 is satisfiable on its own (e.g., x=1) — checker must not fire.
-// Normal verification also passes: x > 10 implies x > 0, body leaves x unchanged.
+// Postcondition satisfiable on its own; precondition is just narrower.
 requires x > 10;
 ensures \result < 0;
 int f(int x) { return -x; }

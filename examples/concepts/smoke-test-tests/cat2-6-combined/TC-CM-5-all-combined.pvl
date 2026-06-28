@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-CM-5: All specification constructs combined.
-// requires x > 0, assume x < 100, inhale x != 50, loop_invariant x > 0.
-// After loop: x > 0, x < 100, x != 50, x >= 10. Branch x < 0 is dead.
+// All constructs combined: precondition, assume, inhale, loop invariant.
 requires x > 0;
 void f(int x) {
     assume x < 100;

@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-LI-3: Combined precondition + loop invariant constrains the post-loop state.
-// After loop: invariant (x >= 0) AND exit (x >= 5) AND precondition (x < 10).
-// Branch x > 20 is dead (x < 10). Branch x < 0 is dead (invariant says x >= 0).
+// Precondition + invariant together constrain the post-loop state.
 requires x > 0;
 requires x < 10;
 void f(int x) {

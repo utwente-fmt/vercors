@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// loop_invariant with a heap permission and a value constraint is satisfiable,
-// checking that invSat correctly handles resource-based invariants.
+// Resource-based invariant (permission + value constraint), satisfiable.
 class Cell {
     int val;
 

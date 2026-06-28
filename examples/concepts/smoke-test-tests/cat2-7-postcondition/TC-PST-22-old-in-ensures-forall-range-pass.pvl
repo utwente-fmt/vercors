@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// \old appears in the upper bound of a \forall range in ensures — a pattern that
-// previously crashed with a Viper trigger consistency error. The postcondition is
-// satisfiable, so postSat must not fire.
+// \old in a \forall range bound — previously crashed with a trigger error.
 requires n >= 0;
 ensures (\forall int d = 0 .. \old(n); d >= 0);
 void f(int n) { }

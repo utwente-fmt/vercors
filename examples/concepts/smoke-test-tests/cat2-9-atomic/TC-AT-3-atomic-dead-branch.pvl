@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-AT-3: Inside atomic(inv), the invariant (x > 0) is inhaled.
-// Branch x < 0 is dead — it contradicts the invariant.
-// Branch x > 0 is live — it is guaranteed by the invariant.
+// Branch inside atomic(inv) dead under the inhaled invariant; sibling live.
 requires x > 0;
 void f(int x) {
     invariant inv (x > 0) {

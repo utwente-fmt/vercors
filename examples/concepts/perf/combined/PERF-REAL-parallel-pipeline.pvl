@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Real-life combined: a data pipeline exercising lock, seq-loop, and par-branches
-// together — a lock-guarded aggregator class (4 fields) plus a top-level pipeline
-// function with a forall prep loop and eight parallel processing stages (each
-// with a 4-way chain branch). Expected: Pass.
+// Real-life combined: lock-guarded aggregator + a pipeline with a prep loop
+// and eight parallel chain-branch stages.
 
 lock_invariant Perm(accepted, write) ** Perm(rejected, write) ** Perm(retried, write) ** Perm(dropped, write) **
                accepted >= 0 ** rejected >= 0 ** retried >= 0 ** dropped >= 0;

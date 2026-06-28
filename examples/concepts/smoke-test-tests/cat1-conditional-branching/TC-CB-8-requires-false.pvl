@@ -2,12 +2,8 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-CB-8: the precondition is unsatisfiable (x > 0 && x < 0), so every
-// branch in the body is dead and both fire deadBranch.
-// Written as a contradiction rather than a literal `false` so FilterSpecIgnore
-// does not drop the method before DetectDeadCode runs.
-// Expected errors: 3 (2x deadBranch, plus the precondition itself being
-// reported as unsatisfiable by checkSat).
+// Contradiction rather than literal `false` so FilterSpecIgnore doesn't drop
+// the method first. Expected: 2x deadBranch + checkSat on the precondition.
 requires x > 0 && x < 0;
 void f(int x) {
     if (x > 0) {

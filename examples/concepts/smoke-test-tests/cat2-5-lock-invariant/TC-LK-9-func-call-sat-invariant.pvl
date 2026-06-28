@@ -2,7 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-LK-9: Satisfiable lock invariant with a pure function call. No lockInvariantUnsatisfiable expected.
+// Satisfiable lock invariant with a pure function call.
 requires n >= 0;
 pure boolean nonNeg(int n) = n >= 0;
 

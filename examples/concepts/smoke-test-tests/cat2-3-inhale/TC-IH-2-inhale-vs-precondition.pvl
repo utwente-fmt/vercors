@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-IH-2: inhale contradicts the precondition.
-// requires p != null, then inhale p == null makes the state contradictory.
+// Same as TC-AS-2 but via inhale, and over a reference type.
 class Box { int val; }
 
 requires p != null;

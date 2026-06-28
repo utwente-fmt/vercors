@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-PB-4: Inside par body, if (tid < n) is live — tid ranges over [0..n),
-// so tid < n is always true but the branch body is reachable (satisfiable).
-// No deadBranch expected.
+// Negative: branch inside par body is live.
 requires n > 0;
 void f(int n) {
     par (int tid = 0 .. n) {

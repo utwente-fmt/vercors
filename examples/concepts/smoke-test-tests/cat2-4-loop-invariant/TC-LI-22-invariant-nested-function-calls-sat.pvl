@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-LI-22: Loop invariant contains a nested call isLargeEnough(increment(x)).
-// The combined well-formedness conditions and invariant body are satisfiable
-// (e.g. x=1), so invariantUnsatisfiable must not fire. Verification also
-// passes normally: requires x > 0 establishes and maintains the invariant.
+// Invariant contains a nested function call, satisfiable.
 
 requires n > 0;
 pure int increment(int n) = n + 1;

@@ -2,13 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: same shape as PERF-INV-perm-5fields (1 Perm + loop over the
-// controlled location, with 4 other untouched non-negative locations in the
-// context), but the 5 locations are fields of 5 DISTINCT objects instead of
-// 5 fields of 1 object.
-// Tests whether checkInvSat's cost with N heap locations depends on the number
-// of distinct objects (heap "independence", mirroring variable independence in
-// the branch series) or only on the total Perm/conjunct count.
+// Same as PERF-INV-perm-5fields but the 5 locations are 5 distinct objects.
+// Tests whether cost depends on object count or just total Perm/conjunct count.
 class PERF_INV_perm_5objects_Node {
     int v;
 }

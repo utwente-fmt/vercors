@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 10-way chain with two-variable conditions, all branches live.
-// detectDeadCode: 10 Refutes; the last branch carries 9 accumulated multi-variable negations.
-// The accumulated path condition is a system of inequalities over (a, b) — harder than
-// single-variable chains where Z3 can trivially reduce to a range.
+// 10-way chain with two-variable conditions — harder than single-variable chains.
 // Compare to PERF-BRANCH-chain-5 and PERF-BRANCH-chain-15.
 requires a >= 0 && b >= 0 && a + b <= 2000;
 void perf_branch_chain_10(int a, int b) {

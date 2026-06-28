@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: light pair for PERF-INV-forall — a single loop with 1 forall
-// quantifier (1x checkInvSat call), instead of 4 foralls x 2 loops.
-// Compare to PERF-INV-forall to see whether checkInvSat cost scales with the
-// number of quantifiers that need trigger instantiation.
+// Light pair for PERF-INV-forall: 1 loop, 1 forall instead of 4 x 2 loops.
+// Compare to see whether cost scales with quantifier count.
 requires n >= 0;
 void perf_inv_forall_light(int n) {
     int i = 0;

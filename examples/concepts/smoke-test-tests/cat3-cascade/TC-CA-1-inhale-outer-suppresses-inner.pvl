@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-CA-1: inhale x > 0 then inhale x < 0 makes the state contradictory,
-// firing a post-inhale deadBranch. The outer if (x == 5) also fires
-// independently, and the nested inner if is suppressed via cascade.
-// Expected errors: 2 (post-inhale + outer if). Inner if: suppressed.
+// Mutual inhale contradiction + an unrelated dead branch; nested if suppressed.
+// Expected errors: 2.
 void f(int x) {
     inhale x > 0;
     inhale x < 0; // contradicts previous — post-inhale check fires here

@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 5 sequential if statements (no else), one independent variable per branch.
-// Each condition touches a unique parameter -- accumulated path conditions are
-// a conjunction of INDEPENDENT simple inequalities. Z3 can factor them trivially.
-// Compare to PERF-BRANCH-5.pvl (shared variables) to isolate variable-sharing cost.
+// 5 sequential if's, one independent variable each (vs shared, in PERF-BRANCH-5).
+// Isolates variable-sharing cost.
 void perf_branch_indep_5(int v1, int v2, int v3, int v4, int v5) {
     if (v1 > 0) { int r1 = v1; }
     if (v2 > 0) { int r2 = v2; }

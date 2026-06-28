@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// Postcondition isPos(n) && isPos(negate(n)) means n > 0 && n < 0 — a contradiction,
-// so postUnsatisfiable fires.
+// Same as TC-PST-22 but the nested calls contradict each other.
 
 pure int negate(int n) = -n;
 

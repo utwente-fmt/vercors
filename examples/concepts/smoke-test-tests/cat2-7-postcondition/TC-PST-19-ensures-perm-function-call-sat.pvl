@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-PST-19: postcondition calls a pure function requiring permission on a
-// field, and also grants that permission (Perm(n.value, write)), so the
-// postSat check can see isFieldPos(n) == (n.value > 0), which is satisfiable.
-// Expected: Pass — postUnsatisfiable must not fire.
+// Postcondition grants the permission its own function call needs, satisfiable.
 
 class TC_PST_19_Node {
     int value;

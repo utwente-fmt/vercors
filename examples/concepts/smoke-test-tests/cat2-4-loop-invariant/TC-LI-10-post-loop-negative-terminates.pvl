@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-LI-10 (Negative): Loop genuinely terminates. Post-loop state is satisfiable.
-// invariant x >= 0, condition x < 10: after loop x >= 0 AND x >= 10, so x >= 10.
-// Code after the loop is in a live state — no dead code.
+// Negative: loop terminates, post-loop state is live.
 requires x >= 0;
 void f(int x) {
     loop_invariant x >= 0;

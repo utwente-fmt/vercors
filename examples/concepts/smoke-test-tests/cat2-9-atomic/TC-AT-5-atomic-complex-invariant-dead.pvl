@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-AT-5: Invariant (x > 0 && y > 0) is inhaled inside atomic.
-// Branch x < 0 is dead (contradicts x > 0 from invariant).
-// Branch y > 0 is live (guaranteed by invariant).
+// Same as TC-AT-3 but with a conjunctive invariant.
 requires x > 0 && y > 0;
 void f(int x, int y) {
     invariant inv (x > 0 && y > 0) {

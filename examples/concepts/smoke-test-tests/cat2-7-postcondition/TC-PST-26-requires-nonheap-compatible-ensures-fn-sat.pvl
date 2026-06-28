@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// foo's precondition n > 0 is compatible with its postcondition isPos(n) (n > 0),
-// so postSat is satisfiable and normal verification passes too.
+// Same as TC-PST-25 but the precondition and postcondition are compatible.
 
 pure boolean isPos(int n) = n > 0;
 

@@ -2,13 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: same indep-5-style body as PERF-POST-indep-5.pvl (5 sequential
-// if's, one independent variable per branch), but with only ONE disjunctive
-// postcondition clause (for v1) instead of five.
-// Tests whether the ~4x trace-count multiplier seen in PERF-POST-indep-5.pvl
-// scales with the NUMBER of independent disjunctive postcondition clauses
-// (predicting ~1.3x per clause), or whether any single disjunctive clause
-// already triggers the full multiplier.
+// Same as PERF-POST-indep-5 but with only one disjunctive postcondition clause.
+// Tests whether the ~4x multiplier scales per clause or fires at the first one.
 class PERF_POST_indep_5_1cond_Node {
     int r1;
     int r2;

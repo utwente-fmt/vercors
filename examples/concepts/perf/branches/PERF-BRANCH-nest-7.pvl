@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: fully nested if-else, 7 levels deep, one variable per level.
-// 128 leaves, 254 branch points (every if/else at every level gets a Refute).
-// detectDeadCode: 254 Refutes total. Compare to flat sequential branches with
-// the same Refute count to isolate nesting depth/SSA-state cost from branch count alone.
+// Fully nested if-else, 7 levels deep — 254 Refutes total.
+// Compare to flat sequential branches with the same Refute count: nesting vs count.
 void perf_branch_nest_7(int x1, int x2, int x3, int x4, int x5, int x6, int x7) {
     if (x1 > 0) {
         if (x2 > 0) {

@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// loop_invariant x > 0 && x < 0 is a contradiction — invariantUnsatisfiable fires,
-// along with invariantNotEstablished; cascade dead code is suppressed.
+// Contradictory invariant (x > 0 && x < 0).
 requires true;
 void f(int x) {
     loop_invariant x > 0 && x < 0;

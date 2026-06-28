@@ -4,6 +4,5 @@
 
 // Sat/unsat pair C (postcondition): unsatisfiable postcondition — postUnsatisfiable must fire.
 // \result > 0 && \result < 0 can never hold simultaneously.
-requires false;
 ensures \result > 0 && \result < 0;
 int perf_unsat_post(int n) { return 0; }

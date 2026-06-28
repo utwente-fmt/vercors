@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-AF-3 (PVL): assume false triggers a DeadBranch warning at rewrite time
-// (unlike assert false, there is no block cutoff — code after it is still
-// instrumented, but here only a plain assignment follows).
-// Expected errors: 1 (deadBranch warning for assume false).
+// assume false warns but, unlike assert false, doesn't cut off the block.
 void f(int x) {
     x = x + 1;
     assume false;        // DeadBranch warning emitted

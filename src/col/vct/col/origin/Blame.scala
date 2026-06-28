@@ -529,6 +529,7 @@ case class LoopTerminationMeasureFailed(node: DecreasesClause[_])
   override def inlineDescWithSource(source: String): String =
     s"Loop may not terminate, since ${node.o.inlineContextText} may be unbounded or nondecreasing"
 }
+// from CheckInvariantSatisfiability (loop case)
 case class LoopInvariantUnsatisfiable(node: LoopInvariant[_])
     extends LoopInvariantFailure with NodeVerificationFailure {
   override def code: String = "invariantUnsatisfiable"
@@ -939,10 +940,8 @@ case class ParInvariantNotEstablished(
   override def inlineDescWithSource(node: String, failure: String): String =
     s"`$node` may not be established, since $failure."
 }
-// ParInvariant's own blame field only accepts ParInvariantNotEstablished, so this
-// extends ContractedFailure (an empty marker trait) to be reported through the
-// blame of the enclosing ContractApplicable instead, the same way
-// LockInvariantUnsatisfiable is anchored when no dedicated blame slot exists.
+// from CheckInvariantSatisfiability (par case); anchored via ContractedFailure since
+// ParInvariant's blame slot only accepts ParInvariantNotEstablished.
 case class ParInvariantUnsatisfiable(node: ParInvariant[_])
     extends NodeVerificationFailure with ContractedFailure {
   override def code: String = "parInvariantUnsatisfiable"
@@ -1335,12 +1334,8 @@ case class LockNotCommitted(node: Lock[_])
   override def inlineDescWithSource(source: String): String =
     s"Lock target in `$source` may not yet have committed the lock invariant."
 }
-// Extends LockFailure and UnlockFailure so it can be reported through
-// lock.blame (Blame[LockFailure]) or unlock.blame (Blame[UnlockFailure]).
-// Also extends ContractedFailure (an empty marker trait) so it can be reported
-// through the blame of any ContractApplicable (e.g. an arbitrary method of the
-// class), which is needed when the lock invariant is checked independently of
-// any lock/unlock site.
+// from CheckLockInvariantSatisfiability; multi-trait so it reports via lock/unlock
+// sites or, when checked independently of any site, via any ContractApplicable.
 case class LockInvariantUnsatisfiable(node: Node[_])
     extends NodeVerificationFailure
     with LockFailure
@@ -1352,6 +1347,8 @@ case class LockInvariantUnsatisfiable(node: Node[_])
   override def inlineDescWithSource(source: String): String =
     s"Lock invariant of `$source` may be unsatisfiable."
 }
+// from EncodeIntrinsicLock's per-site dead-code check (not DetectDeadCode itself):
+// a satisfiable lock invariant can still make a specific lock site unreachable.
 case class LockCodeDead(node: Lock[_])
     extends NodeVerificationFailure with LockFailure {
   override def code: String = "lockDead"
@@ -1378,6 +1375,7 @@ case class LockTokenNotHeld(node: Unlock[_], failure: ContractFailure)
   override def inlineDescWithSource(node: String, failure: String): String =
     s"`$node` may fail, since the `held` resource may not be exhaled here, since $failure."
 }
+// from EncodeIntrinsicLock's per-site dead-code check; same reasoning as LockCodeDead.
 case class UnlockCodeDead(node: Unlock[_])
     extends NodeVerificationFailure with UnlockFailure {
   override def code: String = "unlockDead"
@@ -1429,6 +1427,7 @@ case class NontrivialUnsatisfiable(node: ApplicableContract[_])
     s"The precondition in `$source` may be unsatisfiable."
 }
 
+// from CheckPostconditionSatisfiability
 case class NontrivialPostconditionUnsatisfiable(node: ApplicableContract[_])
     extends NodeVerificationFailure with ContractedFailure {
   override def code: String = "postUnsatisfiable"
@@ -1438,6 +1437,7 @@ case class NontrivialPostconditionUnsatisfiable(node: ApplicableContract[_])
     s"The postcondition in `$source` may be unsatisfiable."
 }
 
+// from DetectDeadCode
 case class DeadBranch(node: Node[_], branchKind: String)
     extends NodeVerificationFailure with ContractedFailure {
   override def code: String = "deadBranch"

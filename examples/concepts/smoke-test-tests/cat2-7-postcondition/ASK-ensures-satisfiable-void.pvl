@@ -1,9 +1,0 @@
-//:: cases TC_PST_7_EnsuresSatisfiableVoid
-//:: tools silicon
-//:: verdict Pass
-
-// TC-PST-7: Void method — no \result. Postcondition x >= 0 is satisfiable (e.g., x=0).
-// The postSat checker handles the None branch for returnTypeOf and must not fire.
-requires x == 5;
-ensures x < 0;
-void f(int x);

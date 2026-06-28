@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-CA-3: Three levels of dead nesting from a precondition (x > 0 makes
-// x < 0 impossible). Only the outermost branch fires deadBranch; the middle
-// and innermost branches are suppressed via cascade.
-// Expected errors: 1. Middle and inner are suppressed.
+// Three levels of dead nesting — only the outermost fires.
+// Expected errors: 1.
 requires x > 0;
 void f(int x) {
     if (x < 0) { // level 1 — dead, fires (outerBlame)

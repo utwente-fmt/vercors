@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-CA-9: loop_invariant false can never be established. The resulting
-// invariantNotEstablished error suppresses both the loop body deadBranch
-// and the post-loop deadBranch via cascade.
-// Expected errors: 1 (invariantNotEstablished only).
+// Unestablishable invariant suppresses both body and post-loop deadBranch.
+// Expected errors: 1.
 void f(int x) {
     loop_invariant false;
     while (x > 0) {

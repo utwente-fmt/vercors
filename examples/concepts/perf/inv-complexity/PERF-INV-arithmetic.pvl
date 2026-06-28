@@ -2,11 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 7 variables, 24 conjuncts tracking inter-variable sum bounds,
-// repeated across 3 sequential loops (3x checkInvSat calls in this file).
-// No heap, no quantifiers — isolates pure integer reasoning cost for checkInvSat,
-// and the 3x repetition makes the per-invariant cost a large enough share of the
-// total runtime to separate from JVM startup noise.
+// 7 variables, 24 conjuncts, x3 loops — isolates pure integer checkInvSat cost
+// from JVM startup noise.
 requires n >= 0;
 void perf_inv_arith(int n) {
     int i = 0; int a = 0; int b = 0; int c = 0; int d = 0; int e = 0; int f = 0;

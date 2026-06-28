@@ -1,3 +1,9 @@
+//:: cases TC_LI_23_InvariantPermFunctionCallSat
+//:: tools silicon
+//:: verdict Pass
+
+// Perm(x.value, write) appears both directly and via isPositive(x)'s precondition.
+// Regression guard against WD double-counting it as unsatisfiable.
 class Node {
     int value;
 }
@@ -5,8 +11,6 @@ class Node {
 requires Perm(n.value, write);
 pure boolean isPositive(Node n) = n.value > 0;
 
-// Satisfiable: x.value = 1 witnesses the invariant.
-// But invariantUnsatisfiable fires incorrectly.
 requires Perm(x.value, write) ** x.value > 0;
 void increment(Node x) {
     loop_invariant Perm(x.value, write) ** isPositive(x);

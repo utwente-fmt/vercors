@@ -2,11 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 5-level nested loops, forall invariant at each level.
-// checkInvSat: 5 FramedProofs — same as 5 sequential loops.
-// detectDeadCode: innermost body Refute carries 5 stacked forall formulas simultaneously.
-// Key experiment: 5 quantifiers in one path condition vs 5 sequential (PERF-SEQ-5loops)
-// where the 5th loop only carries 4 prior post-loop foralls. Nesting amplifies the cost.
+// Same as PERF-NEST-2level but 5 levels deep — compare to PERF-SEQ-5loops to see
+// whether nesting amplifies cost beyond plain sequential accumulation.
 requires a >= 0 && b >= 0 && c >= 0 && d >= 0 && e >= 0;
 void perf_nest_5(int a, int b, int c, int d, int e) {
     int i = 0; int ci = 0;

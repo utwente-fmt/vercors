@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-PST-3: ensures false is matched as BooleanValue(false) and skipped by the
-// postSat checker. Normal verification still fails with postFailed.
+// ensures false is recognized and skipped by postSat itself.
 
 ensures false;
 void f(int x) { }

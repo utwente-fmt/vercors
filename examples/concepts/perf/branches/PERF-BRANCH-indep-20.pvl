@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 20 sequential if statements (no else), one independent variable per branch.
-// Each condition touches a unique parameter -- accumulated path conditions are
-// a conjunction of INDEPENDENT simple inequalities. Z3 can factor them trivially.
-// Compare to PERF-BRANCH-single-var-20.pvl (shared variables) to isolate variable-sharing cost.
+// Same idea as PERF-BRANCH-indep-5 at N=20.
+// Compare to PERF-BRANCH-single-var-20 (shared variable).
 void perf_branch_indep_20(int v1, int v2, int v3, int v4, int v5, int v6, int v7, int v8, int v9, int v10, int v11, int v12, int v13, int v14, int v15, int v16, int v17, int v18, int v19, int v20) {
     if (v1 > 0) { int r1 = v1; }
     if (v2 > 0) { int r2 = v2; }

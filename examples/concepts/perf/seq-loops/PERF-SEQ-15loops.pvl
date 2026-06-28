@@ -2,11 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 15 sequential loops, forall invariant at each.
-// checkInvSat: 15 independent FramedProofs — linear cost.
-// detectDeadCode: 30 Refutes; the 15th loop's body Refute carries 14 post-loop forall
-// facts in its path condition — a system of 14 quantified formulas for Z3 to reason over.
-// Stress test for accumulated path condition weight with quantifiers.
+// 15 sequential loops — stress test for accumulated quantified path conditions.
 requires n >= 0;
 void perf_seq_15(int n) {
     int i1 = 0; int c1 = 0;

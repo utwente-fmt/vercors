@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 5 sequential loops, forall invariant at each.
-// checkInvSat: 5 independent FramedProofs — linear cost.
-// detectDeadCode: 10 Refutes; the k-th loop's body Refute carries k-1 post-loop forall
-// facts from prior loops accumulated in the path condition, growing progressively heavier.
+// 5 sequential loops — each one's Refute accumulates prior loops' forall facts.
 requires n >= 0;
 void perf_seq_5(int n) {
     int i1 = 0; int c1 = 0;

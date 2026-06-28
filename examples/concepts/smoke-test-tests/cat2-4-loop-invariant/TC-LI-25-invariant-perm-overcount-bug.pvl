@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-LI-25: The invariant explicitly holds Perm(x.value, write) and also calls
-// isWritePos(x), which itself requires Perm(x.value, write). If the WD check
-// double-counts this permission, invariantUnsatisfiable fires incorrectly.
-// Expected: Pass.
+// Regression guard against WD double-counting the same permission.
 
 class TC_LI_25_Node {
     int value;

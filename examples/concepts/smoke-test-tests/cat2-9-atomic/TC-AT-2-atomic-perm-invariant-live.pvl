@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-AT-2 (Negative): a single, non-nested atomic(inv) borrowing a
-// permission-bearing invariant. The new entry-level check on atomic must not
-// false-positive on the normal, legitimate use of atomic.
+// Negative: single non-nested atomic, must not false-positive.
 class TC_AT_2_Cell {
     int f;
 }

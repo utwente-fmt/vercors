@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-AS-4: Variable mutated before assume — assume applies to the current state,
-// not the original precondition. x starts at 21, is decremented to 20,
-// then assume x == 21 contradicts the mutated value.
+// assume applies to the mutated value, not the original precondition.
 requires x == 21;
 void f(int x) {
     x = x - 1;       // x is now 20

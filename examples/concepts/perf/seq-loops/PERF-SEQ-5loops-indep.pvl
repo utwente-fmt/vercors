@@ -2,12 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 5 sequential loops, same structure as PERF-SEQ-5loops, but each
-// loop's bound is an INDEPENDENT parameter (n1..n5) instead of a single shared `n`.
-// Mirrors the indep-N branch series (TESTING-PLAN.md section 12): each loop's
-// continue/exit fork now depends on a variable no other loop's invariant touches.
-// Tests whether independent loop guards cause the same multiplicative trace growth
-// as independent if-conditions, or whether loop invariants constrain the path count.
+// Same as PERF-SEQ-5loops but each loop bound is an independent parameter.
+// Mirrors the indep-N branch series: does independence multiply trace growth here too?
 requires n1 >= 0 && n2 >= 0 && n3 >= 0 && n4 >= 0 && n5 >= 0;
 void perf_seq_5_indep(int n1, int n2, int n3, int n4, int n5) {
     int i1 = 0; int c1 = 0;

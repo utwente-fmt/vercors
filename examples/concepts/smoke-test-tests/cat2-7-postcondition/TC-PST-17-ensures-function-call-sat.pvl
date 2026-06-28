@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Postcondition calls checkPos(n), whose precondition (x > 10) matches foo's own
-// precondition, so checkPos(n) holds — postSat is satisfiable and verification passes.
+// Postcondition calls a function whose precondition foo's own precondition satisfies.
 
 requires x > 10;
 pure boolean checkPos(int x) = x > 10;

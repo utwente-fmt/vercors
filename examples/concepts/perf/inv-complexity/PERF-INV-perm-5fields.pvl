@@ -2,11 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 5 Perms + per-field constraints (20 conjuncts), repeated across
-// 2 methods (2x checkInvSat calls in this file).
-// Only the loop-controlled field changes — the other 4 hold their initial
-// non-negative values. 5 heap locations in the FramedProof vs 1 in perm-1field;
-// isolates scaling of heap encoding, amplified by the 2x repetition.
+// 5 Perms + 20 conjuncts, x2 methods — 5 heap locations vs 1 in perm-1field.
+// Isolates heap-encoding scaling with location count.
 class PERF_INV_perm_5fields_Node {
     int a;
     int b;

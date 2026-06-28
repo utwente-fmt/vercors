@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Void method with postcondition n > 0, satisfiable given precondition n > 0.
-// postUnsatisfiable must not fire; normal verification also passes.
+// Void method (no \result) with a satisfiable postcondition.
 requires n > 0;
 ensures n > 0;
 void f(int n) { }

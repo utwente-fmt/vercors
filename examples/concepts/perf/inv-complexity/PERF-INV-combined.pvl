@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 1 Perm + 2 forall quantifiers — heap and quantifier costs combined,
-// repeated across 2 methods (2x checkInvSat calls in this file).
-// Each FramedProof must handle both heap encoding (Perm) and trigger instantiation (forall).
-// Compare to perm-1field + forall to see if costs add linearly or interact.
+// 1 Perm + 2 foralls combined, x2 methods.
+// Compare to perm-1field + forall separately: do costs add linearly or interact?
 class PERF_INV_combined_Node {
     int v;
     int w;

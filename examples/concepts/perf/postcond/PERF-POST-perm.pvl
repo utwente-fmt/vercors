@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: postcondition calls 5 instance functions, each requiring Perm
-// on a distinct field.
-// WD fix prepends a Perm inhale for every such call before the postcondition
-// sat check, so this amplifies that cost 5x compared to a single field.
+// Postcondition calls 5 instance functions, each needing Perm on its own field —
+// amplifies WD's per-call Perm inhale 5x.
 class PERF_POST_perm_Node {
     int a;
     int b;

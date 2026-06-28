@@ -1,9 +1,8 @@
 //:: cases TC_LK_7_NoInvariantNegative
 //:: tools silicon
-//:: verdict Pass  // Correct: no lock invariant → no dead-code errors
+//:: verdict Pass
 
-// TC-LK-7 (Negative): No lock_invariant declared — lock/unlock state stays
-// live throughout, so no lockDead/unlockDead/lockInvariantUnsatisfiable fires.
+// Negative: no lock_invariant declared at all.
 class NoInvClass {
     requires committed(this);
     void method() {

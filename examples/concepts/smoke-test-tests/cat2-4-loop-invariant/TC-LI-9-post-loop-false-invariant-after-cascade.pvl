@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-LI-9: loop_invariant false fires both invariantUnsatisfiable (sat check)
-// and invariantNotEstablished (the loop itself). Body and post-loop deadBranch
-// are suppressed via cascade.
-// Expected errors: 2 (invariantUnsatisfiable + invariantNotEstablished).
+// loop_invariant false — cascade suppresses body and post-loop checks.
 void f(int x) {
     loop_invariant false;
     while (x > 0) {

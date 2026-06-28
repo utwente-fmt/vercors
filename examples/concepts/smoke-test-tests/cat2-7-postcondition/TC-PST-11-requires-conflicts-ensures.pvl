@@ -2,8 +2,6 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-PST-11: Postcondition x < 0 is independently satisfiable.
-// PostSat check: inhale x < 0 → satisfiable → postUnsatisfiable must NOT fire.
-// Normal verification fails because x is unconstrained and may be >= 0.
+// Postcondition satisfiable alone, but normal verification still fails.
 ensures x < 0;
 void f(int x) { }

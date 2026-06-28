@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 3-level nested loops, forall invariant at each level.
-// checkInvSat: 3 FramedProofs — same cost as 3 sequential (isolated).
-// detectDeadCode: innermost body Refute carries 3 stacked forall formulas simultaneously.
-// 3 quantifiers in one path condition is noticeably heavier than 2 (PERF-NEST-2level).
+// Same as PERF-NEST-2level but 3 levels deep.
 requires n >= 0 && m >= 0 && p >= 0;
 void perf_nest_3(int n, int m, int p) {
     int i = 0; int ci = 0;

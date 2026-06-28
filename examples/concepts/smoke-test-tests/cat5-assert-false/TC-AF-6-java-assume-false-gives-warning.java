@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// assume false emits a DeadBranch warning without cutting off the block; the
-// following assignment is instrumented but triggers no further checks.
+// Same as TC-AF-3 but via Java.
 class TC_AF_6_JavaAssumeFalseGivesWarning {
     void f(int x) {
         x = x + 1;

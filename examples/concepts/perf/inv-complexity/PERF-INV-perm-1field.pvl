@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 1 Perm + 8 arithmetic constraints on the field, repeated across
-// 3 methods (3x checkInvSat calls in this file, one per field/loop).
-// FramedProof starts from empty heap; Inhale grants ownership plus all conditions.
-// Compare to PERF-INV-arithmetic: heap encoding cost on top of arithmetic reasoning.
+// 1 Perm + 8 constraints, x3 methods.
+// Compare to PERF-INV-arithmetic: heap encoding cost on top of arithmetic.
 class PERF_INV_perm_1field_Node {
     int v1;
     int v2;

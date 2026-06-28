@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance baseline: 1 loop with forall invariant and counter tracking.
-// checkInvSat: 1 FramedProof — inhales forall, checks SAT.
-// detectDeadCode: 2 Refutes (body + post-loop), each checking a forall path condition.
-// The forall forces Z3 quantifier instantiation per Refute — measurably heavier than plain arithmetic.
+// Baseline: 1 loop with a forall invariant — quantifier instantiation cost floor.
 requires n >= 0;
 void perf_seq_1(int n) {
     int i = 0;

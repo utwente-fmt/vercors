@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// exhale false always fails with an exhale error (false never holds as a resource).
-// Unlike assume/inhale false, it does not narrow the state, so the code after it
-// is not dead.
+// Same as TC-CB-6 but via exhale instead of assert.
 void f(int x) {
     exhale false; // exhale failure: false never holds as a resource
     if (x > 0) {

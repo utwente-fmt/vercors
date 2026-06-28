@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// Postcondition ensures Perm(n.value, read) ** isFieldFalse(n), where isFieldFalse(n)
-// = (n.value > 0 && n.value < 0) is always false — contradiction, postUnsatisfiable fires.
+// Same as TC-PST-19 but the called function is always false.
 
 class TC_PST_20_Node {
     int value;

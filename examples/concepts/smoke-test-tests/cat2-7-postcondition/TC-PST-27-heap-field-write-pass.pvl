@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-PST-27: Body writes n.val = 0; postcondition Perm(n.val, write) ** n.val == 0 is
-// satisfiable — the heap state where val == 0 witnesses it.
-// PostSat check: inhale Perm(n.val, write); inhale n.val == 0 — satisfiable — no postUnsatisfiable.
+// Postcondition over a heap field, satisfiable.
 class TC_PST_27_Node { int val; }
 
 requires Perm(n.val, write);

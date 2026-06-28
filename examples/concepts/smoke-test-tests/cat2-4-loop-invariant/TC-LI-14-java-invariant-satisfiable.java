@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-LI-14 (Java): loop_invariant i >= 0 is satisfiable — i = 0 witnesses it.
-// The invariant satisfiability check must NOT fire.
-// Verifies the invSat checker works correctly through the Java frontend.
+// Same as TC-LI-11 but via Java.
 class TC_LI_14_JavaInvariantSatisfiable {
     //@ requires n >= 0;
     void f(int n) {

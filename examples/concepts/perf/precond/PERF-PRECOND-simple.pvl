@@ -2,9 +2,6 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: simple precondition, no function calls, no \old, no heap.
-// checkSat (CheckContractSatisfiability): generates a standalone procedure,
-// inhales the requires clause, asserts false.
-// Baseline for precondition-checker (checkSat) complexity tests.
+// Baseline for checkSat: simple precondition, no calls/\old/heap.
 requires n >= 0 && n < 1000000;
 void perf_precond_simple(int n) { }

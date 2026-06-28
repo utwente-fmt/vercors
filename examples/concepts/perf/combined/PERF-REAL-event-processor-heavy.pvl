@@ -2,13 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Heavy combined stress test. Exercises all four smoke checks simultaneously:
-//   checkLockInvSat:   15-field lock invariant (vs 10 in base EP)
-//   checkLoopInvSat:   15-perm loop invariant + forall in two dispatch loops
-//   detectDeadCode:    4 independent sequential if/else per loop iteration (not chains)
-//                      + 3 independent if/else per par-block thread
-//   checkPostSat:      multi-conjunct postconditions on merge() and processEvents()
-// assume statements provide explicit solver hints inside loop bodies.
+// Heavier version of the event-processor combo: all four checks at once, with
+// 15-field lock/loop invariants and independent (non-chained) branches per iteration.
 
 lock_invariant Perm(c0, write) ** Perm(c1, write) ** Perm(c2, write) ** Perm(c3, write) ** Perm(c4, write) **
                Perm(c5, write) ** Perm(c6, write) ** Perm(c7, write) ** Perm(c8, write) ** Perm(c9, write) **

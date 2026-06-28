@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// foo's precondition n > 0 conflicts with its postcondition isNeg(n) (n < 0);
-// combining them is infeasible, so postUnsatisfiable fires.
+// Precondition's non-heap part conflicts with the postcondition's function call.
 
 pure boolean isNeg(int n) = n < 0;
 

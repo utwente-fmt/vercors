@@ -2,7 +2,6 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-PST-9: result > 0 && result < 0 is always false — no integer is simultaneously positive
-// and negative.
+// Same as TC-PST-2, parameter name differs.
 ensures \result > 0 && \result < 0;
 int f(int x) { return 1; }

@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-AS-2: assume contradicts the precondition.
-// requires x > 0 && x < 10, then assume x > 10 is impossible.
-// The state becomes contradictory and the branch is dead.
+// assume contradicts the precondition rather than another assume.
 requires x > 0;
 requires x < 10;
 void f(int x) {

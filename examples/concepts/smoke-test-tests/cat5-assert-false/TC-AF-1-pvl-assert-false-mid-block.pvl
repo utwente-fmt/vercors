@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// assert false mid-block fails (assertFailed) on this live path and triggers block
-// cutoff, so the if/while after it are not checked for reachability.
+// assert false on a live path cuts off instrumentation for the rest of the block.
 requires x > 0;
 void f(int x) {
     x = x + 1;

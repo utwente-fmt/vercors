@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Postcondition \result == \old(n) is satisfiable, so postSat must not fire.
-// Must be a method, not a pure function: Viper forbids \old in pure function postconditions.
+// \old in ensures, satisfiable (must be a method: Viper forbids \old in pure functions).
 requires n >= 0;
 ensures \result == 1;
 int identity(int n) { return 1; }

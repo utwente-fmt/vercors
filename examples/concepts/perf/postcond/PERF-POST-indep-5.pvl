@@ -2,15 +2,10 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: indep-5-style body (5 sequential if's, no else, one independent
-// variable per branch — see PERF-BRANCH-indep-5.pvl, 279 branch traces standalone),
-// but each branch writes to a field, and the postcondition spells out both
-// outcomes (changed / unchanged) for every field.
-// Tests whether checkPostSat inherits the same exponential trace count as
-// detectDeadCode for this structure, or whether it's checked against a
-// summarized/havoced post-state that avoids the per-path blowup.
-// Note: avoids \old(...) in postconditions; pre-state field values are passed
-// in explicitly as parameters (o1..o5) instead.
+// indep-5 body (see PERF-BRANCH-indep-5, 279 traces) with per-field writes and a
+// postcondition spelling out both outcomes. Tests whether checkPostSat inherits
+// detectDeadCode's exponential trace count. Pre-state passed as params (o1..o5),
+// not \old(...).
 class PERF_POST_indep_5_Node {
     int r1;
     int r2;

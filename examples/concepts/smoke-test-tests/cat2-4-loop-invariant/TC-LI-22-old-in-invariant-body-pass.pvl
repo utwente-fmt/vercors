@@ -2,12 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-LI-22: Loop invariant contains \old(e) in the body (not in a trigger),
-// where \old applies to a Perm-guarded heap field that the loop actually
-// mutates — \old(n) is meaningful here, unlike \old of a value parameter
-// (which is always equal to the parameter itself, see PERF-POST-old-forall).
-// The invariant i >= 0 && n == \old(n) + i is satisfiable (e.g. i=0, n=\old(n)).
-// Sat check must NOT fire.
+// \old in the invariant body over a mutated heap field, satisfiable.
 class TC_LI_22_OldInInvariantBody {
     int n;
 

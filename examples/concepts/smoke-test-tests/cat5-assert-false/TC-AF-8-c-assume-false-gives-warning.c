@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// assume false emits a DeadBranch warning but does not cut off the block, so the
-// if (x > 0) after it is still instrumented and also reports dead (2 errors total).
+// Same as TC-AF-3 but via C.
 void f(int x) {
     x = x + 1;
     // DeadBranch warning emitted

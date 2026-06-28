@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-PST-12 (Java): Postcondition \result > 0 is satisfiable on its own (e.g., result=1).
-// Verifies the postSat checker works correctly through the Java frontend.
+// Same as TC-PST-1 but via Java.
 public class TC_PST_12_JavaEnsuresSatisfiable {
     //@ ensures \result > 0;
     public static int f(int x) {

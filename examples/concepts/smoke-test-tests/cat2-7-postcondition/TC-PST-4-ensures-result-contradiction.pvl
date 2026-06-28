@@ -2,6 +2,6 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-PST-4: \result > 5 && \result < 0 — no integer is simultaneously > 5 and < 0.
+// Same as TC-PST-2, different bounds.
 ensures \result > 5 && \result < 0;
 int f(int x) { return 1; }

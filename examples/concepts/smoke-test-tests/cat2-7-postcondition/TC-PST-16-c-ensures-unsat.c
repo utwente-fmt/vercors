@@ -2,8 +2,6 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-PST-16 (C): \result > 0 && \result < 0 is always false — no value satisfies both.
-// Triggers both a normal postcondition failure and postUnsatisfiable.
-// Verifies the postSat checker works correctly through the C frontend.
+// Same as TC-PST-2 but via C.
 /*@ ensures \result > 0 && \result < 0; @*/
 int f(int x) { return 1; }

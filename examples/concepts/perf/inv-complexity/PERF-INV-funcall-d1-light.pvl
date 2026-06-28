@@ -2,11 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: light pair for PERF-INV-funcall-d1 — a single loop with 1
-// function call in the invariant (1x checkInvSat call, 1 WD inhale), instead
-// of 3 calls x 2 loops (6 calls total).
-// Compare to PERF-INV-funcall-d1 to see whether WD-collection cost scales
-// with the number of function calls in the invariant.
+// Light pair for PERF-INV-funcall-d1: 1 loop, 1 call instead of 3 calls x 2 loops.
+// Compare to see whether WD-collection cost scales with call count.
 requires x > 0;
 pure boolean isPos(int x) = x > 0;
 

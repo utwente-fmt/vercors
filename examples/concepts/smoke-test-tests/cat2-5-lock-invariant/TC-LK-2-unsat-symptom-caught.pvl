@@ -2,25 +2,18 @@
 //:: tools silicon
 //:: verdict Fail
 
-//inconsistent invarient; all proceeding lock and unlock also fail
+// Unsatisfiable invariant is checked once at class level, not once per method.
 lock_invariant Perm(val, write) ** val > 5 ** val < 3;
 class UnsatInvClass {
     int val;
 
     requires committed(this);
     void method_a() {
-        //lock this;
-        // LockCodeDead fires here — same root cause fires once per lock site.
         if (val > 0) { }
-        //unlock this;
     }
 
     requires committed(this);
     void method_b() {
-        //lock this;
-        // LockCodeDead fires again — same invariant, separate lock site.
-        // CheckLockInvariantSatisfiability avoids this by catching it once at class level.
         if (val < 10) { }
-        //unlock this;
     }
 }

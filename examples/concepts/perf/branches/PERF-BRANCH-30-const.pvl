@@ -2,11 +2,8 @@
 //:: tools silicon
 //:: verdict Fail
 
-// Control: same 30 branches as PERF-BRANCH-30 but conditions are all `true`.
-// Every else-branch is trivially dead — detectDeadCode fires 30 times.
-// Z3 resolves each Refute instantly (no arithmetic reasoning needed).
-// Compare timing to PERF-BRANCH-30: the gap isolates condition-complexity cost
-// from pure Refute infrastructure overhead.
+// Control: same 30 branches as PERF-BRANCH-30 but all conditions are `true`.
+// Compare timing to PERF-BRANCH-30 to isolate condition cost from Refute overhead.
 requires a >= 0 && b >= 0;
 void perf_branch_30_const(int a, int b) {
     if (true) { int s = a - b; } else { int s = b - a; }

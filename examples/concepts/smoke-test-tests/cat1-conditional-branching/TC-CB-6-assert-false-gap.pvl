@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// assert false is a proof obligation: it fails with assertFailed but does not add
-// false to the state, so subsequent code is still considered live.
+// Unlike assume/inhale false, assert false doesn't narrow the state.
 void f(int x) {
     assert false; // assertFailed: state is feasible, so false never holds
     if (x > 0) {

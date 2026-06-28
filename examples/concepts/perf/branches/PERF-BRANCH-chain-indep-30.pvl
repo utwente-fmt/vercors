@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 30-way if-elseif-...-else chain (mutually exclusive, 31 paths total),
-// but each condition uses a distinct INDEPENDENT variable (unlike PERF-BRANCH-chain-30,
-// which reuses 2 shared variables). Isolates: does variable independence matter when the
-// branch *structure* keeps the path count linear (chain) instead of multiplicative (sequential)?
+// Same idea as PERF-BRANCH-chain-indep-10 at N=30.
+// Isolates whether independence matters once structure already keeps paths linear.
 void perf_branch_chain_indep_30(int v1, int v2, int v3, int v4, int v5, int v6, int v7, int v8, int v9, int v10, int v11, int v12, int v13, int v14, int v15, int v16, int v17, int v18, int v19, int v20, int v21, int v22, int v23, int v24, int v25, int v26, int v27, int v28, int v29, int v30) {
     if (v1 > 0) {
         int s = v1;

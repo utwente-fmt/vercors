@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-IH-3: Two inhales contradict each other — neither alone kills the branch,
-// but inhale x > 0 followed by inhale x < 0 is unsatisfiable.
+// Same as TC-AS-3 but via inhale.
 void f(int x) {
     inhale x > 0;
     inhale x < 0; // contradicts previous inhale

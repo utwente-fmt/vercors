@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-CB-4: assume false makes the state immediately contradictory.
-// All subsequent code is dead. refute false fires in the branch.
+// assume false narrows the state before the branch is reached.
 void f(int x) {
     assume false; // state immediately contradictory
     if (x > 0) {

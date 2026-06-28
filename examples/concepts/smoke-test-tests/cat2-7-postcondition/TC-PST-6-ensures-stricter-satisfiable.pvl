@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Postcondition \result > 5 is satisfiable (e.g. result=6), so postUnsatisfiable
-// must not fire; normal verification also passes since the body returns 6.
+// Stricter but still satisfiable postcondition.
 ensures \result > 5;
 int f(int x) {
     return 6;

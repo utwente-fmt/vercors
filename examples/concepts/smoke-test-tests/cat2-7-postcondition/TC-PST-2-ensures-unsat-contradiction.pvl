@@ -2,6 +2,6 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-PST-2: \result > 0 && \result < 0 is always false — no value satisfies both.
+// \result > 0 && \result < 0 — no value satisfies both.
 ensures \result > 0 && \result < 0;
 int f(int x) { return 1; }

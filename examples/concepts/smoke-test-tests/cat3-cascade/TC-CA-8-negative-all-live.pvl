@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-CA-8 (Negative): All branches are live (x > 0 leaves x > 5, x < 100, and
-// x < 50 all reachable). Baseline confirming the cascade tests aren't vacuous.
-// Expected: Pass — no deadBranch warnings.
+// Negative: all branches live — confirms the cascade tests aren't vacuous.
 requires x > 0;
 void f(int x) {
     if (x > 5) {    // live: x could be 6,7,...

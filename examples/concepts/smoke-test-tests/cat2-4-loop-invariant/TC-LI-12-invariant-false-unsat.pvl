@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// loop_invariant false is trivially unsatisfiable — invariantUnsatisfiable and
-// invariantNotEstablished fire; body and post-loop dead code checks are suppressed
-// as cascades.
+// loop_invariant false is trivially unsatisfiable.
 void f(int x) {
     loop_invariant false;
     while (x > 0) {

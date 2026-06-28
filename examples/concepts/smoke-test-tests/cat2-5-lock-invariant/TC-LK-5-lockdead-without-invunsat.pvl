@@ -2,11 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-LK-5: lockDead fires WITHOUT lockInvariantUnsatisfiable.
-// The lock invariant (val > 0) is fine on its own, but an assume inside the
-// method (flag == 2) contradicts the precondition (flag == 1), making the
-// state dead before 'lock this' is reached.
-// Contrast with TC-LK-2, where the invariant itself is unsatisfiable.
+// lockDead fires from dead context, not an unsatisfiable invariant (contrast TC-LK-2).
 lock_invariant Perm(val, write) ** val > 0;
 class LiveInvDeadContext {
     int val;

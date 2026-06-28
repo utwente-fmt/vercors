@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// Perm(c.f, write) ** Perm(c.f, write) is a resource invariant with no
-// satisfying heap state (no state can hold more than full permission to the
-// same field). Inhaling it in the isolated context immediately produces an
-// inconsistent heap, triggering parInvariantUnsatisfiable.
+// Invariant claims 200% write permission to the same field.
 class TC_BI_4_Cell {
     int f;
 }

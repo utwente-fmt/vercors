@@ -2,7 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-LK-10: Unsatisfiable lock invariant with a pure function call. lockInvariantUnsatisfiable expected.
+// Same as TC-LK-9 but unsatisfiable.
 requires n >= 0;
 pure boolean nonNeg(int n) = n >= 0;
 

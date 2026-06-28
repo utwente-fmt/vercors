@@ -2,8 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Loop invariant calls nonNeg(x), whose precondition x >= 0 is also an invariant.
-// x = 0 satisfies both, so invSat must not fire; normal verification also passes.
+// Invariant calls a function whose precondition it also satisfies.
 
 requires x >= 0;
 pure boolean nonNeg(int x) = x >= 0;

@@ -2,12 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: 4 sequential par blocks, each with the same indep-5-style body
-// (5 sequential if's, no else, one independent variable per branch — see
-// PERF-BRANCH-indep-5.pvl, which produces 279 branch traces standalone).
-// Tests whether detectDeadCode analyzes each par block independently, multiplying
-// the 2^5 trace count by the block count (~4x279≈1,100), or whether par-block
-// isolation caps the per-block cost regardless of how many blocks there are.
+// 4 par blocks, each an indep-5-style body (PERF-BRANCH-indep-5, 279 traces).
+// Tests whether par blocks multiply the trace count per block or cap it.
 requires n > 0 && v1 > -1000 && v2 > -1000 && v3 > -1000 && v4 > -1000 && v5 > -1000;
 void perf_par_4blocks_indep(int n, int v1, int v2, int v3, int v4, int v5) {
     par (int tid1 = 0 .. n)

@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-LI-6: Invariant x > 0 combined with the exit condition !(x > 0) makes the
-// post-loop state unsatisfiable, so the post-loop deadBranch fires.
-// Expected errors: 1 (deadBranch for code after loop).
+// Invariant + negated exit condition makes post-loop state dead.
 requires x > 0;
 void f(int x) {
     loop_invariant x > 0;

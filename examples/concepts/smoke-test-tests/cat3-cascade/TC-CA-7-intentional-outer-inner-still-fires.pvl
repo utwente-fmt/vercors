@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// assert false marks the outer dead branch (x < 0) as intentional, so it
-// produces no warning. The inner branch (x > 5) is also dead but is NOT
-// marked intentional, so it still fires its own deadBranch.
-// Expected: Fail — inner branch fires despite outer being intentional.
+// Intentional marker on the outer branch doesn't cover the inner one.
 requires x > 0;
 void f(int x) {
     if (x > 5) {

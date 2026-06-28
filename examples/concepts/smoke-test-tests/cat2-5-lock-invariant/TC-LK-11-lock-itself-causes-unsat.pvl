@@ -2,10 +2,7 @@
 //:: tools silicon
 //:: verdict Fail
 
-// TC-LK-11: the lock invariant (Perm(flag,1\2) ** flag == 2) is satisfiable on
-// its own, so lockInvariantUnsatisfiable does NOT fire. But acquiring the lock
-// combines it with the precondition (flag == 1) into an impossible state
-// (flag == 1 ** flag == 2), so lockDead and unlockDead both fire.
+// Invariant satisfiable alone; combined with the precondition at lock time, dead.
 lock_invariant Perm(flag, 1\2) ** flag == 2;
 class LockCausesUnsat {
     int flag;

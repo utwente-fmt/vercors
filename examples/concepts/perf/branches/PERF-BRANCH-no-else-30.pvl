@@ -2,10 +2,8 @@
 //:: tools silicon
 //:: verdict Pass
 
-// Performance: same 30 conditions as PERF-BRANCH-30, but with the else branch
-// removed — only 30 Refutes instead of 60 (one per "then" branch).
-// Compare to PERF-BRANCH-30 to isolate the cost of the else-branch Refutes
-// from the cost of the conditions themselves.
+// Same as PERF-BRANCH-30 but no else branch — half the Refutes.
+// Compare to PERF-BRANCH-30 to isolate else-Refute cost.
 requires a >= 0 && b >= 0;
 void perf_branch_no_else_30(int a, int b) {
     if (a > b) { int s = a - b; }

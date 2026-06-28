@@ -2,9 +2,7 @@
 //:: tools silicon
 //:: verdict Pass
 
-// TC-CM-6 (Negative): Multiple constructs consistent with each other and
-// with the branch condition. No dead code expected.
-// requires x > 0 AND assume x < 100 leaves x in (0, 100). Branch x > 5 is live.
+// Negative: multiple constructs, all consistent — branch is live.
 requires x > 0;
 void f(int x) {
     assume x < 100;
