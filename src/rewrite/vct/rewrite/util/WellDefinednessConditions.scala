@@ -97,7 +97,7 @@ object WellDefinednessConditions {
         }
     }
 
-  /** Extracts the heap-free part of `expr` (see [[isNonHeap]]), descending into
+  /** Extracts the heap-free part of `expr`, descending into
     * `&&`/`**`/`==>`/`?:` so a pure conjunct isn't lost just because it's
     * paired with a heap-dependent one. `None` if nothing can be extracted.
     */
