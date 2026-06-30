@@ -26,9 +26,11 @@ class AbstractRewriter extends AllFamiliesGenerator {
   ): Source =
     source"""
       package vct.col.ast
+      import scala.collection.mutable
 
       trait AbstractRewriter[Pre, Post] {
         implicit val rewriter: $AbstractRewriter[Pre, Post] = this
+        val reuseDecl: mutable.Set[Declaration[Pre]] = mutable.Set()
 
         def dispatch(o: $Origin): $Origin = o
         def dispatch[T <: $VerificationFailure](blame: $Blame[T]): $Blame[T] = blame

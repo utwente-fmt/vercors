@@ -281,6 +281,7 @@ class Transformation(
         }
 
         logger.debug(s"Running transformation ${pass.key}")
+        ReuseTracker.setCurrentPass(pass.key)
 
         result =
           try { pass().dispatch(result) }
@@ -313,6 +314,8 @@ class Transformation(
           logger.debug(f"  ${example.getClass.getSimpleName}")
         }
       }
+
+      logger.info(ReuseTracker.reportAndReset())
 
       result
     }

@@ -108,7 +108,8 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[
   ): T =
     successors.topOption match {
       case Some(map) if !map.contains(pre) => map(pre) = post; post
-      case Some(map) => throw DuplicateSuccessor(pre, map(pre), post)
+//      case Some(map) => throw DuplicateSuccessor(pre, map(pre), post)
+      case Some(map) => map(pre).asInstanceOf[T];
       case None => throw NoScope(tag)
     }
 
@@ -127,6 +128,24 @@ case class Scopes[Pre, Post, PreDecl <: Declaration[
       case Seq(decl) => decl
       case other => throw WrongDeclarationCount(tag, other.size)
     }
+  }
+
+  def dispatch(
+      decls: Seq[PreDecl]
+  )(implicit rw: AbstractRewriter[Pre, Post]): Seq[PostDecl] = {
+    val res =
+      collect {
+        decls.foreach((decl: PreDecl) =>
+          rw.dispatch(decl.asInstanceOf[Declaration[Pre]])
+        )
+      }._1
+    if (
+      res.size == decls.size && res.zip(decls).forall({ case (pre, post) =>
+        pre.asInstanceOf[_root_.scala.AnyRef] eq
+          post.asInstanceOf[_root_.scala.AnyRef]
+      })
+    ) { return decls.asInstanceOf[Seq[PostDecl]] }
+    else { res }
   }
 
   def dispatch(

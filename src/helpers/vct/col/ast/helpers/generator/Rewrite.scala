@@ -58,24 +58,83 @@ class Rewrite extends NodeGenerator {
     }
 
   def make(node: NodeDefinition): Term = {
-    val fieldValues = node.fields.map { case (name, t) => makeField(name, t) }
+
+    val fieldResolvedDefs = node.fields.map { case (fieldName, t) =>
+      val resolved = Term.Name(s"_resolved_$fieldName")
+      val field = Term.Name(fieldName)
+      q"val ${Pat.Var(resolved)} = ${makeField(fieldName, t)}"
+    }
+
+    val fieldResolvedTerms = node.fields.map { case (fieldName, _) =>
+      val resolved = Term.Name(s"_resolved_$fieldName")
+      q"$resolved"
+    }
+
+    val fieldReuseConditions = node.fields.map { case (fieldName, t) =>
+      val resolved = Term.Name(s"_resolved_$fieldName")
+      val original = q"this.${Term.Name(fieldName)}"
+      val isOriginal = q"${unchanged(t, q"$resolved", original)}"
+      t match {
+        case _: structure.Type.ValueType =>
+          q"${Term.Name(fieldName)}.isEmpty && $isOriginal"
+        case _ => isOriginal
+      }
+    }
+
+    val blameResolvedDef = node.blameType.map(_ =>
+      q"val _resolved_blame = if(blame ne null) blame else `~rw`.dispatch(this.blame)"
+    )
+
+    val blameReuseCondition = node.blameType.map(_ =>
+      q"(_resolved_blame.asInstanceOf[_root_.scala.AnyRef] eq this.blame.asInstanceOf[_root_.scala.AnyRef])"
+    )
+
+    val oResolvedDef: Stat =
+      q"val _resolved_o = if(o ne null) o else `~rw`.dispatch(this.o)"
+    val oReuseCondition =
+      q"(_resolved_o.asInstanceOf[_root_.scala.AnyRef] eq this.o.asInstanceOf[_root_.scala.AnyRef])"
+    val setupDefs: List[Stat] =
+      ((fieldResolvedDefs) ++ blameResolvedDef.toSeq :+ oResolvedDef).toList
+
+    val reuseSafeForNode =
+      // (node.kind != structure.DeclaredNode) &&
+      // node.name.base != "Program"
+      true
+    // node.scopes.isEmpty //&&
+    //   !node.fields.exists { case (_, t) =>
+    //     t match {
+    //       // case structure.Type.Declaration(_) | structure.Type.DeclarationSeq(_) |
+    //       //     structure.Type.Ref(_) | structure.Type.MultiRef(_) => true
+    //       case _ => false
+    //     }
+    //   }
+
+    val reuseConditions =
+      fieldReuseConditions ++ blameReuseCondition.toSeq :+ oReuseCondition
+    val baseReuseCondition = reuseConditions.reduce[Term] { (acc, cond) =>
+      q"$acc && $cond"
+    }
+    val reuseCondition =
+      q"${Lit.Boolean(reuseSafeForNode)} && $baseReuseCondition"
 
     val valuess =
       node.blameType match {
         case Some(_) =>
           List(
-            fieldValues.toList,
-            List(q"if(blame ne null) blame else `~rw`.dispatch(this.blame)"),
-            List(q"if(o ne null) o else `~rw`.dispatch(this.o)"),
+            fieldResolvedTerms.toList,
+            List(q"_resolved_blame"),
+            List(q"_resolved_o"),
           )
-        case None =>
-          List(
-            fieldValues.toList,
-            List(q"if(o ne null) o else `~rw`.dispatch(this.o)"),
-          )
+        case None => List(fieldResolvedTerms.toList, List(q"_resolved_o"))
       }
 
-    q"new ${Init(typ(node.name), Name.Anonymous(), valuess)}"
+    val nodeNameLit = Lit.String(node.name.base)
+    val reuse =
+      if (node.kind == structure.DeclaredNode)
+        q"{`~rw`.reuseDecl.add(this); this.asInstanceOf[${typ(node)}[Post]]}"
+      else
+        q"this.asInstanceOf[${typ(node)}[Post]]"
+    q"{ ..$setupDefs; val _reuseOriginal = $reuseCondition; _root_.vct.col.rewrite.ReuseTracker.record($nodeNameLit, _reuseOriginal); if (_reuseOriginal) $reuse else new ${Init(typ(node.name), Name.Anonymous(), valuess)} }"
   }
 
   def makeField(fieldName: String, t: structure.Type): Term = {
@@ -94,7 +153,20 @@ class Rewrite extends NodeGenerator {
       case structure.Type.DeclarationSeq(name) =>
         q"`~rw`.${Naming.scopes(name.base)}.dispatch($term)"
       case structure.Type.Ref(kind) =>
-        q"`~rw`.porcelainRefSucc[${typ(kind.name)}[Post]]($term).getOrElse(`~rw`.succ[${typ(kind.name)}[Post]]($term.decl))"
+        // q"""
+        //   `~rw`.porcelainRefSucc[${typ(kind.name)}[Post]]($term).getOrElse {
+        //     val _decl = $term.decl
+        //     if(_decl.succeededSame) $term.asInstanceOf[_root_.vct.col.ref.Ref[Post, ${typ(kind.name)}[Post]]]
+        //     else `~rw`.succ[${typ(kind.name)}[Post]](_decl)
+        //   }
+        //   """
+        q"""
+          `~rw`.porcelainRefSucc[${typ(kind.name)}[Post]]($term).getOrElse {
+            val _decl = $term.decl
+            if (`~rw`.reuseDecl.contains(_decl)) $term.asInstanceOf[_root_.vct.col.ref.Ref[Post, ${typ(kind.name)}[Post]]]
+            else `~rw`.succ[${typ(kind.name)}[Post]](_decl)
+          }
+        """
       case structure.Type.MultiRef(kind) =>
         q"`~rw`.porcelainRefSucc[${typ(kind.name)}[Post]]($term).getOrElse(`~rw`.anySucc[${typ(kind.name)}[Post]]($term.decl))"
       case _: structure.Type.PrimitiveType => term
@@ -112,5 +184,12 @@ class Rewrite extends NodeGenerator {
           }.toList
 
         q"(..$elems)"
+    }
+
+  def unchanged(t: structure.Type, lhs: Term, rhs: Term): Term =
+    t match {
+      case _: structure.Type.PrimitiveType => q"$lhs == $rhs"
+      case _ =>
+        q"$lhs.asInstanceOf[_root_.scala.AnyRef] eq $rhs.asInstanceOf[_root_.scala.AnyRef]"
     }
 }

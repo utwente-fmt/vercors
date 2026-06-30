@@ -769,10 +769,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     if (
       (!inSpecDefFunction.isEmpty && inSpecDefFunction.top) ||
       !heapVariables.contains(v)
-    ) {
-      rw.variables
-        .succeed(v, new Variable[Post](rw.dispatch(getLocalVarType(v))))
-    }
+    ) { rw.variables.succeed(v, v.rewrite(rw.dispatch(getLocalVarType(v)))) }
   }
 
   def rewriteFunctionDef(func: LLVMFunctionDefinition[Pre]): Unit = {
@@ -798,9 +795,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       allocaVars.having(mutable.Set[Variable[Pre]]()) {
         val newArgs = func.importedArguments.getOrElse(func.args).map { it =>
           // Apply type-inference to function-arguments
-          new Variable(
-            rw.dispatch(localVariableInferredType.getOrElse(it, it.t))
-          )(it.o)
+          it.rewrite(rw.dispatch(localVariableInferredType.getOrElse(it, it.t)))
         }
         val argList =
           rw.variables.collect {
@@ -900,9 +895,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           pred.args.foreach { a =>
             rw.variables.succeed(
               a,
-              new Variable(
+              a.rewrite(
                 rw.dispatch(localVariableInferredType.getOrElse(a, a.t))
-              )(a.o),
+              ),
             )
           }
         }._1

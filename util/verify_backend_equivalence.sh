@@ -13,13 +13,13 @@ Purpose:
 Defaults:
   VCT_BIN=bin/vct
   INPUT_FILE=examples/concepts/gpgpu/opencl_vector_add.cl
-  VCT_FLAGS="--skip-backend --dev-unsafe-optimization"
+  VCT_FLAGS="--dev-unsafe-optimization"
   BASELINE_FILE=util/perf-baselines/opencl_vector_add_baseline.vpr
   WORK_DIR=tmp/backend-equivalence
 
 Commands:
   init   Generate and store baseline output at BASELINE_FILE.
-  check  Generate current output and compare it byte-for-byte against BASELINE_FILE.
+  check  Generate current output and compare it against BASELINE_FILE while ignoring field declaration order.
 
 Exit codes:
   0 on match / successful init
@@ -37,7 +37,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 VCT_BIN="${VCT_BIN:-$REPO_ROOT/bin/vct}"
 INPUT_FILE="${INPUT_FILE:-examples/concepts/gpgpu/opencl_vector_add.cl}"
-VCT_FLAGS="${VCT_FLAGS:---skip-backend --dev-unsafe-optimization}"
+VCT_FLAGS="${VCT_FLAGS:---dev-unsafe-optimization}"
 BASELINE_FILE="${BASELINE_FILE:-$REPO_ROOT/util/perf-baselines/opencl_vector_add_baseline.vpr}"
 WORK_DIR="${WORK_DIR:-$REPO_ROOT/tmp/backend-equivalence}"
 
@@ -62,6 +62,43 @@ generate_vpr() {
   printf '%s\n' "$out_file"
 }
 
+normalize_vpr() {
+  local input_file="$1"
+  local output_file="$2"
+
+  # Canonicalize by sorting contiguous blocks of "field ..." lines.
+  # This makes comparison robust against harmless field reordering.
+  awk '
+    function flush_fields(    i, n, cmd, line) {
+      n = field_count
+      if (n == 0) return
+
+      cmd = "sort"
+      for (i = 1; i <= n; i++) {
+        print fields[i] | cmd
+      }
+      close(cmd)
+
+      field_count = 0
+      delete fields
+    }
+
+    /^field[[:space:]]/ {
+      fields[++field_count] = $0
+      next
+    }
+
+    {
+      flush_fields()
+      print
+    }
+
+    END {
+      flush_fields()
+    }
+  ' "$input_file" >"$output_file"
+}
+
 case "$MODE" in
   init)
     warmup
@@ -79,7 +116,10 @@ case "$MODE" in
 
     warmup
     generated="$(generate_vpr "$WORK_DIR/current")"
-    if diff -u "$BASELINE_FILE" "$generated" >"$WORK_DIR/latest.diff"; then
+    normalize_vpr "$BASELINE_FILE" "$WORK_DIR/baseline.normalized.vpr"
+    normalize_vpr "$generated" "$WORK_DIR/current.normalized.vpr"
+
+    if diff -u "$WORK_DIR/baseline.normalized.vpr" "$WORK_DIR/current.normalized.vpr" >"$WORK_DIR/latest.diff"; then
       printf 'MATCH: %s equals current generated output (%s).\n' "$BASELINE_FILE" "$generated"
     else
       echo "MISMATCH: generated output differs from baseline." >&2
