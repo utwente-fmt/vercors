@@ -1495,6 +1495,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case Let(binding, value, main) =>
         Let(binding, coerce(value, binding.t), main)
+      case let @ LetSuchThat(binding, condition, main) =>
+        LetSuchThat(binding, bool(condition), main)(let.blame)
       case LiteralBag(element, values) =>
         LiteralBag(element, values.map(coerce(_, element)))
       case LiteralMap(k, v, values) =>

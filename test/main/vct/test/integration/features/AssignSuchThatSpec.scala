@@ -57,6 +57,17 @@ int test8(set<int> s, int[] xs){
   return 0;
 }
 
+  requires |s| > 0;
+  ensures \result in s;
+pure int test9(set<int> s){
+  int x :| x \in s;
+  return x;
+}
+
+  requires |s| > 0;
+  ensures \result in s;
+  ensures (\let int x :| x \in s; x) in s;
+pure int test10(set<int> s) = (\let int x :| x \in s; x);
   """
 
   vercors should error withCode "resolutionError:type" in "Condition needs to be boolean valued" pvl """
@@ -75,5 +86,15 @@ int test7(set<int> s, int[] xs){
   return 0;
 }
 
+  """
+
+  vercors should error withCode "letSuchThatOnlyInPure" in "Do us let such that in normal methods" pvl """
+  requires |s| > 0;
+  ensures \result in s;
+int test8(set<int> s){
+  int x;
+  x = (\let int x :| x \in s; x);
+  return x;
+}
   """
 }

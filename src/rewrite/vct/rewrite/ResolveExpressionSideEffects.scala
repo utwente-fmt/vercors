@@ -5,19 +5,13 @@ import vct.col.util.AstBuildHelpers._
 import vct.col.ast._
 import vct.col.rewrite.error.ExtraNode
 import vct.col.origin.{
-  AbstractApplicable,
-  AssertFailed,
-  Blame,
-  AssignSuchThatFailed,
   DerefAssignTarget,
   LabelContext,
   Origin,
-  PanicBlame,
   PreferredName,
   TrueSatisfiable,
 }
 import vct.col.ref.Ref
-import vct.col.util.Substitute
 import vct.result.VerificationError.{Unreachable, UserError}
 
 import scala.collection.mutable
@@ -41,15 +35,6 @@ case object ResolveExpressionSideEffects extends RewriterBuilder {
     override def code: String = "disallowedAssignmentTarget"
     override def text: String =
       target.o.messageInContext("This target cannot be assigned to.")
-  }
-
-  case class DisallowedAssignmentTargetForSuchThat(target: Expr[_])
-      extends UserError {
-    override def code: String = "disallowedAssignmentTargetForSuchThat"
-    override def text: String =
-      target.o.messageInContext(
-        "An assign such that statement can only assign to local variables."
-      )
   }
 
   case class DisallowedSideEffect(effector: Expr[_]) extends UserError {
@@ -100,9 +85,6 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
   // conditions may be duplicated, so they have to be duplicable for free probably? i.e. no internal declarations
   // like let.
   val currentConditions: ScopedStack[Expr[Post]] = ScopedStack()
-
-  val nonDetMethods: mutable.Map[Type[Post], Function[Post]] = mutable.Map()
-  var nonDetNumber: BigInt = 0
 
   // When an actual side effect occurs, this flushes out the extracted pure expressions as side effects.
   def flushExtractedExpressions(): Unit = {
@@ -359,7 +341,6 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
           )
         case ass @ Assign(target, value) =>
           frame(PreAssignExpression[Pre](target, value)(ass.blame), Eval(_))
-        case ass @ AssignSuchThat(_, _) => rewriteAssignSuchThat(ass)
         case block: Block[Pre] => super.dispatch(block)
         case scope: Scope[Pre] => super.dispatch(scope)
         case Branch(branches) => doBranches(branches)
@@ -715,73 +696,4 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
       case other => stored(ReInliner().dispatch(super.dispatch(other)), other.t)
     }
 
-  case class FailedAssignSuchThat(assign: AssignSuchThat[_])
-      extends Blame[AssertFailed] {
-    override def blame(error: AssertFailed): Unit = {
-      assign.blame.blame(AssignSuchThatFailed(assign))
-    }
-  }
-
-  def rewriteAssignSuchThat(ass: AssignSuchThat[Pre]): Statement[Post] = {
-    implicit val o: Origin = ass.o
-    val AssignSuchThat(target, constraint) = ass
-    target match {
-      case Local(_) =>
-      case _ => throw DisallowedAssignmentTargetForSuchThat(target)
-    }
-
-    val targetNew = dispatchPure(target)
-    val constraintNew = dispatchPure(constraint)
-    val t = dispatch(target.t)
-
-    val existsVar =
-      variables.collect {
-        val existsTarget =
-          new Variable[Post](t)(
-            target.o
-              .where(name = target.o.getPreferredNameOrElse(Seq("x")).snake)
-          )
-        variables.declare(existsTarget)
-      }._1.head
-    val existsLocal = Local[Post](existsVar.ref)(target.o)
-    val existsBody = Substitute(Map(targetNew -> existsLocal))
-      .dispatch(constraintNew)
-    val nonDet: Function[Post] = nonDetMethods.getOrElseUpdate(t, makeNonDet(t))
-    val nr = nonDetNumber
-    nonDetNumber += 1
-    val assignNonDet =
-      Assign(
-        targetNew,
-        functionInvocation[Post](TrueSatisfiable, nonDet.ref, Seq(const(nr))),
-      )(ass.blame)
-    val checkExists =
-      Assert(Exists(Seq(existsVar), Seq(), existsBody))(FailedAssignSuchThat(
-        ass
-      ))
-    val assumeValue = Assume(constraintNew)
-    Block[Post](Seq(assignNonDet, checkExists, assumeValue))
-  }
-
-  def makeNonDet(element: Type[Post]): Function[Post] = {
-    implicit val o: Origin = Origin(
-      Seq(LabelContext("non_det_" + element.toString))
-    )
-
-    globalDeclarations.declare({
-      val (vars, _) = variables.collect {
-        val a_var = new Variable[Post](TInt())(o.where(name = "p"))
-        variables.declare(a_var)
-      }
-
-      function(
-        blame = AbstractApplicable,
-        contractBlame = TrueSatisfiable,
-        returnType = element,
-        args = vars,
-        typeArgs = Nil,
-        body = None,
-        decreases = Some(DecreasesClauseNoRecursion[Post]()),
-      )(o.where(name = "non_det_" + element.toString))
-    })
-  }
 }

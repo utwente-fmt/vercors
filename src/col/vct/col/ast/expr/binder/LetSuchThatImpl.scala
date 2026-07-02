@@ -11,8 +11,8 @@ trait LetSuchThatImpl[G] extends LetSuchThatOps[G] {
 
   override def layout(implicit ctx: Ctx): Doc =
     Group(
-      Text("(") <> "\\let" <+> binding <+> ":|" <+> value <> ";" <>> main </>
-        ")"
+      Text("(") <> "\\let" <+> binding <+> ":|" <+> condition <> ";" <>>
+        main </> ")"
     )
 
   override def precedence: Int = Precedence.ATOMIC

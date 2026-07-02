@@ -411,9 +411,11 @@ final case class AssignInitial[G](target: Expr[G], value: Expr[G])(
 )(implicit val o: Origin)
     extends AssignStmt[G] with AssignInitialImpl[G]
 final case class AssignSuchThat[G](target: Expr[G], constraint: Expr[G])(
-    val blame: Blame[AssignFailed]
+    val blame: Blame[AssignSuchThatFailed]
 )(implicit val o: Origin)
-    extends NormallyCompletingStatement[G] with AssignSuchThatImpl[G]
+    extends NormallyCompletingStatement[G]
+    with ExpressionContainerStatement[G]
+    with AssignSuchThatImpl[G]
 final case class Send[G](decl: SendDecl[G], delta: BigInt, res: Expr[G])(
     val blame: Blame[SendFailed]
 )(implicit val o: Origin)
@@ -1567,9 +1569,9 @@ final case class Let[G](binding: Variable[G], value: Expr[G], main: Expr[G])(
 @scopes[LocalHeapVariable]
 final case class LetSuchThat[G](
     binding: Variable[G],
-    value: Expr[G],
+    condition: Expr[G],
     main: Expr[G],
-)(implicit val o: Origin)
+)(val blame: Blame[AssignSuchThatFailed])(implicit val o: Origin)
     extends Binder[G] with LetSuchThatImpl[G]
 final case class InlinePattern[G](
     inner: Expr[G],

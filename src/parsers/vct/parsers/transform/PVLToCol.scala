@@ -1906,6 +1906,12 @@ case class PVLToCol[G](
           convert(v),
           convert(body),
         )
+      case ValLetSuchThat(_, _, t, id, _, v, _, body, _) =>
+        LetSuchThat(
+          new Variable(convert(t))(origin(id).sourceName(convert(id))),
+          convert(v),
+          convert(body),
+        )(blame(e))
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
