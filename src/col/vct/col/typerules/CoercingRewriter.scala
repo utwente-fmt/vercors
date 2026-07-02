@@ -2330,6 +2330,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         AssignInitial(target, coerce(value, target.t, canCDemote = true))(
           a.blame
         )
+      case a @ AssignSuchThat(target, constraint) =>
+        AssignSuchThat(target, bool(constraint))(a.blame)
       case Assume(assn) => Assume(bool(assn))
       case Block(statements) => Block(statements)
       case Branch(branches) =>
