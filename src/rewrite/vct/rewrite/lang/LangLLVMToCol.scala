@@ -206,7 +206,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     * contract. This relies on the assumption that the contract only consists of
     * calls to wrapper functions where the variable is passed as a Local.
     */
-  // private val byValArgs: ScopedStack[Set[Variable[Pre]]] = ScopedStack()
   // old_arg --> new_arg
   private val byValArgs
       : ScopedStack[SuccessionMap[Variable[Pre], Variable[Post]]] =
@@ -598,6 +597,15 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                   .map(v => typeGuesses.get(v).get.currentType).toSeq,
           )
         })
+      case contr: PallasFunctionContract[Pre] =>
+        (contr.llvmGivenArgs ++ contr.llvmYieldsArgs).filter(_.isByVal)
+          .foreach { case arg =>
+            addTypeGuess(
+              arg.v,
+              Set.empty,
+              _ => Seq(LLVMTPointer(arg.byValType)),
+            )
+          }
       case func: LLVMFunctionDefinition[Pre] =>
         func.args.zipWithIndex.foreach { case (a, i) =>
           addTypeGuess(
@@ -607,7 +615,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           )
         }
         // If arguments have the byval-attribute, infer type from that
-        func.llvmArgs.filter(_.byValType.nonEmpty).foreach { case arg =>
+        func.llvmArgs.filter(_.isByVal).foreach { case arg =>
           addTypeGuess(arg.v, Set.empty, _ => Seq(LLVMTPointer(arg.byValType)))
         }
 
@@ -988,9 +996,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                     case contract: VCLLVMFunctionContract[Pre] =>
                       rw.dispatch(contract.data.get)
                     case contract: PallasFunctionContract[Pre] =>
-                      inContract.having(true) {
-                        extendContractWithSretPerm(contract.content, cRetArg)
-                      }
+                      rewritePallasFunctionContract(contract, cRetArg)
                   },
                 pure = func.pure,
                 pallasWrapper = isWrapper,
@@ -1003,6 +1009,64 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       // }
     }
     llvmFunctionMap.update(func, procedure)
+  }
+
+  private def rewriteArgList(
+      args: Seq[LLVMFunctionArgument[Pre]]
+  ): Seq[Variable[Post]] = {
+    // For byval-args that are regular (i.e. no ghost arguments), intermediaries will be inserted that serve as
+    // the new successor. So we do not register the successor for these here.
+    rw.variables.collect {
+      args.foreach { a =>
+        val newArg = new Variable(rw.dispatch(getArgType(a.v, a.isByVal)))(a.o)
+        if (!a.isByVal) { rw.variables.succeed(a.v, newArg) }
+        else { rw.variables.declare(newArg) }
+      }
+    }._1
+  }
+
+  def rewritePallasFunctionContract(
+      c: PallasFunctionContract[Pre],
+      retArg: Option[Ref[Post, Variable[Post]]],
+  ): ApplicableContract[Post] = {
+    inContract.having(true) {
+
+      val givenArgs = rewriteArgList(c.llvmGivenArgs)
+      val yieldsArgs = rewriteArgList(c.llvmYieldsArgs)
+
+      // Update map to ensure that references to byval-args are correctly rewritten
+      // Assumes that byValArgs was populated by the LLVMFunctionDefinition rewrite
+      (c.llvmGivenArgs.zip(givenArgs) ++ c.llvmYieldsArgs.zip(yieldsArgs))
+        .filter(_._1.isByVal).foreach { case (vOld, vNew) =>
+          byValArgs.top.update(vOld.v, vNew)
+          rw.variables.succeedOnly(vOld.v, vNew)
+        }
+
+      /* If the function returns in an argument, extend the contract with
+       * context_everywhere retArg != NULL ** Perm(retArg, write)
+       */
+      val contextEverywhere =
+        retArg match {
+          case Some(arg) =>
+            implicit val o: Origin = pallasResArgPermOrigin
+            PointerNeq(Local(arg), Null(), const(0)) &* Perm(
+              AmbiguousLocation(DerefPointer(Local(arg))(LLVMSretPerm)),
+              WritePerm[Post](),
+            )
+          case None => tt[Post]
+        }
+
+      ApplicableContract[Post](
+        requires = rw.dispatch(c.requires),
+        ensures = rw.dispatch(c.ensures),
+        contextEverywhere = contextEverywhere,
+        kernelInvariant = tt,
+        signals = Seq.empty,
+        givenArgs = givenArgs,
+        yieldsArgs = yieldsArgs,
+        decreases = None,
+      )(c.blame)(c.o)
+    }
   }
 
   def rewriteStructDecl(sDecl: LLVMStructDeclaration[Pre]): Unit = {
@@ -1037,15 +1101,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     // LLVMPredicateDefinitions. These are turned into a ´real´ predicate
     // in a separate pass
     val newPred = rw.labelDecls.scope {
-      val argList =
-        rw.variables.collect {
-          pred.llvmArgs.foreach { a =>
-            val newArg =
-              new Variable(rw.dispatch(getArgType(a.v, a.isByVal)))(a.o)
-            if (!a.isByVal) { rw.variables.succeed(a.v, newArg) }
-            else { rw.variables.declare(newArg) }
-          }
-        }._1
+      val argList = rewriteArgList(pred.llvmArgs)
 
       // generate intermediary variables for the byval args
       val bvArgMap = SuccessionMap[Variable[Pre], Variable[Post]]
@@ -1091,26 +1147,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
 
     llvmPredicateMap.update(pred, newPred)
-  }
-
-  /** If the function returns in an argument, extend the contract with
-    * context_everywhere \pointer(retArg, 1, write);
-    */
-  private def extendContractWithSretPerm(
-      c: ApplicableContract[Pre],
-      retArg: Option[Ref[Post, Variable[Post]]],
-  ): ApplicableContract[Post] = {
-    retArg match {
-      case Some(arg) =>
-        implicit val o: Origin = pallasResArgPermOrigin
-        c.rewrite(contextEverywhere =
-          PointerNeq(Local(arg), Null(), const(0)) &* Perm(
-            AmbiguousLocation(DerefPointer(Local(arg))(LLVMSretPerm)),
-            WritePerm[Post](),
-          ) &* rw.dispatch(c.contextEverywhere)
-        )
-      case None => rw.dispatch(c)
-    }
   }
 
   private def addCast(arg: Expr[Pre], v: Variable[Pre])(
