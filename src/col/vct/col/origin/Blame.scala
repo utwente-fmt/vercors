@@ -166,6 +166,15 @@ case class AssignFieldFailed(node: SilverFieldAssign[_])
     s"Insufficient permission for assignment `$source`."
 }
 
+case class AssignSuchThatFailed(node: Node[_])
+    extends AssignFailed with NodeVerificationFailure {
+  override def code: String = "assignSuchThatFailed"
+  override def descInContext: String =
+    "There might not exist a value for this condition"
+  override def inlineDescWithSource(source: String): String =
+    s"There might not exist a value for this condition `$source`."
+}
+
 case class CopyClassFailed(node: Node[_], clazz: ByValueClass[_], field: String)
     extends PointerDerefError
     with InvocationFailure

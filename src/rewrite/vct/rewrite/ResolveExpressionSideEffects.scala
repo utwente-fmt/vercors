@@ -695,4 +695,5 @@ case class ResolveExpressionSideEffects[Pre <: Generation]()
         stored(res.get(SideEffectOrigin), cls.ref.decl.classType(Seq()))
       case other => stored(ReInliner().dispatch(super.dispatch(other)), other.t)
     }
+
 }
