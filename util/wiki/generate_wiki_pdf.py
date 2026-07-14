@@ -146,10 +146,18 @@ def collect_chapters(wiki_location):
     contents = unquote(contents)
 
     # Matches sidebar entries
-    chapter_re = re.compile("\[([A-Za-z /\?\&]+)\]\(https.*/([A-Za-z\-\?\&]+)\)")
-    # Extract titles and last parts of links to chapters
-    # Ignore "wiki" chapter, which is just a link to the wiki
-    chapters = [chapter for chapter in chapter_re.findall(contents) if chapter[0] != "Home"]
+    any_re = re.compile(r"\[(.+)\]\(https.*\/(.+)\)")
+    chapter_re = re.compile(r"\[([-A-Za-z \/\?\&,]+)\]\(https.*\/([-A-Za-z\?\&,]+)\)")
+    chapters = []
+    for line in contents.splitlines():
+        m = chapter_re.search(line)
+        if m:
+            chapters.append(m.groups())
+        elif any_re.search(line):
+            print(f"Warning: sidebar entry did not match our chapter regex and is not included: {line.strip()}", file=sys.stderr)
+
+    # Ignore "Home" chapter, which is just a link to the wiki
+    chapters = [chapter for chapter in chapters if chapter[0] != "Home"]
     
     # Every md file is loaded and combined into one to ensure only one call is necessary to operate upon all the files. This saves time.
     # UUIDs are inserted at points where we later want to put a top-level title.
@@ -169,7 +177,7 @@ def collect_chapters(wiki_location):
     # Every header is shifted by one to make sure only this script can insert top-level headings.
     print("Shifting headers...", end="")
     start_measuring_time()
-    shifted_md = pypandoc.convert_text(total_md , "gfm", "gfm", extra_args=["--base-header-level=2"])
+    shifted_md = pypandoc.convert_text(total_md , "gfm", "gfm", extra_args=["--shift-heading-level-by=2"])
     print_elapsed_time()
 
     print("Replacing codes...", end="")
