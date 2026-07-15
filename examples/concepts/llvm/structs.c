@@ -77,7 +77,9 @@ void alter_copy_struct(point p){
     p.y = 0;
 }
 
-// Expected to work without having to specify permissions.
+/*@
+  requires _Perm(&p, _write);
+@*/
 void alter_copy_struct_2(point p){
     p.x = 0;
     p.y = 0;

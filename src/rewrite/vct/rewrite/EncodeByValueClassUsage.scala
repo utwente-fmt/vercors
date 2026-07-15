@@ -24,11 +24,13 @@ case object EncodeByValueClassUsage extends RewriterBuilder {
   ) extends Blame[ClassDerefError] {
     override def blame(error: ClassDerefError): Unit = {
       if (blame.isInstanceOf[PanicBlame]) {
-        assign.o
-          .blame(CopyClassFailed(assign, clazz, Referrable.originName(field)))
+        assign.o.blame(
+          CopyClassFailed(assign, clazz, Referrable.originNameOrEmpty(field))
+        )
       } else {
-        blame
-          .blame(CopyClassFailed(assign, clazz, Referrable.originName(field)))
+        blame.blame(
+          CopyClassFailed(assign, clazz, Referrable.originNameOrEmpty(field))
+        )
       }
     }
   }
