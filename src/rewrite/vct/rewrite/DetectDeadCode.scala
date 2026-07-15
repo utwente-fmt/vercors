@@ -87,6 +87,14 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
     (blame, Refute(ff)(blame))
   }
 
+  private def startsWithAssertFalse(stat: Statement[Pre]): Boolean = stat match {
+    case Scope(_, body) => startsWithAssertFalse(body)
+    case Block(Nil) => false
+    case Block(stats) => startsWithAssertFalse(stats.head)
+    case Assert(BooleanValue(false)) => true
+    case _ => false
+  }
+
   // prepends Refute(false) before the body
   private def instrumentBody(
       node: Node[Pre],
@@ -94,7 +102,7 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
       body: Statement[Pre],
       originNode: Node[Pre] = null,
       extraSuppressor: () => Boolean = () => false,
-  )(implicit o: Origin): Statement[Post] = {
+  )(implicit o: Origin): Statement[Post] = if (startsWithAssertFalse(body)) { dispatch(body) } else {
     val origin =
       if (originNode != null)
         originNode

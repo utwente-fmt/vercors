@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.rewrite.util.WellDefinednessConditions
+import vct.col.rewrite.util.{Extract => ExtractObj}
 import vct.col.util.AstBuildHelpers._
 
 // Checks loop/par invariants are satisfiable: inhale into an isolated FramedProof
@@ -62,70 +63,64 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
   // the enclosing method's non-heap preconditions, then `inv`, then refutes false.
   private def isolatedSatCheck(inv: Expr[Pre], blame: Blame[RefuteFailed])(
       implicit o: Origin
-  ): Statement[Post] = {
-    val nonHeapPreConds = currentApplicable.topOption.toSeq.flatMap { ca =>
-      WellDefinednessConditions.splitPred(ca.contract.requires)
-        .flatMap(WellDefinednessConditions.extractNonHeap)
-    }
+  ) = {
+    val pre = foldStar(currentApplicable.topOption.toSeq.map { ca =>
+      foldStar(unfoldPredicate(ca.contract.requires))
+    })
 
-    Extract(
-      FramedProof(
-        tt,
-        Block[Post](
-          nonHeapPreConds.map(c =>
-            Inhale(wellFormednessBlame.having(IgnoreWellformednessInInvSat()) {
-              dispatch(c)
-            })
-          ) :+
-            Inhale(wellFormednessBlame.having(IgnoreWellformednessInInvSat()) {
-              dispatch(inv)
-            }) :+ Refute(ff)(blame)
-        ),
-        tt,
-      )(PanicBlame("FramedProof with trivial pre/post cannot fail")),
-      None,
-    )(PanicBlame("Extract without termination measure cannot fail"))
+    val extractObj = ExtractObj[Pre]()
+    val preExtract = extractObj.extract(pre)
+    val invExtract = extractObj.extract(inv)
+    val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
+
+    variables.scope {
+      localHeapVariables.scope {
+        globalDeclarations.declare(procedure(
+          blame = AbstractApplicable,
+          contractBlame = TrueSatisfiable,
+          requires = UnitAccountedPredicate(dispatch(preExtract)),
+          typeArgs = variables.dispatch(ts.keys),
+          args = variables.dispatch(in.keys),
+          body = Some(Scope[Post](Nil, Block(Seq(
+            Exhale(dispatch(preExtract))(PanicBlame("Exhaling just inhaled precondition should not fail")),
+            Inhale(
+              wellFormednessBlame
+                .having(IgnoreWellformednessInInvSat()) {
+                  dispatch(invExtract)
+                }
+            ),
+            Refute(ff)(blame),
+          ))))
+        ))
+      }
+    }
   }
 
   private def hasOld(inv: Expr[Pre]): Boolean =
-    inv.exists { case _: Old[Pre] => true }
+    inv.exists { case Old(_, Some(_)) => true }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
     if (!doCheck)
-      stat.rewriteDefault()
+      super.dispatch(stat)
     else
       stat match {
-        // \old(e) isn't generally equivalent to e (e.g. "x == \old(x) + i" is sat,
-        // "x == x + i" isn't for nonzero i), and the empty heap below has no old-state
-        // snapshot anyway, so skip invariants containing \old(...) rather than risk a
-        // false unsatisfiable.
-        case loop @ Loop(_, _, _, LoopInvariant(inv, _), _) if hasOld(inv) =>
-          loop.rewriteDefault()
-        case parInv @ ParInvariant(_, inv, _) if hasOld(inv) =>
-          parInv.rewriteDefault()
-
+        // We cannot do smoke checks with labelled old's
+        case loop @ Loop(_, _, _, li @ LoopInvariant(inv, _), _) if hasOld(inv) => super.dispatch(loop)
+        case parInv @ ParInvariant(_, inv, _) if hasOld(inv) => super.dispatch(parInv)
         case loop @ Loop(_, _, _, li @ LoopInvariant(inv, _), _) =>
           implicit val o: Origin = li.o.where(prefix = "checkInvSat")
-          Block[Post](Seq[Statement[Post]](
-            isolatedSatCheck(inv, LoopInvariantUnsatisfiableBlame(li)),
-            loop.rewriteDefault(),
-          ))
-
+          isolatedSatCheck(inv, LoopInvariantUnsatisfiableBlame(li))
+          super.dispatch(loop)
         case parInv @ ParInvariant(_, inv, _) =>
           currentApplicable.topOption match {
             // No enclosing method to anchor a report to: nothing to check.
-            case None => parInv.rewriteDefault()
+            case None =>
             case Some(anchor) =>
               implicit val o: Origin = parInv.o.where(prefix = "checkInvSat")
-              Block[Post](Seq[Statement[Post]](
-                isolatedSatCheck(
-                  inv,
-                  ParInvariantUnsatisfiableBlame(parInv, anchor),
-                ),
-                parInv.rewriteDefault(),
-              ))
+              isolatedSatCheck(inv, ParInvariantUnsatisfiableBlame(parInv, anchor))
           }
+          super.dispatch(parInv)
 
-        case other => other.rewriteDefault()
+        case other => super.dispatch(other)
       }
 }

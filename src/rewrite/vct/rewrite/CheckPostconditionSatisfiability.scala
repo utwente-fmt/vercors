@@ -26,6 +26,7 @@ import vct.col.util.AstBuildHelpers.{
   ExprBuildHelpers,
   ff,
   foldStar,
+  unfoldPredicate,
   procedure,
   tt,
 }
@@ -90,31 +91,13 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
       Result[Pre](applicable.ref)(o) -> Local[Pre](resultVar.ref)(o)
     )).dispatch(expr)
 
-  private def eliminateOldInTriggers(expr: Expr[Pre]): Expr[Pre] = {
-    val triggerOlds: Set[Old[Pre]] =
-      expr.flatCollect {
-        case q: Forall[Pre] =>
-          q.triggers.flatten.collect { case old: Old[Pre] => old }
-        case q: Starall[Pre] =>
-          q.triggers.flatten.collect { case old: Old[Pre] => old }
-        case q: Exists[Pre] =>
-          q.triggers.flatten.collect { case old: Old[Pre] => old }
-      }.toSet
-    if (triggerOlds.isEmpty)
-      return expr
-    Substitute[Pre](triggerOlds.map { old => (old: Expr[Pre]) -> old.expr }
-      .toMap).dispatch(expr)
-  }
-
   def checkPostcondition(
       contract: ApplicableContract[Pre],
       applicable: ContractApplicable[Pre],
   ): Unit = {
     implicit val origin: Origin = applicable.o.where(prefix = "checkPostSat")
 
-    val ensuresPred = foldStar(
-      WellDefinednessConditions.splitPred(contract.ensures)
-    )
+    val ensuresPred = unfoldPredicate(contract.ensures).reduce((e1, e2) => Star(e1, e2)(e1.o))
     ensuresPred match {
       case BooleanValue(
             false
@@ -128,7 +111,6 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
               substituteResult(ensuresPred, applicable, v)
             case None => ensuresPred
           }
-        val postPred = eliminateOldInTriggers(postPredAfterResult)
 
         val err = ExpectedError(
           "assertFailed:false",
@@ -140,15 +122,11 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
           err,
         )
         expectedErrors.top += err
-        val combined = postPred
-
-        val nonHeapPreConds = WellDefinednessConditions
-          .splitPred(contract.requires)
-          .flatMap(WellDefinednessConditions.extractNonHeap)
+        val combined = postPredAfterResult
 
         val extractObj = Extract[Pre]()
         val extracted = extractObj.extract(combined)
-        val extractedPreConds = nonHeapPreConds.map(extractObj.extract)
+        val precond = extractObj.extract(foldStar(unfoldPredicate(contract.requires)))
         val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
         variables.scope {
           localHeapVariables.scope {
@@ -159,13 +137,14 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
               contractBlame = UnsafeDontCare.Satisfiability(
                 "the precondition of a check-post-sat method is only there to check it."
               ),
-              requires = UnitAccountedPredicate(tt)(extracted.o),
+              requires = UnitAccountedPredicate(dispatch(precond)),
               typeArgs = variables.dispatch(ts.keys),
               args = variables.dispatch(in.keys),
               body = Some(Scope[Post](
                 Nil,
                 Block(
-                  extractedPreConds.map(pc => Inhale(dispatch(pc))) ++ Seq(
+                  Seq(
+                    Exhale(dispatch(precond))(PanicBlame("Exhaling just inhaled precondition should not fail")),
                     Inhale(
                       wellFormednessBlame
                         .having(NotWellFormedIgnoreCheckPostSat(err)) {
