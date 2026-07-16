@@ -3919,12 +3919,16 @@ final class VCLLVMFunctionContract[G](
     extends LLVMFunctionContract[G] with VCLLVMFunctionContractImpl[G] {
   var data: Option[ApplicableContract[G]] = None
 }
-final class PallasFunctionContract[G](
-    val content: ApplicableContract[G],
-    val assumed: Boolean = false,
-    val external: Boolean,
+final case class PallasFunctionContract[G](
+    // content: ApplicableContract[G],
+    requires: AccountedPredicate[G],
+    ensures: AccountedPredicate[G],
+    llvmGivenArgs: Seq[LLVMFunctionArgument[G]],
+    llvmYieldsArgs: Seq[LLVMFunctionArgument[G]],
+    assumed: Boolean = false,
+    external: Boolean,
 )(val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin)
-    extends LLVMFunctionContract[G] with PallasFunctionContractImpl[G] {}
+    extends LLVMFunctionContract[G] with PallasFunctionContractImpl[G]
 
 final case class LLVMLoopContract[G](invariant: Expr[G])(
     val blame: Blame[LoopInvariantFailure]
@@ -3957,11 +3961,27 @@ final case class PredicateDefinition[G](val inlined: Boolean)(
     implicit val o: Origin
 ) extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
 
+// Attributes of function arguments in LLVM
+@family
+sealed trait LLVMArgAttribute[G]
+    extends NodeFamily[G] with LLVMArgAttributeImpl[G]
+final case class LLVMByValArg[G](t: Type[G])(implicit val o: Origin)
+    extends LLVMArgAttribute[G] with LLVMByValArgImpl[G]
+final case class LLVMSretArg[G](t: Type[G])(implicit val o: Origin)
+    extends LLVMArgAttribute[G] with LLVMSretArgImpl[G]
+
+@family
+final class LLVMFunctionArgument[G](
+    val v: Variable[G],
+    val attributes: Seq[LLVMArgAttribute[G]],
+)(implicit val o: Origin)
+    extends NodeFamily[G] with LLVMFunctionArgumentImpl[G]
+
 sealed trait LLVMCallable[G] extends GlobalDeclaration[G]
 @scopes[LabelDecl]
 final class LLVMFunctionDefinition[G](
     val returnType: Type[G],
-    val args: Seq[Variable[G]],
+    val llvmArgs: Seq[LLVMFunctionArgument[G]],
     val functionBody: Option[Statement[G]],
     val contract: LLVMFunctionContract[G],
     val pure: Boolean = false,

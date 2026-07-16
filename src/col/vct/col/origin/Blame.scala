@@ -202,6 +202,16 @@ case class CopyClassFailedBeforeCall(
     s"Insufficient permission for call `$source`."
 }
 
+case class InvocationBlameAdapter(blame: Blame[InvocationFailure])
+    extends Blame[PointerDerefError] {
+  override def blame(error: PointerDerefError) =
+    error match {
+      case e @ CopyClassFailed(_, _, _) => blame.blame(e)
+      case e @ CopyClassFailedBeforeCall(_, _, _) => blame.blame(e)
+      case _ => ???
+    }
+}
+
 case class TypeSizeMayBeZero(node: CCast[_])
     extends FrontendInvocationError with NodeVerificationFailure {
   override def code: String = "typeSizeZero"

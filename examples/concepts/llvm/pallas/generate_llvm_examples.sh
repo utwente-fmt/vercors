@@ -64,6 +64,7 @@ translate_c_file examples/concepts/llvm/structs.c examples/concepts/llvm/structs
 translate_c_file examples/concepts/llvm/pallas/ghost/pallas_ghost_func.c examples/concepts/llvm/pallas/ghost/pallas_ghost_func.ll ""
 translate_c_file examples/concepts/llvm/pallas/ghost/pallas_c_ghost_arg.c examples/concepts/llvm/pallas/ghost/pallas_c_ghost_arg.ll ""
 translate_c_file examples/concepts/llvm/pallas/pallas_c_linked_list.c examples/concepts/llvm/pallas/pallas_c_linked_list.ll ""
+translate_c_file examples/concepts/llvm/pallas/pallas_byval.c examples/concepts/llvm/pallas/pallas_byval.ll ""
 
 # C++ Tests
 echo "=============================================="

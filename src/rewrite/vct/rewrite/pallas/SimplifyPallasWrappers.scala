@@ -19,6 +19,15 @@ case object SimplifyPallasWrappers extends RewriterBuilder {
     "Simplify wrapper functions of Pallas specifications in preparation if the statement-to-expression conversion."
 }
 
+/** Prepares the wrapper functions of Pallas-Specifications for the
+  * statement-to-expression transformation. performs the following
+  * simplifications:
+  *   - Pointer-typed locals that are only ever accessed through a deref are
+  *     lowered to non-pointer variables
+  *   - Calls to wrapper-functions often contain the following pattern
+  *     ´*&arg_XX´ which is simplified to ´arg_XX´.
+  */
+
 case class SimplifyPallasWrappers[Pre <: Generation]() extends Rewriter[Pre] {
   import SimplifyPallasWrappers._
 
@@ -27,7 +36,13 @@ case class SimplifyPallasWrappers[Pre <: Generation]() extends Rewriter[Pre] {
   // Keeps track if rewrite is currently in a Pallas wrapper-function:
   var inPallasSpec: ScopedStack[Boolean] = ScopedStack()
 
+  var inWrapperCall: ScopedStack[Boolean] = ScopedStack()
+
   private def inSpec(): Boolean = { inPallasSpec.nonEmpty && inPallasSpec.top }
+
+  private def inWCall(): Boolean = {
+    inWrapperCall.nonEmpty && inWrapperCall.top
+  }
 
   private def shouldLower(v: Variable[Pre]): Boolean = {
     ptrLocalsToLower.nonEmpty && ptrLocalsToLower.top.contains(v)
@@ -106,13 +121,29 @@ case class SimplifyPallasWrappers[Pre <: Generation]() extends Rewriter[Pre] {
   override def dispatch(node: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = node.o
 
-    if (!inSpec()) { return super.dispatch(node) }
-
-    node match {
-      // Remove the deref around lowered locals.
-      case DerefPointer(l @ Local(Ref(v))) if shouldLower(v) =>
-        l.rewriteDefault()
-      case _ => node.rewriteDefault()
+    if (inSpec()) {
+      // In Specification
+      node match {
+        // Remove the deref around lowered locals.
+        case DerefPointer(l @ Local(Ref(v))) if shouldLower(v) =>
+          l.rewriteDefault()
+        case _ => node.rewriteDefault()
+      }
+    } else if (inWCall()) {
+      // In call to wrapper function
+      node match {
+        case DerefPointer(AddrOf(l @ Local(Ref(v)))) => l.rewriteDefault()
+        case _ => node.rewriteDefault()
+      }
+    } else {
+      // Somewhere else
+      node match {
+        case inv: ProcedureInvocation[Pre] =>
+          inWrapperCall.having(inv.ref.decl.pallasWrapper) {
+            inv.rewriteDefault()
+          }
+        case _ => super.dispatch(node)
+      }
     }
   }
 
