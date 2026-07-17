@@ -453,8 +453,8 @@ case class ColToSilver(program: col.Program[_]) {
           currentStarall.having(starall) {
             val newBindings = bindings.map(variable)
             val newTriggers = inTriggers.having(()) { triggers.map(trigger) }
-            val foralls: Seq[silver.Forall] = silver.utility
-              .QuantifiedPermissions.desugarSourceQuantifiedPermissionSyntax(
+            val foralls: Seq[silver.Exp] = silver.utility.QuantifiedPermissions
+              .desugarSourceQuantifiedPermissionSyntax(
                 silver.Forall(newBindings, newTriggers, exp(body))(
                   pos = pos(e),
                   info = expInfo(e),
