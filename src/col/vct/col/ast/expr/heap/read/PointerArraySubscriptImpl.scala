@@ -11,6 +11,7 @@ trait PointerArraySubscriptImpl[G] extends PointerArraySubscriptOps[G] {
     if (arrayT.dimensions.length == 1) { arrayT.element }
     else { arrayT.descend }
   }
+  override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
     array.show <> "[" <> index <> "]"
 }

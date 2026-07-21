@@ -1,12 +1,20 @@
 package vct.col.ast.expr.misc
 
-import vct.col.ast.{InlinePattern, Type}
+import vct.col.ast.expr.binder.PossibleTriggerImpl
+import vct.col.ast.{InlinePattern, PossibleTrigger, Type}
 import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.ast.ops.InlinePatternOps
 
-trait InlinePatternImpl[G] extends InlinePatternOps[G] {
+trait InlinePatternImpl[G]
+    extends InlinePatternOps[G] with PossibleTriggerImpl[G] {
   this: InlinePattern[G] =>
   override def t: Type[G] = inner.t
+
+  override def isPossibleTrigger: Boolean =
+    inner match {
+      case t: PossibleTrigger[G] => t.isPossibleTrigger
+      case _ => false
+    }
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =

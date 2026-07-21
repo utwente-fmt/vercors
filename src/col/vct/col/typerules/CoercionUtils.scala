@@ -739,6 +739,9 @@ case object CoercionUtils {
         Some((CoerceIdentity(source), TPointer(innerType, None)))
       case LLVMTArray(numElements, innerType) if numElements > 0 =>
         Some((CoerceIdentity(source), TPointer(innerType, None)))
+      // NOTE (AS): We do CoerceIdentity instead of CoercePointerArrayPointer here because for all pointer operations we
+      // have defined rewrites. We still want to keep those coercions for the cases where the user passes a variable to
+      // a place expecting a pointer though.
       case TPointerArray(element, dimensions, unique) =>
         Some((CoerceIdentity(source), TPointer(element, unique)))
       case TConstPointerArray(element, dimensions) =>

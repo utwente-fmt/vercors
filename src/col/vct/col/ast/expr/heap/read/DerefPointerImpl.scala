@@ -18,16 +18,8 @@ trait DerefPointerImpl[G] extends DerefPointerOps[G] {
   override def t: Type[G] =
     pointer.t match {
       case a: CTArray[G] => a.innerType
-      case a: PointerArrayType[G] if a.dimensions.size > 1 =>
-        (a.isNonNull, a.isConst) match {
-          case (true, true) =>
-            TNonNullConstPointerArray(a.element, a.dimensions.tail)
-          case (true, false) =>
-            TNonNullPointerArray(a.element, a.dimensions.tail, a.unique)
-          case (false, true) => TConstPointerArray(a.element, a.dimensions.tail)
-          case (false, false) =>
-            TPointerArray(a.element, a.dimensions.tail, a.unique)
-        }
+      case a: PointerArrayType[G] if a.dimensions.size > 1 => a.descend
+      case a: PointerArrayType[G] => a.element
       case t => pointer.t.asPointer.get.element
     }
 

@@ -64,9 +64,11 @@ import vct.col.ast.{
   PointerAdd,
   PointerArraySubscript,
   PointerArrayType,
+  PointerBlock,
   PointerBlockLength,
   PointerBlockOffset,
   PointerEq,
+  PointerLength,
   PointerLocation,
   PointerNeq,
   PointerSubscript,
@@ -238,6 +240,17 @@ case class EncodePointerArrays[Pre <: Generation]()
           case newPtr => OptGet(newPtr)(PointerNullOptNone(blame, ptr))(ptr.o)
         }
     }
+  }
+
+  private def unwrapToPointer(a: Expr[Pre], blame: Blame[PointerNull])(
+      implicit o: Origin
+  ): Expr[Post] = {
+    val t = a.t.asPointerArray.get
+    initialiseAdt(t.element, t.dimensions.length, t.unique, t.isConst)
+    adtFunctionInvocation[Post](
+      pointerSucc.ref((t.element, t.dimensions.length, t.unique, t.isConst)),
+      args = Seq(unwrapOption(a, blame)),
+    )
   }
 
   override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(
@@ -427,7 +440,7 @@ case class EncodePointerArrays[Pre <: Generation]()
           if a.t.asPointerArray.get.dimensions.length == 1 =>
         DerefPointer(calculatePointer(sub))(sub.blame)
       case sub @ PointerArraySubscript(a, _) =>
-        val t = a.t.asPointerArray.get
+        val t = a.t.asPointerArray.get.descend
         OptSome(adtFunctionInvocation[Post](
           fromPointerSucc
             .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
@@ -453,16 +466,31 @@ case class EncodePointerArrays[Pre <: Generation]()
       case d @ DerefPointer(a) if a.t.asPointerArray.isDefined =>
         val t = a.t.asPointerArray.get
         initialiseAdt(t.element, t.dimensions.length, t.unique, t.isConst)
-        initialiseAdt(t.element, t.dimensions.length - 1, t.unique, t.isConst)
+        val subT = t.descend
+        initialiseAdt(
+          subT.element,
+          subT.dimensions.length,
+          subT.unique,
+          subT.isConst,
+        )
         OptSome(adtFunctionInvocation[Post](
-          fromPointerSucc
-            .ref((t.element, t.dimensions.length - 1, t.unique, t.isConst)),
+          fromPointerSucc.ref(
+            (subT.element, subT.dimensions.length, subT.unique, subT.isConst)
+          ),
           args = Seq(adtFunctionInvocation[Post](
             pointerSucc
               .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
             args = Seq(unwrapOption(a, d.blame)),
           )),
         ))
+      case p @ PointerLength(a) if a.t.asPointerArray.isDefined =>
+        p.rewrite(unwrapToPointer(a, p.blame))
+      case p @ PointerBlockLength(a) if a.t.asPointerArray.isDefined =>
+        p.rewrite(unwrapToPointer(a, p.blame))
+      case p @ PointerBlock(a) if a.t.asPointerArray.isDefined =>
+        p.rewrite(unwrapToPointer(a, p.blame))
+      case p @ PointerBlockOffset(a) if a.t.asPointerArray.isDefined =>
+        p.rewrite(unwrapToPointer(a, p.blame))
       case npa @ NewPointerArray(element, dimensions, unique) =>
         procedureInvocation(
           PointerArrayCreationFailed(npa, npa.blame),
