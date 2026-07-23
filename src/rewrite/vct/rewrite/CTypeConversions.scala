@@ -261,6 +261,18 @@ case class CTypeConversions[Pre <: Generation](
       case op @ AmbiguousMult(l, r) =>
         getConstant(l).zip(getConstant(r)).map { case (l, r) => l * r }
       case op @ AmbiguousDiv(l, r) =>
+        getConstant(l).zip(getConstant(r)).map { case (a, b) =>
+          var q = a / b
+          val r = a % b
+          if (r < 0) {
+            if (b > 0)
+              q -= 1
+            else
+              q += 1
+          }
+          q
+        }
+      case op @ AmbiguousTruncDiv(l, r) =>
         getConstant(l).zip(getConstant(r)).map { case (l, r) => l / r }
       case op @ AmbiguousMod(l, r) =>
         getConstant(l).zip(getConstant(r)).map { case (l, r) => l.mod(r) }
@@ -318,6 +330,12 @@ case class CTypeConversions[Pre <: Generation](
           preCoerce(l),
           preCoerce(r),
           AmbiguousDiv(_, _)(op.blame)(op.o),
+        )
+      case op @ AmbiguousTruncDiv(l, r) if op.isCIntOp =>
+        applyTwoWayPromotions(
+          preCoerce(l),
+          preCoerce(r),
+          AmbiguousTruncDiv(_, _)(op.blame)(op.o),
         )
       case op @ AmbiguousMod(l, r) if op.isCIntOp =>
         applyTwoWayPromotions(
@@ -494,8 +512,13 @@ case class CTypeConversions[Pre <: Generation](
   override def postCoerce(d: Declaration[Pre]): Unit = {
     d match {
       case axiom: ADTAxiom[Pre] => inPure.having(()) { super.postCoerce(axiom) }
+      case fun: ADTFunction[Pre] => inPure.having(()) { super.postCoerce(fun) }
       case resource: AbstractPredicate[Pre] =>
         inPure.having(()) { super.postCoerce(resource) }
+      case app: ContractApplicable[Pre] if app.pure =>
+        inPure.having(()) {
+          returnContext.having(app.returnType) { super.postCoerce(app) }
+        }
       case app: ContractApplicable[Pre] =>
         returnContext.having(app.returnType) {
           allScopes.anySucceed(

@@ -91,16 +91,22 @@ case class EncodeBitVectors[Pre <: Generation](opaque: Boolean)
       e: Expr[Post],
       blame: Blame[BitwiseIntegerOutOfBounds],
   )(implicit bits: Int, signed: Boolean): Expr[Post] = {
-    val stripped = StripAsserting().dispatch(e)
-    val inner = let(
-      TInt(),
-      e,
-      { ex: Expr[Post] =>
-        Asserting(ensureInRange(stripped), ex)(OutOfBoundsBlame(e, blame))(e.o)
-      },
-    )
-    if (opaque) { inner }
-    else { SmtlibInt2Bv(inner, bits)(e.o) }
+    if (opaque) { e }
+    else {
+      val stripped = StripAsserting().dispatch(e)
+      SmtlibInt2Bv(
+        let(
+          TInt(),
+          e,
+          { ex: Expr[Post] =>
+            Asserting(ensureInRange(stripped), ex)(OutOfBoundsBlame(e, blame))(
+              e.o
+            )
+          },
+        ),
+        bits,
+      )(e.o)
+    }
   }
 
   private def from(
@@ -108,12 +114,7 @@ case class EncodeBitVectors[Pre <: Generation](opaque: Boolean)
       doAssume: Boolean,
   )(implicit bits: Int, signed: Boolean): Expr[Post] = {
     implicit val o: Origin = e.o
-    if (opaque) {
-      return if (doAssume)
-        assumeInRange(e)
-      else
-        e
-    }
+    if (opaque) { return e }
     if (signed) {
       val res = { ex: Expr[Post] =>
         Select(
