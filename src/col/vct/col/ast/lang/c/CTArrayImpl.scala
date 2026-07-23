@@ -1,6 +1,6 @@
 package vct.col.ast.lang.c
 
-import vct.col.ast.{CTArray, ConstantInt, Type}
+import vct.col.ast.{CTArray, ConstantInt, TConst, TUnique, Type}
 import vct.col.print.{Ctx, Doc, Group}
 import vct.col.ast.ops.CTArrayOps
 import vct.col.typerules.TypeSize
@@ -24,9 +24,17 @@ trait CTArrayImpl[G] extends CTArrayOps[G] {
 
   def innerMostType: Type[G] = {
     var current: Type[G] = this
-    while (current.isInstanceOf[CTArray[G]]) {
-      current = current.asInstanceOf[CTArray[G]].innerType
+    while (true) {
+      current =
+        current match {
+          case CTArray(_, inner) => inner
+          case TConst(TUnique(CTArray(_, inner), _)) => inner
+          case TUnique(TConst(CTArray(_, inner)), _) => inner
+          case TConst(CTArray(_, inner)) => inner
+          case TUnique(CTArray(_, inner), _) => inner
+          case _ => return current
+        }
     }
-    current
+    ???
   }
 }

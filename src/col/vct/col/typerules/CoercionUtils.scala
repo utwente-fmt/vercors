@@ -241,8 +241,8 @@ case object CoercionUtils {
       case (_: PointerType[G], TBool()) => CoercePointerBool(source)
       case (_: PointerArrayType[G], TBool()) => CoercePointerBool(source)
 
-      case (t: CTArray[G], TArray(element)) if element == t.innerMostType =>
-        CoerceCArrayPointer(element)
+//      case (t: CTArray[G], TArray(element)) if element == t.innerMostType =>
+//        CoerceCArrayPointer(element)
       case (CPPTArray(_, innerType), TArray(element)) if element == innerType =>
         CoerceCPPArrayPointer(element)
       case (source @ CTVector(_, innerType), TVector(rSize, element))
@@ -291,10 +291,10 @@ case object CoercionUtils {
         getPointerCoercion(source, target, l.element, r.element)
           .getOrElse(return None)
       case (CTArray(_, elementL), pt: PointerType[G]) =>
-        getPointerCoercion(source, target, unwrapCArray(elementL), pt.element)
+        getPointerCoercion(source, target, elementL, pt.element)
           .getOrElse(return None)
       case (pt: PointerType[G], CTArray(_, elementR)) =>
-        getPointerCoercion(source, target, pt.element, unwrapCArray(elementR))
+        getPointerCoercion(source, target, pt.element, elementR)
           .getOrElse(return None)
       case (
             TPointerArray(elementL, dimensions, uniqueL),
@@ -370,13 +370,16 @@ case object CoercionUtils {
           ) if uniqueA == uniqueB =>
         getPointerCoercion(s, t, a, b).getOrElse(return None)
       case (at: CTArray[G], t @ CTPointer(element)) =>
-        val innerType = at.innerMostType
-        if (element == innerType) { CoerceCArrayPointer(innerType) }
+        if (element == at.innerType) { CoerceCArrayPointer(at.innerType) }
         else {
           CoercionSequence(Seq(
             CoerceCArrayPointer(element),
-            getPointerCoercion(CTPointer(innerType), t, innerType, element)
-              .getOrElse(return None),
+            getPointerCoercion(
+              CTPointer(at.innerType),
+              t,
+              at.innerType,
+              element,
+            ).getOrElse(return None),
           ))
         }
       case (CPPTArray(_, innerType), TPointer(element, None)) =>
@@ -725,11 +728,9 @@ case object CoercionUtils {
       case t: PointerType[G] => Some((CoerceIdentity(source), t))
       case t: CTPointer[G] =>
         Some((CoerceIdentity(source), TPointer(t.innerType, None)))
-      case t: CTArray[G] =>
-        Some((
-          CoerceCArrayPointer(t.innerMostType),
-          TPointer(t.innerMostType, None),
-        ))
+      case t: CTArray[G]
+          if t.innerType == t.innerMostType => // Is single dimension
+        Some((CoerceCArrayPointer(t.innerType), TPointer(t.innerType, None)))
       case t: CPPPrimitiveType[G] => chainCPPCoercion(t, getAnyPointerCoercion)
       case t: CPPTArray[G] =>
         Some((CoerceCPPArrayPointer(t.innerType), TPointer(t.innerType, None)))
@@ -742,17 +743,42 @@ case object CoercionUtils {
       // NOTE (AS): We do CoerceIdentity instead of CoercePointerArrayPointer here because for all pointer operations we
       // have defined rewrites. We still want to keep those coercions for the cases where the user passes a variable to
       // a place expecting a pointer though.
-      case TPointerArray(element, dimensions, unique) =>
+      case TPointerArray(element, dimensions, unique)
+          if dimensions.length == 1 =>
         Some((CoerceIdentity(source), TPointer(element, unique)))
-      case TConstPointerArray(element, dimensions) =>
+      case TConstPointerArray(element, dimensions) if dimensions.length == 1 =>
         Some((CoerceIdentity(source), TConstPointer(element)))
-      case TNonNullPointerArray(element, dimensions, unique) =>
+      case TNonNullPointerArray(element, dimensions, unique)
+          if dimensions.length == 1 =>
         Some((CoerceIdentity(source), TPointer(element, unique)))
-      case TNonNullConstPointerArray(element, dimensions) =>
+      case TNonNullConstPointerArray(element, dimensions)
+          if dimensions.length == 1 =>
         Some((CoerceIdentity(source), TConstPointer(element)))
       case _: TNull[G] =>
         val t = TPointer[G](TAnyValue(), None)
         Some((CoerceNullPointer(t), t))
+      case _ => None
+    }
+
+  def getAnyPointerArrayCoercion[G](
+      source: Type[G]
+  ): Option[(Coercion[G], PointerArrayType[G])] =
+    source match {
+      case t: TConst[G] =>
+        getAnyPointerArrayCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromConst(t.inner), c)), res)
+        }
+      case t: TUnique[G] =>
+        getAnyPointerArrayCoercion(t.inner).map { case (c, res) =>
+          (CoercionSequence(Seq(CoerceFromUnique(t.inner, t.unique), c)), res)
+        }
+      case t: CTArray[G] =>
+        val newT = TPointerArray[G](C.getArrayType(t), C.getDimensions(t), None)
+        Some((CoerceIdentity(newT), newT))
+      case p: PointerArrayType[G] => Some((CoerceIdentity(source), p))
+      case _: TNull[G] =>
+        val t = TPointerArray[G](TAnyValue(), Seq(None), None)
+        Some((CoerceNullPointerArray(t), t))
       case _ => None
     }
 
@@ -1028,12 +1054,5 @@ case object CoercionUtils {
         }
       case t: TSmtlibSeq[G] => Some((CoerceIdentity(source), t))
       case _ => None
-    }
-
-  @tailrec
-  private def unwrapCArray[G](element: Type[G]): Type[G] =
-    element match {
-      case CTArray(_, element) => unwrapCArray(element)
-      case _ => element
     }
 }

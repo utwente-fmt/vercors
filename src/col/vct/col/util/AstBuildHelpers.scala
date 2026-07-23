@@ -109,6 +109,12 @@ object AstBuildHelpers {
 
     def accounted(implicit o: Origin): UnitAccountedPredicate[G] =
       UnitAccountedPredicate(left)
+
+    def decoerced: Expr[G] =
+      left match {
+        case ApplyCoercion(inner, _) => inner
+        case _ => left
+      }
   }
 
   implicit class AccountedBuildHelpers[G](left: AccountedPredicate[G]) {
@@ -137,6 +143,24 @@ object AstBuildHelpers {
         origin: Origin,
     ): SilverFieldAssign[G] =
       SilverFieldAssign(left.obj, left.field, right)(blame)
+  }
+
+  implicit class PointerComparisonBuildHelpers[Pre, Post](
+      comparison: PointerComparison[Pre]
+  )(implicit rewriter: AbstractRewriter[Pre, Post]) {
+    def rewrite(
+        left: => Expr[Post] = rewriter.dispatch(comparison.left),
+        right: => Expr[Post] = rewriter.dispatch(comparison.right),
+        elementSize: => Expr[Post] = rewriter.dispatch(comparison.elementSize),
+    ): PointerComparison[Post] =
+      comparison match {
+        case c: PointerEq[Pre] => c.rewrite(left, right, elementSize)
+        case c: PointerNeq[Pre] => c.rewrite(left, right, elementSize)
+        case c: PointerGreater[Pre] => c.rewrite(left, right, elementSize)
+        case c: PointerLess[Pre] => c.rewrite(left, right, elementSize)
+        case c: PointerGreaterEq[Pre] => c.rewrite(left, right, elementSize)
+        case c: PointerLessEq[Pre] => c.rewrite(left, right, elementSize)
+      }
   }
 
   implicit class ApplicableBuildHelpers[Pre, Post](applicable: Applicable[Pre])(

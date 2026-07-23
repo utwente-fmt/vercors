@@ -590,6 +590,12 @@ abstract class CoercingRewriter[Pre <: Generation]()
         (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
       case None => throw IncoercibleText(e, s"pointer")
     }
+  def pointerArray(e: Expr[Pre]): (Expr[Pre], PointerArrayType[Pre]) =
+    CoercionUtils.getAnyPointerArrayCoercion(e.t) match {
+      case Some((coercion, t)) =>
+        (ApplyCoercion(e, coercion)(coercionOrigin(e)), t)
+      case None => throw IncoercibleText(e, s"array")
+    }
   def matrix(e: Expr[Pre]): (Expr[Pre], TMatrix[Pre]) =
     CoercionUtils.getAnyMatrixCoercion(e.t) match {
       case Some((coercion, t)) =>
@@ -753,12 +759,13 @@ abstract class CoercingRewriter[Pre <: Generation]()
       alt11: => T = throw IncoercibleDummy,
       alt12: => T = throw IncoercibleDummy,
       alt13: => T = throw IncoercibleDummy,
+      alt14: => T = throw IncoercibleDummy,
   ): T = {
     Left(Nil).onCoercionError(alt1).onCoercionError(alt2).onCoercionError(alt3)
       .onCoercionError(alt4).onCoercionError(alt5).onCoercionError(alt6)
       .onCoercionError(alt7).onCoercionError(alt8).onCoercionError(alt9)
       .onCoercionError(alt10).onCoercionError(alt11).onCoercionError(alt12)
-      .onCoercionError(alt13) match {
+      .onCoercionError(alt13).onCoercionError(alt14) match {
       case Left(errs) =>
         for (err <- errs) { logger.debug(err.text) }
         throw IncoercibleExplanation(expr, message)
@@ -892,6 +899,21 @@ abstract class CoercingRewriter[Pre <: Generation]()
               elementSize,
             )
           },
+          AmbiguousGreater(
+            pointerArray(left)._1,
+            pointerArray(right)._1,
+            elementSize,
+          ),
+          AmbiguousGreater(
+            pointer(left)._1,
+            pointerArray(right)._1,
+            elementSize,
+          ),
+          AmbiguousGreater(
+            pointerArray(left)._1,
+            pointer(right)._1,
+            elementSize,
+          ),
           AmbiguousGreater(pointer(left)._1, pointer(right)._1, elementSize),
         )
       case g @ AmbiguousGreaterEq(left, right, elementSize) =>
@@ -927,6 +949,21 @@ abstract class CoercingRewriter[Pre <: Generation]()
               elementSize,
             )
           },
+          AmbiguousGreaterEq(
+            pointerArray(left)._1,
+            pointerArray(right)._1,
+            elementSize,
+          ),
+          AmbiguousGreaterEq(
+            pointer(left)._1,
+            pointerArray(right)._1,
+            elementSize,
+          ),
+          AmbiguousGreaterEq(
+            pointerArray(left)._1,
+            pointer(right)._1,
+            elementSize,
+          ),
           AmbiguousGreaterEq(pointer(left)._1, pointer(right)._1, elementSize),
         )
       case less @ AmbiguousLess(left, right, elementSize) =>
@@ -958,6 +995,13 @@ abstract class CoercingRewriter[Pre <: Generation]()
               elementSize,
             )
           },
+          AmbiguousLess(
+            pointerArray(left)._1,
+            pointerArray(right)._1,
+            elementSize,
+          ),
+          AmbiguousLess(pointer(left)._1, pointerArray(right)._1, elementSize),
+          AmbiguousLess(pointerArray(left)._1, pointer(right)._1, elementSize),
           AmbiguousLess(pointer(left)._1, pointer(right)._1, elementSize),
         )
       case less @ AmbiguousLessEq(left, right, elementSize) =>
@@ -989,6 +1033,21 @@ abstract class CoercingRewriter[Pre <: Generation]()
               elementSize,
             )
           },
+          AmbiguousLessEq(
+            pointerArray(left)._1,
+            pointerArray(right)._1,
+            elementSize,
+          ),
+          AmbiguousLessEq(
+            pointer(left)._1,
+            pointerArray(right)._1,
+            elementSize,
+          ),
+          AmbiguousLessEq(
+            pointerArray(left)._1,
+            pointer(right)._1,
+            elementSize,
+          ),
           AmbiguousLessEq(pointer(left)._1, pointer(right)._1, elementSize),
         )
       case minus @ AmbiguousMinus(left, right) =>
@@ -1110,6 +1169,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
           AmbiguousPlus(string(left), string(right))(plus.blame),
+          AmbiguousPlus(pointerArray(left)._1, int(right))(plus.blame),
           AmbiguousPlus(pointer(left)._1, int(right))(plus.blame), {
             val (coercedLeft, TSeq(elementLeft)) = seq(left)
             val (coercedRight, TSeq(elementRight)) = seq(right)
@@ -1178,6 +1238,12 @@ abstract class CoercingRewriter[Pre <: Generation]()
             sub.blame
           ),
           AmbiguousSubscript(array(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(pointerArray(collection)._1, int(index))(
+            sub.blame
+          ),
+          AmbiguousSubscript(pointerArray(collection)._1, boolAndCInt(index))(
+            sub.blame
+          ),
           AmbiguousSubscript(pointer(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(pointer(collection)._1, boolAndCInt(index))(
             sub.blame
@@ -1348,7 +1414,13 @@ abstract class CoercingRewriter[Pre <: Generation]()
       // DerefVeyMontThread( TVeyMontThread[Pre](ref))
       case deref @ Deref(obj, ref) => Deref(cls(obj), ref)(deref.blame)
       case deref @ DerefHeapVariable(ref) => DerefHeapVariable(ref)(deref.blame)
-      case deref @ DerefPointer(p) => DerefPointer(pointer(p)._1)(deref.blame)
+      case deref @ DerefPointer(p) =>
+        firstOk(
+          e,
+          s"Expected operand to be a pointer or an array, but got ${p.t}.",
+          DerefPointer(pointerArray(p)._1)(deref.blame),
+          DerefPointer(pointer(p)._1)(deref.blame),
+        )
       case Drop(xs, count) => Drop(seq(xs)._1, int(count))
       case Empty(obj) => Empty(sized(obj)._1)
       case EmptyProcess() => EmptyProcess()
@@ -1714,35 +1786,106 @@ abstract class CoercingRewriter[Pre <: Generation]()
           Plus(rat(left), rat(right)),
         )
       case add @ PointerAdd(p, offset) =>
-        PointerAdd(pointer(p)._1, int(offset))(add.blame)
+        firstOk(
+          e,
+          s"Expected operand to be a pointer or an array, but got ${p.t}.",
+          PointerAdd(pointerArray(p)._1, int(offset))(add.blame),
+          PointerAdd(pointer(p)._1, int(offset))(add.blame),
+        )
       case to @ PointerToAdt(p, t) => PointerToAdt(pointer(p)._1, t)(to.blame)
-      case blck @ PointerBlock(p) => PointerBlock(pointer(p)._1)(blck.blame)
+      case blck @ PointerBlock(p) =>
+        firstOk(
+          e,
+          s"Expected operand to be a pointer or an array, but got ${p.t}.",
+          PointerBlock(pointerArray(p)._1)(blck.blame),
+          PointerBlock(pointer(p)._1)(blck.blame),
+        )
       case addr @ PointerAddress(p, elementSize) =>
-        PointerAddress(pointer(p)._1, elementSize)(addr.blame)
+        firstOk(
+          e,
+          s"Expected operand to be a pointer or an array, but got ${p.t}.",
+          PointerAddress(pointerArray(p)._1, elementSize)(addr.blame),
+          PointerAddress(pointer(p)._1, elementSize)(addr.blame),
+        )
       case len @ PointerBlockLength(p) =>
-        PointerBlockLength(pointer(p)._1)(len.blame)
+        firstOk(
+          e,
+          s"Expected operand to be a pointer or an array, but got ${p.t}.",
+          PointerBlockLength(pointerArray(p)._1)(len.blame),
+          PointerBlockLength(pointer(p)._1)(len.blame),
+        )
       case off @ PointerBlockOffset(p) =>
-        PointerBlockOffset(pointer(p)._1)(off.blame)
-      case len @ PointerLength(p) => PointerLength(pointer(p)._1)(len.blame)
+        firstOk(
+          e,
+          s"Expected operand to be a pointer or an array, but got ${p.t}.",
+          PointerBlockOffset(pointerArray(p)._1)(off.blame),
+          PointerBlockOffset(pointer(p)._1)(off.blame),
+        )
+      case len @ PointerLength(p) =>
+        firstOk(
+          e,
+          s"Expected operand to be a pointer or an array, but got ${p.t}.",
+          PointerLength(pointerArray(p)._1)(len.blame),
+          PointerLength(pointer(p)._1)(len.blame),
+        )
       case get @ PointerArraySubscript(a, index) =>
-        if (a.t.asPointerArray.isDefined)
-          PointerArraySubscript(a, int(index))(get.blame)
-        else
-          throw IncoercibleText(a, s"pointer array")
+        PointerArraySubscript(pointerArray(a)._1, int(index))(get.blame)
       case get @ PointerSubscript(p, index) =>
         PointerSubscript(pointer(p)._1, int(index))(get.blame)
       case PointerEq(l, r, elementSize) =>
-        PointerEq(pointer(l)._1, pointer(r)._1, elementSize)
+        firstOk(
+          e,
+          s"Expected operands to be a pointer or an array, but got ${l.t} and ${r.t}.",
+          PointerEq(pointerArray(l)._1, pointerArray(r)._1, elementSize),
+          PointerEq(pointer(l)._1, pointerArray(r)._1, elementSize),
+          PointerEq(pointerArray(l)._1, pointer(r)._1, elementSize),
+          PointerEq(pointer(l)._1, pointer(r)._1, elementSize),
+        )
       case PointerNeq(l, r, elementSize) =>
-        PointerNeq(pointer(l)._1, pointer(r)._1, elementSize)
+        firstOk(
+          e,
+          s"Expected operands to be a pointer or an array, but got ${l.t} and ${r.t}.",
+          PointerNeq(pointerArray(l)._1, pointerArray(r)._1, elementSize),
+          PointerNeq(pointer(l)._1, pointerArray(r)._1, elementSize),
+          PointerNeq(pointerArray(l)._1, pointer(r)._1, elementSize),
+          PointerNeq(pointer(l)._1, pointer(r)._1, elementSize),
+        )
       case PointerGreater(l, r, elementSize) =>
-        PointerGreater(pointer(l)._1, pointer(r)._1, elementSize)
+        firstOk(
+          e,
+          s"Expected operands to be a pointer or an array, but got ${l.t} and ${r.t}.",
+          PointerGreater(pointerArray(l)._1, pointerArray(r)._1, elementSize),
+          PointerGreater(pointer(l)._1, pointerArray(r)._1, elementSize),
+          PointerGreater(pointerArray(l)._1, pointer(r)._1, elementSize),
+          PointerGreater(pointer(l)._1, pointer(r)._1, elementSize),
+        )
       case PointerLess(l, r, elementSize) =>
-        PointerLess(pointer(l)._1, pointer(r)._1, elementSize)
+        firstOk(
+          e,
+          s"Expected operands to be a pointer or an array, but got ${l.t} and ${r.t}.",
+          PointerLess(pointerArray(l)._1, pointerArray(r)._1, elementSize),
+          PointerLess(pointer(l)._1, pointerArray(r)._1, elementSize),
+          PointerLess(pointerArray(l)._1, pointer(r)._1, elementSize),
+          PointerLess(pointer(l)._1, pointer(r)._1, elementSize),
+        )
       case PointerGreaterEq(l, r, elementSize) =>
-        PointerGreaterEq(pointer(l)._1, pointer(r)._1, elementSize)
+        firstOk(
+          e,
+          s"Expected operands to be a pointer or an array, but got ${l.t} and ${r.t}.",
+          PointerGreaterEq(pointerArray(l)._1, pointerArray(r)._1, elementSize),
+          PointerGreaterEq(pointer(l)._1, pointerArray(r)._1, elementSize),
+          PointerGreaterEq(pointerArray(l)._1, pointer(r)._1, elementSize),
+          PointerGreaterEq(pointer(l)._1, pointer(r)._1, elementSize),
+        )
       case PointerLessEq(l, r, elementSize) =>
-        PointerLessEq(pointer(l)._1, pointer(r)._1, elementSize)
+        firstOk(
+          e,
+          s"Expected operands to be a pointer or an array, but got ${l.t} and ${r.t}.",
+          PointerLessEq(pointerArray(l)._1, pointerArray(r)._1, elementSize),
+          PointerLessEq(pointer(l)._1, pointerArray(r)._1, elementSize),
+          PointerLessEq(pointerArray(l)._1, pointer(r)._1, elementSize),
+          PointerLessEq(pointer(l)._1, pointer(r)._1, elementSize),
+        )
       case PointsTo(loc, perm, value) =>
         PointsTo(loc, rat(perm), coerce(value, loc.t))
       case PolarityDependent(onInhale, onExhale) =>
@@ -1874,6 +2017,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           e,
           s"Expected operand to be a pointer or array, but got ${xs.t}.",
           SharedMemSize(array(xs)._1),
+          SharedMemSize(pointerArray(xs)._1),
           SharedMemSize(pointer(xs)._1),
         )
       case SilverBagSize(xs) => SilverBagSize(bag(xs)._1)

@@ -16,13 +16,14 @@ trait PointerAddImpl[G] extends PointerAddOps[G] {
   this: PointerAdd[G] =>
   override def t: Type[G] =
     pointer.t match {
-      // case a: PointerArrayType[G] =>
-      //   (a.isNonNull, a.isConst) match {
-      //     case (true, true) => TNonNullConstPointer(a.element)
-      //     case (true, false) => TNonNullPointer(a.element, a.unique)
-      //     case (false, true) => TConstPointer(a.element)
-      //     case (false, false) => TPointer(a.element, a.unique)
-      //   }
+      // 1-dimensional arrays degrade to pointers after pointer addition
+      case a: PointerArrayType[G] if a.dimensions.length == 1 =>
+        (a.isNonNull, a.isConst) match {
+          case (true, true) => TNonNullConstPointer(a.element)
+          case (true, false) => TNonNullPointer(a.element, a.unique)
+          case (false, true) => TConstPointer(a.element)
+          case (false, false) => TPointer(a.element, a.unique)
+        }
       case t => t
     }
 

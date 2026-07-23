@@ -56,7 +56,7 @@ trait AmbiguousPlusImpl[G]
       TProcess()
     else if (isSeqOp || isBagOp || isSetOp || isVectorOp)
       Types.leastCommonSuperType(left.t, right.t)
-    else if (isPointerOp)
+    else if (isPointerOp || isPointerArrayOp)
       left.t
     else if (isStringOp)
       TString()

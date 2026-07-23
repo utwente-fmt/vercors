@@ -48,6 +48,16 @@ case object DisambiguateLocation extends RewriterBuilder {
       )
   }
 
+  private case class IncompletePermissionDereference(expr: Expr[_])
+      extends UserError {
+    override def code: String = "incompleteArrayDereference"
+
+    override def text: String =
+      expr.o.messageInContext(
+        "Getting permission to a partially dereferenced array is not supported, permission can only be gotten for actual elements"
+      )
+  }
+
   override def key: String = "disambiguateLocation"
 
   override def desc: String =
@@ -72,9 +82,16 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
         )(expr.o)
       case expr if expr.t.asByValueClass.isDefined =>
         ByValueClassLocation(dispatch(expr))
-      case dp @ DerefPointer(p) => PointerLocation(dispatch(p))(dp.blame)
-      case pas @ PointerArraySubscript(_, _) =>
-        PointerLocation(AddrOf(dispatch(pas)))(pas.blame)
+      case dp @ DerefPointer(p) =>
+        if (p.t.asPointerArray.exists(_.dimensions.length != 1)) {
+          throw IncompletePermissionDereference(dp)
+        } else { PointerLocation(dispatch(p))(dp.blame) }
+      case pas @ PointerArraySubscript(arr, _) =>
+        if (arr.t.asPointerArray.get.dimensions.length == 1) {
+          PointerLocation(PointerAdd(dispatch(pas.array), dispatch(pas.index))(
+            PointerSubscriptToAddBlame(pas.blame)
+          ))(pas.blame)
+        } else { throw IncompletePermissionDereference(pas) }
       case ps @ PointerSubscript(p, index) =>
         PointerLocation(PointerAdd(dispatch(p), dispatch(index))(
           PointerSubscriptToAddBlame(ps.blame)

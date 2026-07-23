@@ -32,13 +32,6 @@ case object ImportPointer extends ImportADTBuilder("pointer") {
     Seq(LabelContext("adtPointer, pointerToAdt function"))
   )
 
-  private case class PointerNullOptNone(
-      inner: Blame[PointerNull],
-      expr: Expr[_],
-  ) extends Blame[OptionNone] {
-    override def blame(error: OptionNone): Unit = inner.blame(PointerNull(expr))
-  }
-
   private case class PointerBoundsPreconditionFailed(
       inner: Blame[PointerBounds],
       expr: Node[_],

@@ -165,18 +165,19 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
 
             val res =
               body match {
-//                case Forall(bindings, Nil, body) =>
-//                  Forall(
-//                    variables.dispatch(bindings ++ quantVars),
-//                    Nil,
-//                    range ==> scale(dispatch(body)),
-//                  )(body.o)
-//                case s @ Starall(bindings, Nil, body) =>
-//                  Starall(
-//                    variables.dispatch(bindings ++ quantVars),
-//                    Nil,
-//                    range ==> scale(dispatch(body)),
-//                  )(s.blame)(body.o)
+                // TODO: Make sure to not merge if this breaks triggers
+                case Forall(bindings, Nil, body) =>
+                  Forall(
+                    variables.dispatch(bindings ++ quantVars),
+                    Nil,
+                    range ==> scale(dispatch(body)),
+                  )(body.o)
+                case s @ Starall(bindings, Nil, body) =>
+                  Starall(
+                    variables.dispatch(bindings ++ quantVars),
+                    Nil,
+                    range ==> scale(dispatch(body)),
+                  )(s.blame)(body.o)
                 case other =>
                   Starall(
                     variables.dispatch(quantVars),

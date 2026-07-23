@@ -159,7 +159,13 @@ case class DesugarPermissionOperators[Pre <: Generation]()
                     dispatch(perm),
                   ),
             triggers =
-              i => Seq(Seq(PointerSubscript(dispatch(p), i)(FramedPtrOffset))),
+              if (p.t.asPointerArray.isDefined)
+                i =>
+                  Seq(
+                    Seq(PointerArraySubscript(dispatch(p), i)(FramedPtrOffset))
+                  )
+              else
+                i => Seq(Seq(PointerSubscript(dispatch(p), i)(FramedPtrOffset))),
           )
       case PermPointerIndex(p, idx, perm) =>
         (PointerNeq(dispatch(p), Null(), const(0))) &*

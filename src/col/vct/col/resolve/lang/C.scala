@@ -630,4 +630,19 @@ case object C {
         RefOpenCLVectorLiteralCInvocationTarget[G](v.size, v.innerType)
       case _ => throw NotApplicable(obj)
     }
+
+  def getDimensions[G](cta: CTArray[G]): Seq[Option[Expr[G]]] = {
+    cta.size +:
+      (cta.innerType match {
+        case inner: CTArray[G] => getDimensions(inner)
+        case _ => Nil
+      })
+  }
+
+  @tailrec
+  def getArrayType[G](cta: CTArray[G]): Type[G] =
+    cta.innerType match {
+      case inner: CTArray[G] => getArrayType(inner)
+      case inner => inner
+    }
 }

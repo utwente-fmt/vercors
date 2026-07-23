@@ -13,7 +13,7 @@ trait AmbiguousMinusImpl[G]
   override lazy val t: Type[G] = {
     if (isSetOp || isBagOp || isVectorOp)
       Types.leastCommonSuperType(left.t, right.t)
-    else if (isPointerOp)
+    else if (isPointerOp || isPointerArrayOp)
       left.t
     else
       getNumericType

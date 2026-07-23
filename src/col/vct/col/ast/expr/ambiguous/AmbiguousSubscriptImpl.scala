@@ -17,7 +17,8 @@ trait AmbiguousSubscriptImpl[G] extends AmbiguousSubscriptOps[G] {
     CoercionUtils.getAnyCArrayCoercion(collection.t).isDefined
   def isCPPArrayOp: Boolean =
     CoercionUtils.getAnyCPPArrayCoercion(collection.t).isDefined
-  def isPointerArrayOp: Boolean = collection.t.asPointerArray.isDefined
+  def isPointerArrayOp: Boolean =
+    CoercionUtils.getAnyPointerArrayCoercion(collection.t).isDefined
   def isPointerOp: Boolean =
     CoercionUtils.getAnyPointerCoercion(collection.t).isDefined
   def isMapOp: Boolean = CoercionUtils.getAnyMapCoercion(collection.t).isDefined

@@ -144,7 +144,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
       case op @ AmbiguousPlus(left, right) =>
         if (op.isProcessOp)
           ProcessChoice(dispatch(left), dispatch(right))
-        else if (op.isPointerOp)
+        else if (op.isPointerOp || op.isPointerArrayOp)
           unfoldPointerAdd(
             PointerAdd(dispatch(left), dispatch(right))(op.blame)
           )
@@ -167,7 +167,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
       case op @ AmbiguousMinus(left, right) =>
         if (op.isSetOp)
           SetMinus(dispatch(left), dispatch(right))
-        else if (op.isPointerOp)
+        else if (op.isPointerOp || op.isPointerArrayOp)
           PointerAdd(dispatch(left), dispatch(UMinus(right)))(op.blame)
         else if (op.isBagOp)
           BagMinus(dispatch(left), dispatch(right))
@@ -202,7 +202,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
       case op @ AmbiguousSubscript(collection, index) =>
         if (op.isPointerArrayOp)
           PointerArraySubscript(dispatch(collection), dispatch(index))(op.blame)
-        else if (op.isPointerOp)
+        else if (op.isPointerOp || op.isPointerArrayOp)
           PointerSubscript(dispatch(collection), dispatch(index))(op.blame)
         else if (op.isMapOp)
           MapGet(dispatch(collection), dispatch(index))(op.blame)
@@ -244,7 +244,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
             case AmbiguousNeq(left, right, _, _) =>
               VectorNeq(dispatch(left), dispatch(right))
           }
-        else if (cmp.isPointerOp)
+        else if (cmp.isPointerOp || cmp.isPointerArrayOp)
           cmp match {
             case AmbiguousEq(left, right, _, Some(size)) =>
               PointerEq(dispatch(left), dispatch(right), dispatch(size))
@@ -285,7 +285,7 @@ case class Disambiguate[Pre <: Generation]() extends Rewriter[Pre] {
             case AmbiguousLessEq(left, right, _) =>
               SubSetEq(dispatch(left), dispatch(right))
           }
-        else if (cmp.isPointerOp)
+        else if (cmp.isPointerOp || cmp.isPointerArrayOp)
           cmp match {
             case AmbiguousGreater(left, right, Some(size)) =>
               PointerGreater(dispatch(left), dispatch(right), dispatch(size))

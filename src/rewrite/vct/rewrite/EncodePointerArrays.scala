@@ -42,6 +42,7 @@ import vct.col.ast.{
   Label,
   LabelDecl,
   Local,
+  Location,
   Loop,
   LoopInvariant,
   MethodInvocation,
@@ -67,6 +68,7 @@ import vct.col.ast.{
   PointerBlock,
   PointerBlockLength,
   PointerBlockOffset,
+  PointerComparison,
   PointerEq,
   PointerLength,
   PointerLocation,
@@ -104,13 +106,16 @@ import vct.col.origin.{
   MismatchedArrayDimension,
   NonNullCoercionError,
   NonNullPointerNull,
-  OptionNone,
   Origin,
   PanicBlame,
   PointerAddError,
+  PointerArrayBounds,
   PointerArraySubscriptError,
   PointerBounds,
+  PointerDerefError,
   PointerNull,
+  PointerNullOptNone,
+  PointerSubscriptError,
   PreBlameSplit,
   PreconditionFailed,
   TrueSatisfiable,
@@ -170,11 +175,20 @@ case object EncodePointerArrays extends RewriterBuilder {
       blame.blame(NonNullCoercionError(node))
   }
 
-  private case class PointerNullOptNone(
-      inner: Blame[PointerNull],
-      expr: Expr[_],
-  ) extends Blame[OptionNone] {
-    override def blame(error: OptionNone): Unit = inner.blame(PointerNull(expr))
+  private case class DerefAddToPointerArraySubscriptBlame(
+      deref: Blame[PointerDerefError],
+      add: Blame[PointerAddError],
+  ) extends Blame[PointerArraySubscriptError] {
+    override def blame(error: PointerArraySubscriptError): Unit = {
+      error match {
+        case error: PointerSubscriptError =>
+          error match {
+            case error: PointerDerefError => deref.blame(error)
+            case error: PointerBounds => add.blame(error)
+          }
+        case error: PointerArrayBounds => add.blame(error)
+      }
+    }
   }
 
   private val ConstructorOrigin: Origin = Origin(
@@ -251,6 +265,30 @@ case class EncodePointerArrays[Pre <: Generation]()
       pointerSucc.ref((t.element, t.dimensions.length, t.unique, t.isConst)),
       args = Seq(unwrapOption(a, blame)),
     )
+  }
+
+  private def unwrapToPointerOrNull(
+      a: Expr[Pre]
+  )(implicit o: Origin): Expr[Post] = {
+    a match {
+      case ApplyCoercion(_, CoerceNullPointerArray(_)) |
+          ApplyCoercion(Null(), _) | Null() =>
+        return Null()
+      case _ =>
+    }
+    val t = a.t.asPointerArray.get
+    initialiseAdt(t.element, t.dimensions.length, t.unique, t.isConst)
+    if (t.isNonNull) { unwrapToPointer(a, NonNullPointerNull) }
+    else {
+      Select(
+        OptEmpty(dispatch(a)),
+        Null(),
+        unwrapToPointer(
+          a,
+          PanicBlame("Already checked for non-null with OptEmpty"),
+        ),
+      )
+    }
   }
 
   override def applyCoercion(e: => Expr[Post], coercion: Coercion[Pre])(
@@ -362,8 +400,21 @@ case class EncodePointerArrays[Pre <: Generation]()
       case other => super.applyCoercion(e, other)
     }
 
+  override def preCoerce(e: Expr[Pre]): Expr[Pre] = {
+    implicit val o: Origin = e.o
+
+    e match {
+      case dp @ DerefPointer(pa @ PointerAdd(a, offset))
+          if a.t.asPointerArray.isDefined =>
+        PointerArraySubscript(a, offset)(
+          DerefAddToPointerArraySubscriptBlame(dp.blame, pa.blame)
+        )
+      case _ => super.preCoerce(e)
+    }
+  }
+
   override def postCoerce(e: Expr[Pre]): Expr[Post] = {
-    implicit val o: Origin = e.o;
+    implicit val o: Origin = e.o
 
     e match {
       case PointerEq(Null() | ApplyCoercion(Null(), _), p, _)
@@ -441,18 +492,31 @@ case class EncodePointerArrays[Pre <: Generation]()
         DerefPointer(calculatePointer(sub))(sub.blame)
       case sub @ PointerArraySubscript(a, _) =>
         val t = a.t.asPointerArray.get.descend
-        OptSome(adtFunctionInvocation[Post](
+        val arr = adtFunctionInvocation[Post](
           fromPointerSucc
             .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
           args = Seq(calculatePointer(sub)),
-        ))
+        )
+        if (t.isNonNull)
+          arr
+        else
+          OptSome(arr)
       case add @ PointerAdd(a, _) if a.t.asPointerArray.isDefined =>
         val t = a.t.asPointerArray.get
-        OptSome(adtFunctionInvocation[Post](
-          fromPointerSucc
-            .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
-          args = Seq(calculatePointer(add)),
-        ))
+        val ptr = calculatePointer(add)
+        if (t.dimensions.length == 1)
+          ptr
+        else {
+          val arr = adtFunctionInvocation[Post](
+            fromPointerSucc
+              .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
+            args = Seq(ptr),
+          )
+          if (t.isNonNull)
+            arr
+          else
+            OptSome(arr)
+        }
       case d @ DerefPointer(a)
           if a.t.asPointerArray.isDefined &&
             a.t.asPointerArray.get.dimensions.length == 1 =>
@@ -473,7 +537,7 @@ case class EncodePointerArrays[Pre <: Generation]()
           subT.unique,
           subT.isConst,
         )
-        OptSome(adtFunctionInvocation[Post](
+        val arr = adtFunctionInvocation[Post](
           fromPointerSucc.ref(
             (subT.element, subT.dimensions.length, subT.unique, subT.isConst)
           ),
@@ -482,7 +546,11 @@ case class EncodePointerArrays[Pre <: Generation]()
               .ref((t.element, t.dimensions.length, t.unique, t.isConst)),
             args = Seq(unwrapOption(a, d.blame)),
           )),
-        ))
+        )
+        if (subT.isNonNull)
+          arr
+        else
+          OptSome(arr)
       case p @ PointerLength(a) if a.t.asPointerArray.isDefined =>
         p.rewrite(unwrapToPointer(a, p.blame))
       case p @ PointerBlockLength(a) if a.t.asPointerArray.isDefined =>
@@ -491,6 +559,19 @@ case class EncodePointerArrays[Pre <: Generation]()
         p.rewrite(unwrapToPointer(a, p.blame))
       case p @ PointerBlockOffset(a) if a.t.asPointerArray.isDefined =>
         p.rewrite(unwrapToPointer(a, p.blame))
+      case c: PointerComparison[Pre] =>
+        c.rewrite(
+          left =
+            if (c.left.t.asPointerArray.isDefined)
+              unwrapToPointerOrNull(c.left)
+            else
+              dispatch(c.left),
+          right =
+            if (c.right.t.asPointerArray.isDefined)
+              unwrapToPointerOrNull(c.right)
+            else
+              dispatch(c.right),
+        )
       case npa @ NewPointerArray(element, dimensions, unique) =>
         procedureInvocation(
           PointerArrayCreationFailed(npa, npa.blame),
@@ -577,7 +658,7 @@ case class EncodePointerArrays[Pre <: Generation]()
             }
         }
       case e: AssignExpression[Pre] =>
-        e.target match {
+        e.target.decoerced match {
           case Local(Ref(v))
               if v.t.asPointerArray.isDefined &&
                 currentVariableContext.add(v) =>
@@ -733,6 +814,16 @@ case class EncodePointerArrays[Pre <: Generation]()
       case _ => super.postCoerce(t)
     }
 
+  override def postCoerce(loc: Location[Pre]): Location[Post] = {
+    implicit val o: Origin = loc.o
+    loc match {
+      case l @ PointerLocation(p) if p.t.asPointerArray.isDefined => {
+        l.rewrite(unwrapToPointerOrNull(p))
+      }
+      case _ => super.postCoerce(loc)
+    }
+  }
+
   override def postCoerce(decl: Declaration[Pre]): Unit = {
     implicit val o: Origin = decl.o
     decl match {
@@ -830,11 +921,13 @@ case class EncodePointerArrays[Pre <: Generation]()
     implicit val o: Origin = sub.o
     val arrayT = sub.array.t.asPointerArray.get
     val (obj, index, length) =
-      sub.array match {
+      sub.array.decoerced match {
         case p: InlinePattern[Pre] => throw InvalidPatternLocation(p)
         case inner: PointerArraySubscript[Pre] =>
           calculateOffset(inner, depth + 1)
         case inner: PointerAdd[Pre] => calculateOffset(inner, depth + 1)
+        case dp @ DerefPointer(inner) if inner.t.asPointerArray.isDefined =>
+          calculateOffset(dp, depth + 1)
         case other => (other, const[Post](0), arrayT.dimensions.length)
       }
     val newIndex = {
@@ -855,11 +948,13 @@ case class EncodePointerArrays[Pre <: Generation]()
     implicit val o: Origin = add.o
     val arrayT = add.pointer.t.asPointerArray.get
     val (obj, index, length) =
-      add.pointer match {
+      add.pointer.decoerced match {
         case p: InlinePattern[Pre] => throw InvalidPatternLocation(p)
         case inner: PointerArraySubscript[Pre] =>
           calculateOffset(inner, depth + 1)
         case inner: PointerAdd[Pre] => calculateOffset(inner, depth + 1)
+        case dp @ DerefPointer(inner) if inner.t.asPointerArray.isDefined =>
+          calculateOffset(dp, depth + 1)
         case other => (other, const[Post](0), arrayT.dimensions.length)
       }
     val newIndex = {
@@ -871,6 +966,25 @@ case class EncodePointerArrays[Pre <: Generation]()
       ).fold(super.dispatch(add.offset))(Mult(_, _)) + index
     }
     (obj, newIndex, length)
+  }
+
+  private def calculateOffset(
+      deref: DerefPointer[Pre],
+      depth: Int,
+  ): (Expr[Pre], Expr[Post], Int) = {
+    implicit val o: Origin = deref.o
+    val arrayT = deref.pointer.t.asPointerArray.get
+    val (obj, index, length) =
+      deref.pointer.decoerced match {
+        case p: InlinePattern[Pre] => throw InvalidPatternLocation(p)
+        case inner: PointerArraySubscript[Pre] =>
+          calculateOffset(inner, depth + 1)
+        case inner: PointerAdd[Pre] => calculateOffset(inner, depth + 1)
+        case dp @ DerefPointer(inner) if inner.t.asPointerArray.isDefined =>
+          calculateOffset(dp, depth + 1)
+        case other => (other, const[Post](0), arrayT.dimensions.length)
+      }
+    (obj, index, length)
   }
 
   private def initialiseAdt(

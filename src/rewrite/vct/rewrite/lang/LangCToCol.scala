@@ -548,6 +548,12 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     t.bits match {
       case TypeSize.Exact(size) => c_const(size / 8)(sizeOfOrigin)
       case b @ (TypeSize.Unknown() | TypeSize.Minimally(_)) =>
+        val retType = TCInt[Post]()
+        retType.signed = false
+        retType.rank = 0
+        // TODO: Make this actually pointer-sized
+        retType.storedBits = TypeSize.Exact(64)
+
         // Special casing arrays with runtime size
         t match {
           case CTArray(Some(size), innerType) =>
@@ -561,7 +567,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                       function[Post](
                         AbstractApplicable,
                         TrueSatisfiable,
-                        TCInt(),
+                        retType,
                         args = Seq(sizeVar),
                         ensures = UnitAccountedPredicate(innerType.bits match {
                           case TypeSize.Unknown() => tt
@@ -586,7 +592,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                       function[Post](
                         AbstractApplicable,
                         TrueSatisfiable,
-                        TCInt(),
+                        retType,
                         ensures = UnitAccountedPredicate(b match {
                           case TypeSize.Unknown() => tt
                           case TypeSize.Minimally(size) =>
@@ -613,14 +619,13 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case _ => return cmp.rewriteDefault()
       }
 
-    val leftPtr = l.t.asPointer
-    val rightPtr = r.t.asPointer
+    val leftPtr = l.t.asPointer.map(_.element)
+      .orElse(l.t.asPointerArray.map(_.element))
+    val rightPtr = r.t.asPointer.map(_.element)
+      .orElse(l.t.asPointerArray.map(_.element))
     if (leftPtr.isDefined && rightPtr.isDefined) {
-      if (
-        CoercionUtils.getAnyCoercion(leftPtr.get.element, rightPtr.get.element)
-          .isDefined
-      ) {
-        val elementSize = Some(sizeOf(leftPtr.get.element, cmp.o))
+      if (CoercionUtils.getAnyCoercion(leftPtr.get, rightPtr.get).isDefined) {
+        val elementSize = Some(sizeOf(leftPtr.get, cmp.o))
         cmp match {
           case e @ AmbiguousEq(_, _, _, _) =>
             e.rewrite(elementSize = elementSize)
@@ -685,10 +690,18 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         NewPointer(rw.dispatch(t2), size, None)(ArrayMallocFailed(inv))(c.o)
       case CCast(CInvocation(CLocal("__vercors_malloc"), _, _, _, _), _) =>
         throw UnsupportedMalloc(c)
-      case CCast(n @ Null(), t) if t.asPointer.isDefined => rw.dispatch(n)
-      case CCast(e, t) if e.t.asPointer.isDefined && t.asPointer.isDefined =>
-        val eElement = e.t.asPointer.get.element
-        val tElement = t.asPointer.get.element
+      case CCast(n @ Null(), t)
+          if t.asPointer.isDefined || t.asPointerArray.isDefined =>
+        rw.dispatch(n)
+      case CCast(e, t)
+          if (e.t.asPointer.isDefined || e.t.asPointerArray.isDefined) &&
+            (t.asPointer.isDefined || t.asPointerArray.isDefined) =>
+        val eElement =
+          e.t.asPointer.map(_.element).orElse(e.t.asPointerArray.map(_.element))
+            .get
+        val tElement =
+          t.asPointer.map(_.element).orElse(e.t.asPointerArray.map(_.element))
+            .get
         val newEElement = getBaseType(rw.dispatch(eElement))
         val newTElement = getBaseType(rw.dispatch(tElement))
         if (
@@ -703,13 +716,17 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             sizeOf(tElement, c.o),
           )(c.o)
         } else { throw UnsupportedCast(c) }
-      case CCast(e, t @ TCInt()) if e.t.asPointer.isDefined =>
-        if (isUniquePointerElement(e.t.asPointer.get.element))
+      case CCast(e, t @ TCInt())
+          if e.t.asPointerArray.isDefined || e.t.asPointer.isDefined =>
+        val element =
+          e.t.asPointerArray.map(_.element).orElse(e.t.asPointer.map(_.element))
+            .get
+        if (isUniquePointerElement(element))
           throw UnsupportedCast(c)
         IntegerPointerCast(
           rw.dispatch(e),
           rw.dispatch(t),
-          getStride(e.t.asPointer.get.element, c.o),
+          getStride(element, c.o),
         )(c.o)
       case CCast(e, t @ CTPointer(innerType))
           if getBaseType(e.t).isInstanceOf[TCInt[Pre]] &&
@@ -719,6 +736,18 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           TPointer(rw.dispatch(innerType), None),
           getStride(innerType, c.o),
         )(c.o)
+      case CCast(e, t: CTArray[Pre])
+          if getBaseType(e.t).isInstanceOf[TCInt[Pre]] &&
+            !isUniquePointerElement(t.innerMostType) =>
+        IntegerPointerCast(
+          rw.dispatch(e),
+          TPointerArray(
+            rw.dispatch(C.getArrayType(t)),
+            C.getDimensions(t).map(_.map(rw.dispatch)),
+            None,
+          ),
+          getStride(t.innerMostType, c.o),
+        )(c.o)
       // Handled in CTypeConversions
       case CCast(e, t @ TBool()) if e.t.asPointer.isDefined =>
         Cast(rw.dispatch(e), TypeValue(rw.dispatch(t))(c.o))(c.o)
@@ -726,6 +755,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
 
   // Traverse all type qualifiers
+  @tailrec
   private def isUniquePointerElement(t: Type[Pre]): Boolean =
     t match {
       case TUnique(_, _) => true
@@ -736,7 +766,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   private def getStride(t: Type[Pre], o: Origin): Expr[Post] =
     t match {
-      case t @ CTArray(_, _) => sizeOf(getArrayType(t), o)
+      case t @ CTArray(_, _) => sizeOf(C.getArrayType(t), o)
       case _ => sizeOf(t, o)
     }
 
@@ -1765,21 +1795,6 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
-  private def getDimensions(cta: CTArray[Pre]): Seq[Option[Expr[Post]]] = {
-    cta.size.map(rw.dispatch) +:
-      (cta.innerType match {
-        case inner: CTArray[Pre] => getDimensions(inner)
-        case _ => Nil
-      })
-  }
-
-  @tailrec
-  private def getArrayType(cta: CTArray[Pre]): Type[Pre] =
-    cta.innerType match {
-      case inner: CTArray[Pre] => getArrayType(inner)
-      case inner => inner
-    }
-
   def rewriteArrayDeclaration(
       decl: CLocalDeclaration[Pre],
       cta: CTArray[Pre],
@@ -1792,8 +1807,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     decl.decl.specs match {
       case Seq(CSpecificationType(cta @ CTArray(sizeOption, oldT))) =>
-        val optDimensions = getDimensions(cta)
-        val innerMostType = rw.dispatch(getArrayType(cta))
+        val optDimensions = C.getDimensions(cta).map(_.map(rw.dispatch))
+        val innerMostType = rw.dispatch(C.getArrayType(cta))
         val v =
           new Variable[Post](
             TNonNullPointerArray(innerMostType, optDimensions, None)
@@ -2741,9 +2756,17 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def arrayType(t: CTArray[Pre]): Type[Post] = {
     // The size of an array for an parameter is ignored
     if (parameterContext.isEmpty) {
-      TNonNullPointerArray(rw.dispatch(getArrayType(t)), getDimensions(t), None)
+      TNonNullPointerArray(
+        rw.dispatch(C.getArrayType(t)),
+        C.getDimensions(t).map(_.map(rw.dispatch)),
+        None,
+      )
     } else {
-      TPointerArray(rw.dispatch(getArrayType(t)), getDimensions(t), None)
+      TPointerArray(
+        rw.dispatch(C.getArrayType(t)),
+        C.getDimensions(t).map(_.map(rw.dispatch)),
+        None,
+      )
     }
   }
 

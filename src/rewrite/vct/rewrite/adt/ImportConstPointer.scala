@@ -7,11 +7,6 @@ import vct.col.rewrite.adt.ImportPointer.DerefAddToSubscriptBlame
 import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, const}
 
 case object ImportConstPointer extends ImportADTBuilder("const_pointer") {
-  case class PointerNullOptNone(inner: Blame[PointerNull], expr: Expr[_])
-      extends Blame[OptionNone] {
-    override def blame(error: OptionNone): Unit = inner.blame(PointerNull(expr))
-  }
-
   case class PointerBoundsPreconditionFailed(
       inner: Blame[PointerBounds],
       expr: Node[_],

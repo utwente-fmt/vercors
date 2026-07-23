@@ -2001,7 +2001,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     (lt, rt) match {
       case (l, r) if l == r =>
-        op(nl, nr, l.asPointer.map(p => rw.c.sizeOf(p.element, o)))
+        op(
+          nl,
+          nr,
+          l.asPointer.map(_.element).orElse(l.asPointerArray.map(_.element))
+            .map(p => rw.c.sizeOf(p, o)),
+        )
       case (LLVMTPointer(None), LLVMTPointer(None)) =>
         op(nl, nr, Some(rw.c.sizeOf(TAnyValue(), o)))
       case (LLVMTPointer(Some(lt)), LLVMTPointer(None)) =>
@@ -2014,13 +2019,16 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         } else if (CoercionUtils.firstElementIsType(rt, lt)) {
           op(cast(nl, lt, rt), nr, Some(rw.c.sizeOf(rt, o)))
         } else { throw InvalidPointerEquality(o, lt, rt) }
-      case (l, r) if l.asPointer.isDefined && r.asPointer.isDefined =>
-        if (
-          CoercionUtils
-            .getAnyCoercion(l.asPointer.get.element, r.asPointer.get.element)
-            .isDefined
-        ) { op(nl, nr, Some(rw.c.sizeOf(l.asPointer.get.element, o))) }
-        else { throw InvalidPointerComparison(o) }
+      case (l, r)
+          if (l.asPointer.isDefined || l.asPointerArray.isDefined) &&
+            (r.asPointer.isDefined || r.asPointerArray.isDefined) =>
+        val elementL =
+          l.asPointer.map(_.element).orElse(l.asPointerArray.map(_.element)).get
+        val elementR =
+          r.asPointer.map(_.element).orElse(r.asPointerArray.map(_.element)).get
+        if (CoercionUtils.getAnyCoercion(elementL, elementR).isDefined) {
+          op(nl, nr, Some(rw.c.sizeOf(elementL, o)))
+        } else { throw InvalidPointerComparison(o) }
       case (_, _) => op(nl, nr, None)
     }
   }

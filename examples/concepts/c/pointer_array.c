@@ -25,7 +25,7 @@ void simple() {
     // exhale (\forall* int i = 0 .. 10, int j = 0 .. 5; Perm({:c[i][j]:}, write));
 
     // We can of course rewrite it manually
-    //@ exhale (\forall* int i = 0 .. 10 * 5; Perm({:*(c + i):}, write));
+    //@ exhale (\forall* int i = 0 .. 10 * 5; Perm({:*(*c + i):}, write));
 
     //@ [/expect assertFailed:false]
     //@ assert false;

@@ -1280,7 +1280,9 @@ case class PointerInsufficientPermission(node: Expr[_])
 }
 
 case class PointerArrayBounds(node: Node[_])
-    extends PointerArraySubscriptError with NodeVerificationFailure {
+    extends PointerArraySubscriptError
+    with PointerAddError
+    with NodeVerificationFailure {
   override def code: String = "ptrArrayBounds"
   override def descInContext: String =
     "The offsets in this array access may be outside the bounds of the array."
@@ -1840,4 +1842,9 @@ case class PointerSubscriptToAddBlame(blame: Blame[PointerSubscriptError])
       case e @ PointerBounds(_) => blame.blame(e)
     }
   }
+}
+
+case class PointerNullOptNone(inner: Blame[PointerNull], expr: Expr[_])
+    extends Blame[OptionNone] {
+  override def blame(error: OptionNone): Unit = inner.blame(PointerNull(expr))
 }
