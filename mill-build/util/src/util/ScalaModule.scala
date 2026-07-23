@@ -4,7 +4,7 @@ import mill.T
 import mill.scalalib.{ScalaModule => BaseScalaModule}
 
 trait ScalaModule extends BaseScalaModule with JavaModule {
-  def scalaVersion = "2.13.16"
+  def scalaVersion = "2.13.12"
 
   override def scalacOptions = T {
     val shared = Seq(

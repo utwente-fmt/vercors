@@ -33,7 +33,7 @@ object millbuild extends MillBuildRootModule {
   def compileResources = T { Seq.empty[PathRef] }
 
   object util extends ScalaModule {
-    def scalaVersion = "2.13.16"
+    def scalaVersion = "2.13.12"
     def ivyDeps = T {
       Seq(
         ivy"com.lihaoyi::mill-main:0.11.0",
@@ -48,14 +48,14 @@ object millbuild extends MillBuildRootModule {
   }
 
   object structure extends ScalaModule {
-    def scalaVersion = "2.13.16"
+    def scalaVersion = "2.13.12"
     def ivyDeps = T { Seq(ivy"com.lihaoyi::upickle:3.1.3", ivy"com.lihaoyi::os-lib:0.9.3") }
     def compileResources = T { Seq.empty[PathRef] }
     def resources = T { Seq.empty[PathRef] }
   }
 
   object analysis extends ScalaModule {
-    def scalaVersion = "2.13.16"
+    def scalaVersion = "2.13.12"
     def moduleDeps = Seq(structure)
     def ivyDeps = T { Seq(ivy"org.scalameta::scalameta:4.8.15", ivy"com.lihaoyi::os-lib:0.9.3") }
     def compileResources = T { Seq.empty[PathRef] }
