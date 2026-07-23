@@ -195,8 +195,19 @@ trait SilverBackend
           case ContractNotWellformed(node, reason, _) => defer(reason)
           case PreconditionInCallFalse(node, reason, _) =>
             val invocation = get[col.InvokeProcedure[_]](node)
+            val offendingArgs = node.args.zipWithIndex.collect {
+              case (a, i)
+                  if System.identityHashCode(a) ==
+                    System.identityHashCode(reason.offendingNode) =>
+                i
+            }
+            // Using collectFirst here, not sure how you would realistically get more than one here, but I guess if there's multiple they're probably identical
+            val offendingPath = offendingArgs.map(invocation.ref.decl.args(_))
+              .collectFirst(Function.unlift(
+                argToPath(invocation.ref.decl.contract.requires, _)
+              )).getOrElse(path(reason.offendingNode))
             invocation.blame.blame(blame.PreconditionFailed(
-              path(reason.offendingNode),
+              offendingPath,
               getFailure(reason),
               invocation,
             ))
@@ -245,6 +256,7 @@ trait SilverBackend
                 case reasons.AssertionFalse(n) => n
                 case reasons.NegativePermission(n) => n
                 case reasons.QPAssertionNotInjective(n) => n
+                case otherReason => defer(otherReason); return
               }
             val (bl, assert) = info(offNode).asserting.map(n => (n.blame, n))
               .getOrElse[(blame.Blame[blame.AssertFailed], Node[_])](
