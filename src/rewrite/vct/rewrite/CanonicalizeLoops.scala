@@ -46,8 +46,8 @@ case class CanonicalizeLoops[Pre <: Generation]() extends Rewriter[Pre] {
       case _ => None
     }
 
-  override def dispatch(s: Statement[Pre]): Statement[Post] =
-    s match {
+  override def dispatch(stat: Statement[Pre]): Statement[Post] =
+    stat match {
       case Block(
             Seq(
               LocalDecl(v0),
@@ -70,11 +70,11 @@ case class CanonicalizeLoops[Pre <: Generation]() extends Rewriter[Pre] {
                     body = dispatch(remainder),
                   ),
                 )
-              case _ => super.dispatch(s)
+              case _ => super.dispatch(stat)
             }
-          case _ => super.dispatch(s)
+          case _ => super.dispatch(stat)
         }
-      case _ => super.dispatch(s)
+      case _ => super.dispatch(stat)
     }
 
 }
