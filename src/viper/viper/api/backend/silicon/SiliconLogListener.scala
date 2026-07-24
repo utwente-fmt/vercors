@@ -292,12 +292,12 @@ class SiliconMemberLogListener(
     branchUpdates += 1
     val modulus = log.branchConditionReportInterval
     if (modulus.nonEmpty && branchUpdates % modulus.get == 0) {
-      /*logger.warn(
+      logger.warn(
         s"Silicon has explored ${branchUpdates} branch traces for entity ${member.name}."
       )
-      logger.info("Current branch information:")*/
+      logger.info("Current branch information:")
       // PB: heuristic: the oldest branch is earliest in the text input, so present that first.
-      /*branchConditions.reverse.foreach {
+      branchConditions.reverse.foreach {
         case BranchConditionExp(e) =>
           where(e) match {
             case None => logger.info(s" - $e")
@@ -306,7 +306,7 @@ class SiliconMemberLogListener(
         case BranchConditionTerm(t) => logger.info(s" - $t")
         case BranchConditionNone(at, count) =>
           logger.info(s" - alternative ${at + 1} of $count")
-      }*/
+      }
     }
   }
 

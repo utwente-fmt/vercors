@@ -14,15 +14,13 @@ import java.util.function.Function
 object LSP extends LazyLogging {
   def runOptions(options: Options): Int = {
 
-    // logger.info("Starting LSP server...")
+    logger.info("Starting LSP server...")
 
     val server = new MyLanguageServer()
     val executorService: ExecutorService = Executors.newSingleThreadExecutor()
 
     var future = executorService.submit(new Runnable {
-      override def run(): Unit = {
-        RootTask().start()
-      }
+      override def run(): Unit = { RootTask().start() }
     })
     future.get()
 

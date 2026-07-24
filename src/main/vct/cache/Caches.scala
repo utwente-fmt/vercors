@@ -22,9 +22,9 @@ case object Caches extends LazyLogging {
     val variate = BuildInfo.gitHasChanges != "false"
 
     if (variate) {
-      /*logger.warn(
+      logger.warn(
         "Caching is enabled, but results will be discarded, since there were uncommitted changes at compilation time."
-      )*/
+      )
     }
 
     Cache.getDirectory(variate, keys)
