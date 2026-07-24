@@ -7,6 +7,7 @@
 #include <llvm/Analysis/LoopInfo.h>
 
 #include "FunctionDeclarer.h"
+#include "FunctionContractDeclarer.h"
 /**
  * The FunctionBodyTransformer that transforms LLVM blocks and instructions into
  * suitable VerCors COL abstractions.
@@ -148,6 +149,8 @@ class FunctionCursor {
      * @return
      */
     FDResult &getFDResult(llvm::Function &otherLLVMFunction);
+
+    FDCResult &getFDCResult(llvm::Function &otherLLVMFunction);
 };
 
 class FunctionBodyTransformerPass

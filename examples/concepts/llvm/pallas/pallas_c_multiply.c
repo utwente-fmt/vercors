@@ -8,7 +8,7 @@ declare DEF_RESULT(int);
 /*@
 requires n >= 0;
 requires k >= 0;
-ensures RESULT(int)() == n * k;
+ensures _result(int) == n * k;
 @*/
 int mult(int n, int k) {
     int res = 0;

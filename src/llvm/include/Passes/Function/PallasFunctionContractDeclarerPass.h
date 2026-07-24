@@ -1,18 +1,33 @@
 #ifndef PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H
 #define PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Woverflow"
+#endif // __GNUC__
 #include "vct/col/ast/col.pb.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
+
+#include "IRSpec/PallasIRSpec.h"
 
 #include <memory>
 
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Metadata.h>
+#include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 
 /**
  * Pass that transforms Pallas function contracts that are defined as
  * metadata that is attached to an LLVM-function into
  * LlvmfunctionContract objects.
+ *
+ * This is a module-pass instead of a function-pass to ensure that it is also
+ * applied to function declarations which can be equiped with an
+ * external contract.
  *
  * This pass expects to be run after the following passes
  * - FunctionContractDeclarer
@@ -35,9 +50,14 @@ class PallasFunctionContractDeclarerPass
      * The value-filed of the contract is left empty, because the
      * ApplicableContract is constructed directly.
      */
-    PreservedAnalyses run(Function &f, FunctionAnalysisManager &fam);
+    PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 
   private:
+    /**
+     * Run the transformation on the given function.
+     */
+    void runOnFunction(Function &f, FunctionAnalysisManager &fam);
+
     /**
      * Initializes the given ApplicableContract so that it represents a
      * trivial contract (i.e. it only contains a requires-true-clause).
@@ -78,30 +98,15 @@ class PallasFunctionContractDeclarerPass
      * true otherwise. In case of an error, an error is added to the
      * ErrorReporter.
      * parentFunc is the function to which the contract is attached.
+     * The flag 'implicitArgs' indicates if the arguments of the
+     * parent function are implicitly encoded in the contract (i.e. in external
+     * or ghost contracts).
      */
     bool addClauseToContract(col::ApplicableContract &contract,
-                             Metadata *clauseOperand,
+                             const irspec::FunctionContract &irContract,
+                             unsigned int clauseIdx,
                              FunctionAnalysisManager &fam, Function &parentFunc,
-                             unsigned int clauseNum,
-                             const MDNode &contractSrcLoc);
-
-    /**
-     * Tries to extract the wrapper-function from the given metadata-node that
-     * represents a clause of a Pallas contract (i.e. the operand at index 2
-     * is expected to point to a function).
-     * Also checks, if the function is marked as a wrapper-function.
-     * Returns a nullptr id the function could not be extracted.
-     * ctxFunc is used to build error messages.
-     */
-    Function *getWrapperFuncFromClause(MDNode &clause, Function &ctxFunc);
-
-    /**
-     * Takes a function and a DIVariable that describes an argument of
-     * the original source-function and attempts to map the DIVariable
-     * to the corresponding argument of the llvm-function.
-     * If the mapping isnot possible, a nullptr is returned.
-     */
-    Argument *mapDIVarToArg(Function &f, DIVariable &diVar);
+                             const bool isExternal);
 
     /**
      * Initializes the given predicate 'newPred' such that it represents a split
@@ -121,6 +126,25 @@ class PallasFunctionContractDeclarerPass
      * and true is returned. Otherwise, false is returned.
      */
     bool hasConflictingContract(Function &f);
+
+    /**
+     * Determine the type of a ghost argument's definition.
+     * isGivenArg = true  --> Assumed to be given-arg
+     * isGivenArg = false --> Assumed to be yields-arg
+     * If the type cannot be determined, returns nullptr and adds error.
+     */
+    llvm::Type *getGhostArgType(const irspec::FunctionContract &contract,
+                                const llvm::MDNode &gArgMD, llvm::Function &f,
+                                bool isGivenArg);
+
+    /**
+     * Initializes the given col-variable (colVar) based on theg given
+     * ghost argument definition (gArgDef).
+     */
+    void transformGhostArg(const irspec::GhostArgDef &gArgDef,
+                           col::Variable *colVar, llvm::Type &type,
+                           llvm::Function &parentFunc,
+                           FunctionAnalysisManager &fam);
 };
 } // namespace pallas
 #endif // PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H

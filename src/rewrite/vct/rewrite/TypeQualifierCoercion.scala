@@ -119,7 +119,9 @@ case class TypeQualifierCoercion[Pre <: Generation]()
                     val it =
                       field.t match {
                         case TPointer(it, _) => it
+                        case TNonNullPointer(it, _) => it
                         case TPointerArray(it, _, _) => it
+                        case TNonNullPointerArray(it, _, _) => it
                         case _ => ??? // Not allowed
                       }
                     val (info, innerResType) = getUnqualified(it)
@@ -129,8 +131,16 @@ case class TypeQualifierCoercion[Pre <: Generation]()
                       field.t match {
                         case TPointer(_, _) =>
                           TPointer(innerResType, Some(unique))
+                        case TNonNullPointer(_, _) =>
+                          TNonNullPointer(innerResType, Some(unique))
                         case TPointerArray(_, dimensions, _) =>
                           TPointerArray(
+                            innerResType,
+                            dimensions.map(_.map(dispatch)),
+                            Some(unique),
+                          )
+                        case TNonNullPointerArray(_, dimensions, _) =>
+                          TNonNullPointerArray(
                             innerResType,
                             dimensions.map(_.map(dispatch)),
                             Some(unique),
@@ -219,9 +229,12 @@ case class TypeQualifierCoercion[Pre <: Generation]()
     t match {
       case TConst(t) => dispatch(t)
       case TUnique(t, _) => dispatch(t)
-      case TPointer(it, None) => makePointer(it)
+      case TPointer(it, None) => makePointer(it, nonNull = false)
+      case TNonNullPointer(it, None) => makePointer(it, nonNull = true)
       case TPointerArray(it, dimensions, None) =>
-        makePointerArray(it, dimensions)
+        makePointerArray(it, dimensions, nonNull = false)
+      case TNonNullPointerArray(it, dimensions, None) =>
+        makePointerArray(it, dimensions, nonNull = true)
       case tu: TClassUnique[Pre] =>
         val map = TypeQualifierCoercion.getUniqueMap(tu)
         val c = tu.cls.decl
@@ -234,11 +247,9 @@ case class TypeQualifierCoercion[Pre <: Generation]()
   override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
-      case PreAssignExpression(target, _)
-          if target.t.isInstanceOf[TConst[Pre]] =>
+      case PreAssignExpression(WithExactType(target, _: TConst[Pre]), _) =>
         throw DisallowedConstAssignment(target)
-      case PostAssignExpression(target, _)
-          if target.t.isInstanceOf[TConst[Pre]] =>
+      case PostAssignExpression(WithExactType(target, _: TConst[Pre]), _) =>
         throw DisallowedConstAssignment(target)
       case npa @ NewPointer(t, size, _) =>
         val (info, newT) = getUnqualified(t)
@@ -270,8 +281,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       case d @ Deref(obj, ref) =>
         obj match {
           // Always has an CoerceClassAnyClassCoercion
-          case ApplyCoercion(e, _) if e.t.isInstanceOf[TClassUnique[Pre]] =>
-            val source = e.t.asInstanceOf[TClassUnique[Pre]]
+          case ApplyCoercion(WithExactType(e, source: TClassUnique[Pre]), _) =>
             val map = TypeQualifierCoercion.getUniqueMap(source)
             if (!uniqueField.contains(ref.decl, map))
               createUniqueClassCopy(source.cls.decl, map)
@@ -349,25 +359,38 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       case _ => (info, dispatch(t))
     }
 
-  def makePointer(t: Type[Pre]): Type[Post] = {
+  def makePointer(t: Type[Pre], nonNull: Boolean): Type[Post] = {
     implicit val o: Origin = t.o
     val (info, resType) = getUnqualified(t)
-    if (info.const)
-      TConstPointer(resType)
-    else
-      TPointer(resType, info.unique)
+    (info.const, nonNull) match {
+      case (true, false) => TConstPointer(resType)
+      case (true, true) => TNonNullConstPointer(resType)
+      case (false, false) => TPointer(resType, info.unique)
+      case (false, true) => TNonNullPointer(resType, info.unique)
+    }
   }
 
   def makePointerArray(
       t: Type[Pre],
       dimensions: Seq[Option[Expr[Pre]]],
+      nonNull: Boolean,
   ): Type[Post] = {
     implicit val o: Origin = t.o
     val (info, resType) = getUnqualified(t)
-    if (info.const)
-      TConstPointerArray(resType, dimensions.map(_.map(dispatch)))
-    else
-      TPointerArray(resType, dimensions.map(_.map(dispatch)), info.unique)
+    (info.const, nonNull) match {
+      case (true, false) =>
+        TConstPointerArray(resType, dimensions.map(_.map(dispatch)))
+      case (true, true) =>
+        TNonNullConstPointerArray(resType, dimensions.map(_.map(dispatch)))
+      case (false, false) =>
+        TPointerArray(resType, dimensions.map(_.map(dispatch)), info.unique)
+      case (false, true) =>
+        TNonNullPointerArray(
+          resType,
+          dimensions.map(_.map(dispatch)),
+          info.unique,
+        )
+    }
   }
 }
 
@@ -520,29 +543,29 @@ case class MakeUniqueMethodCopies[Pre <: Generation]() extends Rewriter[Pre] {
   ): (Seq[CoercedArg], Seq[PointerLike[Pre]]) =
     (paramT, argT) match {
       // Unpack pointers first, since the outer pointer is structurally the same
-      case (p @ TPointer(paramT, paramU), a @ TPointer(argT, argU))
-          if paramU == argU =>
-        addFirst(CoercedArg(p, a), getCoercionPerParam(paramT, argT))
-      case (
-            p @ TPointerArray(paramT, paramD, paramU),
-            a @ TPointerArray(argT, argD, argU),
-          ) if paramD.length == argD.length && paramU == argU =>
-        addFirst(CoercedArg(p, a), getCoercionPerParam(paramT, argT))
-      case (p @ TPointerArray(paramT, _, paramU), a @ TPointer(argT, argU))
-          if paramU == argU =>
-        addFirst(CoercedArg(p, a), getCoercionPerParam(paramT, argT))
-      case (p @ TPointer(paramT, paramU), a @ TPointerArray(argT, _, argU))
-          if paramU == argU =>
-        addFirst(CoercedArg(p, a), getCoercionPerParam(paramT, argT))
+      case (p: PointerType[Pre], a: PointerType[Pre]) if p.unique == a.unique =>
+        addFirst(CoercedArg(p, a), getCoercionPerParam(p.element, a.element))
+      case (p: PointerArrayType[Pre], a: PointerArrayType[Pre])
+          if p.dimensions.length == a.dimensions.length &&
+            p.unique == a.unique =>
+        addFirst(CoercedArg(p, a), getCoercionPerParam(p.element, a.element))
+      case (p: PointerArrayType[Pre], a: PointerType[Pre])
+          if p.dimensions.length == 1 && p.unique == a.unique =>
+        addFirst(CoercedArg(p, a), getCoercionPerParam(p.element, a.element))
+      case (p: PointerType[Pre], a: PointerArrayType[Pre])
+          if a.dimensions.length == 1 && p.unique == a.unique =>
+        addFirst(CoercedArg(p, a), getCoercionPerParam(p.element, a.element))
       // Now we should have two different pointers
       case (p: PointerType[Pre], a: PointerType[Pre]) =>
         (Seq(CoercedArg(p, a)), getPointers(p.element))
       case (p: PointerArrayType[Pre], a: PointerArrayType[Pre])
           if p.dimensions.length == a.dimensions.length =>
         ((Seq(CoercedArg(p, a)), getPointers(p.element)))
-      case (p: PointerArrayType[Pre], a: PointerType[Pre]) =>
+      case (p: PointerArrayType[Pre], a: PointerType[Pre])
+          if p.dimensions.length == 1 =>
         (Seq(CoercedArg(p, a)), getPointers(p.element))
-      case (p: PointerType[Pre], a: PointerArrayType[Pre]) =>
+      case (p: PointerType[Pre], a: PointerArrayType[Pre])
+          if a.dimensions.length == 1 =>
         (Seq(CoercedArg(p, a)), getPointers(p.element))
       // Other case can only be if it was a class
       case (p, a) =>

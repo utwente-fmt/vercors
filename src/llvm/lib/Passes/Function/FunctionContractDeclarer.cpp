@@ -4,6 +4,7 @@
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
+#include "IRSpec/PallasSpecDecoding.h"
 
 namespace pallas {
 const std::string SOURCE_LOC = "Passes::Function::FunctionContractDeclarer";
@@ -19,6 +20,35 @@ FDCResult::FDCResult(vct::col::ast::LlvmFunctionContract &colFuncContract)
 
 col::LlvmFunctionContract &FDCResult::getAssociatedColFuncContract() {
     return associatedColFuncContract;
+}
+
+void FDCResult::addGhostArgMapEntry(const llvm::MDNode &arg,
+                                    col::Variable &colVar) {
+    ghostArgMap.insert({&arg, &colVar});
+}
+
+col::Variable *FDCResult::getGhostArgMapEntry(const llvm::MDNode &arg) {
+    return ghostArgMap.at(&arg);
+}
+
+llvm::SmallVector<col::Variable *> FDCResult::getGhostVars() {
+    llvm::SmallVector<col::Variable *> gArgs;
+    for (auto [k, v] : ghostArgMap) {
+        gArgs.push_back(v);
+    }
+    return gArgs;
+}
+
+void FDCResult::setIRContract(irspec::FunctionContract irContract) {
+    associatedIRContract = std::make_optional(std::move(irContract));
+}
+
+const irspec::FunctionContract *FDCResult::getIRContract() {
+    if (associatedIRContract.has_value()) {
+        return &associatedIRContract.value();
+    } else {
+        return nullptr;
+    }
 }
 
 /*
@@ -53,8 +83,8 @@ FunctionContractDeclarerPass::run(Function &F, FunctionAnalysisManager &FAM) {
     // Add a "requires false"-contract to Swift's fatalError-function
     // (Since we currently do not support all instructions that it uses).
     if (F.getName().str() == constants::SWIFT_FATAL_ERROR) {
-        ErrorReporter::addWarning(SOURCE_LOC,
-                                  "Generating contract forswift fatalError", F);
+        ErrorReporter::addWarning(
+            SOURCE_LOC, "Generating contract for swift fatalError", F);
         colContract->set_value("requires false;");
         colContract->set_allocated_origin(
             llvm2col::generateFunctionContractOrigin(F, "requires false;"));

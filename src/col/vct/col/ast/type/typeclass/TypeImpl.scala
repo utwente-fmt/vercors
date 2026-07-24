@@ -35,8 +35,7 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
     CoercionUtils.getAnyCPPArrayCoercion(this).map(_._2)
   def asPointerArray: Option[PointerArrayType[G]] =
     this match {
-      case p: TPointerArray[G] => Some(p)
-      case p: TConstPointerArray[G] => Some(p)
+      case p: PointerArrayType[G] => Some(p)
       case _ => None
     }
   def asOption: Option[TOption[G]] =
@@ -81,7 +80,13 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
       override def dispatch(t: Type[G]): Type[G] =
         t match {
           case TVar(Ref(v)) => substitutions(v)
-          case other => rewriteDefault(other)
+          case old @ TCInt() =>
+            val cint = TCInt[G]()
+            cint.storedBits = old.storedBits
+            cint.signed = old.signed
+            cint.rank = old.rank
+            cint
+          case other => super.dispatch(other)
         }
     }
     Particularize.dispatch(this)

@@ -6,6 +6,7 @@ import vct.col.ast.expr.apply.FunctionInvocationImpl
 import vct.col.origin._
 import vct.col.ref.{DirectRef, Ref}
 import vct.col.rewrite.Rewritten
+import vct.col.typerules.TypeSize
 import vct.result.VerificationError.{Unreachable, UserError}
 
 /** Collection of general AST building utilities. This is meant to organically
@@ -15,6 +16,13 @@ object AstBuildHelpers {
   val ZERO: BigInt = BigInt(0)
   val ONE: BigInt = BigInt(1)
 
+  object WithExactType {
+    def unapply[G](e: Expr[G]): Option[(Expr[G], Type[G])] = Some((e, e.t))
+    def unapply[G](v: Variable[G]): Option[(Variable[G], Type[G])] =
+      Some((v, v.t))
+    def unapply[G](v: HeapVariable[G]): Option[(HeapVariable[G], Type[G])] =
+      Some((v, v.t))
+  }
   case class NumericDividingError(left: Expr[_], right: Expr[_])
       extends UserError {
     override def text: String =
@@ -562,6 +570,26 @@ object AstBuildHelpers {
       }
   }
 
+  implicit class TriggeredQuantifierBuildHelpers[Pre, Post](
+      quantifier: TriggeredQuantifier[Pre]
+  )(implicit rewriter: AbstractRewriter[Pre, Post]) {
+    def rewrite(
+        bindings: => Seq[Variable[Post]] = rewriter.variables
+          .dispatch(quantifier.bindings),
+        triggers: => Seq[Seq[Expr[Post]]] = quantifier.triggers
+          .map(_.map(rewriter.dispatch)),
+        body: => Expr[Post] = rewriter.dispatch(quantifier.body),
+    ): TriggeredQuantifier[Post] =
+      quantifier match {
+        case q: Forall[Pre] =>
+          q.rewrite(bindings = bindings, triggers = triggers, body = body)
+        case q: Starall[Pre] =>
+          q.rewrite(bindings = bindings, triggers = triggers, body = body)
+        case q: Exists[Pre] =>
+          q.rewrite(bindings = bindings, triggers = triggers, body = body)
+      }
+  }
+
   private def constOrigin(value: scala.Any): Origin =
     Origin(Seq(LabelContext(s"constant ${value}")))
 
@@ -573,10 +601,18 @@ object AstBuildHelpers {
   def const[G](i: BigInt)(implicit o: Origin): IntegerValue[G] = IntegerValue(i)
 
   def c_const[G](i: Int)(implicit o: Origin): CIntegerValue[G] =
-    CIntegerValue(i, TCInt())
+    c_const(BigInt(i))
 
-  def c_const[G](i: BigInt)(implicit o: Origin): CIntegerValue[G] =
-    CIntegerValue(i, TCInt())
+  def c_const[G](i: BigInt)(implicit o: Origin): CIntegerValue[G] = {
+    val cint = TCInt[G]()
+    cint.signed = i < 0
+    // Set rank low so user specified types are always preferred
+    cint.rank = 0
+    // Calculate minimum amount of bits necessary for storing this value
+    cint.storedBits = TypeSize.Exact(if (i < 0) { i.bitLength + 1 }
+    else { i.bitLength })
+    CIntegerValue(i, cint)
+  }
 
   def contract[G](
       blame: Blame[NontrivialUnsatisfiable],

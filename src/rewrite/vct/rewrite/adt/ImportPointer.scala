@@ -9,6 +9,7 @@ import vct.col.rewrite.{ClassToRef, Generation}
 import vct.col.util.AstBuildHelpers.{functionInvocation, _}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
+import vct.rewrite.LowerHeapVariables
 
 import scala.collection.mutable
 
@@ -112,10 +113,6 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
     pointerAdt,
     "ptr_address",
   )
-  private lazy val pointerFromAddress = find[Function[Post]](
-    pointerFile,
-    "ptr_from_address",
-  )
   private lazy val pointerCastHelperAdt = find[AxiomaticDataType[Post]](
     pointerFile,
     "PointerCastHelper",
@@ -199,7 +196,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       function[Post](
         AbstractApplicable,
         TrueSatisfiable,
-        ensures = UnitAccountedPredicate(And(
+        ensures = UnitAccountedPredicate(
           result === functionInvocation[Post](
             TrueSatisfiable,
             fromCastHelperFunctions
@@ -210,15 +207,14 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
                 .getOrElseUpdate(from, makeToCastHelperFunction(from)).ref,
               Seq(value.get),
             )),
-          ),
-          adtFunctionInvocation[Post](
+          ) && adtFunctionInvocation[Post](
             pointerAddress.ref,
             args = Seq(result, dispatch(toSize)),
           ) === adtFunctionInvocation[Post](
             pointerAddress.ref,
             args = Seq(value.get, dispatch(fromSize)),
-          ),
-        )),
+          )
+        ),
         returnType = TAxiomatic(pointerAdt.ref, Nil),
         args = Seq(value),
       )
@@ -328,8 +324,9 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
 
   override def postCoerce(program: Program[Pre]): Program[Post] = {
     casts =
-      program.flatCollect { case PointerCast(from, to, _, _) =>
-        Seq(from.t.asPointer.get.element, to.asPointer.get.element)
+      program.flatCollect {
+        case PointerCast(from, to, _, _) if from.t != to =>
+          Seq(from.t.asPointer.get.element, to.asPointer.get.element)
       }.toSet
     super.postCoerce(program)
   }
@@ -461,18 +458,45 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
     s match {
       case scope: Scope[Pre] =>
         scope.rewrite(body = Block(scope.locals.collect {
-          case v if v.t.isInstanceOf[TNonNullPointer[Pre]] => {
+          case WithExactType(v, oldT: TNonNullPointer[Pre]) => {
             val firstUse = scope.body.collectFirst {
               case l @ Local(Ref(variable)) if variable == v => l
             }
             if (
               firstUse.isDefined && scope.body.collectFirst {
+                // This is a bit hacky, we're looking specifically for pointer initialisers from LowerHeapVariable
+                case InvokeProcedure(
+                      Ref(p),
+                      Seq(),
+                      Seq(l @ Local(Ref(variable))),
+                      Seq(),
+                      Seq(),
+                      Seq(),
+                    )
+                    if variable == v &&
+                      p.o.find[LabelContext]
+                        .contains(LowerHeapVariables.PointerCreationLabel) =>
+                  System.identityHashCode(l) !=
+                    System.identityHashCode(firstUse.get)
+                case ProcedureInvocation(
+                      Ref(p),
+                      Seq(),
+                      Seq(l @ Local(Ref(variable))),
+                      Seq(),
+                      Seq(),
+                      Seq(),
+                      false,
+                    )
+                    if variable == v &&
+                      p.o.find[LabelContext]
+                        .contains(LowerHeapVariables.PointerCreationLabel) =>
+                  System.identityHashCode(l) !=
+                    System.identityHashCode(firstUse.get)
                 case Assign(l @ Local(Ref(variable)), _) if variable == v =>
                   System.identityHashCode(l) !=
                     System.identityHashCode(firstUse.get)
               }.getOrElse(true)
             ) {
-              val oldT = v.t.asInstanceOf[TNonNullPointer[Pre]]
               val newT = dispatch(oldT.element)
               Seq(
                 InvokeProcedure[Post](
@@ -670,6 +694,7 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
       case PointerCast(value, targetType, fromSize, toSize) =>
         val newValue = dispatch(value)
         (targetType, value.t) match {
+          case (a, b) if a == b => newValue
           case (target: PointerType[Pre], value: PointerType[Pre])
               if target.unique != value.unique &&
                 target.element == value.element =>
@@ -723,63 +748,6 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
             throw Unreachable(
               s"Pointer cast with unknown pointer types: $targetType and ${value.t}"
             )
-        }
-      case IntegerPointerCast(value, targetType, typeSize) =>
-        val newValue = dispatch(value)
-        (targetType, value.t) match {
-          case (TInt() | TBoundedInt(_, _), TPointer(_, None)) =>
-            letIfNonTrivial(
-              dispatch(value.t),
-              newValue,
-              { v =>
-                Select[Post](
-                  OptEmpty(v),
-                  const(0),
-                  adtFunctionInvocation[Post](
-                    ref = pointerAddress.ref,
-                    args = Seq(
-                      OptGet(v)(PanicBlame(
-                        "Can never be null since this is ensured in the conditional expression"
-                      )),
-                      dispatch(typeSize),
-                    ),
-                  ),
-                )
-              },
-            )
-          case (TInt() | TBoundedInt(_, _), TNonNullPointer(_, _)) =>
-            adtFunctionInvocation[Post](
-              ref = pointerAddress.ref,
-              args = Seq(newValue, dispatch(typeSize)),
-            )
-          case (TPointer(_, None), TInt() | TBoundedInt(_, _)) =>
-            letIfNonTrivial(
-              dispatch(value.t),
-              newValue,
-              { v =>
-                Select[Post](
-                  v === const(0),
-                  OptNoneTyped(TAxiomatic(pointerAdt.ref, Nil)),
-                  OptSome(
-                    FunctionInvocation[Post](
-                      ref = pointerFromAddress.ref,
-                      args = Seq(v, dispatch(typeSize)),
-                      typeArgs = Nil,
-                      Nil,
-                      Nil,
-                    )(PanicBlame("Stride > 0"))
-                  ),
-                )
-              },
-            )
-          case (TNonNullPointer(_, None), TInt() | TBoundedInt(_, _)) =>
-            FunctionInvocation[Post](
-              ref = pointerFromAddress.ref,
-              args = Seq(newValue, dispatch(typeSize)),
-              typeArgs = Nil,
-              Nil,
-              Nil,
-            )(PanicBlame("Stride > 0")) // TODO: Blame??
         }
       case blck @ PointerBlock(p) =>
         ADTFunctionInvocation[Post](

@@ -29,11 +29,15 @@ import vct.resources.Resources
 import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
+  CTypeConversions,
+  CollectLocalDeclarations,
   DisambiguateLocation,
   DisambiguatePredicateExpression,
   EncodeAssuming,
   EncodeAutoValue,
+  EncodeBoundsChecks,
   EncodeByValueClassUsage,
+  EncodeIntegerPointerCast,
   EncodePointerArrays,
   EncodePointerComparison,
   EncodeRange,
@@ -45,6 +49,7 @@ import vct.rewrite.{
   LowerHeapVariables,
   MakeUniqueMethodCopies,
   MonomorphizeClass,
+  PrettifyBlocks,
   SmtlibToProverTypes,
   TypeQualifierCoercion,
   VariableToPointer,
@@ -53,6 +58,7 @@ import vct.rewrite.lang.ReplaceSYCLTypes
 import vct.rewrite.pallas.{
   InlinePallasPermLets,
   InlinePallasWrappers,
+  ResolvePallasPredicates,
   ResolvePallasQuantifiers,
 }
 import vct.rewrite.veymont._
@@ -181,6 +187,8 @@ object Transformation extends LazyLogging {
           veymontPermissionStratificationMode =
             options.veymontPermissionStratificationMode,
           opaqueBitwiseOperators = options.opaqueBitwiseOperators,
+          checkIntegerBounds = options.checkIntegerBounds,
+          unsetTarget = options.targetString.isEmpty,
         )
     }
 
@@ -359,16 +367,20 @@ case class SilverTransformation(
     veymontPermissionStratificationMode: PermissionStratificationMode =
       PermissionStratificationMode.Wrap,
     opaqueBitwiseOperators: Boolean = false,
+    checkIntegerBounds: Boolean = false,
+    unsetTarget: Boolean = true,
 ) extends Transformation(
       onPassEvent,
       Seq(
-        CFloatIntCoercion,
+        CTypeConversions.withArg(checkIntegerBounds, unsetTarget),
+        EncodeBoundsChecks,
         // Replace leftover SYCL types
         ReplaceSYCLTypes,
         TypeQualifierCoercion,
         MakeUniqueMethodCopies,
         // Inline pallas-specifications
         InlinePallasWrappers,
+        ResolvePallasPredicates,
         InlinePallasPermLets,
         ResolvePallasQuantifiers,
         // BIP transformations
@@ -425,9 +437,11 @@ case class SilverTransformation(
         EncodeCurrentThread,
         EncodeIntrinsicLock,
         EncodeForkJoin,
+        EncodeSuchThatAssign,
+        // PureMethodsToFunctions should be before InlineApplicables since InlineApplicables treats functions and methods differently
+        PureMethodsToFunctions,
         InlineApplicables,
         InlineTrivialLets,
-        PureMethodsToFunctions,
         RefuteToInvertedAssert,
         ExplicitResourceValues,
         EncodeResourceValues,
@@ -455,6 +469,8 @@ case class SilverTransformation(
       ) ++ simplifyAfterRelations ++ Seq(
         UntupledQuantifiers,
 
+        // Resolve scale before encoding proof helpers, for easier access to annotation info.
+        ResolveScale,
         // Encode proof helpers
         EncodeProofHelpers.withArg(inferHeapContextIntoFrame),
         ImportSetCompat.withArg(adtImporter),
@@ -469,7 +485,6 @@ case class SilverTransformation(
         ResolveExpressionSideChecks,
         ResolveExpressionSideEffects,
         EncodeTryThrowSignals,
-        ResolveScale,
         MonomorphizeClass,
         // No more classes
         ClassToRef,
@@ -486,6 +501,7 @@ case class SilverTransformation(
         EnumToDomain,
         ImportArray.withArg(adtImporter),
         ImportConstPointer.withArg(adtImporter),
+        EncodeIntegerPointerCast,
         ImportPointer.withArg(adtImporter),
         ImportMapCompat.withArg(adtImporter),
         ImportEither.withArg(adtImporter),

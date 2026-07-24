@@ -1,0 +1,61 @@
+requires sub <= super;
+requires |sub| == |super|;
+ensures sub == super;
+ensures \result;
+pure boolean equalLengthSubsetIsEqual(set<int> sub, set<int> super) = |super - sub| > 0 ? \choose(super - sub) in sub : true;
+
+requires (\forall int i = 0..v; {:i in xs:});
+ensures |xs| >= v;
+ensures \result;
+pure boolean pigeon(set<int> xs, int v) = (v-1) in xs ? pigeon(xs - {v-1}, v-1) : true;
+
+ensures (\forall int i; {:1:i in xs:} == {:2:i in \result:});
+ensures |xs| >= |\result|;
+opaque pure set<int> toSet(seq<int> xs) = |xs| == 0 ? set<int> {} : {xs.head} + toSet(xs.tail);
+
+requires xs != null ** Perm(xs[*], 1);
+pure boolean inArr(int x, int[] xs) = (\exists int i = 0 .. xs.length; xs[i] == x);
+
+requires xs != null ** Perm(xs[*], 1);
+requires l in {0 .. xs.length + 1};
+pure boolean inArr(int x, int[] xs, int l) = (\exists int i = l .. xs.length; xs[i] == x);
+
+requires xs != null ** Perm(xs[*], 1);
+requires i in {0 .. xs.length + 1};
+ensures (\forall int k; {:1:inArr(k, xs, i):} == {:2:k in \result:});
+ensures |\result| <= xs.length - i;
+pure set<int> toSet(int[] xs, int i) = i == xs.length ? set<int> {} : {xs[i]} + toSet(xs, i + 1);
+
+requires xs != null ** Perm(xs[*], 1);
+ensures (\forall int k; {:1:inArr(k, xs):} == {:2:k in \result:});
+ensures |\result| <= xs.length;
+opaque pure set<int> toSet(int[] xs) = toSet(xs, 0);
+
+requires a != null ** Perm(a[*], 1\2);
+ensures Perm(a[*], 1\2);
+ensures !inArr(\result, a); 
+ensures (\forall int i = 0..\result; {:inArr(i, a):});
+int mex0(int[] a) {
+    int n = a.length;
+
+    loop_invariant Perm(a[*], 1\3);
+    loop_invariant 0 <= v && v <= n;
+    loop_invariant (\forall int i = 0..v; {:inArr(i, a):});
+    loop_invariant toSet(a).intersect({0..v}) == {0..v};
+    for (int v = 0; v < n; v++) {
+        int i = 0;
+        loop_invariant 0 <= i && i <= n;
+        loop_invariant Perm(a[*], 1\4);
+        loop_invariant (\forall int j = 0..i; {:a[j]:} != v);
+        while (i < n && a[i] != v) {
+            i++;
+        }
+        if (i == n) {
+            return v;
+        }
+    }
+    assert pigeon(toSet(a), n);
+    assert equalLengthSubsetIsEqual({0..n}, toSet(a));
+    assert !inArr(n, a);
+    return n;
+}

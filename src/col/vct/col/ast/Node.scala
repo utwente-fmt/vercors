@@ -137,11 +137,22 @@ final case class TPointerArray[G](
     unique: Option[BigInt],
 )(implicit val o: Origin = DiagnosticOrigin)
     extends PointerArrayType[G] with TPointerArrayImpl[G]
+final case class TNonNullPointerArray[G](
+    element: Type[G],
+    dimensions: Seq[Option[Expr[G]]],
+    unique: Option[BigInt],
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends PointerArrayType[G] with TNonNullPointerArrayImpl[G]
 final case class TConstPointerArray[G](
     element: Type[G],
     dimensions: Seq[Option[Expr[G]]],
 )(implicit val o: Origin = DiagnosticOrigin)
     extends PointerArrayType[G] with TConstPointerArrayImpl[G]
+final case class TNonNullConstPointerArray[G](
+    element: Type[G],
+    dimensions: Seq[Option[Expr[G]]],
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends PointerArrayType[G] with TNonNullConstPointerArrayImpl[G]
 
 final case class TPointerBlock[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with TPointerBlockImpl[G]
@@ -241,6 +252,10 @@ sealed trait BitwiseType[G] extends Type[G] with BitwiseTypeImpl[G]
 
 final case class TInt[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends IntType[G] with TIntImpl[G]
+final case class TCheckedInt[G](gte: BigInt, lt: BigInt)(
+    val blame: Blame[IntegerOutOfBounds]
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends IntType[G] with TCheckedIntImpl[G]
 final case class TBoundedInt[G](gte: BigInt, lt: BigInt)(
     implicit val o: Origin = DiagnosticOrigin
 ) extends IntType[G] with TBoundedIntImpl[G]
@@ -395,6 +410,12 @@ final case class AssignInitial[G](target: Expr[G], value: Expr[G])(
     val blame: Blame[AssignFailed]
 )(implicit val o: Origin)
     extends AssignStmt[G] with AssignInitialImpl[G]
+final case class AssignSuchThat[G](target: Expr[G], constraint: Expr[G])(
+    val blame: Blame[AssignSuchThatFailed]
+)(implicit val o: Origin)
+    extends NormallyCompletingStatement[G]
+    with ExpressionContainerStatement[G]
+    with AssignSuchThatImpl[G]
 final case class Send[G](decl: SendDecl[G], delta: BigInt, res: Expr[G])(
     val blame: Blame[SendFailed]
 )(implicit val o: Origin)
@@ -413,9 +434,12 @@ final case class DefaultCase[G]()(implicit val o: Origin)
     with DefaultCaseImpl[G]
 final case class Case[G](pattern: Expr[G])(implicit val o: Origin)
     extends SwitchCase[G] with PurelySequentialStatement[G] with CaseImpl[G]
-final case class Label[G](decl: LabelDecl[G], stat: Statement[G])(
-    implicit val o: Origin
-) extends NormallyCompletingStatement[G]
+final case class Label[G](
+    decl: LabelDecl[G],
+    stat: Statement[G],
+    contract: LoopContract[G],
+)(implicit val o: Origin)
+    extends NormallyCompletingStatement[G]
     with ControlContainerStatement[G]
     with LabelImpl[G]
 final case class Goto[G](lbl: Ref[G, LabelDecl[G]])(implicit val o: Origin)
@@ -518,9 +542,11 @@ final case class FramedProof[G](
     extends NormallyCompletingStatement[G]
     with ControlContainerStatement[G]
     with FramedProofImpl[G]
-final case class Extract[G](contractedStatement: Statement[G])(
-    implicit val o: Origin
-) extends NormallyCompletingStatement[G]
+final case class Extract[G](
+    contractedStatement: Statement[G],
+    decreases: Option[DecreasesClause[G]],
+)(val blame: Blame[ExtractTerminationMeasureFailed])(implicit val o: Origin)
+    extends NormallyCompletingStatement[G]
     with ControlContainerStatement[G]
     with ExtractImpl[G]
 
@@ -787,6 +813,7 @@ final class Predicate[G](
     val body: Option[Expr[G]],
     val threadLocal: Boolean = false,
     val inline: Boolean = false,
+    val pallasPredicate: Boolean = false,
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with AbstractPredicate[G] with PredicateImpl[G]
 final class Enum[G](val constants: Seq[EnumConstant[G]])(implicit val o: Origin)
@@ -1139,6 +1166,12 @@ final case class CoerceCVectorVector[G](size: BigInt, elementType: Type[G])(
 final case class CoerceNullLLVMPointer[G](elementType: Option[Type[G]])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceNullLLVMPointerImpl[G]
+final case class CoerceNullPointerArray[G](target: Type[G])(
+    implicit val o: Origin
+) extends Coercion[G] with CoerceNullPointerArrayImpl[G]
+final case class CoerceNonNullPointerArray[G](target: Type[G])(
+    implicit val o: Origin
+) extends Coercion[G] with CoerceNonNullPointerArrayImpl[G]
 final case class CoercePointerArrayPointer[G](
     elementType: Type[G],
     dimensions: Int,
@@ -1156,11 +1189,12 @@ final case class CoercePointerPointerArray[G](
     unique: Option[BigInt],
 )(implicit val o: Origin)
     extends Coercion[G] with CoercePointerPointerArrayImpl[G]
-final case class CoerceConstPointerPointerArray[G](
+final case class CoercePointerNonNullPointerArray[G](
     elementType: Type[G],
     dimensions: Seq[Option[Expr[G]]],
+    unique: Option[BigInt],
 )(implicit val o: Origin)
-    extends Coercion[G] with CoerceConstPointerPointerArrayImpl[G]
+    extends Coercion[G] with CoercePointerNonNullPointerArrayImpl[G]
 
 final case class CoerceFracZFrac[G]()(implicit val o: Origin)
     extends Coercion[G] with CoerceFracZFracImpl[G]
@@ -1172,8 +1206,16 @@ final case class CoerceCFloatCInt[G](source: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceCFloatCIntImpl[G]
 final case class CoerceCIntCFloat[G](target: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceCIntCFloatImpl[G]
+final case class CoerceBoolCInt[G](target: Type[G])(implicit val o: Origin)
+    extends Coercion[G] with CoerceBoolCIntImpl[G]
+final case class CoerceCIntBool[G]()(implicit val o: Origin)
+    extends Coercion[G] with CoerceCIntBoolImpl[G]
+final case class CoercePointerBool[G](source: Type[G])(implicit val o: Origin)
+    extends Coercion[G] with CoercePointerBoolImpl[G]
 final case class CoerceCIntInt[G](t: Type[G])(implicit val o: Origin)
     extends Coercion[G] with CoerceCIntIntImpl[G]
+final case class CoerceCheckedIntInt[G]()(implicit val o: Origin)
+    extends Coercion[G] with CoerceCheckedIntIntImpl[G]
 final case class CoerceCFloatFloat[G](source: Type[G], target: Type[G])(
     implicit val o: Origin
 ) extends Coercion[G] with CoerceCFloatFloatImpl[G]
@@ -1305,6 +1347,8 @@ final case class CoerceZFracFrac[G]()(implicit val o: Origin)
 
 final case class CoerceLLVMIntInt[G]()(implicit val o: Origin)
     extends Coercion[G] with CoerceLLVMIntIntImpl[G]
+final case class CoerceLLVMIntBool[G]()(implicit val o: Origin)
+    extends Coercion[G] with CoerceLLVMIntBoolImpl[G]
 
 @family
 sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
@@ -1312,7 +1356,14 @@ sealed trait Expr[G] extends NodeFamily[G] with ExprImpl[G]
 // For terms which we can safely reason about in ExpressionEqualityCheck
 sealed trait SymbolicTerm[G] extends Expr[G]
 // For terms which introduce a resource in a function precondition, invocations of these functions must be excluded from SymbolicTerms that are collected
-sealed trait ResourceTerm[G] extends Expr[G]
+sealed trait ResourceTerm[G] extends Expr[G] with ResourceTermImpl[G]
+// Trait mirroring Viper's PossibleTrigger should be implemented by all expressions that eventually become nodes that implement Viper's trait
+sealed trait PossibleTrigger[G] extends Expr[G] with PossibleTriggerImpl[G]
+
+// Dummy constant, used for type inference, should not appear in the AST after a rewrite (therefore there is no entry in CoercingRewriter ensuring we crash)
+final case class DummyConstant[G](t: Type[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Expr[G] with DummyConstantImpl[G]
 
 sealed trait Constant[G] extends Expr[G] with ConstantImpl[G]
 sealed trait ConstantInt[G] extends Constant[G] with ConstantIntImpl[G]
@@ -1322,6 +1373,12 @@ final case class CIntegerValue[G](value: BigInt, t: Type[G])(
 ) extends ConstantInt[G] with Expr[G] with CIntegerValueImpl[G]
 final case class IntegerValue[G](value: BigInt)(implicit val o: Origin)
     extends ConstantInt[G] with Expr[G] with IntegerValueImpl[G]
+final case class CheckedIntegerValue[G](value: BigInt, gte: BigInt, lt: BigInt)(
+    val blame: Blame[IntegerOutOfBounds]
+)(implicit val o: Origin)
+    extends ConstantInt[G] with Expr[G] with CheckedIntegerValueImpl[G]
+final case class UncheckedMath[G](inner: Expr[G])(implicit val o: Origin)
+    extends Expr[G] with UncheckedMathImpl[G]
 final case class BooleanValue[G](value: Boolean)(implicit val o: Origin)
     extends Constant[G] with BooleanValueImpl[G]
 final case class FloatValue[G](value: BigDecimal, t: Type[G] /* TFloat */ )(
@@ -1337,34 +1394,34 @@ final case class CharValue[G](value: Int)(implicit val o: Origin)
     extends Constant[G] with CharValueImpl[G]
 final case class LiteralSeq[G](element: Type[G], values: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with LiteralSeqImpl[G]
+) extends Expr[G] with LiteralSeqImpl[G] with PossibleTrigger[G]
 final case class LiteralSet[G](element: Type[G], values: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with LiteralSetImpl[G]
+) extends Expr[G] with LiteralSetImpl[G] with PossibleTrigger[G]
 final case class LiteralBag[G](element: Type[G], values: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with LiteralBagImpl[G]
+) extends Expr[G] with LiteralBagImpl[G] with PossibleTrigger[G]
 final case class LiteralTuple[G](ts: Seq[Type[G]], values: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with LiteralTupleImpl[G]
+) extends Expr[G] with LiteralTupleImpl[G] with PossibleTrigger[G]
 final case class LiteralMap[G](
     k: Type[G],
     v: Type[G],
     values: Seq[(Expr[G], Expr[G])],
 )(implicit val o: Origin)
-    extends Expr[G] with LiteralMapImpl[G]
+    extends Expr[G] with LiteralMapImpl[G] with PossibleTrigger[G]
 final case class LiteralVector[G](element: Type[G], values: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with LiteralVectorImpl[G]
+) extends Expr[G] with LiteralVectorImpl[G] with PossibleTrigger[G]
 final case class UntypedLiteralSeq[G](values: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with UntypedLiteralSeqImpl[G]
+) extends Expr[G] with UntypedLiteralSeqImpl[G] with PossibleTrigger[G]
 final case class UntypedLiteralSet[G](values: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with UntypedLiteralSetImpl[G]
+) extends Expr[G] with UntypedLiteralSetImpl[G] with PossibleTrigger[G]
 final case class UntypedLiteralBag[G](values: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with UntypedLiteralBagImpl[G]
+) extends Expr[G] with UntypedLiteralBagImpl[G] with PossibleTrigger[G]
 final case class Void[G]()(implicit val o: Origin)
     extends Expr[G] with VoidImpl[G]
 final case class Null[G]()(implicit val o: Origin)
@@ -1374,25 +1431,25 @@ final case class NoPerm[G]()(implicit val o: Origin)
 final case class WritePerm[G]()(implicit val o: Origin)
     extends Expr[G] with WritePermImpl[G]
 final case class OptSome[G](e: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with OptSomeImpl[G]
+    extends Expr[G] with OptSomeImpl[G] with PossibleTrigger[G]
 final case class OptSomeTyped[G](element: Type[G], e: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with OptSomeTypedImpl[G]
+) extends Expr[G] with OptSomeTypedImpl[G] with PossibleTrigger[G]
 final case class OptNone[G]()(implicit val o: Origin)
-    extends Expr[G] with OptNoneImpl[G]
+    extends Expr[G] with OptNoneImpl[G] with PossibleTrigger[G]
 final case class OptNoneTyped[G](element: Type[G])(implicit val o: Origin)
-    extends Expr[G] with OptNoneTypedImpl[G]
+    extends Expr[G] with OptNoneTypedImpl[G] with PossibleTrigger[G]
 final case class Range[G](from: Expr[G], to: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with RangeImpl[G]
+    extends Expr[G] with RangeImpl[G] with PossibleTrigger[G]
 final case class RangeSet[G](from: Expr[G], to: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with RangeSetImpl[G]
+    extends Expr[G] with RangeSetImpl[G] with PossibleTrigger[G]
 final case class EitherLeft[G](e: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with EitherLeftImpl[G]
+    extends Expr[G] with EitherLeftImpl[G] with PossibleTrigger[G]
 final case class EitherRight[G](e: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with EitherRightImpl[G]
+    extends Expr[G] with EitherRightImpl[G] with PossibleTrigger[G]
 final case class MapCons[G](map: Expr[G], k: Expr[G], v: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with MapConsImpl[G]
+) extends Expr[G] with MapConsImpl[G] with PossibleTrigger[G]
 
 final case class AmbiguousThis[G]()(implicit val o: Origin)
     extends Expr[G] with AmbiguousThisImpl[G] {
@@ -1448,6 +1505,8 @@ final case class MapRemove[G](map: Expr[G], k: Expr[G])(implicit val o: Origin)
     extends Expr[G] with MapRemoveImpl[G]
 
 sealed trait Binder[G] extends Expr[G] with BinderImpl[G]
+sealed trait TriggeredQuantifier[G]
+    extends Binder[G] with TriggeredQuantifierImpl[G]
 @scopes[Variable]
 @scopes[LocalHeapVariable]
 final case class Forall[G](
@@ -1455,7 +1514,7 @@ final case class Forall[G](
     triggers: Seq[Seq[Expr[G]]],
     body: Expr[G],
 )(implicit val o: Origin)
-    extends Binder[G] with ForallImpl[G]
+    extends TriggeredQuantifier[G] with ForallImpl[G]
 @scopes[Variable]
 @scopes[LocalHeapVariable]
 final case class Starall[G](
@@ -1463,7 +1522,7 @@ final case class Starall[G](
     triggers: Seq[Seq[Expr[G]]],
     body: Expr[G],
 )(val blame: Blame[ReceiverNotInjective])(implicit val o: Origin)
-    extends Binder[G] with StarallImpl[G]
+    extends TriggeredQuantifier[G] with StarallImpl[G]
 @scopes[Variable]
 @scopes[LocalHeapVariable]
 final case class Exists[G](
@@ -1471,7 +1530,7 @@ final case class Exists[G](
     triggers: Seq[Seq[Expr[G]]],
     body: Expr[G],
 )(implicit val o: Origin)
-    extends Binder[G] with ExistsImpl[G]
+    extends TriggeredQuantifier[G] with ExistsImpl[G]
 @scopes[Variable]
 @scopes[LocalHeapVariable]
 final case class Sum[G](
@@ -1506,6 +1565,14 @@ final case class ForPermWithValue[G](binding: Variable[G], body: Expr[G])(
 final case class Let[G](binding: Variable[G], value: Expr[G], main: Expr[G])(
     implicit val o: Origin
 ) extends Binder[G] with LetImpl[G]
+@scopes[Variable]
+@scopes[LocalHeapVariable]
+final case class LetSuchThat[G](
+    binding: Variable[G],
+    condition: Expr[G],
+    main: Expr[G],
+)(val blame: Blame[AssignSuchThatFailed])(implicit val o: Origin)
+    extends Binder[G] with LetSuchThatImpl[G]
 final case class InlinePattern[G](
     inner: Expr[G],
     parent: Int = 0,
@@ -1530,31 +1597,32 @@ final case class EnumUse[G](
     const: Ref[G, EnumConstant[G]],
 )(implicit val o: Origin)
     extends Expr[G] with EnumUseImpl[G]
-sealed trait HeapDeref[G] extends Expr[G] with HeapDerefImpl[G]
+sealed trait HeapDeref[G]
+    extends Expr[G] with HeapDerefImpl[G] with PossibleTrigger[G]
 final case class DerefHeapVariable[G](ref: Ref[G, HeapVariable[G]])(
     val blame: Blame[InsufficientPermission]
 )(implicit val o: Origin)
     extends Expr[G] with HeapDeref[G] with DerefHeapVariableImpl[G]
 final case class Deref[G](obj: Expr[G], ref: Ref[G, InstanceField[G]])(
-    val blame: Blame[InsufficientPermission]
+    val blame: Blame[ClassDerefError]
 )(implicit val o: Origin)
     extends Expr[G] with HeapDeref[G] with DerefImpl[G]
 final case class ModelDeref[G](obj: Expr[G], ref: Ref[G, ModelField[G]])(
-    val blame: Blame[ModelInsufficientPermission]
+    val blame: Blame[ClassDerefError]
 )(implicit val o: Origin)
     extends Expr[G] with ModelDerefImpl[G]
 final case class DerefPointer[G](pointer: Expr[G])(
     val blame: Blame[PointerDerefError]
 )(implicit val o: Origin)
-    extends Expr[G] with DerefPointerImpl[G]
+    extends Expr[G] with DerefPointerImpl[G] with PossibleTrigger[G]
 final case class PointerAdd[G](pointer: Expr[G], offset: Expr[G])(
     val blame: Blame[PointerAddError]
 )(implicit val o: Origin)
-    extends Expr[G] with PointerAddImpl[G]
+    extends Expr[G] with PointerAddImpl[G] with PossibleTrigger[G]
 final case class PointerToAdt[G](pointer: Expr[G], t: Type[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
-    extends Expr[G] with PointerToAdtImpl[G]
+    extends Expr[G] with PointerToAdtImpl[G] with PossibleTrigger[G]
 final case class AddrOf[G](e: Expr[G])(implicit val o: Origin)
     extends Expr[G] with AddrOfImpl[G]
 final case class AddrOfConstCast[G](e: Expr[G])(implicit val o: Origin)
@@ -1579,7 +1647,10 @@ final case class ADTFunctionInvocation[G](
     ref: Ref[G, ADTFunction[G]],
     args: Seq[Expr[G]],
 )(implicit val o: Origin)
-    extends Apply[G] with ADTFunctionInvocationImpl[G] with SymbolicTerm[G]
+    extends Apply[G]
+    with ADTFunctionInvocationImpl[G]
+    with SymbolicTerm[G]
+    with PossibleTrigger[G]
 final case class ProverFunctionInvocation[G](
     ref: Ref[G, ProverFunction[G]],
     args: Seq[Expr[G]],
@@ -1591,7 +1662,10 @@ sealed trait InstanceApply[G] extends Node[G] with InstanceApplyImpl[G]
 
 final case class PredicateApplyExpr[G](apply: ApplyAnyPredicate[G])(
     implicit val o: Origin
-) extends ApplyInlineable[G] with PredicateApplyExprImpl[G] with ResourceTerm[G]
+) extends ApplyInlineable[G]
+    with PredicateApplyExprImpl[G]
+    with ResourceTerm[G]
+    with PossibleTrigger[G]
 @family
 sealed trait ApplyAnyPredicate[G]
     extends NodeFamily[G] with ApplyAnyPredicateImpl[G]
@@ -1626,9 +1700,12 @@ final case class ValuePredicateApply[G](apply: ApplyAnyPredicate[G])(
 final case class AmbiguousFoldTarget[G](target: Expr[G])(implicit val o: Origin)
     extends FoldTarget[G] with AmbiguousFoldTargetImpl[G]
 
-sealed trait InvokingNode[G] extends Node[G] with InvokingNodeImpl[G]
+sealed trait InvokingNode[G] extends NodeFamily[G] with InvokingNodeImpl[G]
 sealed trait Invocation[G]
-    extends ApplyInlineable[G] with InvokingNode[G] with InvocationImpl[G]
+    extends ApplyInlineable[G]
+    with InvokingNode[G]
+    with InvocationImpl[G]
+    with PossibleTrigger[G]
 
 sealed trait AnyMethodInvocation[G]
     extends Invocation[G] with AnyMethodInvocationImpl[G]
@@ -1706,15 +1783,15 @@ sealed trait DividingExpr[G] extends Expr[G] with DividingExprImpl[G]
 
 final case class AmbiguousMult[G](left: Expr[G], right: Expr[G])(
     implicit val o: Origin
-) extends BinExpr[G] with AmbiguousMultImpl[G]
+) extends BinExpr[G] with AmbiguousMultImpl[G] with PossibleTrigger[G]
 final case class AmbiguousPlus[G](left: Expr[G], right: Expr[G])(
     val blame: Blame[FrontendAdditiveError]
 )(implicit val o: Origin)
-    extends BinExpr[G] with AmbiguousPlusImpl[G]
+    extends BinExpr[G] with AmbiguousPlusImpl[G] with PossibleTrigger[G]
 final case class AmbiguousMinus[G](left: Expr[G], right: Expr[G])(
     val blame: Blame[FrontendAdditiveError]
 )(implicit val o: Origin)
-    extends BinExpr[G] with AmbiguousMinusImpl[G]
+    extends BinExpr[G] with AmbiguousMinusImpl[G] with PossibleTrigger[G]
 final case class AmbiguousOr[G](left: Expr[G], right: Expr[G])(
     implicit val o: Origin
 ) extends BinExpr[G] with AmbiguousOrImpl[G]
@@ -1796,7 +1873,8 @@ final case class TruncMod[G](left: Expr[G], right: Expr[G])(
 )(implicit val o: Origin)
     extends BinExpr[G] with DividingExpr[G] with TruncModImpl[G]
 
-sealed trait VectorBinExpr[G] extends BinExpr[G] with VectorBinExprImpl[G]
+sealed trait VectorBinExpr[G]
+    extends BinExpr[G] with VectorBinExprImpl[G] with PossibleTrigger[G]
 final case class VectorPlus[G](left: Expr[G], right: Expr[G])(
     implicit val o: Origin
 ) extends VectorBinExpr[G] with VectorPlusImpl[G]
@@ -1898,12 +1976,12 @@ final case class Wand[G](left: Expr[G], right: Expr[G])(implicit val o: Origin)
 final case class Scale[G](scale: Expr[G], res: Expr[G])(
     val blame: Blame[ScaleNegative]
 )(implicit val o: Origin)
-    extends Expr[G] with ScaleImpl[G]
+    extends Expr[G] with ScaleImpl[G] with PossibleTrigger[G]
 final case class ScaleByParBlock[G](
     block: Ref[G, ParBlockDecl[G]],
     res: Expr[G],
 )(implicit val o: Origin)
-    extends Expr[G] with ScaleByParBlockImpl[G]
+    extends Expr[G] with ScaleByParBlockImpl[G] with PossibleTrigger[G]
 final case class PolarityDependent[G](onInhale: Expr[G], onExhale: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with PolarityDependentImpl[G]
@@ -1952,9 +2030,7 @@ final case class ByValueClassLocation[G](expr: Expr[G])(implicit val o: Origin)
 final case class PredicateLocation[G](inv: ApplyAnyPredicate[G])(
     implicit val o: Origin
 ) extends Location[G] with PredicateLocationImpl[G]
-final case class AmbiguousLocation[G](expr: Expr[G])(
-    val blame: Blame[PointerLocationError]
-)(implicit val o: Origin)
+final case class AmbiguousLocation[G](expr: Expr[G])(implicit val o: Origin)
     extends Location[G] with AmbiguousLocationImpl[G]
 final case class InLinePatternLocation[G](loc: Location[G], pattern: Expr[G])(
     implicit val o: Origin
@@ -1962,7 +2038,7 @@ final case class InLinePatternLocation[G](loc: Location[G], pattern: Expr[G])(
 
 final case class Perm[G](loc: Location[G], perm: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with PermImpl[G] with ResourceTerm[G]
+) extends Expr[G] with PermImpl[G] with ResourceTerm[G] with PossibleTrigger[G]
 final case class PointsTo[G](loc: Location[G], perm: Expr[G], value: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with PointsToImpl[G] with ResourceTerm[G]
@@ -1970,7 +2046,10 @@ final case class CurPerm[G](loc: Location[G])(implicit val o: Origin)
     extends Expr[G] with CurPermImpl[G] with ResourceTerm[G]
 
 final case class Value[G](loc: Location[G])(implicit val o: Origin)
-    extends Expr[G] with ValueImpl[G] with ResourceTerm[G]
+    extends Expr[G]
+    with ValueImpl[G]
+    with ResourceTerm[G]
+    with PossibleTrigger[G]
 final case class AutoValue[G](loc: Location[G])(implicit val o: Origin)
     extends Expr[G] with AutoValueImpl[G] with ResourceTerm[G]
 
@@ -2018,7 +2097,8 @@ final case class Neq[G](left: Expr[G], right: Expr[G])(implicit val o: Origin)
     extends Comparison[G] with NeqImpl[G]
 
 sealed trait OrderOp[G] extends Comparison[G] with OrderOpImpl[G]
-sealed trait AmbiguousOrderOp[G] extends OrderOp[G] with AmbiguousOrderOpImpl[G]
+sealed trait AmbiguousOrderOp[G]
+    extends OrderOp[G] with AmbiguousOrderOpImpl[G] with PossibleTrigger[G]
 final case class AmbiguousGreater[G](
     left: Expr[G],
     right: Expr[G],
@@ -2056,7 +2136,8 @@ final case class LessEq[G](left: Expr[G], right: Expr[G])(
     implicit val o: Origin
 ) extends OrderOp[G] with LessEqImpl[G]
 
-sealed trait SetComparison[G] extends OrderOp[G] with SetComparisonImpl[G]
+sealed trait SetComparison[G]
+    extends OrderOp[G] with SetComparisonImpl[G] with PossibleTrigger[G]
 final case class SubSet[G](left: Expr[G], right: Expr[G])(
     implicit val o: Origin
 ) extends SetComparison[G] with SubSetImpl[G]
@@ -2174,52 +2255,52 @@ final case class FreePointer[G](pointer: Expr[G])(
 final case class Old[G](expr: Expr[G], at: Option[Ref[G, LabelDecl[G]]])(
     val blame: Blame[LabelNotReached]
 )(implicit val o: Origin)
-    extends Expr[G] with OldImpl[G]
+    extends Expr[G] with OldImpl[G] with PossibleTrigger[G]
 final case class AmbiguousSubscript[G](collection: Expr[G], index: Expr[G])(
     val blame: Blame[FrontendSubscriptError]
 )(implicit val o: Origin)
-    extends Expr[G] with AmbiguousSubscriptImpl[G]
+    extends Expr[G] with AmbiguousSubscriptImpl[G] with PossibleTrigger[G]
 final case class SeqSubscript[G](seq: Expr[G], index: Expr[G])(
     val blame: Blame[SeqBoundFailure]
 )(implicit val o: Origin)
-    extends Expr[G] with SeqSubscriptImpl[G]
+    extends Expr[G] with SeqSubscriptImpl[G] with PossibleTrigger[G]
 final case class VectorSubscript[G](seq: Expr[G], index: Expr[G])(
     val blame: Blame[VectorBoundFailure]
 )(implicit val o: Origin)
-    extends Expr[G] with VectorSubscriptImpl[G]
+    extends Expr[G] with VectorSubscriptImpl[G] with PossibleTrigger[G]
 final case class ArraySubscript[G](arr: Expr[G], index: Expr[G])(
     val blame: Blame[ArraySubscriptError]
 )(implicit val o: Origin)
-    extends Expr[G] with ArraySubscriptImpl[G]
+    extends Expr[G] with ArraySubscriptImpl[G] with PossibleTrigger[G]
 final case class PointerSubscript[G](pointer: Expr[G], index: Expr[G])(
     val blame: Blame[PointerSubscriptError]
 )(implicit val o: Origin)
-    extends Expr[G] with PointerSubscriptImpl[G]
+    extends Expr[G] with PointerSubscriptImpl[G] with PossibleTrigger[G]
 final case class PointerArraySubscript[G](array: Expr[G], index: Expr[G])(
-    val blame: Blame[PointerSubscriptError]
+    val blame: Blame[PointerArraySubscriptError]
 )(implicit val o: Origin)
-    extends Expr[G] with PointerArraySubscriptImpl[G]
+    extends Expr[G] with PointerArraySubscriptImpl[G] with PossibleTrigger[G]
 final case class Length[G](arr: Expr[G])(val blame: Blame[ArrayNull])(
     implicit val o: Origin
-) extends Expr[G] with LengthImpl[G]
+) extends Expr[G] with LengthImpl[G] with PossibleTrigger[G]
 final case class Size[G](obj: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with SizeImpl[G]
+    extends Expr[G] with SizeImpl[G] with PossibleTrigger[G]
 final case class PointerBlock[G](pointer: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
-    extends Expr[G] with PointerBlockImpl[G]
+    extends Expr[G] with PointerBlockImpl[G] with PossibleTrigger[G]
 final case class PointerAddress[G](pointer: Expr[G], elementSize: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
-    extends Expr[G] with PointerAddressImpl[G]
+    extends Expr[G] with PointerAddressImpl[G] with PossibleTrigger[G]
 final case class PointerBlockLength[G](pointer: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
-    extends Expr[G] with PointerBlockLengthImpl[G]
+    extends Expr[G] with PointerBlockLengthImpl[G] with PossibleTrigger[G]
 final case class PointerBlockOffset[G](pointer: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
-    extends Expr[G] with PointerBlockOffsetImpl[G]
+    extends Expr[G] with PointerBlockOffsetImpl[G] with PossibleTrigger[G]
 final case class PointerLength[G](pointer: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
@@ -2228,54 +2309,54 @@ final case class SharedMemSize[G](pointer: Expr[G])(implicit val o: Origin)
     extends Expr[G] with SharedMemSizeImpl[G]
 final case class NdIndex[G](indices: Seq[Expr[G]], dimensions: Seq[Expr[G]])(
     implicit val o: Origin
-) extends Expr[G] with NdIndexImpl[G]
+) extends Expr[G] with NdIndexImpl[G] with PossibleTrigger[G]
 final case class NdPartialIndex[G](
     indices: Seq[Expr[G]],
     linearIndex: Expr[G],
     dimensions: Seq[Expr[G]],
 )(implicit val o: Origin)
-    extends Expr[G] with NdPartialIndexImpl[G]
+    extends Expr[G] with NdPartialIndexImpl[G] with PossibleTrigger[G]
 final case class NdLength[G](dimensions: Seq[Expr[G]])(implicit val o: Origin)
-    extends Expr[G] with NdLengthImpl[G]
+    extends Expr[G] with NdLengthImpl[G] with PossibleTrigger[G]
 
 final case class Cons[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with ConsImpl[G]
+    extends Expr[G] with ConsImpl[G] with PossibleTrigger[G]
 final case class Head[G](xs: Expr[G])(val blame: Blame[SeqBoundFailure])(
     implicit val o: Origin
-) extends Expr[G] with HeadImpl[G]
+) extends Expr[G] with HeadImpl[G] with PossibleTrigger[G]
 final case class Tail[G](xs: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with TailImpl[G]
+    extends Expr[G] with TailImpl[G] with PossibleTrigger[G]
 final case class Drop[G](xs: Expr[G], count: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with DropImpl[G]
+    extends Expr[G] with DropImpl[G] with PossibleTrigger[G]
 final case class Take[G](xs: Expr[G], count: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with TakeImpl[G]
+    extends Expr[G] with TakeImpl[G] with PossibleTrigger[G]
 final case class Slice[G](xs: Expr[G], from: Expr[G], to: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with SliceImpl[G]
+) extends Expr[G] with SliceImpl[G] with PossibleTrigger[G]
 final case class SeqUpdate[G](xs: Expr[G], i: Expr[G], x: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with SeqUpdateImpl[G]
+) extends Expr[G] with SeqUpdateImpl[G] with PossibleTrigger[G]
 final case class Concat[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with ConcatImpl[G]
+    extends Expr[G] with ConcatImpl[G] with PossibleTrigger[G]
 final case class RemoveAt[G](xs: Expr[G], i: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with RemoveAtImpl[G]
+    extends Expr[G] with RemoveAtImpl[G] with PossibleTrigger[G]
 final case class Empty[G](obj: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with EmptyImpl[G]
+    extends Expr[G] with EmptyImpl[G] with PossibleTrigger[G]
 
 final case class SetIntersection[G](xs: Expr[G], ys: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with SetIntersectionImpl[G]
+) extends Expr[G] with SetIntersectionImpl[G] with PossibleTrigger[G]
 final case class BagLargestCommon[G](xs: Expr[G], ys: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with BagLargestCommonImpl[G]
+) extends Expr[G] with BagLargestCommonImpl[G] with PossibleTrigger[G]
 final case class SetMinus[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with SetMinusImpl[G]
+    extends Expr[G] with SetMinusImpl[G] with PossibleTrigger[G]
 final case class BagMinus[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with BagMinusImpl[G]
+    extends Expr[G] with BagMinusImpl[G] with PossibleTrigger[G]
 final case class SetUnion[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with SetUnionImpl[G]
+    extends Expr[G] with SetUnionImpl[G] with PossibleTrigger[G]
 final case class BagAdd[G](xs: Expr[G], ys: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with BagAddImpl[G]
+    extends Expr[G] with BagAddImpl[G] with PossibleTrigger[G]
 final case class Choose[G](xs: Expr[G])(val blame: Blame[SetEmpty])(
     implicit val o: Origin
 ) extends Expr[G] with ChooseImpl[G]
@@ -2285,34 +2366,34 @@ final case class ChooseFresh[G](xs: Expr[G])(val blame: Blame[SetEmpty])(
 
 final case class AmbiguousMember[G](x: Expr[G], xs: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with AmbiguousMemberImpl[G]
+) extends Expr[G] with AmbiguousMemberImpl[G] with PossibleTrigger[G]
 final case class SetMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with SetMemberImpl[G]
+    extends Expr[G] with SetMemberImpl[G] with PossibleTrigger[G]
 final case class SeqMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with SeqMemberImpl[G]
+    extends Expr[G] with SeqMemberImpl[G] with PossibleTrigger[G]
 final case class MapMember[G](x: Expr[G], xs: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with MapMemberImpl[G]
+    extends Expr[G] with MapMemberImpl[G] with PossibleTrigger[G]
 final case class BagMemberCount[G](x: Expr[G], xs: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with BagMemberCountImpl[G]
+) extends Expr[G] with BagMemberCountImpl[G] with PossibleTrigger[G]
 
 final case class Permutation[G](xs: Expr[G], ys: Expr[G])(
     implicit val o: Origin
 ) extends Expr[G] with PermutationImpl[G]
 final case class OptEmpty[G](opt: Expr[G])(implicit val o: Origin)
-    extends Expr[G] with OptEmptyImpl[G]
+    extends Expr[G] with OptEmptyImpl[G] with SymbolicTerm[G]
 final case class OptGet[G](opt: Expr[G])(val blame: Blame[OptionNone])(
     implicit val o: Origin
-) extends Expr[G] with OptGetImpl[G]
+) extends Expr[G] with OptGetImpl[G] with PossibleTrigger[G]
 final case class OptGetOrElse[G](opt: Expr[G], alt: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with OptGetOrElseImpl[G]
+) extends Expr[G] with OptGetOrElseImpl[G] with PossibleTrigger[G]
 final case class MapGet[G](map: Expr[G], k: Expr[G])(
     val blame: Blame[MapKeyError]
 )(implicit val o: Origin)
-    extends Expr[G] with MapGetImpl[G]
+    extends Expr[G] with MapGetImpl[G] with PossibleTrigger[G]
 final case class TupGet[G](tup: Expr[G], index: Int)(implicit val o: Origin)
-    extends Expr[G] with TupGetImpl[G]
+    extends Expr[G] with TupGetImpl[G] with PossibleTrigger[G]
 
 sealed trait EitherOp[G] extends Expr[G] with EitherOpImpl[G]
 final case class GetLeft[G](either: Expr[G])(val blame: Blame[NotLeft])(
@@ -2356,23 +2437,23 @@ final case class InstanceOf[G](value: Expr[G], typeValue: Expr[G])(
 ) extends Expr[G] with InstanceOfImpl[G]
 final case class Cast[G](value: Expr[G], typeValue: Expr[G])(
     implicit val o: Origin
-) extends Expr[G] with CastImpl[G]
+) extends Expr[G] with CastImpl[G] with PossibleTrigger[G]
 final case class ToNonNull[G](value: Expr[G])(val blame: Blame[PointerNull])(
     implicit val o: Origin
-) extends Expr[G] with ToNonNullImpl[G]
+) extends Expr[G] with ToNonNullImpl[G] with PossibleTrigger[G]
 final case class PointerCast[G](
     value: Expr[G],
     t: Type[G],
     fromSize: Expr[G],
     toSize: Expr[G],
 )(implicit val o: Origin)
-    extends Expr[G] with PointerCastImpl[G]
+    extends Expr[G] with PointerCastImpl[G] with PossibleTrigger[G]
 final case class IntegerPointerCast[G](
     value: Expr[G],
     t: Type[G],
     elementSize: Expr[G],
 )(implicit val o: Origin)
-    extends Expr[G] with IntegerPointerCastImpl[G]
+    extends Expr[G] with IntegerPointerCastImpl[G] with PossibleTrigger[G]
 
 sealed trait TypeComparison[G] extends Comparison[G] with TypeComparisonImpl[G]
 final case class SubType[G](left: Expr[G], right: Expr[G])(
@@ -2974,6 +3055,9 @@ final case class OpenCLKernel[G]()(val blame: Blame[KernelFailure])(
     implicit val o: Origin
 ) extends CGpgpuKernelSpecifier[G] with OpenCLKernelImpl[G]
 
+final case class CExtractGPUKernelBody[G]()(implicit val o: Origin)
+    extends CDeclarationSpecifier[G] with CExtractGPUKernelBodyImpl[G]
+
 @family
 final case class CPointer[G](qualifiers: Seq[CTypeQualifier[G]])(
     implicit val o: Origin
@@ -3156,6 +3240,7 @@ sealed trait CPointerType[G] extends CType[G] with CPointerTypeImpl[G]
 final case class TCInt[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends IntType[G] with CType[G] with TCIntImpl[G] with BitwiseType[G] {
   var signed: Boolean = true
+  var rank: Int = -1
 }
 final case class TCFloat[G](exponent: Int, mantissa: Int)(
     implicit val o: Origin = DiagnosticOrigin
@@ -3323,7 +3408,7 @@ sealed trait CPPExpr[G] extends Expr[G] with CPPExprImpl[G]
 final case class CPPLocal[G](
     name: String,
     genericArgs: Seq[CPPExprOrTypeSpecifier[G]],
-)(val blame: Blame[DerefInsufficientPermission])(implicit val o: Origin)
+)(val blame: Blame[ClassDerefError])(implicit val o: Origin)
     extends CPPExpr[G] with CPPLocalImpl[G] {
   var ref: Option[CPPNameTarget[G]] = None
 }
@@ -3623,10 +3708,9 @@ final case class JavaWildcard[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends JavaType[G] with JavaWildcardImpl[G]
 
 sealed trait JavaExpr[G] extends Expr[G] with JavaExprImpl[G]
-final case class JavaLocal[G](name: String)(
-    val blame: Blame[DerefInsufficientPermission]
-)(implicit val o: Origin)
-    extends JavaExpr[G] with JavaLocalImpl[G] {
+final case class JavaLocal[G](name: String)(val blame: Blame[ClassDerefError])(
+    implicit val o: Origin
+) extends JavaExpr[G] with JavaLocalImpl[G] {
   var ref: Option[JavaNameTarget[G]] = None
 }
 final case class JavaDeref[G](obj: Expr[G], field: String)(
@@ -3835,9 +3919,11 @@ final class VCLLVMFunctionContract[G](
     extends LLVMFunctionContract[G] with VCLLVMFunctionContractImpl[G] {
   var data: Option[ApplicableContract[G]] = None
 }
-final class PallasFunctionContract[G](val content: ApplicableContract[G])(
-    val blame: Blame[NontrivialUnsatisfiable]
-)(implicit val o: Origin)
+final class PallasFunctionContract[G](
+    val content: ApplicableContract[G],
+    val assumed: Boolean = false,
+    val external: Boolean,
+)(val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin)
     extends LLVMFunctionContract[G] with PallasFunctionContractImpl[G] {}
 
 final case class LLVMLoopContract[G](invariant: Expr[G])(
@@ -3845,12 +3931,31 @@ final case class LLVMLoopContract[G](invariant: Expr[G])(
 )(implicit val o: Origin)
     extends LoopContract[G] with LLVMLoopContractImpl[G]
 
-final case class LLVMGlobalVariable[G](
-    variableType: Type[G],
-    value: Option[Expr[G]],
-    constant: Boolean,
+final class LLVMGlobalVariable[G](
+    val variableType: Type[G],
+    val value: Option[Expr[G]],
+    val constant: Boolean,
 )(implicit val o: Origin)
     extends GlobalDeclaration[G] with LLVMGlobalVariableImpl[G]
+
+@family
+sealed trait LLVMFunctionType[G]
+    extends NodeFamily[G] with LLVMFunctionTypeImpl[G]
+
+// Regular function
+final case class NormalFunction[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with NormalFunctionImpl[G]
+// Wrapper function that is used to encode specifications
+final case class WrapperFunction[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with WrapperFunctionImpl[G]
+// Wrapper function that is used to encode ghost values
+// (i.e. does not necissarily return a resource. )
+final case class GhostWrapperFunction[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with GhostWrapperFunctionImpl[G]
+// Function that encodes the definition of a predicate
+final case class PredicateDefinition[G](val inlined: Boolean)(
+    implicit val o: Origin
+) extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
 
 sealed trait LLVMCallable[G] extends GlobalDeclaration[G]
 @scopes[LabelDecl]
@@ -3863,9 +3968,7 @@ final class LLVMFunctionDefinition[G](
     // If the result is returned in an sret-argument, this contains the index
     // and the type of the sret-argument.
     val returnInParam: Option[(Int, Type[G])] = None,
-    // If this function is a wrapper function for an expression of a
-    // pallas specification of a function F, then this field references F.
-    val pallasExprWrapperFor: Option[Ref[G, LLVMFunctionDefinition[G]]],
+    val functionType: LLVMFunctionType[G],
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends LLVMCallable[G]
     with Applicable[G]
@@ -3873,6 +3976,18 @@ final class LLVMFunctionDefinition[G](
   var importedArguments: Option[Seq[Variable[G]]] = None
   var importedReturnType: Option[Type[G]] = None
 }
+// Intermediary node for LLVM-predicates where the body has not yet been turned into an expression.
+@scopes[Variable]
+@scopes[LocalHeapVariable]
+final class LLVMPredicateDefinition[G](
+    val args: Seq[Variable[G]],
+    val body: Option[Statement[G]],
+    val threadLocal: Boolean = false,
+    val inline: Boolean = false,
+)(implicit val o: Origin)
+    extends GlobalDeclaration[G]
+    with AbstractPredicate[G]
+    with LLVMPredicateDefinitionImpl[G]
 @scopes[LabelDecl]
 final class LLVMSpecFunction[G](
     val name: String,
@@ -3894,6 +4009,11 @@ final case class LLVMFunctionInvocation[G](
     yields: Seq[(Expr[G], Ref[G, Variable[G]])],
 )(val blame: Blame[InvocationFailure])(implicit val o: Origin)
     extends Apply[G] with LLVMFunctionInvocationImpl[G]
+final case class LLVMPredicateApply[G](
+    ref: Ref[G, LLVMPredicateDefinition[G]],
+    args: Seq[Expr[G]],
+)(implicit val o: Origin)
+    extends ApplyAnyPredicate[G] with LLVMPredicateApplyImpl[G]
 
 final class LLVMBasicBlock[G](
     val label: LabelDecl[G],
@@ -3940,7 +4060,7 @@ final case class LLVMAmbiguousFunctionInvocation[G](
 // TODO: It would probably be more consistent if LLVMAllocA and LLVMLoad use the Expr type for the variable but it should never be necessary
 final case class LLVMAllocA[G](
     variable: Ref[G, Variable[G]],
-    allocationType: Type[G],
+    returnType: Type[G],
     numElements: Expr[G],
 )(implicit val o: Origin)
     extends LLVMStatement[G] with LLVMAllocAImpl[G]
@@ -3969,6 +4089,14 @@ final case class LLVMMemset[G](
 )(val blame: Blame[VerificationFailure])(implicit val o: Origin)
     extends LLVMStatement[G] with LLVMMemsetImpl[G]
 
+final case class LLVMMemcpy[G](
+    dst: Expr[G],
+    src: Expr[G],
+    len: Expr[G],
+    volatile: Expr[G],
+)(val blame: Blame[VerificationFailure])(implicit val o: Origin)
+    extends LLVMStatement[G] with LLVMMemcpyImpl[G]
+
 final case class LLVMBranchUnreachable[G]()(
     val blame: Blame[UnreachableReachedError]
 )(implicit val o: Origin)
@@ -3979,7 +4107,7 @@ final case class LLVMGetElementPointer[G](
     resultType: Type[G],
     pointer: Expr[G],
     indices: Seq[Expr[G]],
-)(implicit val o: Origin)
+)(val blame: Blame[PointerSubscriptError])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMGetElementPointerImpl[G]
 
 final case class LLVMExtractValue[G](
@@ -3987,7 +4115,7 @@ final case class LLVMExtractValue[G](
     resultType: Type[G],
     value: Expr[G],
     indices: Seq[Int],
-)(implicit val o: Origin)
+)(val blame: Blame[ClassDerefError])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMExtractValueImpl[G]
 
 final case class LLVMSignExtend[G](
@@ -4017,6 +4145,13 @@ final case class LLVMFloatExtend[G](
     value: Expr[G],
 )(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMFloatExtendImpl[G]
+
+final case class LLVMIntegerPointerCast[G](
+    inputType: Type[G],
+    outputType: Type[G],
+    value: Expr[G],
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMIntegerPointerCastImpl[G]
 
 sealed trait LLVMArithOpWithOverflow[G]
     extends LLVMStatement[G] with LLVMArithOpWithOverflowImpl[G]
@@ -4068,7 +4203,7 @@ final case class LLVMIntermediaryResult[G](
 )(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMIntermediaryResultImpl[G]
 
-final case class LLVMOld[G](v: Ref[G, Variable[G]])(implicit val o: Origin)
+final case class LLVMOld[G](v: Expr[G])(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMOldImpl[G]
 
 final case class LLVMFracOf[G](
@@ -4078,35 +4213,26 @@ final case class LLVMFracOf[G](
 )(val blame: Blame[DivByZero])(implicit val o: Origin)
     extends ExceptionalStatement[G] with LLVMFracOfImpl[G]
 
-final case class LLVMPerm[G](
-    loc: Ref[G, Variable[G]],
-    perm: Ref[G, Variable[G]],
-)(val blame: Blame[PointerLocationError])(implicit val o: Origin)
+final case class LLVMPerm[G](loc: Expr[G], perm: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
     extends LLVMExpr[G] with LLVMPermImpl[G]
 
-final case class LLVMImplies[G](
-    left: Ref[G, Variable[G]],
-    right: Ref[G, Variable[G]],
-)(implicit val o: Origin)
-    extends LLVMExpr[G] with LLVMImpliesImpl[G]
+final case class LLVMImplies[G](left: Expr[G], right: Expr[G])(
+    implicit val o: Origin
+) extends LLVMExpr[G] with LLVMImpliesImpl[G]
 
-final case class LLVMAnd[G](
-    left: Ref[G, Variable[G]],
-    right: Ref[G, Variable[G]],
-)(implicit val o: Origin)
-    extends LLVMExpr[G] with LLVMAndImpl[G]
+final case class LLVMAnd[G](left: Expr[G], right: Expr[G])(
+    implicit val o: Origin
+) extends LLVMExpr[G] with LLVMAndImpl[G]
 
-final case class LLVMOr[G](
-    left: Ref[G, Variable[G]],
-    right: Ref[G, Variable[G]],
-)(implicit val o: Origin)
-    extends LLVMExpr[G] with LLVMOrImpl[G]
+final case class LLVMOr[G](left: Expr[G], right: Expr[G])(
+    implicit val o: Origin
+) extends LLVMExpr[G] with LLVMOrImpl[G]
 
-final case class LLVMStar[G](
-    left: Ref[G, Variable[G]],
-    right: Ref[G, Variable[G]],
-)(implicit val o: Origin)
-    extends LLVMExpr[G] with LLVMStarImpl[G]
+final case class LLVMStar[G](left: Expr[G], right: Expr[G])(
+    implicit val o: Origin
+) extends LLVMExpr[G] with LLVMStarImpl[G]
 
 final case class LLVMBoundVar[G](id: String, varType: Type[G])(
     implicit val o: Origin
@@ -4127,20 +4253,19 @@ final case class LLVMExists[G](bindingExpr: Expr[G], bodyExpr: Expr[G])(
     implicit val o: Origin
 ) extends LLVMQuantifier[G] with LLVMExistsImpl[G]
 
-final case class LLVMPtrBlockLength[G](ptr: Ref[G, Variable[G]])(
+final case class LLVMPtrBlockLength[G](ptr: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
     extends Expr[G] with LLVMPtrBlockLengthImpl[G]
 
-final case class LLVMPtrBlockOffset[G](ptr: Ref[G, Variable[G]])(
+final case class LLVMPtrBlockOffset[G](ptr: Expr[G])(
     val blame: Blame[PointerNull]
 )(implicit val o: Origin)
     extends Expr[G] with LLVMPtrBlockOffsetImpl[G]
 
-final case class LLVMPtrLength[G](ptr: Ref[G, Variable[G]])(
-    val blame: Blame[PointerNull]
-)(implicit val o: Origin)
-    extends Expr[G] with LLVMPtrLengthImpl[G]
+final case class LLVMPtrLength[G](ptr: Expr[G])(val blame: Blame[PointerNull])(
+    implicit val o: Origin
+) extends Expr[G] with LLVMPtrLengthImpl[G]
 
 @family
 sealed trait LLVMMemoryOrdering[G]
@@ -4212,6 +4337,14 @@ final case class LLVMRawVectorValue[G](value: String, vectorType: Type[G])(
 final case class LLVMZeroedAggregateValue[G](aggregateType: Type[G])(
     implicit val o: Origin
 ) extends Constant[G] with LLVMExpr[G] with LLVMZeroedAggregateValueImpl[G]
+final class LLVMStructDeclaration[G](
+    val name: Seq[String],
+    val packed: Boolean,
+    val isLiteral: Boolean,
+    val elements: Seq[LLVMFieldDefinition[G]],
+    val sizeInBits: Int, // Number of bits that are allocated for this type
+)(implicit val o: Origin = DiagnosticOrigin)
+    extends GlobalDeclaration[G] with LLVMStructDeclarationImpl[G]
 
 final case class LLVMTInt[G](bitWidth: Int)(
     implicit val o: Origin = DiagnosticOrigin
@@ -4226,12 +4359,13 @@ final case class LLVMTPointer[G](innerType: Option[Type[G]])(
 ) extends Type[G] with LLVMTPointerImpl[G]
 final case class LLVMTMetadata[G]()(implicit val o: Origin = DiagnosticOrigin)
     extends Type[G] with LLVMTMetadataImpl[G]
-final case class LLVMTStruct[G](
-    name: Option[String],
-    packed: Boolean,
-    elements: Seq[Type[G]],
-)(implicit val o: Origin = DiagnosticOrigin)
-    extends Type[G] with LLVMTStructImpl[G]
+final case class LLVMTStruct[G](ref: Ref[G, LLVMStructDeclaration[G]])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends Type[G] with LLVMTStructImpl[G]
+@family
+final case class LLVMFieldDefinition[G](offset: Int, size: Int, t: Type[G])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends NodeFamily[G] with LLVMFieldDefinitionImpl[G]
 final case class LLVMTArray[G](numElements: Long, elementType: Type[G])(
     implicit val o: Origin = DiagnosticOrigin
 ) extends Type[G] with LLVMTArrayImpl[G]
@@ -4247,10 +4381,9 @@ final case class PVLNamedType[G](name: String, typeArgs: Seq[Type[G]])(
 }
 
 sealed trait PVLExpr[G] extends Expr[G] with PVLExprImpl[G]
-final case class PVLLocal[G](name: String)(
-    val blame: Blame[DerefInsufficientPermission]
-)(implicit val o: Origin)
-    extends PVLExpr[G] with PVLLocalImpl[G] {
+final case class PVLLocal[G](name: String)(val blame: Blame[ClassDerefError])(
+    implicit val o: Origin
+) extends PVLExpr[G] with PVLLocalImpl[G] {
   var ref: Option[PVLNameTarget[G]] = None
 }
 final case class PVLDeref[G](obj: Expr[G], field: String)(
@@ -4473,13 +4606,13 @@ final case class SilverIntToRat[G](perm: Expr[G])(implicit val o: Origin)
 final case class SilverNull[G]()(implicit val o: Origin)
     extends SilverExpr[G] with SilverNullImpl[G]
 final case class SilverSeqSize[G](seq: Expr[G])(implicit val o: Origin)
-    extends SilverExpr[G] with SilverSeqSizeImpl[G]
+    extends SilverExpr[G] with SilverSeqSizeImpl[G] with PossibleTrigger[G]
 final case class SilverSetSize[G](set: Expr[G])(implicit val o: Origin)
-    extends SilverExpr[G] with SilverSetSizeImpl[G]
+    extends SilverExpr[G] with SilverSetSizeImpl[G] with PossibleTrigger[G]
 final case class SilverBagSize[G](bag: Expr[G])(implicit val o: Origin)
-    extends SilverExpr[G] with SilverBagSizeImpl[G]
+    extends SilverExpr[G] with SilverBagSizeImpl[G] with PossibleTrigger[G]
 final case class SilverMapSize[G](map: Expr[G])(implicit val o: Origin)
-    extends SilverExpr[G] with SilverMapSizeImpl[G]
+    extends SilverExpr[G] with SilverMapSizeImpl[G] with PossibleTrigger[G]
 
 final case class SilverCurFieldPerm[G](
     obj: Expr[G],

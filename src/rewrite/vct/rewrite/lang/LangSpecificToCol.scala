@@ -49,18 +49,6 @@ case object LangSpecificToCol extends RewriterBuilderArg[Boolean] {
       )
   }
 
-  private case class IncompatibleBitVectorSize(
-      op: Expr[_],
-      l: BigInt,
-      r: BigInt,
-  ) extends UserError {
-    override def code: String = "incompatibleBVSize"
-    override def text: String =
-      op.o.messageInContext(
-        s"The sizes of the operands for this bitwise operation are `$l` and `$r` respectively. Only operations on equal sizes are supported"
-      )
-  }
-
   private case class IndeterminableBitVectorSign(op: Expr[_])
       extends UserError {
     override def code: String = "unknownBVSign"
@@ -95,6 +83,13 @@ case object LangSpecificToCol extends RewriterBuilderArg[Boolean] {
         "It is not possible to perform an arithmetic right-shift on an unsigned value"
       )
   }
+  case class InvalidPointerComparison(cmp: Origin) extends UserError {
+    override def code: String = "incompatiblePointerComparison"
+    override def text: String =
+      cmp.messageInContext(
+        "Comparison between pointers of different types is not supported"
+      )
+  }
 }
 
 case class LangSpecificToCol[Pre <: Generation](
@@ -117,7 +112,7 @@ case class LangSpecificToCol[Pre <: Generation](
   def specLocal(
       target: SpecNameTarget[Pre],
       e: Expr[Pre],
-      blame: Blame[DerefInsufficientPermission],
+      blame: Blame[ClassDerefError],
   ): Expr[Post] =
     target match {
       case RefAxiomaticDataType(_) => throw NotAValue(e)
@@ -134,7 +129,7 @@ case class LangSpecificToCol[Pre <: Generation](
       obj: Expr[Pre],
       target: SpecDerefTarget[Pre],
       e: Expr[Pre],
-      blame: Blame[DerefInsufficientPermission],
+      blame: Blame[ClassDerefError],
   ): Expr[Post] =
     target match {
       case RefEnumConstant(enum, decl) =>
@@ -230,6 +225,7 @@ case class LangSpecificToCol[Pre <: Generation](
     llvm.gatherWrappersInAssume(program)
     llvm.gatherTypeHints(program)
     llvm.gatherPallasTypeSubst(program)
+    llvm.gatherHeapVariables(program)
     super.dispatch(program)
   }
 
@@ -267,6 +263,7 @@ case class LangSpecificToCol[Pre <: Generation](
       }
 
       case func: LLVMFunctionDefinition[Pre] => llvm.rewriteFunctionDef(func)
+      case sDecl: LLVMStructDeclaration[Pre] => llvm.rewriteStructDecl(sDecl)
       case global: LLVMGlobalSpecification[Pre] => llvm.rewriteGlobal(global)
       case global: LLVMGlobalVariable[Pre] => llvm.rewriteGlobalVariable(global)
 
@@ -333,7 +330,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case goto: CGoto[Pre] => c.rewriteGoto(goto)
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
       case atomic: GpgpuAtomic[Pre] => c.gpuAtomic(atomic)
-      
+
       case eval @ Eval(CPPInvocation(_, _, _, _)) =>
         cpp.invocationStatement(eval)
 
@@ -348,6 +345,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case store: LLVMStore[Pre] => llvm.rewriteStore(store)
       case alloc: LLVMAllocA[Pre] => llvm.rewriteAllocA(alloc)
       case memset: LLVMMemset[Pre] => llvm.rewriteMemset(memset)
+      case memcpy: LLVMMemcpy[Pre] => llvm.rewriteMemcpy(memcpy)
       case block: LLVMBasicBlock[Pre] => llvm.rewriteBasicBlock(block)
       case unreachable: LLVMBranchUnreachable[Pre] =>
         llvm.rewriteUnreachable(unreachable)
@@ -458,23 +456,27 @@ case class LangSpecificToCol[Pre <: Generation](
         silver.adtInvocation(inv)
       case map: SilverUntypedNonemptyLiteralMap[Pre] => silver.nonemptyMap(map)
 
-      case inv: LLVMFunctionInvocation[Pre] =>
-        llvm.rewriteFunctionInvocation(inv)
       case inv: LLVMAmbiguousFunctionInvocation[Pre] =>
         llvm.rewriteAmbiguousFunctionInvocation(inv)
-      case local: LLVMLocal[Pre] => llvm.rewriteLocal(local)
+      case inv: LLVMFunctionInvocation[Pre] =>
+        llvm.rewriteFunctionInvocation(inv)
+      case local: LLVMLocal[Pre] => llvm.rewriteNamedLocal(local)
+      // TODO: This is not great, we will run this even if we're using a language that is not LLVM-IR
+      case local: Local[Pre] => llvm.rewriteLocal(local)
       case pointer: LLVMFunctionPointerValue[Pre] =>
         llvm.rewriteFunctionPointer(pointer)
       case pointer: LLVMPointerValue[Pre] => llvm.rewritePointerValue(pointer)
       case gep: LLVMGetElementPointer[Pre] => llvm.rewriteGetElementPointer(gep)
       case extrVal: LLVMExtractValue[Pre] => llvm.rewriteExtractValue(extrVal)
-      case int: LLVMIntegerValue[Pre] => IntegerValue(int.value)(int.o)
+      case int: LLVMIntegerValue[Pre] => llvm.rewriteIntegerValue(int)
       case float: LLVMFloatValue[Pre] =>
         FloatValue(float.bigDecimalValue, dispatch(float.t))(float.o)
       case sext: LLVMSignExtend[Pre] => llvm.rewriteSignExtend(sext)
       case zext: LLVMZeroExtend[Pre] => llvm.rewriteZeroExtend(zext)
       case trunc: LLVMTruncate[Pre] => llvm.rewriteTruncate(trunc)
       case fpext: LLVMFloatExtend[Pre] => llvm.rewriteFloatExtend(fpext)
+      case cast: LLVMIntegerPointerCast[Pre] =>
+        llvm.rewriteIntegerPointerCast(cast)
       case result: LLVMResult[Pre] => llvm.rewriteResult(result)
       case llvmPerm: LLVMPerm[Pre] => llvm.rewritePerm(llvmPerm)
       case llvmPBL: LLVMPtrBlockLength[Pre] =>
@@ -487,6 +489,24 @@ case class LangSpecificToCol[Pre <: Generation](
       case llvmOr: LLVMOr[Pre] => llvm.rewriteOr(llvmOr)
       case llvmStar: LLVMStar[Pre] => llvm.rewriteStar(llvmStar)
       case llvmOld: LLVMOld[Pre] => llvm.rewriteOld(llvmOld)
+      case eq: AmbiguousEq[Pre] =>
+        llvm.correctPointerComparison(
+          eq.left,
+          eq.right,
+          AmbiguousEq(_, _, dispatch(eq.vectorInnerType), _)(e.o),
+        )(e.o)
+      case neq: AmbiguousNeq[Pre] =>
+        llvm.correctPointerComparison(
+          neq.left,
+          neq.right,
+          AmbiguousNeq(_, _, dispatch(neq.vectorInnerType), _)(e.o),
+        )(e.o)
+      case sel: Select[Pre] =>
+        llvm.correctPointerComparison(
+          sel.whenTrue,
+          sel.whenFalse,
+          (l, r, _) => Select(dispatch(sel.condition), l, r)(e.o),
+        )(e.o)
       case b @ BitAnd(left, right, 0, true) =>
         BitAnd(
           dispatch(left),
@@ -555,7 +575,7 @@ case class LangSpecificToCol[Pre <: Generation](
 
       case cmp: AmbiguousComparison[Pre] => c.rewriteComparison(cmp)
       case ord: AmbiguousOrderOp[Pre] => c.rewriteComparison(ord)
-
+      case old: Old[Pre] if c.inRequiresOfKernel => dispatch(old.expr)
       case other => super.dispatch(other)
     }
 
@@ -581,11 +601,12 @@ case class LangSpecificToCol[Pre <: Generation](
         case t: TCInt[Pre] =>
           val cint = t.rewriteDefault()
           cint.signed = t.signed
+          cint.rank = t.rank
           cint
         case t: CTArray[Pre] => c.arrayType(t)
         case t: CTStruct[Pre] => c.structType(t)
         case t: CTStructUnique[Pre] => c.structType(t)
-        case t: LLVMTInt[Pre] => TInt()(t.o)
+        case t: LLVMTInt[Pre] => llvm.intType(t)
         case t: LLVMTFloat[Pre] => TFloat(t.exponent, t.mantissa)
         case t: LLVMTStruct[Pre] => llvm.structType(t)
         case t: LLVMTPointer[Pre] => llvm.pointerType(t)

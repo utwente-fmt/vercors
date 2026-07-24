@@ -10,6 +10,9 @@ class LLVMSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/llvm/fib.c"
   vercors should verify using silicon example "concepts/llvm/fib.ll"
   vercors should verify using silicon example "concepts/llvm/cubed.c"
+  vercors should verify using silicon example "concepts/llvm/pointer_relations.ll"
+  vercors should verify using silicon example "concepts/llvm/pointer_casts.ll"
+  vercors should verify using silicon example "concepts/llvm/structs.ll"
   vercors should verify using silicon flags("--contract-import-file", "examples/concepts/llvm/cubed-contracts.pvl") example "concepts/llvm/cubed.ll"
   vercors should verify using silicon flags("--contract-import-file", "examples/concepts/llvm/void-contracts.pvl") example "concepts/llvm/void.ll"
   vercors should fail withCode "unreachable" using silicon in "reaching an 'unreachable' statement" llvm
@@ -39,6 +42,7 @@ class LLVMSpec extends VercorsSpec {
   vercors should fail withCode "postFailed:perm" using silicon example "concepts/llvm/pallas/pallas_c_perm_fail_1.ll"
   vercors should fail withCode "ptrPerm" using silicon example "concepts/llvm/pallas/pallas_c_perm_fail_2.ll"
   vercors should fail withCode "postFailed:perm" using silicon example "concepts/llvm/pallas/pallas_c_perm_fail_3.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/pallas_c_pred.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/pallas_c_old.ll"
   vercors should fail withCode "postFailed:false" using silicon example "concepts/llvm/pallas/pallas_c_old_fail.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/pallas_c_quantifier.ll"
@@ -53,8 +57,19 @@ class LLVMSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/llvm/pallas/pallas_c_assume.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/pallas_swift_assert.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/pallas_c_loop_unused.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/extContracts/pallas_c_genContrAssume.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_ghost_func.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_c_ghost_arg.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/pallas_c_linked_list.ll"
+
+  // C++
+  vercors should verify using silicon example "concepts/llvm/pallas/extContracts/pallas_cpp_extContr.ll"
+  vercors should fail withCode "preFailed:false" using silicon example "concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/extContracts/pallas_cpp_genContr.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.ll"
 
   // Swift
   vercors should verify using silicon flags("--pallas-sroa") example "concepts/llvm/pallas/pallas_swift_fib.ll"
   vercors should fail withCode "invariantNotEstablished:false" using silicon flags("--pallas-sroa") example "concepts/llvm/pallas/pallas_swift_fib_fail.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_swift_ghost.ll"
 }

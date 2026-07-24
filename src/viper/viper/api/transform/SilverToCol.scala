@@ -15,6 +15,8 @@ import viper.silver.ast.{
   AbstractSourcePosition,
   FilePosition,
   LineColumnPosition,
+  LocationAccess,
+  MagicWand,
   NoPosition,
   SourcePosition,
   VirtualPosition,
@@ -314,20 +316,29 @@ case class SilverToCol[G](
           Seq((transform(cond), transform(thn)), (tt[G], transform(els)))
         )(origin(s))
       case silver.While(cond, invs, body) =>
+        val (invariants, decreases) = partitionDecreases(invs)
+        if (decreases.length > 1) { ??(decreases(1)) }
         col.Loop(
           init = col.Block(Nil)(origin(s)),
           cond = transform(cond),
           update = col.Block(Nil)(origin(s)),
           contract =
-            col.LoopInvariant(foldStar(invs.map(transform))(origin(s)), None)(
-              blame(s)
-            )(origin(s)),
+            col.LoopInvariant(
+              foldStar(invariants.map(transform))(origin(s)),
+              decreases.headOption.flatMap(transform),
+            )(blame(s))(origin(s)),
           body = transform(body),
         )(origin(s))
       case silver.Label(name, invs) =>
+        val (invariants, decreases) = partitionDecreases(invs)
+        if (decreases.length > 1) { ??(decreases(1)) }
         col.Label[G](
           new col.LabelDecl()(origin(s, name)),
           col.Block(Nil)(origin(s)),
+          col.LoopInvariant(
+            foldStar(invariants.map(transform))(origin(s)),
+            decreases.headOption.flatMap(transform),
+          )(blame(s))(origin(s)),
         )(origin(s))
       case silver.Goto(target) =>
         col.Goto[G](new UnresolvedRef(target))(origin(s))
@@ -411,10 +422,7 @@ case class SilverToCol[G](
         else
           col.BagAdd(f(left), f(right))
       case silver.CondExp(cond, thn, els) => col.Select(f(cond), f(thn), f(els))
-      case silver.CurrentPerm(res) =>
-        col.CurPerm(col.AmbiguousLocation(f(res))(
-          vct.col.origin.PanicBlame("Silver does not have pointers.")
-        ))
+      case silver.CurrentPerm(res) => col.CurPerm(col.AmbiguousLocation(f(res)))
       case silver.Div(left, right) => col.FloorDiv(f(left), f(right))(blame(e))
       case silver.DomainFuncApp(funcname, args, typVarMap) =>
         col.SilverPartialADTFunctionInvocation(
@@ -544,7 +552,12 @@ case class SilverToCol[G](
       case silver.Asserting(a, body) => col.Asserting(f(a), f(body))(blame(e))
       case silver.WildcardPerm() => col.ReadPerm()
 
-      case silver.ForPerm(variables, resource, body) => ??(e)
+      case silver.ForPerm(variables, resource, body) =>
+        col.ForPerm(
+          variables.map(transform),
+          col.AmbiguousLocation(f(resource)),
+          f(body),
+        )
       case silver.EpsilonPerm() => ??(e)
       case silver.InhaleExhaleExp(in, ex) => col.PolarityDependent(f(in), f(ex))
       case silver.MagicWand(left, right) => ??(e)

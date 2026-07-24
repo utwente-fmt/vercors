@@ -1,0 +1,40 @@
+// -*- tab-width:2 ; indent-tabs-mode:nil -*-
+//:: cases TransposeCopy
+//:: tools silicon
+//:: verdict Pass
+
+/*
+  Specified and verified implementation of a copying matrix transpose.
+*/
+
+class Ref {
+  context_everywhere out != null && inp != null && inp != out && M>0 && N > 0;
+  context_everywhere inp.length == N ** out.length == M ;
+
+  context (∀* int i=0..N; Perm({:inp[i]:}, 1) ** inp[i] !=null ** inp[i].length == M);
+  context (∀* int i=0..M; Perm({:out[i]:}, 1) ** out[i] !=null ** out[i].length == N);
+  context (∀* int i=0..N, int j=0..N; i!=j ==> {:inp[i]:} != {:inp[j]:});
+  context (∀* int i=0..M, int j=0..M; i!=j ==> {:out[i]:} != {:out[j]:});
+  
+  context  (∀* int i=0..N, int j=0..M; Perm({:inp[i][j]:},1\2));
+  context  (∀* int i=0..M, int j=0..N; Perm({:out[i][j]:},write));
+  ensures  (∀  int i=0..M, int j=0..N; {:out[i][j]:}==inp[j][i]);
+  ensures  (∀  int i=0..M, int j=0..N; {:inp[j][i]:}==\old(inp[j][i]));
+  void transpose(int M,int N,int[M][N] out,int[N][M] inp){
+    par(int i=0..M,int j=0..N)
+        context (∀* int i=0..N; Perm({:inp[i]:}, 1\(M*N)\2) ** inp[i] !=null ** inp[i].length == M);
+        context (∀* int i=0..M; Perm({:out[i]:}, 1\(M*N)\2) ** out[i] !=null ** out[i].length == N);
+        context (∀* int i=0..N, int j=0..N; i!=j ==> {:inp[i]:} != {:inp[j]:});
+        context (∀* int i=0..M, int j=0..M; i!=j ==> {:out[i]:} != {:out[j]:});
+  
+        context  Perm({:out[i][j]:},write);
+        context  Perm({:inp[j][i]:},1\4);
+        ensures  {:out[i][j]:}==inp[j][i];
+      {
+        out[i][j]=inp[j][i];
+      }
+
+      assert  (∀* int i=0..N, int j=0..M; Perm({:inp[i][j]:},1\2));
+
+  }
+}

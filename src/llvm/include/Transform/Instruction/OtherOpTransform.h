@@ -133,6 +133,10 @@ void transformPallasExists(llvm::CallInst &callInstruction,
                            col::LlvmBasicBlock &colBlock,
                            pallas::FunctionCursor &funcCursor);
 
+void transformPallasUnfolding(llvm::CallInst &callInstruction,
+                              col::LlvmBasicBlock &colBlock,
+                              pallas::FunctionCursor &funcCursor);
+
 } // namespace llvm2col
 
 #endif // PALLAS_OTHEROPTRANSFORM_H

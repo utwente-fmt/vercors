@@ -46,8 +46,8 @@ int main(){
         loop_invariant 0<=i && i<=4*100;
         loop_invariant (\forall* int j; 0 <= j && j<4*100; Perm(a[j],write));
         loop_invariant (\forall* int j; 0 <= j && j<4*100; Perm(b[j],write));
-        loop_invariant (\forall int j; 0 <= j && j<i; a[j] == j);
-        loop_invariant (\forall int j; 0 <= j && j<i; b[j] == 400-j);
+        loop_invariant (\forall int j; 0 <= j && j<i; {:a[j]:} == j);
+        loop_invariant (\forall int j; 0 <= j && j<i; {:b[j]:} == 400-j);
     @*/
     for(int i = 0; i < 4*100; i++){
         a[i] = i;
@@ -55,11 +55,11 @@ int main(){
     }
     int c[4*100];
     vector_add(a, b, c, 4*100);
-    //@ assert((\forall int j; 0 <= j && j<4*100; c[j] == 400));
+    //@ assert((\forall int j; 0 <= j && j<4*100; {:c[j]:} == 400));
     /*@
         loop_invariant 0<=i && i<=4*100;
         loop_invariant (\forall* int j; 0 <= j && j<4*100; Perm(c[j],write));
-        loop_invariant (\forall int j; 0 <= j && j<4*100; c[j] == 400);
+        loop_invariant (\forall int j; 0 <= j && j<4*100; {:c[j]:} == 400);
     @*/
     for(int i=0; i<4*100; i++){
         assert(c[i] == 400);

@@ -7,10 +7,10 @@ import vct.col.print.{Ctx, Doc, Group, Precedence}
 trait LLVMOrImpl[G] extends LLVMOrOps[G] {
   this: LLVMOr[G] =>
 
-  override def t: Type[G] = right.decl.t
+  override def t: Type[G] = right.t
 
   override def precedence: Int = Precedence.OR
 
   override def layout(implicit ctx: Ctx): Doc =
-    Group(left.decl.show <+> "&&" <>> right.decl.show)
+    Group(left.show <+> "&&" <>> right.show)
 }

@@ -8,6 +8,8 @@ import vct.col.resolve.ctx._
 import vct.col.typerules.Types
 import vct.result.VerificationError.UserError
 
+import scala.annotation.tailrec
+
 case object CPP {
   implicit private val o: Origin = DiagnosticOrigin
 
@@ -46,6 +48,15 @@ case object CPP {
       name: String,
       isReference: Boolean = false,
   )
+
+  @tailrec
+  def isFunctionDeclarator(declarator: CPPDeclarator[_]): Boolean =
+    declarator match {
+      case CPPTypedFunctionDeclarator(_, _, _) | CPPLambdaDeclarator(_) => true
+      case CPPName(_) => false
+      case CPPAddressingDeclarator(_, inner) => isFunctionDeclarator(inner)
+      case CPPArrayDeclarator(_, inner) => isFunctionDeclarator(inner)
+    }
 
   def getDeclaratorInfo[G](
       decl: CPPDeclarator[G],
@@ -259,7 +270,8 @@ case object CPP {
               if decl.isInstanceOf[CPPInvocationTarget[G]] =>
             decl
         })
-      case _ => Spec.builtinField(CPP.unwrappedType(obj.t), name, blame, obj.o).toSeq
+      case _ =>
+        Spec.builtinField(CPP.unwrappedType(obj.t), name, blame, obj.o).toSeq
     }
 
   def findForwardDeclaration[G](

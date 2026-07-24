@@ -201,6 +201,7 @@ case class EncodePointerComparison[Pre <: Generation]() extends Rewriter[Pre] {
               main = context.having(InQuantifier()) { dispatch(main) },
             )
           case let @ Let(_, _, _) => super.dispatch(let)
+          case let @ LetSuchThat(_, _, _) => super.dispatch(let)
         }
       case e => super.dispatch(e)
     }
@@ -238,25 +239,8 @@ case class EncodePointerComparison[Pre <: Generation]() extends Rewriter[Pre] {
     Select(
       Or(newL === Null(), newR === Null()),
       eitherNull(newL, newR), {
-        // Change based on context
-        context.topOption match {
-          case None =>
-            Select(
-              ChooseFresh[Post](LiteralSet(TBool(), Seq(tt, ff)))(PanicBlame(
-                "Set is never empty"
-              )),
-              if (compareAddress) { And(blockEq, addressComp(newL, newR)) }
-              else { comp(newL, newR) },
-              addressComp(newL, newR),
-            )
-          case Some(
-                InAxiom() | InPrecondition() | InPostcondition() |
-                InContextEverywhere() | InLoopInvariant() | InAssertion() |
-                InInhale() | InExhale() | InQuantifier() | InPredicate()
-              ) =>
-            if (compareAddress) { And(blockEq, addressComp(newL, newR)) }
-            else { comp(newL, newR) }
-        }
+        if (compareAddress) { And(blockEq, addressComp(newL, newR)) }
+        else { comp(newL, newR) }
       },
     )
   }

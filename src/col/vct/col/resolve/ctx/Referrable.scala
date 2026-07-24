@@ -1,6 +1,7 @@
 package vct.col.resolve.ctx
 
 import vct.col.ast._
+import vct.col.ast.serialize.LlvmStructDeclaration
 import vct.col.origin.SourceName
 import vct.col.resolve.NameLost
 import vct.col.resolve.lang.{C, CPP}
@@ -110,6 +111,7 @@ sealed trait Referrable[G] {
       case RefLLVMFunctionDefinition(decl) => Referrable.originName(decl)
       case RefLLVMGlobalSpecification(decl, i) => Referrable.originName(decl)
       case RefLLVMGlobalVariable(decl) => Referrable.originName(decl)
+      case RefLLVMStructDeclaration(decl) => Referrable.originName(decl)
       case RefLLVMSpecFunction(decl) => Referrable.originName(decl)
       case RefJavaBipGlueContainer() => ""
       case PVLBuiltinInstanceMethod(_) => ""
@@ -210,6 +212,7 @@ case object Referrable {
         }
       case decl: LLVMSpecFunction[G] => RefLLVMSpecFunction(decl)
       case decl: LLVMGlobalVariable[G] => RefLLVMGlobalVariable(decl)
+      case decl: LLVMStructDeclaration[G] => RefLLVMStructDeclaration(decl)
       case decl: ProverType[G] => RefProverType(decl)
       case decl: ProverFunction[G] => RefProverFunction(decl)
       case decl: JavaBipGlueContainer[G] => RefJavaBipGlueContainer()
@@ -463,6 +466,8 @@ case class RefLLVMGlobalSpecification[G](
     idx: Int,
 ) extends Referrable[G]
 case class RefLLVMGlobalVariable[G](decl: LLVMGlobalVariable[G])
+    extends Referrable[G]
+case class RefLLVMStructDeclaration[G](decl: LLVMStructDeclaration[G])
     extends Referrable[G]
 case class RefBipComponent[G](decl: BipComponent[G]) extends Referrable[G]
 case class RefBipGlue[G](decl: BipGlue[G]) extends Referrable[G]

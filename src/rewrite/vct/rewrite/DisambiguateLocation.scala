@@ -9,6 +9,7 @@ import vct.col.origin.{
   PointerLocationError,
   PointerNull,
   PointerSubscriptError,
+  PointerSubscriptToAddBlame,
   TypeName,
 }
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
@@ -47,16 +48,6 @@ case object DisambiguateLocation extends RewriterBuilder {
       )
   }
 
-  private case class PointerSubscriptToAddBlame(
-      blame: Blame[PointerSubscriptError]
-  ) extends Blame[PointerAddError] {
-    override def blame(error: PointerAddError): Unit =
-      error match {
-        case n: PointerNull => blame.blame(n)
-        case b: PointerBounds => blame.blame(b)
-      }
-  }
-
   override def key: String = "disambiguateLocation"
 
   override def desc: String =
@@ -66,9 +57,7 @@ case object DisambiguateLocation extends RewriterBuilder {
 case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
   import DisambiguateLocation._
 
-  private def exprToLoc(expr: Expr[Pre], blame: Blame[PointerLocationError])(
-      implicit o: Origin
-  ): Location[Post] =
+  private def exprToLoc(expr: Expr[Pre])(implicit o: Origin): Location[Post] =
     expr match {
       case InlinePattern(inner, pattern, group) =>
         if (inner.t.asByValueClass.isDefined) {
@@ -78,7 +67,7 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
           )
         }
         InLinePatternLocation(
-          exprToLoc(inner, blame),
+          exprToLoc(inner),
           InlinePattern(dispatch(inner), pattern, group)(expr.o),
         )(expr.o)
       case expr if expr.t.asByValueClass.isDefined =>
@@ -103,8 +92,7 @@ case class DisambiguateLocation[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(loc: Location[Pre]): Location[Post] =
     loc match {
-      case location @ AmbiguousLocation(expr) =>
-        exprToLoc(expr, location.blame)(loc.o)
+      case location @ AmbiguousLocation(expr) => exprToLoc(expr)(loc.o)
       case other => super.dispatch(other)
     }
 }

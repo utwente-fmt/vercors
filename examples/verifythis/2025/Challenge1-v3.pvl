@@ -1,0 +1,56 @@
+requires xs != null ** Perm(xs[*], 1);
+pure boolean inArr(int x, int[] xs) = (\exists int i = 0 .. xs.length; xs[i] == x);
+
+requires xs != null ** Perm(xs[*], 1);
+requires l in {0 .. xs.length + 1};
+pure boolean inArr(int x, int[] xs, int l) = (\exists int i = l .. xs.length; xs[i] == x);
+
+requires xs != null ** Perm(xs[*], 1);
+requires i in {0 .. xs.length + 1};
+ensures (\forall int k; {:1:inArr(k, xs, i):} == {:2:k in \result:});
+ensures |\result| <= xs.length - i;
+pure set<int> toSet(int[] xs, int i) = i == xs.length ? set<int> {} : {xs[i]} + toSet(xs, i + 1);
+
+requires xs != null ** Perm(xs[*], 1);
+ensures (\forall int k; {:1:inArr(k, xs):} == {:2:k in \result:});
+ensures |\result| <= xs.length;
+opaque pure set<int> toSet(int[] xs) = toSet(xs, 0);
+
+requires a != null ** Value(a[*]);
+pure boolean sorted(int[] a) =
+  (\forall int i = 0 .. a.length, int j = 0 .. a.length; i <= j; {: a[i] :} <= {: a[j] :});
+
+requires a != null ** Perm(a[*], 1\2) ** sorted(a);
+ensures Perm(a[*], 1\2);
+ensures \result in {0 .. a.length + 1};
+ensures !(\result in toSet(a));
+ensures (\forall int i = 0..\result; {:inArr(i, a):});
+int mex3(int[] a) {
+  int n = a.length;
+  int last = -1;
+
+  set<int> seen = set<int>{ };
+  
+  loop_invariant a != null ** Perm(a[*], 1\4) ** sorted(a);
+  loop_invariant last != -1 ==> 0 < i && last in {0 .. n} && last < i;
+  loop_invariant seen == {0 .. last + 1};
+  loop_invariant (∀int i; i in seen; {: inArr(i, a) :});
+  loop_invariant (\forall int j = 0 .. i; 0 <= a[j]; {:a[j]:} in seen);
+  loop_invariant last in {-1 .. n} ** (last != -1 ==> a[i - 1] == last);
+  for (int i = 0 .. n) {
+    if (a[i] >= last + 2) {
+      return last + 1;
+    }
+
+    // Also, otherwise pigeon:
+    assert a[i] != n;
+
+    if (a[i] >= 0) {
+      last = a[i];
+      seen = seen + set<int>{ a[i] };
+    } 
+  }
+
+  return last + 1;
+}
+

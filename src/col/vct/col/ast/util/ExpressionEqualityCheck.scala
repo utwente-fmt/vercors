@@ -1,11 +1,13 @@
 package vct.col.ast.util
 
+import com.typesafe.scalalogging.LazyLogging
 import org.sosy_lab.common.ShutdownNotifier
 import org.sosy_lab.common.configuration.Configuration
 import org.sosy_lab.common.log.LogManager
 import org.sosy_lab.java_smt.SolverContextFactory
 import org.sosy_lab.java_smt.SolverContextFactory.Solvers
 import org.sosy_lab.java_smt.api.NumeralFormula.IntegerFormula
+import org.sosy_lab.java_smt.api.SolverContext.ProverOptions
 import org.sosy_lab.java_smt.api._
 import vct.col.ast.util.ExpressionEqualityCheck.{
   isConstantInt,
@@ -21,7 +23,7 @@ import scala.collection.mutable
 import scala.reflect.ClassTag
 import scala.util.Using
 
-object ExpressionEqualityCheck {
+object ExpressionEqualityCheck extends LazyLogging {
   def apply[G](
       info: Option[AnnotationVariableInfo[G]] = None
   ): ExpressionEqualityCheck[G] = new ExpressionEqualityCheck[G](info)
@@ -37,6 +39,7 @@ object ExpressionEqualityCheck {
   def isValidSymbolicTerm(term: SymbolicTerm[_]): Boolean =
     term match {
       case Local(_) => true
+      case OptEmpty(inner) => stricterIsConstant(inner)
       case ADTFunctionInvocation(_, _, _) => true
       case ProverFunctionInvocation(_, _) => true
       case invocation: AnyFunctionInvocation[_] =>
@@ -46,7 +49,7 @@ object ExpressionEqualityCheck {
         invocation.args.forall(stricterIsConstant)
     }
 
-  private def stricterIsConstant(e: Expr[_]): Boolean = {
+  def stricterIsConstant(e: Expr[_]): Boolean = {
     def rec(e: Expr[_]) = stricterIsConstant(e)
     e match {
       case inv: AnyFunctionInvocation[_] =>
@@ -80,7 +83,7 @@ object ExpressionEqualityCheck {
 
     def check(): Boolean = {
       val options = Configuration.builder()
-        .setOption("solver.nonLinearArithmetic", "APPROXIMATE_FALLBACK");
+        .setOption("solver.nonLinearArithmetic", "APPROXIMATE_FALLBACK")
       val config = options.build()
       val logManager = LogManager.createNullLogManager
       val shutDown = ShutdownNotifier.createDummy
@@ -92,158 +95,186 @@ object ExpressionEqualityCheck {
         shutDown,
         Solvers.SMTINTERPOL,
       )) { ctx =>
-        Using(ctx.newProverEnvironment()) { prover =>
-          val fmgr = ctx.getFormulaManager
-          val varIntMap: mutable.Map[SymbolicTerm[G], IntegerFormula] = mutable
-            .Map()
-          val varBoolMap: mutable.Map[SymbolicTerm[G], BooleanFormula] = mutable
-            .Map()
-          val bmgr = fmgr.getBooleanFormulaManager
-          val imgr = fmgr.getIntegerFormulaManager
+        Using(ctx.newProverEnvironment(ProverOptions.GENERATE_MODELS)) {
+          prover =>
+            val fmgr = ctx.getFormulaManager
+            val varIntMap: mutable.Map[SymbolicTerm[G], IntegerFormula] =
+              mutable.Map()
+            val varBoolMap: mutable.Map[SymbolicTerm[G], BooleanFormula] =
+              mutable.Map()
 
-          def tdiv(a: Expr[G], b: Expr[G]): Expr[G] =
-            Select(
-              a >= const(0) || a % b === const(0),
-              a / b,
-              a / b + Select(b > const(0), const(1), const(-1)),
-            )
+            val takenNames: mutable.Set[String] = mutable.Set()
+            val bmgr = fmgr.getBooleanFormulaManager
+            val imgr = fmgr.getIntegerFormulaManager
 
-          def tmod(a: Expr[G], b: Expr[G]): Expr[G] =
-            Select(
-              a >= const(0) || a % b === const(0),
-              a % b,
-              a % b - Select(b > const(0), b, -b),
-            )
+            def tdiv(a: Expr[G], b: Expr[G]): Expr[G] =
+              Select(
+                a >= const(0) || a % b === const(0),
+                a / b,
+                a / b + Select(b > const(0), const(1), const(-1)),
+              )
 
-          def addConstraint(e: Expr[G]): Boolean = {
-            addBool(e) match {
-              case Some(b1) => prover.addConstraint(b1); true
-              case None => false
+            def tmod(a: Expr[G], b: Expr[G]): Expr[G] =
+              Select(
+                a >= const(0) || a % b === const(0),
+                a % b,
+                a % b - Select(b > const(0), b, -b),
+              )
+
+            def addConstraint(e: Expr[G]): Boolean = {
+              addBool(e) match {
+                case Some(b1) => prover.addConstraint(b1); true
+                case None => false
+              }
             }
-          }
 
-          def addBool(e: Expr[G]): Option[BooleanFormula] = {
-            e match {
-              case Select(c, t, f) =>
-                for {
-                  c1 <- addBool(c); t1 <- addBool(t); f1 <- addBool(f)
-                } yield bmgr.ifThenElse(c1, t1, f1)
-              case SeqMember(e1, Range(from, to)) =>
-                for {
-                  i1 <- addInt(e1); fromi <- addInt(from); toi <- addInt(to)
-                } yield bmgr
-                  .and(imgr.lessOrEquals(fromi, i1), imgr.lessThan(i1, toi))
-              case SetMember(e1, RangeSet(from, to)) =>
-                for {
-                  i1 <- addInt(e1); fromi <- addInt(from); toi <- addInt(to)
-                } yield bmgr
-                  .and(imgr.lessOrEquals(fromi, i1), imgr.lessThan(i1, toi))
-              case Or(e1, e2) =>
-                for {
-                  b1 <- addBool(e1); b2 <- addBool(e2)
-                } yield bmgr.or(b1, b2)
-              case And(e1, e2) =>
-                for {
-                  b1 <- addBool(e1); b2 <- addBool(e2)
-                } yield bmgr.and(b1, b2)
-              case Implies(e1, e2) =>
-                for {
-                  b1 <- addBool(e1); b2 <- addBool(e2)
-                } yield bmgr.implication(b1, b2)
-              case Not(e1) => for { b1 <- addBool(e1) } yield bmgr.not(b1)
-              case Eq(e1, e2) if isBool(e1) && isBool(e2) =>
-                for {
-                  b1 <- addBool(e1); b2 <- addBool(e2)
-                } yield bmgr.equivalence(b1, b2)
-              case Eq(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield imgr.equal(b1, b2)
-              case Neq(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield bmgr.not(imgr.equal(b1, b2))
-              case Less(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield imgr.lessThan(b1, b2)
-              case LessEq(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield imgr.lessOrEquals(b1, b2)
-              case Greater(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield imgr.greaterThan(b1, b2)
-              case GreaterEq(e1, e2) if isInt(e1) && isInt(e2) =>
-                for {
-                  b1 <- addInt(e1); b2 <- addInt(e2)
-                } yield imgr.greaterOrEquals(b1, b2)
-              case BooleanValue(b) => Some(bmgr.makeBoolean(b))
-              case t: SymbolicTerm[G] if isBool(e) && isValidSymbolicTerm(t) =>
-                if (varBoolMap.contains(t))
-                  Some(varBoolMap(t))
-                else {
-                  val x = bmgr.makeVariable(s"b$id")
+            def getName(t: SymbolicTerm[G]): String = {
+              val name = t.o.getPreferredNameOrElse().camel
+              var pname = name
+              var i = 0
+              while (takenNames.contains(pname)) {
+                pname = s"$name$i"
+                i += 1
+              }
+              if (!fmgr.isValidName(pname)) {
+                pname = s"b$id"
+                while (takenNames.contains(pname)) {
                   id += 1
-                  varBoolMap(t) = x
-                  Some(x)
+                  pname = s"b$id"
                 }
-              case _ => None
+                id += 1
+              }
+              takenNames.add(pname)
+              pname
             }
-          }
 
-          def addInt(e: Expr[G]): Option[IntegerFormula] = {
-            e match {
-              case Select(c, t, f) =>
-                for {
-                  c1 <- addBool(c); t1 <- addInt(t); f1 <- addInt(f)
-                } yield bmgr.ifThenElse(c1, t1, f1)
-              case Plus(e1, e2) =>
-                for {
-                  i1 <- addInt(e1); i2 <- addInt(e2)
-                } yield imgr.add(i1, i2)
-              case Minus(e1, e2) =>
-                for {
-                  i1 <- addInt(e1); i2 <- addInt(e2)
-                } yield imgr.subtract(i1, i2)
-              case Mult(e1, e2) =>
-                for {
-                  i1 <- addInt(e1); i2 <- addInt(e2)
-                } yield imgr.multiply(i1, i2)
-              case FloorDiv(e1, e2) =>
-                for {
-                  i1 <- addInt(e1); i2 <- addInt(e2)
-                } yield imgr.divide(i1, i2)
-              // Ugly, but the SMT library does not allow us to define functions..
-              case TruncDiv(e1, e2) => addInt(tdiv(e1, e2))
-              case TruncMod(e1, e2) => addInt(tmod(e1, e2))
-              case Mod(e1, e2) =>
-                for {
-                  i1 <- addInt(e1); i2 <- addInt(e2)
-                } yield imgr.modulo(i1, i2)
-              case UMinus(e1) => for { i1 <- addInt(e1) } yield imgr.negate(i1)
-              case IntegerValue(i) => Some(imgr.makeNumber(i.toInt))
-              case t: SymbolicTerm[G] if isInt(e) && isValidSymbolicTerm(t) =>
-                if (varIntMap.contains(t))
-                  Some(varIntMap(t))
-                else {
-                  val x = imgr.makeVariable(s"i$id")
-                  id += 1
-                  varIntMap(t) = x
-                  Some(x)
-                }
-              case _ => None
+            def addBool(e: Expr[G]): Option[BooleanFormula] = {
+              e match {
+                case Select(c, t, f) =>
+                  for {
+                    c1 <- addBool(c); t1 <- addBool(t); f1 <- addBool(f)
+                  } yield bmgr.ifThenElse(c1, t1, f1)
+                case SeqMember(e1, Range(from, to)) =>
+                  for {
+                    i1 <- addInt(e1); fromi <- addInt(from); toi <- addInt(to)
+                  } yield bmgr
+                    .and(imgr.lessOrEquals(fromi, i1), imgr.lessThan(i1, toi))
+                case SetMember(e1, RangeSet(from, to)) =>
+                  for {
+                    i1 <- addInt(e1); fromi <- addInt(from); toi <- addInt(to)
+                  } yield bmgr
+                    .and(imgr.lessOrEquals(fromi, i1), imgr.lessThan(i1, toi))
+                case Or(e1, e2) =>
+                  for {
+                    b1 <- addBool(e1); b2 <- addBool(e2)
+                  } yield bmgr.or(b1, b2)
+                case And(e1, e2) =>
+                  for {
+                    b1 <- addBool(e1); b2 <- addBool(e2)
+                  } yield bmgr.and(b1, b2)
+                case Implies(e1, e2) =>
+                  for {
+                    b1 <- addBool(e1); b2 <- addBool(e2)
+                  } yield bmgr.implication(b1, b2)
+                case Not(e1) => for { b1 <- addBool(e1) } yield bmgr.not(b1)
+                case Eq(e1, e2) if isBool(e1) && isBool(e2) =>
+                  for {
+                    b1 <- addBool(e1); b2 <- addBool(e2)
+                  } yield bmgr.equivalence(b1, b2)
+                case Eq(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield imgr.equal(b1, b2)
+                case Neq(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield bmgr.not(imgr.equal(b1, b2))
+                case Less(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield imgr.lessThan(b1, b2)
+                case LessEq(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield imgr.lessOrEquals(b1, b2)
+                case Greater(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield imgr.greaterThan(b1, b2)
+                case GreaterEq(e1, e2) if isInt(e1) && isInt(e2) =>
+                  for {
+                    b1 <- addInt(e1); b2 <- addInt(e2)
+                  } yield imgr.greaterOrEquals(b1, b2)
+                case BooleanValue(b) => Some(bmgr.makeBoolean(b))
+                case t: SymbolicTerm[G]
+                    if isBool(e) && isValidSymbolicTerm(t) =>
+                  if (varBoolMap.contains(t))
+                    Some(varBoolMap(t))
+                  else {
+                    val name = getName(t)
+                    val x = bmgr.makeVariable(name)
+                    varBoolMap(t) = x
+                    Some(x)
+                  }
+                case _ => None
+              }
             }
-          }
 
-          for (c <- constraints) {
-            if (!addConstraint(c))
+            def addInt(e: Expr[G]): Option[IntegerFormula] = {
+              e match {
+                case Select(c, t, f) =>
+                  for {
+                    c1 <- addBool(c); t1 <- addInt(t); f1 <- addInt(f)
+                  } yield bmgr.ifThenElse(c1, t1, f1)
+                case Plus(e1, e2) =>
+                  for {
+                    i1 <- addInt(e1); i2 <- addInt(e2)
+                  } yield imgr.add(i1, i2)
+                case Minus(e1, e2) =>
+                  for {
+                    i1 <- addInt(e1); i2 <- addInt(e2)
+                  } yield imgr.subtract(i1, i2)
+                case Mult(e1, e2) =>
+                  for {
+                    i1 <- addInt(e1); i2 <- addInt(e2)
+                  } yield imgr.multiply(i1, i2)
+                case FloorDiv(e1, e2) =>
+                  for {
+                    i1 <- addInt(e1); i2 <- addInt(e2)
+                  } yield imgr.divide(i1, i2)
+                // Ugly, but the SMT library does not allow us to define functions..
+                case TruncDiv(e1, e2) => addInt(tdiv(e1, e2))
+                case TruncMod(e1, e2) => addInt(tmod(e1, e2))
+                case Mod(e1, e2) =>
+                  for {
+                    i1 <- addInt(e1); i2 <- addInt(e2)
+                  } yield imgr.modulo(i1, i2)
+                case UMinus(e1) =>
+                  for { i1 <- addInt(e1) } yield imgr.negate(i1)
+                case IntegerValue(i) => Some(imgr.makeNumber(i.toInt))
+                case t: SymbolicTerm[G] if isInt(e) && isValidSymbolicTerm(t) =>
+                  if (varIntMap.contains(t))
+                    Some(varIntMap(t))
+                  else {
+                    val name = getName(t)
+                    val x = imgr.makeVariable(name)
+                    varIntMap(t) = x
+                    Some(x)
+                  }
+                case _ => None
+              }
+            }
+
+            for (c <- constraints) {
+              if (!addConstraint(c))
+                return false
+            }
+            if (prover.isUnsat) {
+              logger.warn("Prover is already unsat when checked")
+            }
+            if (!addConstraint(!test))
               return false
-          }
-          if (!addConstraint(!test))
-            return false
-          prover.isUnsat
+            prover.isUnsat
         }
       }
     }.get.get
@@ -536,17 +567,65 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
       case _ =>
     }
 
+    for (c <- usefulConditions()) {
+      c match {
+        case Less(left, right) if isLower && right == e =>
+          isConstantIntRecurse(left).map(l => return Some(l + 1))
+        case LessEq(left, right) if isLower && right == e =>
+          isConstantIntRecurse(left).map(l => return Some(l))
+        case Greater(left, right) if isLower && left == e =>
+          isConstantIntRecurse(right).map(l => return Some(l + 1))
+        case GreaterEq(left, right) if isLower && left == e =>
+          isConstantIntRecurse(right).map(l => return Some(l))
+
+        case Less(left, right) if !isLower && left == e =>
+          isConstantIntRecurse(right).map(l => return Some(l + 1))
+        case LessEq(left, right) if !isLower && left == e =>
+          isConstantIntRecurse(right).map(l => return Some(l))
+        case Greater(left, right) if !isLower && right == e =>
+          isConstantIntRecurse(left).map(l => return Some(l + 1))
+        case GreaterEq(left, right) if !isLower && right == e =>
+          isConstantIntRecurse(left).map(l => return Some(l))
+
+        case Eq(left, right) if left == e =>
+          isConstantIntRecurse(right).map(l => return Some(l))
+        case Eq(left, right) if right == e =>
+          isConstantIntRecurse(left).map(l => return Some(l))
+        case _ =>
+      }
+    }
+
     None
   }
 
   def lessThenEq(lhs: Expr[G], rhs: Expr[G]): Option[Boolean] = {
+    // Only defined for integer types for now
+    (lhs.t, rhs.t) match {
+      case (_: IntType[G], _: IntType[G]) =>
+      case _ => return None
+    }
     replacerDepth = 0
     lessThenEqRecurse(lhs, rhs)
   }
 
+  // Compare factor*lhs <= factor*rhs
+  private def compareMult(
+      lhs: Expr[G],
+      rhs: Expr[G],
+      factor: Expr[G],
+  ): Option[Boolean] = {
+    if (!isNonZeroRecurse(factor).getOrElse(false))
+      return None
+    getSignRecurse(factor) match {
+      case Some(Pos()) => lessThenEqRecurse(lhs, rhs)
+      case Some(Neg()) => lessThenEqRecurse(rhs, lhs)
+      case _ => None
+    }
+  }
+
   private def lessThenEqRecurse(lhs: Expr[G], rhs: Expr[G]): Option[Boolean] = {
-    // Compare values directly
     (isConstantIntRecurse(lhs), isConstantIntRecurse(rhs)) match {
+      // Compare values directly
       case (Some(i1), Some(i2)) => return Some(i1 <= i2)
       case _ =>
     }
@@ -560,6 +639,26 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
           )
             return Some(true)
         }
+      case (left, Mult(r1, r2)) if equalExpressionsRecurse(left, r1) =>
+        compareMult(const(1)(left.o), r2, left).foreach(x => return Some(x))
+      case (left, Mult(r1, r2)) if equalExpressionsRecurse(left, r2) =>
+        compareMult(const(1)(left.o), r1, left).foreach(x => return Some(x))
+
+      case (Mult(l1, l2), right) if equalExpressionsRecurse(l1, right) =>
+        compareMult(l2, const(1)(right.o), right).foreach(x => return Some(x))
+      case (Mult(l1, l2), right) if equalExpressionsRecurse(l2, right) =>
+        compareMult(l1, const(1)(right.o), right).foreach(x => return Some(x))
+
+      case (Mult(l1, l2), Mult(r1, r2)) if equalExpressionsRecurse(l1, r1) =>
+        compareMult(l2, r2, l1).foreach(x => return Some(x))
+      case (Mult(l1, l2), Mult(r1, r2)) if equalExpressionsRecurse(l1, r2) =>
+        compareMult(l2, r1, l1).foreach(x => return Some(x))
+      case (Mult(l1, l2), Mult(r1, r2)) if equalExpressionsRecurse(l2, r2) =>
+        compareMult(l1, r1, l2).foreach(x => return Some(x))
+
+      case (left, Mult(r1, r2)) if equalExpressionsRecurse(left, r2) =>
+        val isPos = lessThenEqRecurse(const(0)(rhs.o), r1)
+        isPos.foreach(r => return Some(r))
       case _ =>
     }
 
@@ -615,7 +714,7 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
 
   private def isSameSignRecurse(e1: Expr[G], e2: Expr[G]): Option[Boolean] = {
     // Try to gets signs
-    (getSign(e1), getSign(e2)) match {
+    (getSignRecurse(e1), getSignRecurse(e2)) match {
       case (Some(s1), Some(s2)) => return Some(s1 == s2)
       case _ =>
     }
@@ -631,14 +730,14 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
 
     // Check polarity of rest terms. A negative pol changes the sign.
     val polarity1 =
-      rest_e1.map(getSign).foldLeft(true)({
+      rest_e1.map(getSignRecurse).foldLeft(true)({
         case (_, None) => return None
         case (p, Some(Pos())) => p
         case (p, Some(Neg())) => !p
       })
 
     val polarity2 =
-      rest_e2.map(getSign).foldLeft(true)({
+      rest_e2.map(getSignRecurse).foldLeft(true)({
         case (_, None) => return None
         case (p, Some(Pos())) => p
         case (p, Some(Neg())) => !p
@@ -660,17 +759,23 @@ class ExpressionEqualityCheck[G](info: Option[AnnotationVariableInfo[G]]) {
     }
 
   def getSign(e: Expr[G]): Option[Sign] = {
-    isConstantInt(e).map(i => isPos(i >= 0)) orElse lowerBound(e).flatMap(i =>
-      if (i >= 0)
-        Some(Pos())
-      else
-        None
-    ) orElse upperBound(e).flatMap(i =>
+    replacerDepth = 0;
+    getSignRecurse(e)
+  }
+
+  private def getSignRecurse(e: Expr[G]): Option[Sign] = {
+    isConstantIntRecurse(e).map(i => isPos(i >= 0)) orElse lowerBoundRecurse(e)
+      .flatMap(i =>
+        if (i >= 0)
+          Some(Pos())
+        else
+          None
+      ) orElse upperBoundRecurse(e).flatMap(i =>
       if (i < 0)
         Some(Neg())
       else
         None
-    ) orElse lessThenEq(const(0)(e.o), e).map(isPos)
+    ) orElse lessThenEqRecurse(const(0)(e.o), e).map(isPos)
   }
 
   def unfoldComm[B <: BinExpr[G]](
@@ -1004,6 +1109,7 @@ class AnnotationVariableInfoGetter[G](
       case SetMember(e1, RangeSet(from, to)) =>
         isSimpleExpr(e1) && isSimpleExpr(from) && isSimpleExpr(to)
       case e: BinExpr[G] => isSimpleExpr(e.left) && isSimpleExpr(e.right)
+      case e: UnExpr[G] => isSimpleExpr(e.arg)
       case t: SymbolicTerm[G] if isValidSymbolicTerm(t) => true
       case _: Constant[G] => true
       case _ => false
@@ -1118,24 +1224,114 @@ class AnnotationVariableInfoGetter[G](
   }
 
   def addInfo(annotation: Expr[G]): Unit = {
-    extractEqualities(annotation)
-
-    if (isSimpleExpr(annotation)) {
-      val res = AnnotationVariableInfo[G](
-        variableEqualities.view.mapValues(_.toSet).toMap,
-        variableValues.toMap,
-        variableSynonyms.toMap,
-        Set[SymbolicTerm[G]](),
-        Map[SymbolicTerm[G], Set[SymbolicTerm[G]]](),
-        Map[SymbolicTerm[G], BigInt](),
-        Map[SymbolicTerm[G], BigInt](),
-        usefulConditions.toSet,
-      )
-
-      equalCheck = ExpressionEqualityCheck(Some(res))
-      extractComparisons(annotation)
-      usefulConditions.addOne(annotation)
+    var ann = annotation
+    usefulConditions.foreach { c =>
+      // If a known true condition appears, literally in the annotation replace it with true. Ideally this would be a
+      // better check since we do not catch a condition `!c` which appears in the annotation as `c` This replacement
+      // isn't necessary when using the SMT solver but not every check in SimplifyNestedQuantifiers uses an SMT solver.
+      val simple = replaceWithTrueAndSimplify(ann, c)
+      if (simple.isDefined) { ann = simple.get }
     }
+    extractEqualities(ann)
+
+    if (isSimpleExpr(ann)) {
+      addSimpleAnnotation(ann)
+      Seq.range(0, usefulConditions.length).foreach { i =>
+        // See if we can redo with a simpler expression
+        val simple = replaceWithTrueAndSimplify(usefulConditions(i), ann)
+        if (simple.isDefined) {
+          extractEqualities(simple.get)
+          addSimpleAnnotation(simple.get)
+          usefulConditions(i) = simple.get
+        }
+      }
+      if (ann != tt[G]) { usefulConditions.addOne(ann) }
+    }
+  }
+
+  private def replaceWithTrueAndSimplify(
+      original: Expr[G],
+      replacer: Expr[G],
+  ): Option[Expr[G]] = {
+    implicit val o: Origin = original.o
+    original match {
+      case it if it == replacer => Some(tt)
+      case And(l, r) =>
+        (
+          replaceWithTrueAndSimplify(l, replacer),
+          replaceWithTrueAndSimplify(r, replacer),
+        ) match {
+          case (Some(BooleanValue(true)), newR) => Some(newR.getOrElse(r))
+          case (Some(BooleanValue(false)), _) => Some(ff)
+          case (newL, Some(BooleanValue(true))) => Some(newL.getOrElse(l))
+          case (_, Some(BooleanValue(false))) => Some(ff)
+          case (Some(l), newR) => Some(l && newR.getOrElse(r))
+          case (newL, Some(r)) => Some(newL.getOrElse(l) && r)
+          case (None, None) => None
+        }
+      case Star(l, r) =>
+        (
+          replaceWithTrueAndSimplify(l, replacer),
+          replaceWithTrueAndSimplify(r, replacer),
+        ) match {
+          case (Some(BooleanValue(true)), newR) => Some(newR.getOrElse(r))
+          case (Some(BooleanValue(false)), _) => Some(ff)
+          case (newL, Some(BooleanValue(true))) => Some(newL.getOrElse(l))
+          case (_, Some(BooleanValue(false))) => Some(ff)
+          case (Some(l), newR) => Some(l &* newR.getOrElse(r))
+          case (newL, Some(r)) => Some(newL.getOrElse(l) &* r)
+          case (None, None) => None
+        }
+      case Or(l, r) =>
+        (
+          replaceWithTrueAndSimplify(l, replacer),
+          replaceWithTrueAndSimplify(r, replacer),
+        ) match {
+          case (Some(BooleanValue(true)), _) => Some(tt)
+          case (Some(BooleanValue(false)), newR) => Some(newR.getOrElse(r))
+          case (_, Some(BooleanValue(true))) => Some(tt)
+          case (newL, Some(BooleanValue(false))) => Some(newL.getOrElse(l))
+          case (Some(l), newR) => Some(l || newR.getOrElse(r))
+          case (newL, Some(r)) => Some(newL.getOrElse(l) || r)
+          case (None, None) => None
+        }
+      case Implies(l, r) =>
+        (
+          replaceWithTrueAndSimplify(l, replacer),
+          replaceWithTrueAndSimplify(r, replacer),
+        ) match {
+          case (Some(BooleanValue(true)), newR) => Some(newR.getOrElse(r))
+          case (Some(BooleanValue(false)), _) => Some(tt)
+          case (_, Some(BooleanValue(true))) => Some(tt)
+          case (newL, Some(BooleanValue(false))) => Some(!newL.getOrElse(l))
+          case (Some(l), newR) => Some(l ==> newR.getOrElse(r))
+          case (newL, Some(r)) => Some(newL.getOrElse(l) ==> r)
+          case (None, None) => None
+        }
+      case Not(e) =>
+        replaceWithTrueAndSimplify(e, replacer) match {
+          case Some(BooleanValue(true)) => Some(ff)
+          case Some(BooleanValue(false)) => Some(tt)
+          case newE => newE.map(!_)
+        }
+      case _ => None
+    }
+  }
+
+  private def addSimpleAnnotation(annotation: Expr[G]): Unit = {
+    val res = AnnotationVariableInfo[G](
+      variableEqualities.view.mapValues(_.toSet).toMap,
+      variableValues.toMap,
+      variableSynonyms.toMap,
+      Set[SymbolicTerm[G]](),
+      Map[SymbolicTerm[G], Set[SymbolicTerm[G]]](),
+      Map[SymbolicTerm[G], BigInt](),
+      Map[SymbolicTerm[G], BigInt](),
+      usefulConditions.toSet,
+    )
+
+    equalCheck = ExpressionEqualityCheck(Some(res))
+    extractComparisons(annotation)
   }
 
   def mergeIntMaps(
@@ -1399,8 +1595,13 @@ class AnnotationVariableInfoGetter[G](
       // Collect all vars that are greater than
       val greaterVars: mutable.Set[SymbolicTerm[G]] = mutable.Set()
       vars.foreach { v =>
-        lessThanEqVars.get(v).toSeq.flatMap(_.map(variableSynonyms(_)))
-          .foreach { i => greaterVars.addAll(synonymSets(i)) }
+        lessThanEqVars.get(v).foreach(ltSet =>
+          ltSet.foreach(lt =>
+            variableSynonyms.get(lt).foreach { i =>
+              greaterVars.addAll(synonymSets(i))
+            }
+          )
+        )
       }
       // Redistribute all greater vars again
       vars.foreach { lessThanEqVars.get(_).foreach(_.addAll(greaterVars)) }

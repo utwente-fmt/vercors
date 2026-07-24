@@ -1,12 +1,12 @@
 ensures i != null && res != null && n != null;
-ensures Perm(*i, write) ** Perm(*res, write) ** Perm(*n, read);
+ensures Perm(*i, write) ** Perm(*res, write) ** Perm(*n, write);
 ensures *i >= 0;
 ensures *i <= *n;
 ensures *res == *i * (*n * *n) ;
 void cubed_loop1_invariant_assume(pointer<int> i, pointer<int> res, pointer<int> n);
 
 context i != null && res != null && n != null;
-context Perm(*i, write) ** Perm(*res, write) ** Perm(*n, read);
+context Perm(*i, write) ** Perm(*res, write) ** Perm(*n, write);
 context *i >= 0;
 context *i <= *n;
 context *res == *i * (*n * *n);

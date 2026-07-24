@@ -3,6 +3,7 @@ package vct.main.stages
 import hre.io.{RWFile, Writeable}
 import hre.progress.Progress
 import hre.stages.Stage
+import hre.util.Time.logTime
 import vct.cache.Caches
 import vct.col.ast.{Program, Serialize, Verification, VerificationContext}
 import vct.col.origin.ExpectedError
@@ -47,7 +48,8 @@ case object Backend {
           else { options.devSiliconNumVerifiers }
         SilverBackend(
           Silicon(
-            z3Settings = (printRawQuantifier ++ z3LogFile).toMap,
+            z3Settings = (printRawQuantifier ++ z3LogFile).toMap ++
+              options.proverConfigArgs,
             z3Path = options.z3Path,
             numberOfParallelVerifiers = numberOfParallelVerifiers,
             timeoutValue = options.devSiliconAssertTimeout,
@@ -68,6 +70,7 @@ case object Backend {
           else
             None,
           options.skipBackend,
+          options.devTimeBackend,
         )
 
       case types.Backend.Carbon =>
@@ -85,6 +88,7 @@ case object Backend {
           else
             None,
           options.skipBackend,
+          options.devTimeBackend,
         )
     }
 }
@@ -94,6 +98,7 @@ trait Backend extends Stage[Verification[_ <: Generation], Seq[ExpectedError]] {
   override def progressWeight: Int = 5
 
   val skipVerification = false
+  val timeVerification = false
 
   def cacheDirectory: Option[Path]
 
@@ -186,6 +191,7 @@ case class SilverBackend(
     output: Option[Path] = None,
     cacheDirectory: Option[Path] = None,
     override val skipVerification: Boolean = false,
+    override val timeVerification: Boolean = false,
 ) extends Backend {
   override def transform(
       program: Program[_ <: Generation],
@@ -198,7 +204,13 @@ case class SilverBackend(
 
   override def verify(intermediate: Intermediate): Boolean = {
     val SilverIntermediate(intermediateProgram) = intermediate
-    backend.submit(intermediateProgram)
+    val logger =
+      (x: Function[Unit, Boolean]) =>
+        if (timeVerification)
+          logTime("BackendVerification", x())
+        else
+          x()
+    logger(_ => backend.submit(intermediateProgram))
   }
 
 }

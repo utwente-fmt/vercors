@@ -8,6 +8,7 @@
 #include "Util/BlockUtils.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
+#include "Util/PallasDIMapping.h"
 #include <llvm/Support/raw_ostream.h>
 
 namespace pallas {
@@ -112,6 +113,10 @@ FDResult &FunctionCursor::getFDResult(Function &otherLLVMFunction) {
     return FAM.getResult<FunctionDeclarer>(otherLLVMFunction);
 }
 
+FDCResult &FunctionCursor::getFDCResult(llvm::Function &otherLLVMFunction) {
+    return FAM.getResult<FunctionContractDeclarer>(otherLLVMFunction);
+}
+
 col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction,
                                                Type *llvmPointerType) {
     col::Variable *varDecl;
@@ -129,13 +134,16 @@ col::Variable &FunctionCursor::declareVariable(Instruction &llvmInstruction,
     }
     // set type of declaration
     try {
-        if (llvmPointerType == nullptr) {
-            llvm2col::transformAndSetType(*llvmInstruction.getType(),
-                                          *varDecl->mutable_t());
-        } else {
-            llvm2col::transformAndSetPointerType(*llvmPointerType,
-                                                 *varDecl->mutable_t());
-        }
+        const auto &dataLayout = llvmInstruction.getModule()->getDataLayout();
+        auto &mamProxy =
+            getFunctionAnalysisManager()
+                .getResult<llvm::ModuleAnalysisManagerFunctionProxy>(
+                    *llvmInstruction.getFunction());
+        auto *sdRes = mamProxy.getCachedResult<StructTDeclarer>(
+            *llvmInstruction.getModule());
+        assert(sdRes != nullptr);
+        llvm2col::transformAndSetValueType(llvmInstruction, llvmPointerType,
+                                           *varDecl->mutable_t(), *sdRes);
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
         errorStream << e.what() << " in variable declaration.";

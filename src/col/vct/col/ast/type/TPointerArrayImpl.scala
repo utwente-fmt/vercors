@@ -1,6 +1,6 @@
 package vct.col.ast.`type`
 
-import vct.col.ast.TPointerArray
+import vct.col.ast.{TNonNullPointerArray, TPointerArray}
 import vct.col.ast.ops.TPointerArrayOps
 import vct.col.print._
 
@@ -15,6 +15,11 @@ trait TPointerArrayImpl[G] extends TPointerArrayOps[G] {
     }
 
   override val isConst: Boolean = false
+  override val isNonNull: Boolean = false
+
   override def descend: TPointerArray[G] =
     TPointerArray(element, dimensions.tail, unique)
+  override def asNonNull: TNonNullPointerArray[G] =
+    TNonNullPointerArray(element, dimensions, unique)
+  override def asNullable: TPointerArray[G] = this
 }

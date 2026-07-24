@@ -1,12 +1,14 @@
 package vct.col.resolve.lang
 
 import vct.col.ast._
+import vct.col.origin.{NonConstantStructIndex, Origin}
+import vct.col.ref.Ref
 import vct.col.resolve.NoSuchNameError
 import vct.col.resolve.ctx.ReferenceResolutionContext
 import vct.col.resolve.ctx._
+import vct.result.VerificationError.UserError
 
 object LLVM {
-
   def findCallable[G](
       name: String,
       ctx: ReferenceResolutionContext[G],
@@ -41,6 +43,27 @@ object LLVM {
 
   def scanBlocks[G](node: Node[G]): Map[LabelDecl[G], LLVMBasicBlock[G]] = {
     node.collect { case b: LLVMBasicBlock[G] => (b.label, b) }.toMap
+  }
+
+  def getGEPResultType[G](gep: LLVMGetElementPointer[G]): Option[Type[G]] = {
+    var currentType = gep.structureType
+    gep.indices.tail.foreach { i =>
+      currentType match {
+        case struct: LLVMTStruct[G] =>
+          val value =
+            i match {
+              case value: LLVMIntegerValue[G] => value.value.intValue
+              case value: IntegerValue[G] => value.value.intValue
+              case _ => throw NonConstantStructIndex(gep.o)
+            }
+          currentType = struct.ref.decl.elements(value).t
+        case array: LLVMTArray[G] => currentType = array.elementType
+        case vector: LLVMTVector[G] => currentType = vector.elementType
+        // We don't know how to index other types
+        case _ => return None
+      }
+    }
+    Some(currentType)
   }
 
 }

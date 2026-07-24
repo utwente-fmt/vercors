@@ -1,8 +1,19 @@
 #ifndef PALLAS_FUNCTIONCONTRACTDECLARER_H
 #define PALLAS_FUNCTIONCONTRACTDECLARER_H
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Woverflow"
+#endif // __GNUC__
 #include "vct/col/ast/col.pb.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
+#include <llvm/IR/Metadata.h>
 #include <llvm/IR/PassManager.h>
+
+#include "IRSpec/PallasIRSpec.h"
 
 /**
  * Pass that adds an LlvmfunctionContract to its corresponding
@@ -30,8 +41,22 @@ class FDCResult {
   private:
     col::LlvmFunctionContract &associatedColFuncContract;
 
+    std::optional<irspec::FunctionContract> associatedIRContract = std::nullopt;
+
+    std::unordered_map<const llvm::MDNode *, col::Variable *> ghostArgMap;
+
   public:
     explicit FDCResult(col::LlvmFunctionContract &colFuncContract);
+
+    void setIRContract(irspec::FunctionContract irContract);
+
+    const irspec::FunctionContract *getIRContract();
+
+    void addGhostArgMapEntry(const llvm::MDNode &arg, col::Variable &colVar);
+
+    col::Variable *getGhostArgMapEntry(const llvm::MDNode &arg);
+
+    llvm::SmallVector<col::Variable *> getGhostVars();
 
     col::LlvmFunctionContract &getAssociatedColFuncContract();
 };

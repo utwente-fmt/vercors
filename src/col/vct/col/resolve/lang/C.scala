@@ -1,6 +1,5 @@
 package vct.col.resolve.lang
 
-import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.ast.`type`.typeclass.TFloats.{C_ieee754_32bit, C_ieee754_64bit}
 import vct.col.origin._
@@ -102,6 +101,69 @@ case object C {
     )
   }
 
+  private def INT_TYPE_TO_RANK: Map[Seq[CDeclarationSpecifier[_]], Int] = {
+    Map(
+      Seq(CChar()) -> 1,
+      Seq(CSigned(), CChar()) -> 1,
+      Seq(CUnsigned(), CChar()) -> 1,
+      Seq(CShort()) -> 2,
+      Seq(CSigned(), CShort()) -> 2,
+      Seq(CUnsigned(), CShort()) -> 2,
+      Seq(CShort(), CInt()) -> 2,
+      Seq(CSigned(), CShort(), CInt()) -> 2,
+      Seq(CUnsigned(), CShort(), CInt()) -> 2,
+      Seq(CInt()) -> 3,
+      Seq(CSigned()) -> 3,
+      Seq(CUnsigned()) -> 3,
+      Seq(CSigned(), CInt()) -> 3,
+      Seq(CUnsigned(), CInt()) -> 3,
+      Seq(CLong()) -> 4,
+      Seq(CSigned(), CLong()) -> 4,
+      Seq(CUnsigned(), CLong()) -> 4,
+      Seq(CLong(), CInt()) -> 4,
+      Seq(CSigned(), CLong(), CInt()) -> 4,
+      Seq(CUnsigned(), CLong(), CInt()) -> 4,
+      Seq(CLong(), CLong()) -> 5,
+      Seq(CSigned(), CLong(), CLong()) -> 5,
+      Seq(CUnsigned(), CLong(), CLong()) -> 5,
+      Seq(CLong(), CLong(), CInt()) -> 5,
+      Seq(CSigned(), CLong(), CLong(), CInt()) -> 5,
+      Seq(CUnsigned(), CLong(), CLong(), CInt()) -> 5,
+    )
+  }
+
+  private def stripSpecifiers(
+      specs: Seq[CDeclarationSpecifier[_]]
+  ): Seq[CDeclarationSpecifier[_]] =
+    specs.flatMap {
+      // Inline/Pure
+      case _: CSpecificationModifier[_] => Nil
+      // Extern/static/typedef/...
+      case _: CStorageClassSpecifier[_] => Nil
+      // Actual types
+      case specifier: CTypeSpecifier[_] =>
+        specifier match {
+          case CVoid() | CChar() | CShort() | CInt() | CLong() | CFloat() |
+              CDouble() | CSigned() | CUnsigned() | CBool() |
+              CTypedefName(_) | CFunctionTypeExtensionModifier(_) |
+              CStructDeclaration(_, _) | CStructSpecifier(_) =>
+            Seq(specifier)
+        }
+      // Const/restrict/volatile/...
+      case CTypeQualifierDeclarationSpecifier(_) => Nil
+      case _: CFunctionSpecifier[_] => Nil
+      case _: CAlignmentSpecifier[_] => Nil
+      case _: CGpgpuKernelSpecifier[_] => Nil
+    }
+
+  private def getIntRank(specs: Seq[CDeclarationSpecifier[_]]): Int = {
+    specs
+      .collectFirst { case CSpecificationType(t @ TCInt()) => t.rank } match {
+      case Some(rank) => rank
+      case None => INT_TYPE_TO_RANK(stripSpecifiers(specs))
+    }
+  }
+
   private def getIntSize(
       platformContext: PlatformContext,
       specs: Seq[CDeclarationSpecifier[_]],
@@ -109,29 +171,8 @@ case object C {
     specs.collectFirst { case CSpecificationType(t) => t.bits } match {
       case Some(size: TypeSize.Exact) => size
       case None =>
-        INT_TYPE_TO_SIZE(platformContext).getOrElse(
-          specs.flatMap(_ match {
-            // Inline/Pure
-            case _: CSpecificationModifier[_] => Nil
-            // Extern/static/typedef/...
-            case _: CStorageClassSpecifier[_] => Nil
-            // Actual types
-            case specifier: CTypeSpecifier[_] =>
-              specifier match {
-                case CVoid() | CChar() | CShort() | CInt() | CLong() |
-                    CFloat() | CDouble() | CSigned() | CUnsigned() | CBool() |
-                    CTypedefName(_) | CFunctionTypeExtensionModifier(_) |
-                    CStructDeclaration(_, _) | CStructSpecifier(_) =>
-                  Seq(specifier)
-              }
-            // Const/restrict/volatile/...
-            case CTypeQualifierDeclarationSpecifier(_) => Nil
-            case _: CFunctionSpecifier[_] => Nil
-            case _: CAlignmentSpecifier[_] => Nil
-            case _: CGpgpuKernelSpecifier[_] => Nil
-          }),
-          TypeSize.Unknown(),
-        )
+        INT_TYPE_TO_SIZE(platformContext)
+          .getOrElse(stripSpecifiers(specs), TypeSize.Unknown())
     }
   }
 
@@ -317,6 +358,7 @@ case object C {
           val cint = TCInt[G]()
           cint.storedBits = getIntSize(platformContext.get, specs)
           cint.signed = isSigned(specs)
+          cint.rank = getIntRank(specs)
           cint
         case Seq(CFloat()) => C_ieee754_32bit()
         case Seq(CDouble()) => C_ieee754_64bit()
@@ -352,6 +394,18 @@ case object C {
 
   def paramsFromDeclarator[G](declarator: CDeclarator[G]): Seq[CParam[G]] =
     getDeclaratorInfo(declarator).params.get
+
+  @tailrec
+  def isFunctionDeclarator(declarator: CDeclarator[_]): Boolean =
+    declarator match {
+      case CTypedFunctionDeclarator(_, _, _) |
+          CAnonymousFunctionDeclarator(_, _) =>
+        true
+      case CName(_) => false
+      case CPointerDeclarator(_, inner) => isFunctionDeclarator(inner)
+      case CArrayDeclarator(_, _, inner) => isFunctionDeclarator(inner)
+      case CTypeExtensionDeclarator(_, inner) => isFunctionDeclarator(inner)
+    }
 
   def findCTypeName[G](
       name: String,

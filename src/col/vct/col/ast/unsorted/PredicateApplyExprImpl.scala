@@ -1,14 +1,17 @@
 package vct.col.ast.unsorted
 
+import vct.col.ast.expr.binder.PossibleTriggerImpl
 import vct.col.ast.{AbstractPredicate, Expr, PredicateApplyExpr}
 import vct.col.ast.ops.PredicateApplyExprOps
 import vct.col.print._
 import vct.col.ref.Ref
 
-trait PredicateApplyExprImpl[G] extends PredicateApplyExprOps[G] {
+trait PredicateApplyExprImpl[G]
+    extends PredicateApplyExprOps[G] with PossibleTriggerImpl[G] {
   this: PredicateApplyExpr[G] =>
   override def precedence: Int = Precedence.PREFIX
   override def layout(implicit ctx: Ctx): Doc = apply.show
   def ref: Ref[G, _ <: AbstractPredicate[G]] = apply.ref
   def args: Seq[Expr[G]] = apply.args
+  override def isPossibleTrigger: Boolean = !ref.decl.inline
 }

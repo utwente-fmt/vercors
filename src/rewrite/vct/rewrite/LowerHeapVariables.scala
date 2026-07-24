@@ -3,7 +3,9 @@ package vct.rewrite
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.ast.{
   Assign,
+  AutoValue,
   Block,
+  ByValueClassLocation,
   DecreasesClauseNoRecursion,
   Deref,
   DerefHeapVariable,
@@ -35,6 +37,7 @@ import vct.col.ast.{
 import vct.col.origin.{
   AbstractApplicable,
   AssignLocalOk,
+  LabelContext,
   NonNullPointerNull,
   Origin,
   PanicBlame,
@@ -51,9 +54,15 @@ case object LowerHeapVariables extends RewriterBuilder {
 
   override def desc: String =
     "Lower pointer HeapVariables to plain HeapVariables and LocalHeapVariables to Variables if their address is never taken"
+
+  val PointerCreationLabel: LabelContext = LabelContext(
+    "LowerHeapVariables Pointer Creation Method"
+  )
 }
 
 case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
+  import LowerHeapVariables._
+
   private val localStripped
       : SuccessionMap[LocalHeapVariable[Pre], Variable[Post]] = SuccessionMap()
   private val localLowered
@@ -89,7 +98,7 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
       t: TByValueClass[Pre],
       unique: Option[BigInt],
   ): Procedure[Post] = {
-    implicit val o: Origin = t.cls.decl.o
+    implicit val o: Origin = t.cls.decl.o.withContent(PointerCreationLabel)
 
     globalDeclarations.declare(withResult((result: Result[Post]) =>
       procedure[Post](
@@ -154,10 +163,11 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         System.identityHashCode(hl)
     }
     val nakedHeapGlobals = program.collect {
-      case hl @ DerefHeapVariable(Ref(v))
+      case hl @ DerefHeapVariable(
+            Ref(WithExactType(v, _: TNonNullPointer[Pre]))
+          )
           // We check for TNonNullPointer here to distinguish between PVL/Java and C/C++/LLVM (where the latter group should encode all global heap variables as TNonNullPointer
-          if !dereferencedHeapGlobals.contains(System.identityHashCode(hl)) &&
-            v.t.isInstanceOf[TNonNullPointer[Pre]] =>
+          if !dereferencedHeapGlobals.contains(System.identityHashCode(hl)) =>
         v
     }
     VerificationError.withContext(CurrentRewriteProgramContext(program)) {
@@ -169,9 +179,8 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
             new Variable[Post](dispatch(v.t.asPointer.get.element))(v.o)
         )
         program.collect {
-          case DerefHeapVariable(Ref(v))
-              if !nakedHeapGlobals.contains(v) &&
-                v.t.isInstanceOf[TNonNullPointer[Pre]] =>
+          case DerefHeapVariable(Ref(WithExactType(v, _: TNonNullPointer[Pre])))
+              if !nakedHeapGlobals.contains(v) =>
             v
         }.foreach(v =>
           globalStripped(v) =
@@ -253,14 +262,99 @@ case class LowerHeapVariables[Pre <: Generation]() extends Rewriter[Pre] {
         // localLowered.contains(v) should always be true since all localStripped HeapLocals would be caught by DerefPointer(HeapLocal(Ref(v)))
         Local(localLowered.ref(v))
       }
-      case Perm(PointerLocation(DerefHeapVariable(Ref(v))), _)
-          if !globalStripped.contains(v) =>
-        Value(HeapVariableLocation[Post](globalLowered(v).ref)) &*
-          node.rewriteDefault()
-      case Value(PointerLocation(DerefHeapVariable(Ref(v))))
-          if !globalStripped.contains(v) =>
-        Value(HeapVariableLocation[Post](globalLowered(v).ref)) &*
-          node.rewriteDefault()
+      // This case originates from HeapVariableLocations
+      case Perm(
+            f @ FieldLocation(
+              DerefPointer(deref @ DerefHeapVariable(Ref(v))),
+              field,
+            ),
+            perm,
+          ) if globalStripped.contains(v) =>
+        Value[Post](
+          HeapVariableLocation[Post](globalStripped.ref(v))(deref.o)
+        ) &* Perm[Post](
+          FieldLocation[Post](
+            DerefHeapVariable[Post](globalStripped.ref(v))(deref.blame)(
+              deref.o
+            ),
+            succ(field.decl),
+          )(f.o),
+          dispatch(perm),
+        )
+      case Value(
+            f @ FieldLocation(
+              DerefPointer(deref @ DerefHeapVariable(Ref(v))),
+              field,
+            )
+          ) if globalStripped.contains(v) =>
+        Value[Post](
+          HeapVariableLocation[Post](globalStripped.ref(v))(deref.o)
+        ) &* Value[Post](
+          FieldLocation[Post](
+            DerefHeapVariable[Post](globalStripped.ref(v))(deref.blame)(
+              deref.o
+            ),
+            succ(field.decl),
+          )(f.o)
+        )
+      case AutoValue(
+            f @ FieldLocation(
+              DerefPointer(deref @ DerefHeapVariable(Ref(v))),
+              field,
+            )
+          ) if globalStripped.contains(v) =>
+        Value[Post](
+          HeapVariableLocation[Post](globalStripped.ref(v))(deref.o)
+        ) &* AutoValue[Post](
+          FieldLocation[Post](
+            DerefHeapVariable[Post](globalStripped.ref(v))(deref.blame)(
+              deref.o
+            ),
+            succ(field.decl),
+          )(f.o)
+        )
+      case Perm(location, _) =>
+        val nonStripped = location.collect {
+          case DerefPointer(DerefHeapVariable(Ref(v)))
+              if !globalStripped.contains(v) =>
+            v
+          case PointerLocation(DerefHeapVariable(Ref(v)))
+              if !globalStripped.contains(v) =>
+            v
+        }
+        foldStar(
+          nonStripped.map(v =>
+            Value[Post](HeapVariableLocation[Post](globalLowered.ref(v)))
+          ) :+ node.rewriteDefault()
+        )
+      case Value(location) =>
+        val nonStripped = location.collect {
+          case DerefPointer(DerefHeapVariable(Ref(v)))
+              if !globalStripped.contains(v) =>
+            v
+          case PointerLocation(DerefHeapVariable(Ref(v)))
+              if !globalStripped.contains(v) =>
+            v
+        }
+        foldStar(
+          nonStripped.map(v =>
+            Value[Post](HeapVariableLocation[Post](globalLowered.ref(v)))
+          ) :+ node.rewriteDefault()
+        )
+      case AutoValue(location) =>
+        val nonStripped = location.collect {
+          case DerefPointer(DerefHeapVariable(Ref(v)))
+              if !globalStripped.contains(v) =>
+            v
+          case PointerLocation(DerefHeapVariable(Ref(v)))
+              if !globalStripped.contains(v) =>
+            v
+        }
+        foldStar(
+          nonStripped.map(v =>
+            Value[Post](HeapVariableLocation[Post](globalLowered.ref(v)))
+          ) :+ node.rewriteDefault()
+        )
       case _ => node.rewriteDefault()
     }
   }

@@ -51,7 +51,11 @@ valContractClause
  | 'kernel_invariant' langExpr ';'
  | 'signals' '(' langType langId ')' langExpr ';'
  | 'lock_invariant' langExpr ';'
- | 'decreases' valDecreasesMeasure? ';'
+ | valDecreases ';'
+ ;
+
+valDecreases
+ : 'decreases' valDecreasesMeasure?
  ;
 
 valDecreasesMeasure
@@ -74,7 +78,8 @@ valStatement
  | 'assume' langExpr ';' # valAssume
  | 'inhale' langExpr ';' # valInhale
  | 'exhale' langExpr ';' # valExhale
- | 'label' langId ';' # valLabel
+ | langExpr ':|' langExpr ';' # valSuchThat
+ | valContractClause* 'label' langId ';' # valLabel
  | 'refute' langExpr ';' # valRefute
  | 'witness' langExpr ';' # valWitness
  | 'ghost' langStatement # valGhost
@@ -87,7 +92,7 @@ valStatement
  | 'action' '(' langExpr ',' langExpr ',' langExpr ',' langExpr ')' valActionImpl # valActionModel
  | 'atomic' '(' langId ')' langStatement # valAtomic
  | 'commit' langExpr ';' # valCommit
- | 'extract' langStatement # valExtract
+ | 'extract' valDecreases? langStatement # valExtract
  | 'frame' valContractClause* langStatement # valFrame
  ;
 
@@ -218,6 +223,7 @@ valBinderCont: ';' langExpr;
 valPrimaryBinder
  : '(' valBinderSymbol valBindings ';' langExpr valBinderCont? ')' # valQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
+ | '(' '\\let' langType langId ':|' langExpr ';' langExpr ')' # valLetSuchThat
  | '(' '\\forperm' valArgList '\\in' langExpr ';' langExpr ')' #valForPerm
  | '(' '\\forpermwithvalue' 'any' langId ';' langExpr ')' #valForPermWithValue
  ;
@@ -337,7 +343,7 @@ valKeywordNonExpr: (
  | VAL_APPLY | VAL_FOLD | VAL_UNFOLD | VAL_OPEN | VAL_CLOSE | VAL_ASSUME | VAL_INHALE
  | VAL_EXHALE | VAL_LABEL | VAL_REFUTE | VAL_WITNESS | VAL_GHOST | VAL_SEND | VAL_RECV
  | VAL_TRANSFER | VAL_CSL_SUBJECT | VAL_SPEC_IGNORE | VAL_ACTION | VAL_ATOMIC
- | VAL_EXTRACT | VAL_FRAME
+ | VAL_EXTRACT | VAL_EXTRACT_BODY | VAL_FRAME
  // Spec function keywords
  | VAL_REDUCIBLE | VAL_ADDS_TO | VAL_APERM | VAL_ARRAYPERM | VAL_CONTRIBUTION | VAL_HELD | VAL_HPERM | VAL_IDLE
  | VAL_PERM_VAL | VAL_PERM | VAL_POINTS_TO | VAL_RUNNING | VAL_SOME | VAL_LEFT | VAL_RIGHT | VAL_VALUE
@@ -439,7 +445,10 @@ valArg
  : langType langId
  ;
 
-valEmbedContract: valEmbedContractBlock+;
+valEmbedContract
+ : valEmbedContractBlock+
+ | startSpec 'extract_body' valContractClause* endSpec valEmbedContractBlock*
+ ;
 
 valEmbedContractBlock
  : startSpec valContractClause* endSpec
@@ -449,8 +458,10 @@ valEmbedContractBlock
 valEmbedStatementBlock
  : startSpec valStatement* endSpec
  | {specLevel>0}? valStatement+
- | startSpec 'extract' endSpec langStatement
+ | startSpec 'extract' valDecreases? endSpec langStatement
  | startSpec 'frame' valContractClause* '{' endSpec langStatement* startSpec '}' endSpec
+ | startSpec 'extract' valDecreases? 'frame' valContractClause* '{' endSpec langStatement* startSpec '}' endSpec
+ | startSpec 'extract' valDecreases? 'frame' endSpec valEmbedContract? startSpec '{' endSpec langStatement* startSpec '}' endSpec
  ;
 
 valEmbedWith: startSpec valWith? endSpec | {specLevel>0}? valWith;
