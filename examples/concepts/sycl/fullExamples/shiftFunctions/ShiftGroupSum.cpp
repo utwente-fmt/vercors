@@ -221,7 +221,6 @@ ensures |xs| == 0 ==> \result == 0;
 ensures |xs| == 1 ==> \result == xs[0];
 opaque pure int sum(seq<int> xs) =
     0 < |xs| ? xs[0] + sum(xs[1 .. ]) : 0;
-
 requires |xs| >= 0;
 requires |ys| >= 0;
 ensures \result;
@@ -238,7 +237,6 @@ opaque pure bool lemmaSumOverConcat(seq<int> xs, seq<int> ys) =
         :
         reveal sum(xs) + reveal sum(ys) == reveal sum(xs + ys) &&
         true;
-
 requires a <= b && c <= d && b == c;
 ensures \result;
 ensures xs[a .. d] == xs[a .. b] + xs[c .. d];

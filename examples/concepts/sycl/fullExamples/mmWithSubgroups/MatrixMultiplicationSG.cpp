@@ -35,8 +35,6 @@ pure int sumprodArr(int* A, int*  B, int j, int r, int c, int M, int N, int P) =
 	j == 0 ?
 		0:
 		sycl::h::mul(A[sycl::linearize2(r,decr(j), M, N)],B[sycl::linearize2(decr(j),c,N,P)]) + sumprodArr(A,B,decr(j),r,c,M,N,P);
-
-
 context M == Mf() && N == Nf() && P == Pf();
 requires |A| == sycl::h::mul(M,N);
 requires |B| == sycl::h::mul(N,P);
