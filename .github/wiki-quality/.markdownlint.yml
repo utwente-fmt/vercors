@@ -1,0 +1,16 @@
+default: true
+
+# Wiki prose and long examples regularly exceed strict line length.
+MD013: false
+
+# Some pages intentionally start with non-H1 headings.
+MD041: false
+
+# Inline HTML is used in a few docs for layout and links.
+MD033: false
+
+# Require a language tag on fenced code blocks.
+MD040: true
+
+# We often have the same headers, which is fine
+MD024: false
