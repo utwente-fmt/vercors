@@ -12,4 +12,7 @@ class DemoSpec extends VercorsSpec {
   vercors should verify using silicon example "demo/demo3c.pvl"
   vercors should verify using silicon example "demo/demo3d.pvl"
   vercors should verify using silicon example "demo/demo4.pvl"
+
+  vercors should verify using silicon example "demo/reachability.pvl"
+  vercors should verify using silicon example "demo/reachability_par.pvl"
 }
