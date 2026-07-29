@@ -2324,6 +2324,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case LLVMSeqEq(_, _) => e
       case LLVMSeqGet(_, _, _) => e
       case LLVMSeqSlice(_, _, _) => e
+      case LLVMSeqPrepend(_, _) => e
+      case LLVMSeqUpdate(_, _, _) => e
       case PVLEndpointExpr(_, _) => e
       case EndpointExpr(ref, expr) => e
       case ChorExpr(expr) => ChorExpr(bool(expr))
