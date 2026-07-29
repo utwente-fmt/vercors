@@ -21,6 +21,14 @@ trait LLVMFunctionArgumentImpl[G]
 
   val isByVal: Boolean = byValType.nonEmpty
 
+  val sretType: Option[Type[G]] = {
+    attributes.filter(_.isInstanceOf[LLVMSretArg[G]]).headOption.flatMap {
+      case LLVMSretArg(t) => Some(t)
+    }
+  }
+
+  val isSret: Boolean = sretType.nonEmpty
+
   override def layout(implicit ctx: Ctx): Doc = {
     Group(
       v.t.show <+>

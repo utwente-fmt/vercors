@@ -37,7 +37,8 @@ void buildArgExprFromAlloca(col::LlvmWrapperInvocation &wrapperInv,
     col::Local *local = nullptr;
     if (structTy != nullptr && structTy != expectedTy) {
         if (isTrivialStruct && structTy->getElementType(0) == expectedTy) {
-            auto *ptrDeref = wrapperInv.add_call_args()->mutable_deref_pointer();
+            auto *ptrDeref =
+                wrapperInv.add_call_args()->mutable_deref_pointer();
             ptrDeref->set_allocated_origin(
                 llvm2col::generatePallasWrapperCallOrigin(specElem));
             ptrDeref->set_allocated_blame(new col::Blame());

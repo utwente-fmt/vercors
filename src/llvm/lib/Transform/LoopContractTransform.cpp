@@ -173,7 +173,7 @@ bool llvm2col::addInvariantToContract(
     // Build Call to wrapper-function:
     auto *wInv = new col::LlvmWrapperInvocation();
     llvm2col::buildWrapperInv(inv, *llvmLoop.getHeader(), *llvmParentF, *wInv,
-                               functionCursor, loopInvVarMapper);
+                              functionCursor, loopInvVarMapper);
 
     // Append wrapper-call to loop-contract
     if (colContract.has_invariant()) {

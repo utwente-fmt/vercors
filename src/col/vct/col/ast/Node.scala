@@ -3985,9 +3985,6 @@ final class LLVMFunctionDefinition[G](
     val functionBody: Option[Statement[G]],
     val contract: LLVMFunctionContract[G],
     val pure: Boolean = false,
-    // If the result is returned in an sret-argument, this contains the index
-    // and the type of the sret-argument.
-    val returnInParam: Option[(Int, Type[G])] = None,
     val functionType: LLVMFunctionType[G],
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends LLVMCallable[G]

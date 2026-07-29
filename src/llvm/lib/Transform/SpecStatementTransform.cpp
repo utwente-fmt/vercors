@@ -89,8 +89,8 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
 
     // Build call to wrapper-function
     auto *wInv = new col::LlvmWrapperInvocation();
-    llvm2col::buildWrapperInv(stmnt, llvmInstr, *llvmInstr.getFunction(),
-                               *wInv, functionCursor, stmntVarMapper);
+    llvm2col::buildWrapperInv(stmnt, llvmInstr, *llvmInstr.getFunction(), *wInv,
+                              functionCursor, stmntVarMapper);
 
     // COL-node for the statement
     col::Block &body = pallas::bodyAsBlock(colBlock);

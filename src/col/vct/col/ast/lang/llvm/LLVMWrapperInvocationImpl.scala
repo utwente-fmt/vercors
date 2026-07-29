@@ -8,9 +8,12 @@ trait LLVMWrapperInvocationImpl[G] extends LLVMWrapperInvocationOps[G] {
   this: LLVMWrapperInvocation[G] =>
   override def precedence: Int = Precedence.POSTFIX
 
-  override def t: Type[G] =
-    if (ref.decl.returnInParam.nonEmpty) { ref.decl.returnInParam.get._2 }
-    else { ref.decl.returnType }
+  override def t: Type[G] = {
+    ref.decl.sretArg match {
+      case Some(retArg) => retArg.sretType.get
+      case None => ref.decl.returnType
+    }
+  }
 
   override def layout(implicit ctx: Ctx): Doc =
     Group(Group(Text("@") <> ctx.name(ref) <> "(") <> Doc.args(callArgs) <> ")")

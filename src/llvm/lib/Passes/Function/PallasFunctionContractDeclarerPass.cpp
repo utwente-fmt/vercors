@@ -235,7 +235,7 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     // Build a call to the wrapper-function with the gathered arguments
     auto *wrapperInv = new col::LlvmWrapperInvocation();
     llvm2col::buildContractWrapperInv(clause, parentFunc, *wrapperInv, fam,
-                                       isExternal);
+                                      isExternal);
 
     // Construct an AccountedPredicate that wraps the call to the
     // wrapper-function

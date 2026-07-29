@@ -617,9 +617,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         }
 
         // If the function has an sret-argument, infer type from that.
-        func.returnInParam match {
-          case Some((idx, t)) =>
-            addTypeGuess(func.args(idx), Set.empty, _ => Seq(t))
+        func.sretArg match {
+          case Some(retArg) =>
+            addTypeGuess(
+              retArg.v,
+              Set.empty,
+              _ => Seq(LLVMTPointer(retArg.sretType)),
+            )
           case None =>
         }
       case alloc: LLVMAllocA[Pre] =>
@@ -923,11 +927,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             }
           }._1
         // If func returns its result in an argument, this is a reference to that argument
-        val cRetArg =
-          func.returnInParam match {
-            case Some((idx, _)) => Some(argList(idx).ref)
-            case None => None
-          }
+        val cRetArg = func.sretArg
+          .flatMap(a => Some(rw.succ[Variable[Post]](a.v)))
         val isWrapper = func.isWrapper || func.isGhostWrapper
         val returnT =
           if (func.isWrapper && !wrappersInAssume.contains(func)) {
@@ -1287,7 +1288,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteWrapperInvocation(inv: LLVMWrapperInvocation[Pre]): Expr[Post] = {
     implicit val o: Origin = inv.o
 
-    if (inv.ref.decl.returnInParam.nonEmpty) {
+    if (inv.ref.decl.sretArg.nonEmpty) {
       // Wrapper with sret are not yet supported!
       throw UnexpectedLLVMNode(inv);
     }
@@ -2140,13 +2141,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     LLVMIntermediaryResult(
       applicable =
         new LazyRef[Post, Procedure[Post]](llvmFunctionMap(res.func.decl)),
-      sretArg =
-        res.func.decl.returnInParam match {
-          case Some((idx, _)) =>
-            val oldArg = res.func.decl.args(idx)
-            Some(rw.succ(oldArg))
-          case None => None
-        },
+      sretArg = res.func.decl.sretArg.flatMap(rArg => Some(rw.succ(rArg.v))),
     )
   }
 

@@ -212,24 +212,6 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         }
     }
 
-    try {
-        if (F.getParamStructRetType(0) != nullptr) {
-            auto retIdxT = llvmFuncDef->mutable_return_in_param();
-            retIdxT->set_v1(0);
-            llvm2col::transformAndSetPointerType(
-                *F.getParamStructRetType(0), *retIdxT->mutable_v2(), *sdRes);
-        } else if (F.getParamStructRetType(1) != nullptr) {
-            auto retIdxT = llvmFuncDef->mutable_return_in_param();
-            retIdxT->set_v1(1);
-            llvm2col::transformAndSetPointerType(
-                *F.getParamStructRetType(1), *retIdxT->mutable_v2(), *sdRes);
-        }
-    } catch (pallas::UnsupportedTypeException &e) {
-        std::stringstream errorStream;
-        errorStream << e.what() << " in sret argument ";
-        pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
-    }
-
     if (F.isDeclaration()) {
         // Defined outside of this module so we don't know if it's pure or what
         // its contract is
