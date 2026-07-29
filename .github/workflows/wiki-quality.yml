@@ -9,9 +9,8 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
-  issues: write
-
+  contents: write
+  
 jobs:
   wiki-quality:
     runs-on: ubuntu-latest
@@ -21,7 +20,7 @@ jobs:
 
       - name: Clone wiki repository
         run: |
-          git clone "https://github.com/${{ github.repository }}.wiki.git" wiki
+          git clone "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.wiki.git" wiki
           echo "Cloned wiki commit: $(git -C wiki rev-parse --short HEAD)"
 
       - name: Set up Node.js
@@ -40,7 +39,39 @@ jobs:
       - name: Install grammar tool
         run: python -m pip install --upgrade pip proselint
 
-      - name: Markdown lint (includes fenced code language check)
+      - name: Auto-fix markdownlint issues and commit wiki changes
+        id: autofix
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/wiki-quality-logs"
+          autofix_log="$RUNNER_TEMP/wiki-quality-logs/markdownlint-fix.log"
+
+          set +e
+          markdownlint-cli2-fix --config .github/wiki-quality/.markdownlint.yml "wiki/**/*.md" 2>&1 | tee "$autofix_log"
+          fix_status=${PIPESTATUS[0]}
+          set -e
+
+          if [[ "$fix_status" -ne 0 ]]; then
+            echo "markdownlint-cli2-fix exited with status $fix_status. Continuing to report remaining issues."
+          fi
+
+          if git -C wiki diff --quiet; then
+            echo "No markdown auto-fixes were needed."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git -C wiki config user.name "github-actions[bot]"
+            git -C wiki config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git -C wiki add -A
+            git -C wiki commit -m "chore(wiki): auto-fix markdownlint issues"
+            wiki_branch="$(git -C wiki rev-parse --abbrev-ref HEAD)"
+            git -C wiki push origin "HEAD:${wiki_branch}"
+            echo "Auto-fix commit pushed to wiki branch ${wiki_branch}."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "fix_status=$fix_status" >> "$GITHUB_OUTPUT"
+
+      - name: Markdown lint (remaining issues after auto-fix)
         id: markdownlint
         continue-on-error: true
         run: |
@@ -89,6 +120,8 @@ jobs:
         if: always()
         id: status
         env:
+          AUTOFIX_CHANGED: ${{ steps.autofix.outputs.changed }}
+          AUTOFIX_STATUS: ${{ steps.autofix.outputs.fix_status }}
           MARKDOWN_OUTCOME: ${{ steps.markdownlint.outcome }}
           SPELLING_OUTCOME: ${{ steps.spelling.outcome }}
           GRAMMAR_OUTCOME: ${{ steps.grammar.outcome }}
@@ -103,6 +136,8 @@ jobs:
           {
             echo "# Wiki quality checks"
             echo ""
+            echo "- Markdown auto-fix commit pushed: ${AUTOFIX_CHANGED:-false}"
+            echo "- Markdown auto-fix exit status: ${AUTOFIX_STATUS:-0}"
             echo "- Markdown lint: $MARKDOWN_OUTCOME"
             echo "- Spelling: $SPELLING_OUTCOME"
             echo "- Grammar/style: $GRAMMAR_OUTCOME"
@@ -141,9 +176,17 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           }
 
-          append_log_details "Markdown lint logs" "$MARKDOWN_OUTCOME" "$LOG_DIR/markdownlint.log"
-          append_log_details "Spelling check logs" "$SPELLING_OUTCOME" "$LOG_DIR/cspell.log"
-          append_log_details "Grammar/style logs" "$GRAMMAR_OUTCOME" "$LOG_DIR/proselint.log"
+          if [[ "$MARKDOWN_OUTCOME" != "success" ]]; then
+            append_log_details "Markdown lint logs" "$MARKDOWN_OUTCOME" "$LOG_DIR/markdownlint.log"
+          fi
+
+          if [[ "$SPELLING_OUTCOME" != "success" ]]; then
+            append_log_details "Spelling check logs" "$SPELLING_OUTCOME" "$LOG_DIR/cspell.log"
+          fi
+
+          if [[ "$GRAMMAR_OUTCOME" != "success" ]]; then
+            append_log_details "Grammar/style logs" "$GRAMMAR_OUTCOME" "$LOG_DIR/proselint.log"
+          fi
 
           echo "overall=$overall" >> "$GITHUB_OUTPUT"
 
