@@ -497,16 +497,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     def findResultUses(expr: Expr[Pre], target: Expr[Pre]): Set[Object] = {
       expr match {
         case LLVMResult(Ref(pFunc)) =>
-          pFunc.contract.collect {
-            case LLVMFunctionInvocation(Ref(wF), _, _, _)
-                if (wF.isWrapper || wF.isGhostWrapper) &&
-                  wF.functionBody.isDefined =>
-              val vars = wF.functionBody.get.collect {
-                case Assign(t @ Local(Ref(tVar)), LLVMResult(_))
-                    if t != target =>
-                  tVar
-              }
-              vars
+          pFunc.contract.collect { case LLVMWrapperInvocation(Ref(wF), _) =>
+            val vars = wF.functionBody.get.collect {
+              case Assign(t @ Local(Ref(tVar)), LLVMResult(_)) if t != target =>
+                tVar
+            }
+            vars
           }.flatten.toSet
         case _ => Set.empty
       }
@@ -565,6 +561,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               { t: Type[Pre] => LLVMTPointer(Some(wrap(t))) },
             )
           }
+        // case _ => None
       }
 
     def addTypeGuess(
@@ -715,43 +712,45 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               getVariable(inv.args(idx))
                 .foreach(v => addTypeGuess(v, Set.empty, _ => Seq(arg.t)))
             }
+          }
+      case inv: LLVMWrapperInvocation[Pre] =>
+        val calledFunc = inv.ref.decl
+        calledFunc.argsWithoutSret.map(_.v).zip(inv.callArgs).foreach {
+          case (defArg, invArg) =>
+            // Infer type of variable that is used as an argument in the invocation
+            // from the wrapper definition
+            if (invArg.t.asPointer.isDefined) {
+              getVariable(invArg)
+                .foreach(v => addTypeGuess(v, Set.empty, _ => Seq(defArg.t)))
+            }
 
-            // If the invoked function is a wrapper function, we infer the
-            // type of the pointer-typed argument from the call-site.
-            if (
-              (calledFunc.isWrapper || calledFunc.isGhostWrapper) &&
-              arg.t.asPointer.isDefined
-            ) {
-              val dependencies = findDependencies(inv.args(idx))
-              // TODO: Check if this can be simplified I.e. the expression
-              //  should almost always be resolvable with getVariable
+            if (defArg.t.asPointer.isDefined) {
+              // Infer the type of the argument in the wrapper-definition
+              // from the call-site.
+              val dependencies = findDependencies(invArg)
               addTypeGuess(
-                arg,
+                defArg,
                 dependencies,
-                _ =>
-                  Seq(
-                    replaceWithGuesses(inv.args(idx), dependencies).t,
-                    inv.args(idx).t,
-                  ),
+                _ => Seq(replaceWithGuesses(invArg, dependencies).t, invArg.t),
               )
 
-              getVariablePossiblyWrapped(inv.args(idx))
+              getVariablePossiblyWrapped(invArg)
                 .foreach { case (v, strip, wrap) =>
                   addTypeGuess(
                     v,
-                    Set(arg),
+                    Set(defArg),
                     _ =>
                       Seq(
                         wrap(
-                          typeGuesses.get(arg).map(_.currentType)
-                            .getOrElse(inv.args(idx).t)
+                          typeGuesses.get(defArg).map(_.currentType)
+                            .getOrElse(defArg.t)
                         ),
-                        wrap(inv.args(idx).t),
+                        wrap(invArg.t),
                       ),
                   )
                 }
             }
-          }
+        }
       // Propagate pointer types across \old
       case Assign(Local(Ref(tVar)), LLVMOld(Local(Ref(sVar)))) =>
         addTypeGuess(
@@ -809,9 +808,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   def gatherWrappersInAssume(program: Program[Pre]): Unit = {
-    program.collect {
-      case Assume(LLVMFunctionInvocation(Ref(f), _, _, _)) if f.isWrapper =>
-        wrappersInAssume.add(f);
+    program.collect { case Assume(LLVMWrapperInvocation(Ref(f), _)) =>
+      wrappersInAssume.add(f);
     }
   }
 
@@ -1284,6 +1282,34 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       ))
     }
 
+  }
+
+  def rewriteWrapperInvocation(inv: LLVMWrapperInvocation[Pre]): Expr[Post] = {
+    implicit val o: Origin = inv.o
+
+    if (inv.ref.decl.returnInParam.nonEmpty) {
+      // Wrapper with sret are not yet supported!
+      throw UnexpectedLLVMNode(inv);
+    }
+
+    // TODO: This needs to change if an sret is present!
+    // (i.e. zip no longer works!)
+    val newArgs = inv.callArgs.zip(inv.ref.decl.llvmArgs).map { case (e, arg) =>
+      val c = addCast(e, arg.v)
+      if (arg.byValType.nonEmpty)
+        DerefPointer(c)(InvocationBlameAdapter(inv.blame))(arg.o)
+      else
+        c
+    }
+
+    new ProcedureInvocation[Post](
+      ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(inv.ref.decl)),
+      args = newArgs,
+      givenMap = Seq.empty,
+      yields = Seq.empty,
+      outArgs = Seq.empty,
+      typeArgs = Seq.empty,
+    )(inv.blame)
   }
 
   def rewriteGlobal(decl: LLVMGlobalSpecification[Pre]): Unit = {

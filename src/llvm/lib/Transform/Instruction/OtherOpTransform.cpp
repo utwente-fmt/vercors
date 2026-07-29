@@ -416,11 +416,11 @@ void llvm2col::transformCallExpr(llvm::CallInst &callInstruction,
             gVarRef->set_id(colGivenVar->id());
 
             // Call to wrapper function
-            auto *colWrapperCall =
-                givenEntry->mutable_v2()->mutable_llvm_function_invocation();
-            llvm2col::buildWrapperCall(
+            auto *colWrapperInv =
+                givenEntry->mutable_v2()->mutable_llvm_wrapper_invocation();
+            llvm2col::buildWrapperInv(
                 g, callInstruction, *callInstruction.getFunction(),
-                *colWrapperCall, funcCursor, stmntVarMapper);
+                *colWrapperInv, funcCursor, stmntVarMapper);
         }
     }
 

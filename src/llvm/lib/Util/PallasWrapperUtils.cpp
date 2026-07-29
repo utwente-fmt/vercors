@@ -20,7 +20,7 @@ bool hasDiExpression(const llvm::DbgVariableIntrinsic &intr) {
            intr.getExpression()->getNumElements() != 0;
 }
 
-void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
+void buildArgExprFromAlloca(col::LlvmWrapperInvocation &wrapperInv,
                             const pallas::irspec::WrappedSpecElement &specElem,
                             unsigned int argIdx, llvm::AllocaInst &llvmAlloca,
                             pallas::FunctionCursor &functionCursor) {
@@ -37,7 +37,7 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
     col::Local *local = nullptr;
     if (structTy != nullptr && structTy != expectedTy) {
         if (isTrivialStruct && structTy->getElementType(0) == expectedTy) {
-            auto *ptrDeref = wrapperCall.add_args()->mutable_deref_pointer();
+            auto *ptrDeref = wrapperInv.add_call_args()->mutable_deref_pointer();
             ptrDeref->set_allocated_origin(
                 llvm2col::generatePallasWrapperCallOrigin(specElem));
             ptrDeref->set_allocated_blame(new col::Blame());
@@ -53,17 +53,17 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
                 llvm2col::getSDResult(functionCursor, llvmAlloca));
             local = cast->mutable_value()->mutable_local();
         } else {
-            local = wrapperCall.add_args()->mutable_local();
+            local = wrapperInv.add_call_args()->mutable_local();
         }
     } else if (llvm::isa<llvm::ArrayType>(llvmAlloca.getAllocatedType()) &&
                llvm::isa<llvm::PointerType>(expectedTy)) {
         // When passing an array-type to the wrapper, we skip the dereference
         // because the array decays into a pointer in the signature of the
         // wrapper.
-        local = wrapperCall.add_args()->mutable_local();
+        local = wrapperInv.add_call_args()->mutable_local();
     } else {
         // Ptr deref
-        auto *ptrDeref = wrapperCall.add_args()->mutable_deref_pointer();
+        auto *ptrDeref = wrapperInv.add_call_args()->mutable_deref_pointer();
         ptrDeref->set_allocated_origin(
             llvm2col::generatePallasWrapperCallOrigin(specElem));
         ptrDeref->set_allocated_blame(new col::Blame());
@@ -77,7 +77,7 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
 }
 
 bool buildArgExprFromDbgValue(
-    col::LlvmFunctionInvocation &wrapperCall,
+    col::LlvmWrapperInvocation &wrapperInv,
     const pallas::irspec::WrappedSpecElement &specElem, unsigned int argIdx,
     llvm::DbgValueInst &dbgVal, pallas::FunctionCursor &functionCursor) {
     if (hasDiExpression(dbgVal)) {
@@ -114,7 +114,7 @@ bool buildArgExprFromDbgValue(
     assert(sdRes != nullptr);
 
     if (auto *constVal = llvm::dyn_cast<llvm::Constant>(llvmValue)) {
-        auto *argExpr = wrapperCall.add_args();
+        auto *argExpr = wrapperInv.add_call_args();
         llvm2col::transformAndSetConstExpr(
             functionCursor.getFunctionAnalysisManager(),
             // TODO: Put a more precise origin here!
@@ -132,7 +132,7 @@ bool buildArgExprFromDbgValue(
     } else {
         colVar = &functionCursor.getVariableMapEntry(*llvmValue, true);
     }
-    auto *argExpr = wrapperCall.add_args()->mutable_local();
+    auto *argExpr = wrapperInv.add_call_args()->mutable_local();
     argExpr->set_allocated_origin(
         llvm2col::generatePallasWrapperCallOrigin(specElem));
     argExpr->mutable_ref()->set_id(colVar->id());

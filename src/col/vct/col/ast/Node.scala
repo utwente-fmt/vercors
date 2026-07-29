@@ -4034,6 +4034,14 @@ final case class LLVMPredicateApply[G](
     args: Seq[Expr[G]],
 )(implicit val o: Origin)
     extends ApplyAnyPredicate[G] with LLVMPredicateApplyImpl[G]
+// Special node for invoking a wrapper-function that hides the case
+// of an sret-return.
+// Note: callArgs to NOT include the sret-argument!
+final case class LLVMWrapperInvocation[G](
+    ref: Ref[G, LLVMFunctionDefinition[G]],
+    callArgs: Seq[Expr[G]],
+)(val blame: Blame[InvocationFailure])(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMWrapperInvocationImpl[G]
 
 final class LLVMBasicBlock[G](
     val label: LabelDecl[G],

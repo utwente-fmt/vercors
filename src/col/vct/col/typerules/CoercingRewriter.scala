@@ -1783,6 +1783,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case inv @ LLVMFunctionInvocation(ref, args, givenMap, yields) =>
         LLVMFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
+      case inv @ LLVMWrapperInvocation(ref, callArgs) =>
+        LLVMWrapperInvocation(ref, callArgs)(inv.blame)
       case inv @ LLVMAmbiguousFunctionInvocation(
             name,
             args,

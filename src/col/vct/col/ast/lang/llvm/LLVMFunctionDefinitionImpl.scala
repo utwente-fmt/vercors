@@ -44,6 +44,9 @@ trait LLVMFunctionDefinitionImpl[G]
   val byValArgs: Seq[LLVMFunctionArgument[G]] = llvmArgs
     .filter(_.byValType.nonEmpty)
 
+  val argsWithoutSret: Seq[LLVMFunctionArgument[G]] = llvmArgs
+    .filter(a => returnInParam.isEmpty || a != llvmArgs(returnInParam.get._1))
+
   val isWrapper: Boolean =
     functionType match {
       case _: WrapperFunction[G] => true

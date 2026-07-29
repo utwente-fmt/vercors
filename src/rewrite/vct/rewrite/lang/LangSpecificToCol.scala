@@ -461,6 +461,7 @@ case class LangSpecificToCol[Pre <: Generation](
         llvm.rewriteAmbiguousFunctionInvocation(inv)
       case inv: LLVMFunctionInvocation[Pre] =>
         llvm.rewriteFunctionInvocation(inv)
+      case inv: LLVMWrapperInvocation[Pre] => llvm.rewriteWrapperInvocation(inv)
       case local: LLVMLocal[Pre] => llvm.rewriteNamedLocal(local)
       // TODO: This is not great, we will run this even if we're using a language that is not LLVM-IR
       case local: Local[Pre] => llvm.rewriteLocal(local)

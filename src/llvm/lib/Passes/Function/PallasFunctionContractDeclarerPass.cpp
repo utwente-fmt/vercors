@@ -233,9 +233,8 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     auto &clause = irContract.clauses[clauseIdx];
 
     // Build a call to the wrapper-function with the gathered arguments
-    col::LlvmFunctionInvocation *wrapperCall =
-        new col::LlvmFunctionInvocation();
-    llvm2col::buildContractWrapperCall(clause, parentFunc, *wrapperCall, fam,
+    auto *wrapperInv = new col::LlvmWrapperInvocation();
+    llvm2col::buildContractWrapperInv(clause, parentFunc, *wrapperInv, fam,
                                        isExternal);
 
     // Construct an AccountedPredicate that wraps the call to the
@@ -243,8 +242,7 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
     col::UnitAccountedPredicate *newPred = new col::UnitAccountedPredicate();
     newPred->set_allocated_origin(llvm2col::generatePallasFContractClauseOrigin(
         parentFunc, clause.getLoc(), clauseIdx + 1));
-    newPred->mutable_pred()->set_allocated_llvm_function_invocation(
-        wrapperCall);
+    newPred->mutable_pred()->set_allocated_llvm_wrapper_invocation(wrapperInv);
 
     if (clause.getType() == pallas::irspec::ContractClauseType::REQUIRES) {
         // Add to requires clauses
