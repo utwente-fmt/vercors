@@ -29,7 +29,10 @@ trait LLVMFunctionDefinitionImpl[G]
 
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
-      contract,
+      if (isWrapper) { Text("@Wrapper") }
+      else if (isGhostWrapper) { Text("@GhostWrapper") }
+      else if (isPredicate) { Text("@Predicate") }
+      else { contract },
       Group(
         (if (pure)
            Text("pure") <+> returnType

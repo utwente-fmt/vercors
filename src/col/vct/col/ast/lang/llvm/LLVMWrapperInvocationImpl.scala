@@ -1,6 +1,6 @@
 package vct.col.ast.lang.llvm
 
-import vct.col.ast.{LLVMWrapperInvocation, Type}
+import vct.col.ast.{LLVMTPointer, LLVMWrapperInvocation, Type}
 import vct.col.ast.ops.{LLVMFunctionInvocationOps, LLVMWrapperInvocationOps}
 import vct.col.print._
 
@@ -10,7 +10,7 @@ trait LLVMWrapperInvocationImpl[G] extends LLVMWrapperInvocationOps[G] {
 
   override def t: Type[G] = {
     ref.decl.sretArg match {
-      case Some(retArg) => retArg.sretType.get
+      case Some(retArg) => LLVMTPointer(retArg.sretType)
       case None => ref.decl.returnType
     }
   }
