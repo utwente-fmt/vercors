@@ -354,6 +354,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case sub: LLVMSubWithOverflow[Pre] => llvm.rewriteSubWithOverflow(sub)
       case mult: LLVMMultWithOverflow[Pre] => llvm.rewriteMultWithOverflow(mult)
       case seqNew: LLVMSeqNew[Pre] => llvm.rewriteSeqNew(seqNew)
+      case ret: LLVMReturn[Pre] => llvm.rewriteReturn(ret)
       case other => other.rewriteDefault()
     }
 

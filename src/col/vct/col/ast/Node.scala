@@ -4205,6 +4205,11 @@ final case class LLVMMultWithOverflow[G](
 )(val blame: Blame[AssignFailed])(implicit val o: Origin)
     extends LLVMArithOpWithOverflow[G] with LLVMMultWithOverflowImpl[G]
 
+final case class LLVMReturn[G](result: Expr[G])(implicit val o: Origin)
+    extends ExceptionalStatement[G]
+    with ExpressionContainerStatement[G]
+    with LLVMReturnImpl[G]
+
 final class LLVMGlobalSpecification[G](val value: String)(
     implicit val o: Origin
 ) extends GlobalDeclaration[G] with LLVMGlobalSpecificationImpl[G] {

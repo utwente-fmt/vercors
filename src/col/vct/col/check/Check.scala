@@ -366,6 +366,9 @@ case class TriggerWithoutDependentVars(node: Node[_]) extends CheckError {
 case class MustBeInPolarityDependent(node: Node[_]) extends CheckError {
   val subcode: String = "polarityDependent"
 }
+case class LLVMReturnOutsideFunction(ret: LLVMReturn[_]) extends CheckError {
+  val subcode = "llvmResultOutsideFunction"
+}
 
 case object CheckContext {
   case class ScopeFrame[G](

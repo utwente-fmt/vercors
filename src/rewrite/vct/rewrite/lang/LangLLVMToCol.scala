@@ -1768,6 +1768,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     Block(Seq(a, r))
   }
 
+  def rewriteReturn(llvmRet: LLVMReturn[Pre]): Statement[Post] = {
+    implicit val o: Origin = llvmRet.o
+      // ´Normal´ case
+      Return[Post](rw.dispatch(llvmRet.result))
+  }
+
   private def getNondetValFunc(t: Type[Post]): Function[Post] = {
     if (!nondetGetters.contains(t)) {
       val getterFunc = rw.globalDeclarations.declare(
@@ -2541,7 +2547,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             Seq(rw.dispatch(bb.body), buildPhiAssignments(bb)) ++
               eliminate(labelDeclMap(goto.lbl.decl)).statements
           )
-        case ret: Return[Pre] =>
+        case ret: LLVMReturn[Pre] =>
           Block[Post](
             Seq(rw.dispatch(bb.body), buildPhiAssignments(bb), rw.dispatch(ret))
           )
