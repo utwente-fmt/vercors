@@ -9,20 +9,6 @@ from collections import Counter
 import yaml
 
 
-ERROR_MARKERS = (
-    "parse error",
-    "syntax error",
-    "internal error",
-    "uncaught exception",
-    "exception",
-    "timeout",
-    "timed out",
-    "fatal",
-    "stack trace",
-    "segmentation fault",
-)
-
-
 def load_manifest(path):
     with open(path, "r") as f:
         data = json.load(f)
@@ -40,11 +26,10 @@ def classify_output(returncode, output, timed_out=False):
     if returncode == 0:
         return "Pass"
 
-    lowered = output.lower()
-    if any(marker in lowered for marker in ERROR_MARKERS):
-        return "Error"
+    if returncode == 1:
+        return "Fail"
 
-    return "Fail"
+    return "Error"
 
 
 def run_vercors(vercors_bin, case_path, timeout_seconds):
@@ -130,6 +115,7 @@ def build_report(
                 "source_line": case.get("source_line"),
                 "source_kind": case.get("source_kind"),
                 "intended_result": intended_result,
+                "pass_on_latest": bool(case.get("pass_on_latest", False)),
                 "actual_result": actual_result,
                 "vercors_exit_code": returncode,
                 "matched_intended": matched,
@@ -181,7 +167,7 @@ def main():
         "--manifest",
         help="Path to cases-manifest.json. Defaults to <cases-dir>/cases-manifest.json",
     )
-    parser.add_argument("--output", help="YAML report path. Defaults to stdout")
+    parser.add_argument("--output", required=True, help="YAML report path. Defaults to stdout")
     parser.add_argument(
         "--vercors-bin", default=default_vercors, help="Path to the VerCors command"
     )
@@ -190,9 +176,6 @@ def main():
     )
 
     args = parser.parse_args()
-
-    if not args.output:
-        parser.error("--output must be specified")
         
     manifest_path = args.manifest or os.path.join(args.cases_dir, "cases-manifest.json")
     manifest_cases = load_manifest(manifest_path)

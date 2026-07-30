@@ -15,6 +15,7 @@ try:
 except ModuleNotFoundError:
     pypandoc = None
 
+ALLOWED_VERDICTS = {"Pass", "Fail", "Error", "PassOnLatest"}
 
 class SnippetTestcase:
     """
@@ -43,6 +44,7 @@ class SnippetTestcase:
     def __init__(self):
         self.content = ""
         self.verdict = "Pass"
+        self.pass_on_latest = False
         self.language = None
         self.source_file = None
         self.source_line = None
@@ -52,8 +54,13 @@ class SnippetTestcase:
         self.content += content
         # Standalone snippets can include directives like "//:: verdict Fail".
         m = re.search(r"(?m)^\s*//::\s*verdict\s+(\w+)\s*$", self.content)
-        if m and m.group(1) in {"Pass", "Fail", "Error"}:
-            self.verdict = m.group(1)
+        if m and m.group(1) in ALLOWED_VERDICTS:
+            if m.group(1) == "PassOnLatest":
+                self.verdict = "Pass"
+                self.pass_on_latest = True
+            else:
+                self.verdict = m.group(1)
+                self.pass_on_latest = False
 
     def render(self):
         return self.content
@@ -102,12 +109,13 @@ class TemplateTestcase:
 """
 
     def __init__(self, case_name, template_kind, verdict):
-        if verdict and verdict not in {"Pass", "Fail", "Error"}:
+        if verdict and verdict not in ALLOWED_VERDICTS:
             raise UnknownVerdict()
 
         self.template_kind = template_kind
         self.case_name = case_name
-        self.verdict = verdict if verdict else "Pass"
+        self.pass_on_latest = verdict == "PassOnLatest"
+        self.verdict = "Pass" if self.pass_on_latest else (verdict if verdict else "Pass")
         self.content = None
         self.language = None
         self.source_file = None
@@ -432,8 +440,7 @@ def iter_blocks_with_line(blocks, inherited_line=None):
 
         if block.get("t") == "Div":
             # sourcepos can wrap elements in Div to carry data-pos, propagate this line.
-            for nested in iter_blocks_with_line(block["c"][1], line):
-                yield nested
+            yield from iter_blocks_with_line(block["c"][1], line)
             continue
 
         yield block, line
@@ -560,7 +567,7 @@ def convert_block_jinja(block, cases):
         case = cases[block['_case_label']]
         data = repr(case.render())
 
-        invocation = f'verification_editor({data}, languages, initial_language={repr(case.language)}, start_hidden=True, initial_hidden_code={initial_data})'
+        invocation = f'verification_editor({data}, languages, initial_language={case.language!r}, start_hidden=True, initial_hidden_code={initial_data})'
 
         return {
             't': 'RawBlock',
@@ -719,6 +726,7 @@ def output_cases(path, cases):
                 "file_name": os.path.basename(p),
                 "language": case.language,
                 "intended_result": case.verdict,
+                "pass_on_latest": case.pass_on_latest,
                 "source_file": case.source_file,
                 "source_line": case.source_line,
                 "source_kind": case.source_kind,
