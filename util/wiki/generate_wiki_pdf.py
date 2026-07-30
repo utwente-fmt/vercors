@@ -487,7 +487,7 @@ def collect_testcases(document, cases):
             # and we have a new section "Section 2"
             # the breadcrumbs should be [Heading, Section 2]
             breadcrumbs = breadcrumbs[:block['c'][0]]
-            breadcrumbs += ['?'] * (block['c'][0] - len(breadcrumbs))
+            breadcrumbs += ['_'] * (block['c'][0] - len(breadcrumbs))
             breadcrumbs[block['c'][0] - 1] = header_block_slug(block)
             testcase_number = 1
 
