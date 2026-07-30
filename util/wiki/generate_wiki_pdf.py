@@ -117,8 +117,15 @@ class TemplateTestcase:
 
         self.template_kind = template_kind
         self.case_name = case_name
+        if verdict == "PassOnLatest":
+            self.verdict = "Pass"
+        elif verdict == "FailOnLatest":
+            self.verdict = "Fail"
+        elif verdict:
+            self.verdict = verdict
+        else:
+            self.verdict = "Pass"
         self.on_latest = verdict in {"PassOnLatest", "FailOnLatest"}
-        self.verdict = verdict if verdict else "Pass"
         self.content = None
         self.language = None
         self.source_file = None
