@@ -1,0 +1,140 @@
+name: Wiki Case Compatibility
+
+on:
+  gollum:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: Release version to compare against (used by online VerCors)
+        required: false
+        default: "2.3.0"
+      timeout_seconds:
+        description: Timeout per case in seconds
+        required: false
+        default: "60"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  wiki-case-compat:
+    runs-on: ubuntu-24.04
+    env:
+      RELEASE_VERSION: ${{ github.event.inputs.release_version || '2.3.0' }}
+      TIMEOUT_SECONDS: ${{ github.event.inputs.timeout_seconds || '60' }}
+    steps:
+      - name: Checkout VerCors repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc xz-utils curl
+
+      - name: Install Python dependencies for wiki tooling
+        working-directory: util/wiki
+        run: |
+          python3 -m venv .venv-test
+          .venv-test/bin/pip install --upgrade pip
+          .venv-test/bin/pip install -r requirements.txt pyyaml
+
+      - name: Clone wiki and extract test cases
+        working-directory: util/wiki
+        run: |
+          git clone https://github.com/utwente-fmt/vercors.wiki.git
+          .venv-test/bin/python3 ./generate_wiki_pdf.py -i vercors.wiki -c cases
+
+      - name: Build latest dev VerCors release package
+        run: ./mill -j 0 vercors.main.release
+
+      - name: Resolve VerCors binaries (dev and release)
+        id: vercors
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$RUNNER_TEMP/vercors-dev" "$RUNNER_TEMP/vercors-release"
+
+          dev_tar="$(ls -1 out/vercors/main/unixTar.dest/*.tar.xz | head -n 1)"
+          tar -xJf "$dev_tar" -C "$RUNNER_TEMP/vercors-dev"
+
+          release_api_url="https://api.github.com/repos/${{ github.repository }}/releases/tags/v${RELEASE_VERSION}"
+          curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$release_api_url" > "$RUNNER_TEMP/release.json"
+
+          asset_url="$(python3 -c 'import json,sys; release=json.load(open(sys.argv[1], "r")); assets=release.get("assets", []); selected=next((a for a in assets if a.get("name", "").lower().endswith(".tar.xz") and (("unix" in a.get("name", "").lower()) or ("linux" in a.get("name", "").lower())) and ("mac" not in a.get("name", "").lower())), None); selected=selected or next((a for a in assets if a.get("name", "").lower().endswith(".tar.xz") and ("mac" not in a.get("name", "").lower())), None); print(selected["browser_download_url"]) if selected else (_ for _ in ()).throw(SystemExit("Could not find a suitable unix/linux .tar.xz release asset."))' "$RUNNER_TEMP/release.json")"
+
+          curl -fL "$asset_url" -o "$RUNNER_TEMP/vercors-release.tar.xz"
+          tar -xJf "$RUNNER_TEMP/vercors-release.tar.xz" -C "$RUNNER_TEMP/vercors-release"
+
+          dev_vct="$(find "$RUNNER_TEMP/vercors-dev" -type f -path '*/bin/vct' | head -n 1)"
+          release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/bin/vct' | head -n 1)"
+
+          if [[ -z "$dev_vct" || -z "$release_vct" ]]; then
+            echo "Failed to locate vct binaries after extraction." >&2
+            exit 1
+          fi
+
+          chmod +x "$dev_vct" "$release_vct"
+
+          echo "dev_vct=$dev_vct" >> "$GITHUB_OUTPUT"
+          echo "release_vct=$release_vct" >> "$GITHUB_OUTPUT"
+
+      - name: Run wiki test cases on latest dev VerCors
+        run: |
+          util/wiki/.venv-test/bin/python3 util/wiki/run_wiki_case_report.py \
+            --cases-dir util/wiki/cases \
+            --output tmp/wiki_case_report_dev.yaml \
+            --vercors-bin "${{ steps.vercors.outputs.dev_vct }}" \
+            --timeout-seconds "$TIMEOUT_SECONDS"
+
+      - name: Run wiki test cases on release VerCors
+        run: |
+          util/wiki/.venv-test/bin/python3 util/wiki/run_wiki_case_report.py \
+            --cases-dir util/wiki/cases \
+            --output tmp/wiki_case_report_release.yaml \
+            --vercors-bin "${{ steps.vercors.outputs.release_vct }}" \
+            --timeout-seconds "$TIMEOUT_SECONDS"
+
+      - name: Validate compatibility rules
+        run: |
+          util/wiki/.venv-test/bin/python3 util/wiki/validate_wiki_case_compat.py \
+            --manifest util/wiki/cases/cases-manifest.json \
+            --dev-report tmp/wiki_case_report_dev.yaml \
+            --release-report tmp/wiki_case_report_release.yaml \
+            --release-version "$RELEASE_VERSION" \
+            --summary-path tmp/wiki_case_compat_summary.md
+
+      - name: Append summary to workflow report
+        if: always()
+        run: |
+          cat tmp/wiki_case_compat_summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload wiki case reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiki-case-compat-reports
+          path: |
+            util/wiki/cases/cases-manifest.json
+            tmp/wiki_case_report_dev.yaml
+            tmp/wiki_case_report_release.yaml
+            tmp/wiki_case_compat_summary.md
