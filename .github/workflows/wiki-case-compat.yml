@@ -190,6 +190,8 @@ jobs:
             exit 1
           fi
 
+          chmod +x "$dev_vct"
+
           python3 util/wiki/run_wiki_case_report.py \
             --cases-dir util/wiki/cases \
             --output tmp/wiki_case_report_dev.yaml \
@@ -239,6 +241,8 @@ jobs:
             echo "Unable to locate release vct binary." >&2
             exit 1
           fi
+
+          chmod +x "$release_vct"
 
           python3 util/wiki/run_wiki_case_report.py \
             --cases-dir util/wiki/cases \
