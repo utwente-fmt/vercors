@@ -187,7 +187,6 @@ jobs:
             exit 1
           fi
 
-          chmod +x "$dev_vct"
           mkdir -p "$repo_root/tmp"
 
           python3 "$repo_root/util/wiki/run_wiki_case_report.py" \
@@ -264,7 +263,6 @@ jobs:
             exit 1
           fi
 
-          chmod +x "$release_vct"
           mkdir -p "$repo_root/tmp"
 
           python3 "$repo_root/util/wiki/run_wiki_case_report.py" \
