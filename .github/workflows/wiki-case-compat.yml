@@ -137,7 +137,7 @@ jobs:
           curl -fL "$asset_url" -o "$RUNNER_TEMP/vercors-release.tar.xz"
           tar -xJf "$RUNNER_TEMP/vercors-release.tar.xz" -C "$RUNNER_TEMP/vercors-release"
 
-          release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/bin/vct' | head -n 1)"
+          release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/vercors' | head -n 1)"
 
           if [[ -z "$release_vct" ]]; then
             echo "Failed to locate release vct binary after extraction." >&2
@@ -233,7 +233,7 @@ jobs:
 
       - name: Run wiki test cases on release VerCors
         run: |
-          release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/bin/vct' | head -n 1)"
+          release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/vercors' | head -n 1)"
 
           if [[ -z "$release_vct" ]]; then
             echo "Unable to locate release vct binary." >&2
