@@ -15,7 +15,7 @@ try:
 except ModuleNotFoundError:
     pypandoc = None
 
-ALLOWED_VERDICTS = {"Pass", "Fail", "Error", "PassOnLatest"}
+ALLOWED_VERDICTS = {"Pass", "Fail", "Error", "PassOnLatest", "FailOnLatest"}
 
 class SnippetTestcase:
     """
@@ -44,7 +44,7 @@ class SnippetTestcase:
     def __init__(self):
         self.content = ""
         self.verdict = "Pass"
-        self.pass_on_latest = False
+        self.on_latest = False
         self.language = None
         self.source_file = None
         self.source_line = None
@@ -57,10 +57,13 @@ class SnippetTestcase:
         if m and m.group(1) in ALLOWED_VERDICTS:
             if m.group(1) == "PassOnLatest":
                 self.verdict = "Pass"
-                self.pass_on_latest = True
+                self.on_latest = True
+            elif m.group(1) == "FailOnLatest":
+                self.verdict = "Fail"
+                self.on_latest = True
             else:
                 self.verdict = m.group(1)
-                self.pass_on_latest = False
+                self.on_latest = False
 
     def render(self):
         return self.content
@@ -114,8 +117,8 @@ class TemplateTestcase:
 
         self.template_kind = template_kind
         self.case_name = case_name
-        self.pass_on_latest = verdict == "PassOnLatest"
-        self.verdict = "Pass" if self.pass_on_latest else (verdict if verdict else "Pass")
+        self.on_latest = verdict in {"PassOnLatest", "FailOnLatest"}
+        self.verdict = verdict if verdict else "Pass"
         self.content = None
         self.language = None
         self.source_file = None
@@ -726,7 +729,7 @@ def output_cases(path, cases):
                 "file_name": os.path.basename(p),
                 "language": case.language,
                 "intended_result": case.verdict,
-                "pass_on_latest": case.pass_on_latest,
+                "on_latest": case.on_latest,
                 "source_file": case.source_file,
                 "source_line": case.source_line,
                 "source_kind": case.source_kind,

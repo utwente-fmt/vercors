@@ -62,7 +62,7 @@ def validate_cases(manifest_cases, dev_results, release_results):
     for case in manifest_cases:
         case_name = case.get("case_name")
         expected = case.get("intended_result")
-        pass_on_latest = bool(case.get("pass_on_latest", False))
+        on_latest = bool(case.get("on_latest", False))
         source = source_ref(case)
 
         dev_result = dev_results.get(case_name)
@@ -106,13 +106,13 @@ def validate_cases(manifest_cases, dev_results, release_results):
                 actual_release,
             )
 
-        if pass_on_latest:
-            if actual_release == RESULT_PASS:
+        if on_latest:
+            if actual_release == expected:
                 append_violation(
                     violations,
                     case_name,
                     source,
-                    "pass_on_latest_but_release_passed",
+                    "on_latest_but_release_matches",
                     expected,
                     actual_dev,
                     actual_release,

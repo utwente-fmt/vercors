@@ -115,7 +115,7 @@ def build_report(
                 "source_line": case.get("source_line"),
                 "source_kind": case.get("source_kind"),
                 "intended_result": intended_result,
-                "pass_on_latest": bool(case.get("pass_on_latest", False)),
+                "on_latest": bool(case.get("on_latest", False)),
                 "actual_result": actual_result,
                 "vercors_exit_code": returncode,
                 "matched_intended": matched,
