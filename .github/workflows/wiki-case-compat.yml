@@ -137,7 +137,10 @@ jobs:
           curl -fL "$asset_url" -o "$RUNNER_TEMP/vercors-release.tar.xz"
           tar -xJf "$RUNNER_TEMP/vercors-release.tar.xz" -C "$RUNNER_TEMP/vercors-release"
 
-          release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/vercors' | head -n 1)"
+          release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/bin/vct' | head -n 1)"
+          if [[ -z "$release_vct" ]]; then
+            release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/bin/vercors' | head -n 1)"
+          fi
 
           if [[ -z "$release_vct" ]]; then
             echo "Failed to locate release vct binary after extraction." >&2
@@ -236,6 +239,7 @@ jobs:
 
       - name: Run wiki test cases on release VerCors
         run: |
+          repo_root="$GITHUB_WORKSPACE"
           release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/vercors' | head -n 1)"
 
           if [[ -z "$release_vct" ]]; then
@@ -243,12 +247,16 @@ jobs:
             exit 1
           fi
 
-          chmod +x "$release_vct"
-          mkdir -p tmp
+          release_root="$(dirname "$release_vct")"
 
-          python3 util/wiki/run_wiki_case_report.py \
-            --cases-dir util/wiki/cases \
-            --output tmp/wiki_case_report_release.yaml \
+          chmod +x "$release_vct"
+          mkdir -p "$repo_root/tmp"
+
+          cd "$release_root"
+
+          python3 "$repo_root/util/wiki/run_wiki_case_report.py" \
+            --cases-dir "$repo_root/util/wiki/cases" \
+            --output "$repo_root/tmp/wiki_case_report_release.yaml" \
             --vercors-bin "$release_vct" \
             --timeout-seconds "$TIMEOUT_SECONDS"
 
