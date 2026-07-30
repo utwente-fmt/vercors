@@ -31,10 +31,10 @@ jobs:
       TIMEOUT_SECONDS: ${{ github.event.inputs.timeout_seconds || '60' }}
     steps:
       - name: Checkout VerCors repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -57,7 +57,7 @@ jobs:
           .venv-test/bin/python3 ./generate_wiki_pdf.py -i vercors.wiki -c cases
 
       - name: Upload extracted wiki cases
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wiki-cases
           path: util/wiki/cases
@@ -66,16 +66,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout VerCors repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: "17"
 
       - name: Reuse ScalaTest compilation cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: out
           key: vercors-ci-ubuntu-${{ hashFiles('build.sc') }}-${{ hashFiles('src') }}
@@ -83,34 +83,28 @@ jobs:
             vercors-ci-ubuntu-${{ hashFiles('build.sc') }}
             vercors-ci-ubuntu
 
+      - name: Reuse dev deb package cache
+        id: cache-dev-deb
+        uses: actions/cache@v6
+        with:
+          path: out/vercors/main/deb.dest
+          key: vercors-dev-deb-ubuntu-${{ hashFiles('build.sc') }}-${{ hashFiles('src') }}
+          restore-keys: |
+            vercors-dev-deb-ubuntu-${{ hashFiles('build.sc') }}
+            vercors-dev-deb-ubuntu
+
       - name: Enable Pallas compilation
         run: touch .include-pallas
 
-      - name: Build latest dev VerCors release package
-        run: ./mill -j 0 vercors.main.release
+      - name: Build latest dev VerCors deb package
+        if: steps.cache-dev-deb.outputs.cache-hit != 'true'
+        run: ./mill -j 0 vercors.main.deb
 
-      - name: Extract latest dev VerCors release package
-        run: |
-          set -euo pipefail
-
-          mkdir -p "$RUNNER_TEMP/vercors-dev"
-
-          dev_tar="$(ls -1 out/vercors/main/unixTar.dest/*.tar.xz | head -n 1)"
-          tar -xJf "$dev_tar" -C "$RUNNER_TEMP/vercors-dev"
-          dev_vct="$(find "$RUNNER_TEMP/vercors-dev" -type f -path '*/bin/vct' | head -n 1)"
-
-          if [[ -z "$dev_vct" ]]; then
-            echo "Failed to locate dev vct binary after extraction." >&2
-            exit 1
-          fi
-
-          chmod +x "$dev_vct"
-
-      - name: Upload latest dev VerCors package
-        uses: actions/upload-artifact@v4
+      - name: Upload latest dev VerCors deb package
+        uses: actions/upload-artifact@v7
         with:
-          name: vercors-dev-package
-          path: ${{ runner.temp }}/vercors-dev
+          name: vercors-dev-deb
+          path: out/vercors/main/deb.dest/*.deb
 
   resolve-release-vercors:
     runs-on: ubuntu-24.04
@@ -118,13 +112,13 @@ jobs:
       RELEASE_VERSION: ${{ github.event.inputs.release_version || '2.3.0' }}
       RELEASE_REPOSITORY: ${{ github.event.inputs.release_repository || 'utwente-fmt/vercors' }}
     steps:
-      - name: Download and extract release VerCors package
+      - name: Download release VerCors deb package
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
-          mkdir -p "$RUNNER_TEMP/vercors-release"
+          mkdir -p "$RUNNER_TEMP/vercors-release-deb"
 
           release_api_url="https://api.github.com/repos/${RELEASE_REPOSITORY}/releases/tags/v${RELEASE_VERSION}"
           curl -fsSL \
@@ -132,25 +126,15 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             "$release_api_url" > "$RUNNER_TEMP/release.json"
 
-          asset_url="$(python3 -c 'import json,sys; release=json.load(open(sys.argv[1], "r")); assets=release.get("assets", []); selected=next((a for a in assets if a.get("name", "").lower().endswith(".tar.xz") and (("unix" in a.get("name", "").lower()) or ("linux" in a.get("name", "").lower())) and ("mac" not in a.get("name", "").lower())), None); selected=selected or next((a for a in assets if a.get("name", "").lower().endswith(".tar.xz") and ("mac" not in a.get("name", "").lower())), None); print(selected["browser_download_url"]) if selected else (_ for _ in ()).throw(SystemExit("Could not find a suitable unix/linux .tar.xz release asset."))' "$RUNNER_TEMP/release.json")"
+          asset_url="$(python3 -c 'import json,sys; release=json.load(open(sys.argv[1], "r")); assets=release.get("assets", []); selected=next((a for a in assets if a.get("name", "").lower().endswith(".deb")), None); print(selected["browser_download_url"]) if selected else (_ for _ in ()).throw(SystemExit("Could not find a .deb release asset."))' "$RUNNER_TEMP/release.json")"
 
-          curl -fL "$asset_url" -o "$RUNNER_TEMP/vercors-release.tar.xz"
-          tar -xJf "$RUNNER_TEMP/vercors-release.tar.xz" -C "$RUNNER_TEMP/vercors-release"
+          curl -fL "$asset_url" -o "$RUNNER_TEMP/vercors-release-deb/release.deb"
 
-          release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/bin/vct' | head -n 1)"
-
-          if [[ -z "$release_vct" ]]; then
-            echo "Failed to locate release vct binary after extraction." >&2
-            exit 1
-          fi
-
-          chmod +x "$release_vct"
-
-      - name: Upload release VerCors package
-        uses: actions/upload-artifact@v4
+      - name: Upload release VerCors deb package
+        uses: actions/upload-artifact@v7
         with:
-          name: vercors-release-package
-          path: ${{ runner.temp }}/vercors-release
+          name: vercors-release-deb
+          path: ${{ runner.temp }}/vercors-release-deb/*.deb
 
   run-dev-cases:
     runs-on: ubuntu-24.04
@@ -159,45 +143,71 @@ jobs:
       TIMEOUT_SECONDS: ${{ github.event.inputs.timeout_seconds || '60' }}
     steps:
       - name: Checkout VerCors repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: "17"
 
       - name: Install Python dependency for YAML reports
         run: python3 -m pip install --upgrade pip pyyaml
 
       - name: Download extracted wiki cases
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wiki-cases
           path: util/wiki/cases
 
-      - name: Download latest dev VerCors package
-        uses: actions/download-artifact@v4
+      - name: Download latest dev VerCors deb package
+        uses: actions/download-artifact@v8
         with:
-          name: vercors-dev-package
-          path: ${{ runner.temp }}/vercors-dev
+          name: vercors-dev-deb
+          path: ${{ runner.temp }}/vercors-dev-deb
+
+      - name: Install latest dev VerCors deb package
+        run: |
+          set -euo pipefail
+          deb_file="$(find "$RUNNER_TEMP/vercors-dev-deb" -type f -name '*.deb' | head -n 1)"
+          if [[ -z "$deb_file" ]]; then
+            echo "Unable to locate downloaded dev .deb package." >&2
+            exit 1
+          fi
+          if ! sudo dpkg -i "$deb_file"; then
+            sudo apt-get update
+            sudo apt-get install -f -y
+            sudo dpkg -i "$deb_file"
+          fi
 
       - name: Run wiki test cases on latest dev VerCors
         run: |
-          dev_vct="$(find "$RUNNER_TEMP/vercors-dev" -type f -path '*/bin/vct' | head -n 1)"
+          repo_root="$GITHUB_WORKSPACE"
+          dev_vct="$(command -v vct || true)"
+          if [[ -z "$dev_vct" ]]; then
+            dev_vct="$(command -v vercors || true)"
+          fi
 
           if [[ -z "$dev_vct" ]]; then
             echo "Unable to locate dev vct binary." >&2
             exit 1
           fi
 
-          python3 util/wiki/run_wiki_case_report.py \
-            --cases-dir util/wiki/cases \
-            --output tmp/wiki_case_report_dev.yaml \
+          mkdir -p "$repo_root/tmp"
+
+          python3 "$repo_root/util/wiki/run_wiki_case_report.py" \
+            --cases-dir "$repo_root/util/wiki/cases" \
+            --output "$repo_root/tmp/wiki_case_report_dev.yaml" \
             --vercors-bin "$dev_vct" \
             --timeout-seconds "$TIMEOUT_SECONDS"
 
       - name: Upload dev wiki case report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wiki-case-report-dev
           path: tmp/wiki_case_report_dev.yaml
@@ -209,45 +219,71 @@ jobs:
       TIMEOUT_SECONDS: ${{ github.event.inputs.timeout_seconds || '60' }}
     steps:
       - name: Checkout VerCors repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: "17"
 
       - name: Install Python dependency for YAML reports
         run: python3 -m pip install --upgrade pip pyyaml
 
       - name: Download extracted wiki cases
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wiki-cases
           path: util/wiki/cases
 
-      - name: Download release VerCors package
-        uses: actions/download-artifact@v4
+      - name: Download release VerCors deb package
+        uses: actions/download-artifact@v8
         with:
-          name: vercors-release-package
-          path: ${{ runner.temp }}/vercors-release
+          name: vercors-release-deb
+          path: ${{ runner.temp }}/vercors-release-deb
+
+      - name: Install release VerCors deb package
+        run: |
+          set -euo pipefail
+          deb_file="$(find "$RUNNER_TEMP/vercors-release-deb" -type f -name '*.deb' | head -n 1)"
+          if [[ -z "$deb_file" ]]; then
+            echo "Unable to locate downloaded release .deb package." >&2
+            exit 1
+          fi
+          if ! sudo dpkg -i "$deb_file"; then
+            sudo apt-get update
+            sudo apt-get install -f -y
+            sudo dpkg -i "$deb_file"
+          fi
 
       - name: Run wiki test cases on release VerCors
         run: |
-          release_vct="$(find "$RUNNER_TEMP/vercors-release" -type f -path '*/bin/vct' | head -n 1)"
+          repo_root="$GITHUB_WORKSPACE"
+          release_vct="$(command -v vct || true)"
+          if [[ -z "$release_vct" ]]; then
+            release_vct="$(command -v vercors || true)"
+          fi
 
           if [[ -z "$release_vct" ]]; then
             echo "Unable to locate release vct binary." >&2
             exit 1
           fi
 
-          python3 util/wiki/run_wiki_case_report.py \
-            --cases-dir util/wiki/cases \
-            --output tmp/wiki_case_report_release.yaml \
+          mkdir -p "$repo_root/tmp"
+
+          python3 "$repo_root/util/wiki/run_wiki_case_report.py" \
+            --cases-dir "$repo_root/util/wiki/cases" \
+            --output "$repo_root/tmp/wiki_case_report_release.yaml" \
             --vercors-bin "$release_vct" \
             --timeout-seconds "$TIMEOUT_SECONDS"
 
       - name: Upload release wiki case report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wiki-case-report-release
           path: tmp/wiki_case_report_release.yaml
@@ -260,10 +296,10 @@ jobs:
       RELEASE_REPOSITORY: ${{ github.event.inputs.release_repository || 'utwente-fmt/vercors' }}
     steps:
       - name: Checkout VerCors repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -271,19 +307,19 @@ jobs:
         run: python3 -m pip install --upgrade pip pyyaml
 
       - name: Download extracted wiki cases
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wiki-cases
           path: util/wiki/cases
 
       - name: Download dev wiki case report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wiki-case-report-dev
           path: tmp
 
       - name: Download release wiki case report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wiki-case-report-release
           path: tmp
@@ -313,7 +349,7 @@ jobs:
 
       - name: Upload wiki case reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wiki-case-compat-reports
           path: |
