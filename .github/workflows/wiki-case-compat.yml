@@ -31,10 +31,10 @@ jobs:
       TIMEOUT_SECONDS: ${{ github.event.inputs.timeout_seconds || '60' }}
     steps:
       - name: Checkout VerCors repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -57,7 +57,7 @@ jobs:
           .venv-test/bin/python3 ./generate_wiki_pdf.py -i vercors.wiki -c cases
 
       - name: Upload extracted wiki cases
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wiki-cases
           path: util/wiki/cases
@@ -66,16 +66,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout VerCors repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: "17"
 
       - name: Reuse ScalaTest compilation cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: out
           key: vercors-ci-ubuntu-${{ hashFiles('build.sc') }}-${{ hashFiles('src') }}
@@ -83,14 +83,25 @@ jobs:
             vercors-ci-ubuntu-${{ hashFiles('build.sc') }}
             vercors-ci-ubuntu
 
+      - name: Reuse dev deb package cache
+        id: cache-dev-deb
+        uses: actions/cache@v6
+        with:
+          path: out/vercors/main/deb.dest
+          key: vercors-dev-deb-ubuntu-${{ hashFiles('build.sc') }}-${{ hashFiles('src') }}
+          restore-keys: |
+            vercors-dev-deb-ubuntu-${{ hashFiles('build.sc') }}
+            vercors-dev-deb-ubuntu
+
       - name: Enable Pallas compilation
         run: touch .include-pallas
 
       - name: Build latest dev VerCors deb package
+        if: steps.cache-dev-deb.outputs.cache-hit != 'true'
         run: ./mill -j 0 vercors.main.deb
 
       - name: Upload latest dev VerCors deb package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vercors-dev-deb
           path: out/vercors/main/deb.dest/*.deb
@@ -120,7 +131,7 @@ jobs:
           curl -fL "$asset_url" -o "$RUNNER_TEMP/vercors-release-deb/release.deb"
 
       - name: Upload release VerCors deb package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vercors-release-deb
           path: ${{ runner.temp }}/vercors-release-deb/*.deb
@@ -132,15 +143,15 @@ jobs:
       TIMEOUT_SECONDS: ${{ github.event.inputs.timeout_seconds || '60' }}
     steps:
       - name: Checkout VerCors repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: "17"
@@ -149,13 +160,13 @@ jobs:
         run: python3 -m pip install --upgrade pip pyyaml
 
       - name: Download extracted wiki cases
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wiki-cases
           path: util/wiki/cases
 
       - name: Download latest dev VerCors deb package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: vercors-dev-deb
           path: ${{ runner.temp }}/vercors-dev-deb
@@ -196,7 +207,7 @@ jobs:
             --timeout-seconds "$TIMEOUT_SECONDS"
 
       - name: Upload dev wiki case report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wiki-case-report-dev
           path: tmp/wiki_case_report_dev.yaml
@@ -208,15 +219,15 @@ jobs:
       TIMEOUT_SECONDS: ${{ github.event.inputs.timeout_seconds || '60' }}
     steps:
       - name: Checkout VerCors repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: zulu
           java-version: "17"
@@ -225,13 +236,13 @@ jobs:
         run: python3 -m pip install --upgrade pip pyyaml
 
       - name: Download extracted wiki cases
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wiki-cases
           path: util/wiki/cases
 
       - name: Download release VerCors deb package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: vercors-release-deb
           path: ${{ runner.temp }}/vercors-release-deb
@@ -272,7 +283,7 @@ jobs:
             --timeout-seconds "$TIMEOUT_SECONDS"
 
       - name: Upload release wiki case report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wiki-case-report-release
           path: tmp/wiki_case_report_release.yaml
@@ -285,10 +296,10 @@ jobs:
       RELEASE_REPOSITORY: ${{ github.event.inputs.release_repository || 'utwente-fmt/vercors' }}
     steps:
       - name: Checkout VerCors repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -296,19 +307,19 @@ jobs:
         run: python3 -m pip install --upgrade pip pyyaml
 
       - name: Download extracted wiki cases
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wiki-cases
           path: util/wiki/cases
 
       - name: Download dev wiki case report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wiki-case-report-dev
           path: tmp
 
       - name: Download release wiki case report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: wiki-case-report-release
           path: tmp
@@ -338,7 +349,7 @@ jobs:
 
       - name: Upload wiki case reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wiki-case-compat-reports
           path: |
