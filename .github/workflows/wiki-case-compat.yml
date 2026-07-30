@@ -191,6 +191,7 @@ jobs:
           fi
 
           chmod +x "$dev_vct"
+          mkdir -p tmp
 
           python3 util/wiki/run_wiki_case_report.py \
             --cases-dir util/wiki/cases \
@@ -243,6 +244,7 @@ jobs:
           fi
 
           chmod +x "$release_vct"
+          mkdir -p tmp
 
           python3 util/wiki/run_wiki_case_report.py \
             --cases-dir util/wiki/cases \
