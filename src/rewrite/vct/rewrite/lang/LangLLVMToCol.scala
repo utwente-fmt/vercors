@@ -954,17 +954,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               }
             }._1
           // If func returns its result in an argument, this is a reference to that argument
-          val cRetArg = func.sretArg
-            .flatMap(a => Some(rw.succ[Variable[Post]](a.v)))
           val isWrapper = func.isWrapper || func.isGhostWrapper
-          val returnT =
-            if (func.isWrapper && !wrappersInAssume.contains(func)) {
-              TResource[Post]()
-            } else {
-              rw.dispatch(func.importedReturnType.getOrElse(
-                inferredReturnType.getOrElse(func, func.returnType)
-              ))
-            }
+          val returnT = rewriteFunctionReturnT(func)
 
           // For all byval-args, create an intermediary var
           val byValIntermediaries = getByValIntermediaries(
@@ -984,26 +975,18 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                     if (assumeBody) { None }
                     else {
                       inSpecDefFunction.having(isWrapper) {
-                        func.functionBody match {
-                          case None => None
-                          case Some(functionBody) =>
-                            if (func.pure)
-                              Some(addByValIntermediaries(
-                                byValIntermediaries,
-                                GotoEliminator(functionBody match {
-                                  case scope: Scope[Pre] => scope;
-                                  case other => throw UnexpectedLLVMNode(other)
-                                }).eliminate(),
-                              ))
-                            else {
-                              Some(
-                                // Add assignments to the byval-intermediaries to the body
-                                addByValIntermediaries(
-                                  byValIntermediaries,
-                                  rw.dispatch(functionBody),
-                                )
-                              )
-                            }
+                        func.functionBody.map { functionBody =>
+                          val rewrittenBody =
+                            if (func.pure) {
+                              GotoEliminator(functionBody match {
+                                case scope: Scope[Pre] => scope;
+                                case other => throw UnexpectedLLVMNode(other)
+                              }).eliminate()
+                            } else { rw.dispatch(functionBody) }
+                          addByValIntermediaries(
+                            byValIntermediaries,
+                            rewrittenBody,
+                          )
                         }
                       }
                     },
@@ -1012,7 +995,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                       case contract: VCLLVMFunctionContract[Pre] =>
                         rw.dispatch(contract.data.get)
                       case contract: PallasFunctionContract[Pre] =>
-                        rewritePallasFunctionContract(contract, cRetArg)
+                        rewritePallasFunctionContract(
+                          contract,
+                          func.sretArg.map(a => rw.succ(a.v)),
+                        )
                     },
                   pure = func.pure,
                   pallasWrapper = isWrapper,
@@ -1040,6 +1026,18 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         else { rw.variables.declare(newArg) }
       }
     }._1
+  }
+
+  private def rewriteFunctionReturnT(
+      f: LLVMFunctionDefinition[Pre]
+  ): Type[Post] = {
+    if (f.isWrapper && !wrappersInAssume.contains(f)) { TResource[Post]() }
+    else {
+      rw.dispatch(
+        f.importedReturnType
+          .getOrElse(inferredReturnType.getOrElse(f, f.returnType))
+      )
+    }
   }
 
   def rewritePallasFunctionContract(
