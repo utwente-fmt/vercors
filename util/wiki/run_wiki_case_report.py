@@ -9,6 +9,14 @@ from collections import Counter
 import yaml
 
 
+def _to_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
+
+
 def load_manifest(path):
     with open(path, "r") as f:
         data = json.load(f)
@@ -42,11 +50,12 @@ def run_vercors(vercors_bin, case_path, timeout_seconds):
             timeout=timeout_seconds,
             check=False,
         )
-        return completed.returncode, completed.stdout or "", False
+        return completed.returncode, _to_text(completed.stdout), False
     except subprocess.TimeoutExpired as exc:
-        output = exc.stdout or ""
-        if exc.stderr:
-            output += exc.stderr
+        output = _to_text(exc.stdout)
+        stderr_text = _to_text(exc.stderr)
+        if stderr_text:
+            output += stderr_text
         output += f"\nTimed out after {timeout_seconds} seconds."
         return None, output, True
     except FileNotFoundError as exc:
@@ -117,11 +126,19 @@ def build_report(
                 "intended_result": intended_result,
                 "on_latest": bool(case.get("on_latest", False)),
                 "actual_result": actual_result,
+                "timed_out": timed_out,
                 "vercors_exit_code": returncode,
                 "matched_intended": matched,
                 "vercors_output": output.rstrip("\n"),
             }
         )
+
+        if timed_out:
+            print(
+                f"         timeout: exceeded {timeout_seconds}s",
+                file=stream,
+                flush=True,
+            )
 
         run_status = "MATCH" if matched else "MISMATCH"
         print(
