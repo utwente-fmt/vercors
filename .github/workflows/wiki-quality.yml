@@ -47,12 +47,13 @@ jobs:
           autofix_log="$RUNNER_TEMP/wiki-quality-logs/markdownlint-fix.log"
 
           set +e
-          markdownlint-cli2-fix --config .github/wiki-quality/.markdownlint.yml "wiki/**/*.md" 2>&1 | tee "$autofix_log"
+          markdownlint-cli2 --config .github/wiki-quality/.markdownlint.yml "wiki/**/*.md" --fix 2>&1 | tee "$autofix_log"
           fix_status=${PIPESTATUS[0]}
           set -e
 
           if [[ "$fix_status" -ne 0 ]]; then
-            echo "markdownlint-cli2-fix exited with status $fix_status. Continuing to report remaining issues."
+            echo "::warning title=Markdown auto-fix reported issues::markdownlint-cli2 --fix exited with status $fix_status; continuing with remaining checks."
+            echo "markdownlint-cli2 exited with status $fix_status. Continuing to report remaining issues."
           fi
 
           if git -C wiki diff --quiet; then
@@ -83,6 +84,11 @@ jobs:
           status=${PIPESTATUS[0]}
           set -e
           echo "::remove-matcher owner=wiki-markdownlint::"
+          if [[ "$status" -ne 0 ]]; then
+            echo "::warning title=Markdown lint failed::See markdownlint output and step summary log details."
+          else
+            echo "::notice title=Markdown lint passed::No remaining markdownlint issues after auto-fix."
+          fi
           exit "$status"
 
       - name: Spelling check
@@ -97,6 +103,11 @@ jobs:
           status=${PIPESTATUS[0]}
           set -e
           echo "::remove-matcher owner=wiki-cspell::"
+          if [[ "$status" -ne 0 ]]; then
+            echo "::warning title=Spelling check failed::See cspell output and step summary log details."
+          else
+            echo "::notice title=Spelling check passed::No spelling issues found by cspell."
+          fi
           exit "$status"
 
       - name: Grammar/style check
@@ -114,6 +125,11 @@ jobs:
           status=${PIPESTATUS[0]}
           set -e
           echo "::remove-matcher owner=wiki-proselint::"
+          if [[ "$status" -ne 0 ]]; then
+            echo "::warning title=Grammar/style check failed::See proselint output and step summary log details."
+          else
+            echo "::notice title=Grammar/style check passed::No grammar/style issues found by proselint."
+          fi
           exit "$status"
 
       - name: Build result summary
