@@ -16,6 +16,20 @@ on:
         description: Timeout per case in seconds
         required: false
         default: "60"
+  push:
+    branches:
+      - 'dev'
+    paths:
+      - .github/workflows/wiki-case-compat.yml
+      - util/wiki/**
+      - src/**
+  pull_request:
+    branches:
+      - '**'
+    paths:
+      - .github/workflows/wiki-case-compat.yml
+      - util/wiki/**
+      - src/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
