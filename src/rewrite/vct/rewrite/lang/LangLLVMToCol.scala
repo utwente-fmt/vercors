@@ -933,17 +933,24 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       byvalGhostArgs.having(bvGhostArgs) {
         allocaVars.having(mutable.Set[Variable[Pre]]()) {
           val bvArgs = func.byValArgs.map(_.v).toSet
-          val newArgs = func.importedArguments.getOrElse(func.args).map { it =>
+
+          // If imported arguments are provided, the types of the new args
+          // are taken from there.
+          val oldArgs = func.importedArguments.getOrElse(func.args)
+          val newArgs = oldArgs.map { it =>
             new Variable(rw.dispatch(getArgType(it, bvArgs.contains(it))))(it.o)
           }
           val bvArgMap = SuccessionMap[Variable[Pre], Variable[Post]]()
           val argList =
             rw.variables.collect {
-              func.llvmArgs.zip(newArgs).foreach { case (a, b) =>
+              func.llvmArgs.zip(newArgs).foreach { case (oldArg, newArg) =>
                 // For the byval-arguments we do not register the successor.
                 // Later, an intermediary variable is introduced that will be used as the successor.
-                if (!a.isByVal) { rw.variables.succeed(a.v, b) }
-                else { rw.variables.declare(b) }
+                if (!oldArg.isByVal) { rw.variables.succeed(oldArg.v, newArg) }
+                else {
+                  rw.variables.declare(newArg)
+                  bvArgMap.update(oldArg.v, newArg)
+                }
               }
             }._1
           // If func returns its result in an argument, this is a reference to that argument
@@ -960,19 +967,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             }
 
           // For all byval-args, create an intermediary var
-          val byValIntermediaries =
-            rw.variables.collect {
-              func.llvmArgs.zip(newArgs).filter(_._1.byValType.nonEmpty)
-                .map { case (oldArg, newArg) =>
-                  val iVar =
-                    new Variable(
-                      TPointer(rw.dispatch(oldArg.byValType.get), None)
-                    )(oldArg.o)
-                  rw.variables.succeedOnly(oldArg.v, iVar)
-                  bvArgMap.update(oldArg.v, newArg)
-                  (iVar, newArg)
-                }
-            }._2
+          val byValIntermediaries = getByValIntermediaries(
+            func.llvmArgs,
+            newArgs,
+          )
 
           funcRetType.having(returnT) {
             byValArgs.having(bvArgMap) {
@@ -1121,29 +1119,20 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     // in a separate pass
     val newPred = rw.labelDecls.scope {
       byvalGhostArgs.having(Set.empty) {
-        val argList = rewriteArgList(pred.llvmArgs)
-
-        // generate intermediary variables for the byval args
+        val newArgs = rewriteArgList(pred.llvmArgs)
         val bvArgMap = SuccessionMap[Variable[Pre], Variable[Post]]
-        val bvIntermediaries =
-          rw.variables.collect {
-            pred.llvmArgs.zip(argList).filter(_._1.isByVal)
-              .map { case (oldArg, newArg) =>
-                val iVar =
-                  new Variable(
-                    TPointer(rw.dispatch(oldArg.byValType.get), None)
-                  )(oldArg.o)
-                rw.variables.succeedOnly(oldArg.v, iVar)
-                bvArgMap.update(oldArg.v, newArg)
-                (iVar, newArg)
-              }
-          }._2
+        pred.llvmArgs.zip(newArgs).filter(_._1.isByVal).foreach {
+          case (oldArg, newArg) => bvArgMap.update(oldArg.v, newArg)
+        }
+
+        // Generate intermediary variables for the byval args
+        val bvIntermediaries = getByValIntermediaries(pred.llvmArgs, newArgs)
 
         // TODO: Check if we need to set funcRetType
         byValArgs.having(bvArgMap) {
           rw.globalDeclarations.declare {
             new LLVMPredicateDefinition[Post](
-              args = argList,
+              args = newArgs,
               body =
                 inSpecDefFunction.having(true) {
                   allocaVars.having(mutable.Set[Variable[Pre]]()) {
@@ -1168,6 +1157,22 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
 
     llvmPredicateMap.update(pred, newPred)
+  }
+
+  private def getByValIntermediaries(
+      oldArgs: Seq[LLVMFunctionArgument[Pre]],
+      newArgs: Seq[Variable[Post]],
+  ): Seq[(Variable[Post], Variable[Post])] = {
+    rw.variables.collect {
+      oldArgs.zip(newArgs).filter(_._1.isByVal).map { case (oldArg, newArg) =>
+        val iVar =
+          new Variable(TPointer(rw.dispatch(oldArg.byValType.get), None))(
+            oldArg.o
+          )
+        rw.variables.succeedOnly(oldArg.v, iVar)
+        (iVar, newArg)
+      }
+    }._2
   }
 
   private def addCast(arg: Expr[Pre], v: Variable[Pre])(
