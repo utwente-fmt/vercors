@@ -2451,6 +2451,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case memcpy: LLVMMemcpy[Pre] => memcpy
       case seqNew: LLVMSeqNew[Pre] => seqNew
       case llvmRet: LLVMReturn[Pre] => llvmRet
+      case llvmGAssign: LLVMGhostAssign[Pre] => llvmGAssign
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)

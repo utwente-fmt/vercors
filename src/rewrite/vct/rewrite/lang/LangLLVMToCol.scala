@@ -1893,6 +1893,25 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
+  def rewriteGhostAssign(gAssign: LLVMGhostAssign[Pre]): Statement[Post] = {
+    implicit val o: Origin = gAssign.o
+    gAssign.value match {
+      case inv: LLVMWrapperInvocation[Pre] if inv.ref.decl.sretArg.nonEmpty =>
+        // Wrapper with sret --> Handle the changed return-type
+        Assign(
+          DerefPointer(rw.dispatch(gAssign.target))(PanicBlame(
+            "Generated deref may not fail."
+          )),
+          rw.dispatch(gAssign.value),
+        )(gAssign.blame)
+      case _ =>
+        // Regular case
+        Assign(rw.dispatch(gAssign.target), rw.dispatch(gAssign.value))(
+          gAssign.blame
+        )
+    }
+  }
+
   private def getNondetValFunc(t: Type[Post]): Function[Post] = {
     if (!nondetGetters.contains(t)) {
       val getterFunc = rw.globalDeclarations.declare(

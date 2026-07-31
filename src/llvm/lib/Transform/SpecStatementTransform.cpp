@@ -151,7 +151,7 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
         }
         // Build assignment
         col::Block &body = pallas::bodyAsBlock(colBlock);
-        auto *assign = body.add_statements()->mutable_assign();
+        auto *assign = body.add_statements()->mutable_llvm_ghost_assign();
         assign->set_allocated_blame(new col::Blame());
         assign->set_allocated_origin(llvm2col::generatePallasSpecOrigin(
             stmnt.getLoc(), "Assignment to" + targetDef->name));
