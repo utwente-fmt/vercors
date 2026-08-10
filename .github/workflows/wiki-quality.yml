@@ -47,7 +47,7 @@ jobs:
           autofix_log="$RUNNER_TEMP/wiki-quality-logs/markdownlint-fix.log"
 
           set +e
-          markdownlint-cli2 --config .github/wiki-quality/.markdownlint.yml "wiki/**/*.md" --fix 2>&1 | tee "$autofix_log"
+          markdownlint-cli2 --config .github/wiki-quality/.markdownlint-cli2.cjs "wiki/**/*.md" --fix 2>&1 | tee "$autofix_log"
           fix_status=${PIPESTATUS[0]}
           set -e
 
@@ -80,7 +80,7 @@ jobs:
           markdown_log="$RUNNER_TEMP/wiki-quality-logs/markdownlint.log"
           echo "::add-matcher::.github/wiki-quality/markdownlint-matcher.json"
           set +e
-          markdownlint-cli2 --config .github/wiki-quality/.markdownlint.yml "wiki/**/*.md" 2>&1 | tee "$markdown_log"
+          markdownlint-cli2 --config .github/wiki-quality/.markdownlint-cli2.cjs "wiki/**/*.md" 2>&1 | tee "$markdown_log"
           status=${PIPESTATUS[0]}
           set -e
           echo "::remove-matcher owner=wiki-markdownlint::"
@@ -160,7 +160,7 @@ jobs:
             echo ""
             echo "Tip: you can often auto-fix markdown issues locally with markdownlint-cli2-fix."
             echo "Install: npm install --global markdownlint-cli2"
-            echo "Run: markdownlint-cli2-fix --config .github/wiki-quality/.markdownlint.yml \"**/*.md\""
+            echo "Run: markdownlint-cli2-fix --config .github/wiki-quality/.markdownlint-cli2.cjs \"**/*.md\""
             echo ""
             echo "If a markdown check must be disabled for the next line, prepend: <!-- markdownlint-disable-next-line MDXXX -->"
             echo "If a grammar check must be disabled for a line, add: <!-- proselint-ignore --> on the line before it."
