@@ -3,35 +3,34 @@
 "use strict";
 
 /** @type {import("markdownlint").Rule} */
-const no_h1 = {
-  "names": [ "no-h1" ],
-  "description": "This wiki should not use level-1 headings, as they are used for the page title.",
+const first_heading_h2 = {
+  "names": [ "first-heading-h2" ],
+  "description": "The first heading in a file of the VerCors wiki should be an h2 heading.",
   "tags": [ "test", "headings" ],
   "parser": "markdownit",
   "function": function rule(params, onError) {
-  const headingOpenTokens = params.parsers.markdownit.tokens.filter(
-    (token) => token.type === "heading_open" && token.tag === "h1"
-  );
+    const headingOpenTokens = params.parsers.markdownit.tokens.filter(
+      (token) => token.type === "heading_open"
+    );
 
-  for (const token of headingOpenTokens) {
-    onError({
-      "lineNumber": token.lineNumber,
-      "detail": "Level-1 headings are not allowed.",
-      "context": token.line
-    });
-  }
+    const firstHeading = headingOpenTokens[0];
+    if (firstHeading && firstHeading.tag !== "h2") {
+      onError({
+        "lineNumber": firstHeading.lineNumber,
+        "context": firstHeading.line
+      });
+    }
   }
 };
 
-
 module.exports = {
   "customRules": [
-    no_h1
+    first_heading_h2
   ],
 
   "config": {
     "line_length": false,
-    // Some pages intentionally start with non-H1 headings.
+    // We do not want H1 headings
     "first-line-h1": false,
     // Inline HTML is used for images
     "no-inline-html": {
