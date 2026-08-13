@@ -22,6 +22,7 @@ class VerifyThisSpec extends VercorsSpec {
   vercors should verify using silicon example "verifythis/2021/TeamBlue/Challenge1.pvl"
   vercors should verify using silicon flags ("--backend-option", "--alternativeFunctionVerificationOrder") example "verifythis/2021/TeamBlue/Challenge2.pvl"
   vercors should verify using silicon example "verifythis/2021/TeamBlue/Challenge3.pvl"
+  vercors should verify using silicon example "verifythis/2024/challenge0.pvl"
   vercors should verify using silicon example "verifythis/2024/challenge1.pvl"
   vercors should verify using silicon example "verifythis/2024/challenge2.pvl"
   vercors should verify using silicon example "verifythis/2025/Challenge1-v0-arr.pvl"
