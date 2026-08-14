@@ -226,6 +226,7 @@ case class LangSpecificToCol[Pre <: Generation](
     llvm.gatherTypeHints(program)
     llvm.gatherPallasTypeSubst(program)
     llvm.gatherHeapVariables(program)
+    llvm.gatherByValArgs(program)
     super.dispatch(program)
   }
 
