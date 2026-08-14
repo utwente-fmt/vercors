@@ -3,8 +3,7 @@ package vct.rewrite.lang
 import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast.expr.op.BinOperatorTypes
-import vct.col.ast.serialize.LlvmStructDeclaration
-import vct.col.ast.{Expr, _}
+import vct.col.ast.{Expr, LLVMFunctionArgument, _}
 import vct.col.origin._
 import vct.col.ref.{DirectRef, LazyRef, Ref}
 import vct.col.resolve.ctx.RefLLVMFunctionDefinition
@@ -25,6 +24,15 @@ case object LangLLVMToCol {
       context[CurrentProgramContext].map(_.highlight(node)).getOrElse(node.o)
         .messageInContext(
           "VerCors assumes this node does not occur here in llvm input."
+        )
+  }
+
+  private final case class UnexpectedByValArg(node: Node[_])
+      extends SystemError {
+    override def text: String =
+      context[CurrentProgramContext].map(_.highlight(node)).getOrElse(node.o)
+        .messageInContext(
+          "VerCors assumes that byval-arguments do not occur here in llvm input."
         )
   }
 
@@ -205,21 +213,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private val wrappersInAssume: mutable.Set[LLVMFunctionDefinition[Pre]] =
     mutable.Set()
 
-  /** Used to rewrite the byval-attributes of LLVM functions. Byval-arguments
-    * are rewritten into non-pointer types. In the body of the function an
-    * intermediary variable is inserted that is assigned the address of the
-    * argument. This intermediary is marked as the successor of the argument, so
-    * that references in the body point to the intermediary variable. However,
-    * this does not work for contracts because the intermediary is not in scope.
-    * We therefore manually add an addrOf to uses of the variable in the
-    * contract. This relies on the assumption that the contract only consists of
-    * calls to wrapper functions where the variable is passed as a Local.
-    */
-  // old_arg --> new_arg
-  private val byValArgs
-      : ScopedStack[SuccessionMap[Variable[Pre], Variable[Post]]] =
-    ScopedStack()
-
   // Keeps track if rewrite is currently in a contract
   private val inContract: ScopedStack[Boolean] = ScopedStack()
 
@@ -231,10 +224,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   // a sret-argument, this stack points to that sret-argument.
   private val currentWrapperSret
       : ScopedStack[Option[LLVMFunctionArgument[Pre]]] = ScopedStack()
-
-  // Tracks if the current function has ghost-arguments that have the
-  // byval-attribute.
-  private val byvalGhostArgs: ScopedStack[Set[Variable[Pre]]] = ScopedStack()
 
   // Local variables that were allocated using alloca in the current function.
   private val allocaVars: ScopedStack[mutable.Set[Variable[Pre]]] =
@@ -264,6 +253,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private val funcRetType: ScopedStack[Type[Post]] = ScopedStack()
 
   private var heapVariables: Seq[Variable[Pre]] = Seq()
+
+  /** Used to rewrite the byval-attributes of LLVM functions. Byval-arguments
+    * are rewritten into non-pointer types.
+    */
+  private var byvalArgs: Set[Variable[Pre]] = Set()
 
   private val heapVariableSucc
       : SuccessionMap[Variable[Pre], LocalHeapVariable[Post]] = SuccessionMap()
@@ -334,6 +328,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     program.collect { case loop: LLVMLoop[Pre] =>
       elidedBackEdges.add(loop.header.decl)
     }
+  }
+
+  def gatherByValArgs(p: Program[Pre]): Unit = {
+    byvalArgs =
+      p.collect { case a: LLVMFunctionArgument[Pre] if a.isByVal => a.v }.toSet
   }
 
   def gatherTypeHints(program: Program[Pre]): Unit = {
@@ -843,16 +842,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       heapVariables.contains(v)
     ) { HeapLocal(heapVariableSucc.ref(v)) }
     else {
-      if (inContract.nonEmpty && inContract.top && byValArgs.top.contains(v)) {
-        // Case where we are in a contract and v is a byval-argument
-        // In this case we cannot access the generated intermediary-var,
-        // so an AddrOf is added manually
-        AddrOf(Local(byValArgs.top.ref(v)))
-      } else if (byvalGhostArgs.nonEmpty && byvalGhostArgs.top.contains(v)) {
-        // Case where v is a ghost-arg with the byval-attribute
-        // In this case, we also do not have an intermediary-var to use
-        AddrOf(Local(rw.succ(v)))
-      } else { Local(rw.succ(v)) }
+      if (byvalArgs.contains(v)) { AddrOf(Local(rw.succ(v))) }
+      else { Local(rw.succ(v)) }
     }
   }
 
@@ -865,12 +856,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       heapVariables.contains(v)
     ) { HeapLocal(heapVariableSucc.ref(v)) }
     else {
-      if (inContract.nonEmpty && inContract.top && byValArgs.top.contains(v)) {
-        // Case where we are in a contract and v is a byval-argument
-        AddrOf(Local(byValArgs.top.ref(v)))
-      } else if (byvalGhostArgs.nonEmpty && byvalGhostArgs.top.contains(v)) {
-        AddrOf(Local(rw.succ(v)))
-      } else { Local(rw.succ(v)) }
+      if (byvalArgs.contains(v)) { AddrOf(Local(rw.succ(v))) }
+      else { Local(rw.succ(v)) }
     }
   }
 
@@ -893,29 +880,14 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
-  private def getArgType(v: Variable[Pre], isByVal: Boolean): Type[Pre] = {
+  private def getArgType(v: Variable[Pre]): Type[Pre] = {
     // Apply regular type inference
     val inferredT = localVariableInferredType.getOrElse(v, v.t)
     // If the argument has the byval attribute, remove ptr from its type
-    if (isByVal)
+    if (byvalArgs.contains(v))
       inferredT.asPointer.get.element
     else
       inferredT
-  }
-
-  private def addByValIntermediaries(
-      intermediaries: Seq[(Variable[Post], Variable[Post])],
-      body: Statement[Post],
-  ): Scope[Post] = {
-    Scope[Post](
-      intermediaries.map(_._1),
-      Block(intermediaries.map { case (iVar, arg) =>
-        Assign(
-          Local[Post](iVar.ref)(arg.o),
-          AddrOf[Post](Local[Post](arg.ref)(arg.o))(arg.o),
-        )(PanicBlame("Generated byval-assign should not fail."))(arg.o)
-      } :+ body)(body.o),
-    )(body.o)
   }
 
   def rewriteFunctionDef(func: LLVMFunctionDefinition[Pre]): Unit = {
@@ -940,103 +912,74 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       logger.warn(s"Assuming contract-compliance for function $fName")
     }
 
-    val bvGhostArgs =
-      func.contract match {
-        case c: PallasFunctionContract[Pre] =>
-          (c.llvmYieldsArgs ++ c.llvmGivenArgs).filter(_.isByVal).map(_.v).toSet
-        case _ => Set.empty[Variable[Pre]]
-      }
-
     val wrapperSretArg =
       if (sretGhostWrapper) { func.sretArg }
       else { None }
     val procedure = rw.labelDecls.scope {
-      byvalGhostArgs.having(bvGhostArgs) {
-        allocaVars.having(mutable.Set[Variable[Pre]]()) {
-          currentWrapperSret.having(wrapperSretArg) {
-            val bvArgs = func.byValArgs.map(_.v).toSet
+      allocaVars.having(mutable.Set[Variable[Pre]]()) {
+        currentWrapperSret.having(wrapperSretArg) {
 
-            // For ghost-wrappers, we skip the sret-arg
-            val llvmArgs =
-              if (func.isGhostWrapper) { func.argsWithoutSret }
-              else { func.llvmArgs }
-            // If imported arguments are provided, the types of the new args
-            // are taken from there.
-            val oldArgs = func.importedArguments.getOrElse(llvmArgs.map(_.v))
-            val newArgs = oldArgs.map { it =>
-              new Variable(rw.dispatch(getArgType(it, bvArgs.contains(it))))(
-                it.o
-              )
-            }
-            val bvArgMap = SuccessionMap[Variable[Pre], Variable[Post]]()
-            val argList =
-              rw.variables.collect {
-                llvmArgs.zip(newArgs).foreach { case (oldArg, newArg) =>
-                  // For the byval-arguments we do not register the successor.
-                  // Later, an intermediary variable is introduced that will be used as the successor.
-                  if (!oldArg.isByVal) {
-                    rw.variables.succeed(oldArg.v, newArg)
-                  } else {
-                    rw.variables.declare(newArg)
-                    bvArgMap.update(oldArg.v, newArg)
-                  }
-                }
-              }._1
-            // If func returns its result in an argument, this is a reference to that argument
-            val isWrapper = func.isWrapper || func.isGhostWrapper
-            val returnT = rewriteFunctionReturnT(func)
-
-            // For all byval-args, create an intermediary var
-            val byValIntermediaries = getByValIntermediaries(llvmArgs, newArgs)
-
-            funcRetType.having(returnT) {
-              byValArgs.having(bvArgMap) {
-                rw.globalDeclarations.declare(
-                  new Procedure[Post](
-                    returnType = returnT,
-                    args = argList,
-                    outArgs = Nil,
-                    typeArgs = Nil,
-                    body =
-                      if (assumeBody) { None }
-                      else {
-                        inSpecDefFunction.having(isWrapper) {
-                          func.functionBody.map { functionBody =>
-                            val rewrittenBody =
-                              if (func.pure) {
-                                GotoEliminator(functionBody match {
-                                  case scope: Scope[Pre] => scope;
-                                  case other => throw UnexpectedLLVMNode(other)
-                                }).eliminate()
-                              } else { rw.dispatch(functionBody) }
-                            addWrapperSretScope(addByValIntermediaries(
-                              byValIntermediaries,
-                              rewrittenBody,
-                            ))
-                          }
-                        }
-                      },
-                    contract =
-                      func.contract match {
-                        case contract: VCLLVMFunctionContract[Pre] =>
-                          rw.dispatch(contract.data.get)
-                        case contract: PallasFunctionContract[Pre] =>
-                          rewritePallasFunctionContract(
-                            contract,
-                            func.sretArg.map(a => rw.succ(a.v)),
-                          )
-                      },
-                    pure = func.pure,
-                    pallasWrapper = isWrapper,
-                    pallasFunction = true,
-                  )(func.blame)
-                )
+          // For ghost-wrappers, we skip the sret-arg
+          val llvmArgs =
+            if (func.isGhostWrapper) { func.argsWithoutSret }
+            else { func.llvmArgs }
+          // If imported arguments are provided, the types of the new args
+          // are taken from there.
+          val oldArgs = func.importedArguments.getOrElse(llvmArgs.map(_.v))
+          val newArgs = oldArgs.map { it =>
+            new Variable(rw.dispatch(getArgType(it)))(it.o)
+          }
+          val argList =
+            rw.variables.collect {
+              llvmArgs.zip(newArgs).foreach { case (oldArg, newArg) =>
+                rw.variables.succeed(oldArg.v, newArg)
               }
-            }
+            }._1
+          // If func returns its result in an argument, this is a reference to that argument
+          val isWrapper = func.isWrapper || func.isGhostWrapper
+          val returnT = rewriteFunctionReturnT(func)
+
+          funcRetType.having(returnT) {
+            rw.globalDeclarations.declare(
+              new Procedure[Post](
+                returnType = returnT,
+                args = argList,
+                outArgs = Nil,
+                typeArgs = Nil,
+                body =
+                  if (assumeBody) { None }
+                  else {
+                    inSpecDefFunction.having(isWrapper) {
+                      func.functionBody.map { functionBody =>
+                        val rewrittenBody =
+                          if (func.pure) {
+                            GotoEliminator(functionBody match {
+                              case scope: Scope[Pre] => scope;
+                              case other => throw UnexpectedLLVMNode(other)
+                            }).eliminate()
+                          } else { rw.dispatch(functionBody) }
+                        addWrapperSretScope(rewrittenBody)
+                      }
+                    }
+                  },
+                contract =
+                  func.contract match {
+                    case contract: VCLLVMFunctionContract[Pre] =>
+                      rw.dispatch(contract.data.get)
+                    case contract: PallasFunctionContract[Pre] =>
+                      rewritePallasFunctionContract(
+                        contract,
+                        func.sretArg.map(a => rw.succ(a.v)),
+                      )
+                  },
+                pure = func.pure,
+                pallasWrapper = isWrapper,
+                pallasFunction = true,
+              )(func.blame)
+            )
           }
         }
       }
-      // }
     }
     llvmFunctionMap.update(func, procedure)
   }
@@ -1095,13 +1038,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private def rewriteArgList(
       args: Seq[LLVMFunctionArgument[Pre]]
   ): Seq[Variable[Post]] = {
-    // For byval-args that are regular (i.e. no ghost arguments), intermediaries will be inserted that serve as
-    // the new successor. So we do not register the successor for these here.
     rw.variables.collect {
       args.foreach { a =>
-        val newArg = new Variable(rw.dispatch(getArgType(a.v, a.isByVal)))(a.o)
-        if (!a.isByVal) { rw.variables.succeed(a.v, newArg) }
-        else { rw.variables.declare(newArg) }
+        val newArg = new Variable(rw.dispatch(getArgType(a.v)))(a.o)
+        rw.variables.succeed(a.v, newArg)
       }
     }._1
   }
@@ -1129,14 +1069,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
       val givenArgs = rewriteArgList(c.llvmGivenArgs)
       val yieldsArgs = rewriteArgList(c.llvmYieldsArgs)
-
-      // Update map to ensure that references to byval-args are correctly rewritten
-      // Assumes that byValArgs was populated by the LLVMFunctionDefinition rewrite
-      (c.llvmGivenArgs.zip(givenArgs) ++ c.llvmYieldsArgs.zip(yieldsArgs))
-        .filter(_._1.isByVal).foreach { case (vOld, vNew) =>
-          byValArgs.top.update(vOld.v, vNew)
-          rw.variables.succeedOnly(vOld.v, vNew)
-        }
 
       /* If the function returns in an argument, extend the contract with
        * context_everywhere retArg != NULL ** Perm(retArg, write)
@@ -1197,63 +1129,32 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     // LLVMPredicateDefinitions. These are turned into a ´real´ predicate
     // in a separate pass
     val newPred = rw.labelDecls.scope {
-      byvalGhostArgs.having(Set.empty) {
-        currentWrapperSret.having(None) {
-          val newArgs = rewriteArgList(pred.llvmArgs)
-          val bvArgMap = SuccessionMap[Variable[Pre], Variable[Post]]
-          pred.llvmArgs.zip(newArgs).filter(_._1.isByVal).foreach {
-            case (oldArg, newArg) => bvArgMap.update(oldArg.v, newArg)
-          }
+      currentWrapperSret.having(None) {
+        val newArgs = rewriteArgList(pred.llvmArgs)
 
-          // Generate intermediary variables for the byval args
-          val bvIntermediaries = getByValIntermediaries(pred.llvmArgs, newArgs)
-
-          // TODO: Check if we need to set funcRetType
-          byValArgs.having(bvArgMap) {
-            rw.globalDeclarations.declare {
-              new LLVMPredicateDefinition[Post](
-                args = newArgs,
-                body =
-                  inSpecDefFunction.having(true) {
-                    allocaVars.having(mutable.Set[Variable[Pre]]()) {
-                      pred.body match {
-                        case None => None
-                        case Some(fBody) =>
-                          Some(addByValIntermediaries(
-                            bvIntermediaries,
-                            GotoEliminator(fBody match {
-                              case scope: Scope[Pre] => scope;
-                              case other => throw UnexpectedLLVMNode(other)
-                            }).eliminate(),
-                          ))
-                      }
-                    }
-                  },
-                inline = isInlinePred,
-              )
-            }
-          }
+        rw.globalDeclarations.declare {
+          new LLVMPredicateDefinition[Post](
+            args = newArgs,
+            body =
+              inSpecDefFunction.having(true) {
+                allocaVars.having(mutable.Set[Variable[Pre]]()) {
+                  pred.body match {
+                    case None => None
+                    case Some(fBody) =>
+                      Some(GotoEliminator(fBody match {
+                        case scope: Scope[Pre] => scope;
+                        case other => throw UnexpectedLLVMNode(other)
+                      }).eliminate())
+                  }
+                }
+              },
+            inline = isInlinePred,
+          )
         }
       }
     }
 
     llvmPredicateMap.update(pred, newPred)
-  }
-
-  private def getByValIntermediaries(
-      oldArgs: Seq[LLVMFunctionArgument[Pre]],
-      newArgs: Seq[Variable[Post]],
-  ): Seq[(Variable[Post], Variable[Post])] = {
-    rw.variables.collect {
-      oldArgs.zip(newArgs).filter(_._1.isByVal).map { case (oldArg, newArg) =>
-        val iVar =
-          new Variable(TPointer(rw.dispatch(oldArg.byValType.get), None))(
-            oldArg.o
-          )
-        rw.variables.succeedOnly(oldArg.v, iVar)
-        (iVar, newArg)
-      }
-    }._2
   }
 
   private def addCast(arg: Expr[Pre], v: Variable[Pre])(
@@ -1307,44 +1208,27 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   ): Expr[Post] = {
     implicit val o: Origin = inv.o
 
-    val `given` = inv.givenMap.map { case (Ref(v), e) =>
-      (rw.succ[Variable[Post]](v), addCast(e, v))
-    }
-    val yields = inv.yields.map { case (e, Ref(v)) =>
-      (addCast(e, v), rw.succ[Variable[Post]](v))
-    }
-
     inv.ref.get.decl match {
       case func: LLVMFunctionDefinition[Pre] =>
-        val newArgs = inv.args.zip(func.llvmArgs).map { case (e, arg) =>
-          val c = addCast(e, arg.v)
-          if (arg.byValType.nonEmpty)
-            DerefPointer(c)(InvocationBlameAdapter(inv.blame))(arg.o)
-          else
-            c
-        }
-        if (!func.isPredicate)
-          new ProcedureInvocation[Post](
-            ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(func)),
-            args = newArgs,
-            givenMap = `given`,
-            yields = yields,
-            outArgs = Seq.empty,
-            typeArgs = Seq.empty,
-          )(inv.blame)
-        else
-          PredicateApplyExpr[Post](new LLVMPredicateApply[Post](
-            ref =
-              new LazyRef[Post, LLVMPredicateDefinition[Post]](llvmPredicateMap(
-                func
-              )),
-            args = newArgs,
-          ))
+        rewriteLLVMFunctionInvocation(
+          func,
+          inv.args,
+          inv.givenMap,
+          inv.yields,
+          inv.blame,
+        )
       case func: LLVMSpecFunction[Pre] =>
+        val `given` = inv.givenMap.map { case (Ref(v), e) =>
+          (rw.succ[Variable[Post]](v), addCast(e, v))
+        }
+        val yields = inv.yields.map { case (e, Ref(v)) =>
+          (addCast(e, v), rw.succ[Variable[Post]](v))
+        }
+
         new FunctionInvocation[Post](
           ref = new LazyRef[Post, Function[Post]](specFunctionMap(func)),
           args = inv.args.zip(func.args).map(p => addCast(p._1, p._2)),
-          givenMap = given,
+          givenMap = `given`,
           yields = yields,
           typeArgs = Seq.empty,
         )(inv.blame)
@@ -1356,12 +1240,29 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       inv: LLVMFunctionInvocation[Pre]
   ): Expr[Post] = {
     implicit val o: Origin = inv.o
-    val fDecl = inv.ref.decl
+    rewriteLLVMFunctionInvocation(
+      inv.ref.decl,
+      inv.args,
+      inv.givenMap,
+      inv.yields,
+      inv.blame,
+    )
+  }
 
-    val newArgs = inv.args.zip(fDecl.llvmArgs).map { case (e, arg) =>
+  // Used to de-duplicate rewriteFunctionInvocation and
+  // rewriteAmbiguousFunctionInvcoation
+  private def rewriteLLVMFunctionInvocation(
+      fDecl: LLVMFunctionDefinition[Pre],
+      args: Seq[Expr[Pre]],
+      givenMap: Seq[(Ref[Pre, Variable[Pre]], Expr[Pre])],
+      yields: Seq[(Expr[Pre], Ref[Pre, Variable[Pre]])],
+      blame: Blame[InvocationFailure],
+  )(implicit o: Origin): Expr[Post] = {
+
+    val newArgs = args.zip(fDecl.llvmArgs).map { case (e, arg) =>
       val c = addCast(e, arg.v)
-      if (arg.byValType.nonEmpty)
-        DerefPointer(c)(InvocationBlameAdapter(inv.blame))(arg.o)
+      if (arg.isByVal)
+        DerefPointer(c)(InvocationBlameAdapter(blame))(arg.o)
       else
         c
     }
@@ -1372,27 +1273,19 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       // However, byval-given-args will only ever be assigned the result
       // of a Wrapper-Function with a sret-arg which in turn would require
       // adding an AddrOf. These cancel out, so we skip this case.
-      val newGiven = inv.givenMap.map { case (Ref(v), e) =>
+      val newGiven = givenMap.map { case (Ref(v), e) =>
         (rw.succ[Variable[Post]](v), addCast(e, v))
       }
 
-      val newYields =
-        fDecl.contract match {
-          case c: PallasFunctionContract[Pre] =>
-            val byVals = c.llvmYieldsArgs.filter(_.isByVal).map(_.v).toSet
-            inv.yields.map { case (e, Ref(v)) =>
-              val target =
-                if (byVals.contains(v)) {
-                  // Byval yields-arg
-                  DerefPointer(addCast(e, v))(PanicBlame(
-                    "Generated byval-deref does not fail"
-                  ))(e.o)
-                } else { addCast(e, v) }
-
-              (target, rw.succ[Variable[Post]](v))
-            }
-          case c: VCLLVMFunctionContract[Pre] => Seq.empty
-        }
+      val newYields = yields.map { case (e, Ref(v)) =>
+        val target =
+          if (byvalArgs.contains(v)) {
+            DerefPointer(addCast(e, v))(PanicBlame(
+              "Generated byval-deref does not fail"
+            ))(e.o)
+          } else { addCast(e, v) }
+        (target, rw.succ[Variable[Post]](v))
+      }
 
       new ProcedureInvocation[Post](
         ref = new LazyRef[Post, Procedure[Post]](llvmFunctionMap(fDecl)),
@@ -1401,7 +1294,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         yields = newYields,
         outArgs = Seq.empty,
         typeArgs = Seq.empty,
-      )(inv.blame)
+      )(blame)
     } else {
       new PredicateApplyExpr[Post](new LLVMPredicateApply[Post](
         ref =
@@ -1411,7 +1304,6 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         args = newArgs,
       ))
     }
-
   }
 
   def rewriteWrapperInvocation(inv: LLVMWrapperInvocation[Pre]): Expr[Post] = {
@@ -1422,7 +1314,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val newArgs = inv.callArgs.zip(inv.ref.decl.argsWithoutSret).map {
       case (e, arg) =>
         val c = addCast(e, arg.v)
-        if (arg.byValType.nonEmpty) {
+        if (arg.isByVal) {
           // Add deref to account for the changed signature of the function-def
           DerefPointer(c)(InvocationBlameAdapter(inv.blame))(arg.o)
         } else
@@ -2091,6 +1983,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteLoad(load: LLVMLoad[Pre]): Statement[Post] = {
     implicit val o: Origin = load.o
+
+    if (byvalArgs.contains(load.variable.decl)) {
+      throw UnexpectedByValArg(load)
+    }
+
     val pointerInferredType = getInferredType(load.pointer)
     val destinationInferredType = localVariableInferredType
       .getOrElse(load.variable.decl, load.loadType)
@@ -2127,6 +2024,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteAllocA(alloc: LLVMAllocA[Pre]): Statement[Post] = {
     implicit val o: Origin = alloc.o
+
+    if (byvalArgs.contains(alloc.variable.decl)) {
+      throw UnexpectedByValArg(alloc)
+    }
+
     /*
     Alloca-instructions should only occur in wrapper-functions when a
     specification-function is called whose result is returned using a
@@ -2312,6 +2214,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   def rewriteFracOf(fracOf: LLVMFracOf[Pre]): Statement[Post] = {
     requireInWrapper(fracOf)
+    if (byvalArgs.contains(fracOf.sret.decl)) {
+      throw UnexpectedByValArg(fracOf)
+    }
+
     implicit val o: Origin = fracOf.o
     // fracOf(v, num, denom) --> v = num / denom.
     val value =
