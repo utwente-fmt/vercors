@@ -842,8 +842,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       heapVariables.contains(v)
     ) { HeapLocal(heapVariableSucc.ref(v)) }
     else {
-      if (byvalArgs.contains(v)) { AddrOf(Local(rw.succ(v))) }
-      else { Local(rw.succ(v)) }
+      if (byvalArgs.contains(v) || isCurrentWrapperSret(v)) {
+        AddrOf(Local(rw.succ(v)))
+      } else { Local(rw.succ(v)) }
     }
   }
 
@@ -856,8 +857,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       heapVariables.contains(v)
     ) { HeapLocal(heapVariableSucc.ref(v)) }
     else {
-      if (byvalArgs.contains(v)) { AddrOf(Local(rw.succ(v))) }
-      else { Local(rw.succ(v)) }
+      if (byvalArgs.contains(v) || isCurrentWrapperSret(v)) {
+        AddrOf(Local(rw.succ(v)))
+      } else { Local(rw.succ(v)) }
     }
   }
 
@@ -888,6 +890,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       inferredT.asPointer.get.element
     else
       inferredT
+  }
+
+  private def isCurrentWrapperSret(v: Variable[Pre]): Boolean = {
+    currentWrapperSret.nonEmpty && currentWrapperSret.top.nonEmpty &&
+    currentWrapperSret.top.get.v == v
   }
 
   def rewriteFunctionDef(func: LLVMFunctionDefinition[Pre]): Unit = {
@@ -1002,37 +1009,24 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
+  // TODO: Fix documentation!
   // For ghost-wrappers that have a sret-argument, the arg is removed from
   // the argument-list. Instead, the function body is wrapped in a scope that
   // declares the corresponding variable as a local.
-  // Additionally, an intermediary variable is added that is assigned the
-  // address of the sret-local so that the types still match.
   private def addWrapperSretScope(body: Statement[Post]): Statement[Post] = {
     if (currentWrapperSret.isEmpty || currentWrapperSret.top.isEmpty) {
       return body;
     }
     val oldSret = currentWrapperSret.top.get
-    val (newV, iVar) =
+    val newV =
       rw.variables.collect {
         // Variable that used to be the sret-arg
         val v = new Variable(rw.dispatch(oldSret.sretType.get))(oldSret.v.o)
-        // Intermediary that is assigned &oldVar
-        val intermediary = new Variable(TPointer(v.t, None))(oldSret.v.o)
-
-        rw.variables.declare(v)
-        rw.variables.succeed(oldSret.v, intermediary)
-        (v, intermediary)
+        rw.variables.succeed(oldSret.v, v)
+        v
       }._2
-    Scope[Post](
-      Seq(newV, iVar),
-      Block(Seq(
-        Assign(
-          Local[Post](iVar.ref)(oldSret.o),
-          AddrOf[Post](Local[Post](newV.ref)(oldSret.o))(oldSret.o),
-        )(PanicBlame("Generated sret-assign should not fail."))(oldSret.o),
-        body,
-      ))(body.o),
-    )(body.o)
+
+    Scope[Post](Seq(newV), body)(body.o)
   }
 
   private def rewriteArgList(
@@ -1795,11 +1789,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case Void() => // OK
         case r => throw UnexpectedLLVMNode(r)
       }
-      Return[Post](
-        DerefPointer[Post](Local(rw.succ(currentWrapperSret.top.get.v)))(
-          PanicBlame("Generated sret-deref may not fail.")
-        )
-      )
+      Return[Post](Local(rw.succ(currentWrapperSret.top.get.v)))
     } else {
       // ´Normal´ case
       Return[Post](rw.dispatch(llvmRet.result))
@@ -1987,6 +1977,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     if (byvalArgs.contains(load.variable.decl)) {
       throw UnexpectedByValArg(load)
     }
+    if (isCurrentWrapperSret(load.variable.decl)) {
+      throw UnexpectedLLVMNode(load)
+    }
 
     val pointerInferredType = getInferredType(load.pointer)
     val destinationInferredType = localVariableInferredType
@@ -2027,6 +2020,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
     if (byvalArgs.contains(alloc.variable.decl)) {
       throw UnexpectedByValArg(alloc)
+    }
+    if (isCurrentWrapperSret(alloc.variable.decl)) {
+      throw UnexpectedLLVMNode(alloc)
     }
 
     /*
@@ -2216,6 +2212,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     requireInWrapper(fracOf)
     if (byvalArgs.contains(fracOf.sret.decl)) {
       throw UnexpectedByValArg(fracOf)
+    }
+    if (isCurrentWrapperSret(fracOf.sret.decl)) {
+      throw UnexpectedLLVMNode(fracOf)
     }
 
     implicit val o: Origin = fracOf.o
