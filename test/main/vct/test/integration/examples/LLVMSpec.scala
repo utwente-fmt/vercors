@@ -72,4 +72,29 @@ class LLVMSpec extends VercorsSpec {
   vercors should verify using silicon flags("--pallas-sroa") example "concepts/llvm/pallas/pallas_swift_fib.ll"
   vercors should fail withCode "invariantNotEstablished:false" using silicon flags("--pallas-sroa") example "concepts/llvm/pallas/pallas_swift_fib_fail.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_swift_ghost.ll"
+
+  // -----------------------------------------------
+  //    Examples from ATVA2026 paper on Spectral
+  // -----------------------------------------------
+
+  // C
+  vercors should verify using silicon example "publications/2026/ATVA2026Spectral/C/cantor.ll"
+  vercors should fail withCode "preFailed:false" using silicon example "publications/2026/ATVA2026Spectral/C/date.ll"
+  vercors should verify using silicon example "publications/2026/ATVA2026Spectral/C/fibonacci.ll"
+  vercors should verify using silicon example "publications/2026/ATVA2026Spectral/C/sort.ll"
+  vercors should verify using silicon example "publications/2026/ATVA2026Spectral/C/vstte10_inv_inj.ll"
+  vercors should verify using silicon flags("--prover-config:smt.arith.solver=6") example "publications/2026/ATVA2026Spectral/C/vstte10_sum_max.ll"
+
+  // C++
+  vercors should verify using silicon example "publications/2026/ATVA2026Spectral/Cpp/cantor.ll"
+  vercors should fail withCode "preFailed:false" using silicon example "publications/2026/ATVA2026Spectral/Cpp/date.ll"
+  vercors should verify using silicon example "publications/2026/ATVA2026Spectral/Cpp/fibonacci.ll"
+  vercors should verify using silicon example "publications/2026/ATVA2026Spectral/Cpp/sort.ll"
+  vercors should verify using silicon example "publications/2026/ATVA2026Spectral/Cpp/vstte10_inv_inj.ll"
+  vercors should verify using silicon flags("--prover-config:smt.arith.solver=6") example "publications/2026/ATVA2026Spectral/Cpp/vstte10_sum_max.ll"
+
+  // Swift
+  vercors should verify using silicon example "publications/2026/ATVA2026Spectral/Swift/cantor.ll"
+  vercors should fail withCode "preFailed:false" using silicon example "publications/2026/ATVA2026Spectral/Swift/date.ll"
+  vercors should verify using silicon flags("--pallas-sroa") example "publications/2026/ATVA2026Spectral/Swift/fibonacci.ll"
 }
