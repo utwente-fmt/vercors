@@ -209,7 +209,9 @@ class MyTextDocumentService extends TextDocumentService with LazyLogging {
         sendVerificationErrorDiagnostic(uri, err)
         showError("Verification error")
 
-      case ex: Exception => showError(s"Unexpected error: ${ex.getMessage}")
+      case ex: Exception =>
+        showError(s"Unexpected error: ${ex.getMessage}: ${ex.getStackTrace
+            .mkString("Array(", ", ", ")")}")
     }
   }
 

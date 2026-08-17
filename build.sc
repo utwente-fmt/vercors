@@ -575,6 +575,9 @@ object vercors extends Module {
       ivy"io.circe::circe-generic:0.14.5",
       ivy"io.circe::circe-parser:0.14.5",
     )
+    override def scalacOptions = T {
+      Seq("-Xmixin-force-forwarders:false")
+    }
     override def moduleDeps = Seq(hre, col, rewrite, parsers, viperApi, buildInfo)
     override def mainClass = Some("vct.main.Main")
     override def runScriptClasses = T { Map (
