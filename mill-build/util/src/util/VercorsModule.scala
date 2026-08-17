@@ -64,3 +64,4 @@ trait VercorsModule extends ScalaModule with ScalafmtModule with VercorsJavaModu
     override def ivyDeps = settings.deps.common ++ Agg(ivy"org.scalatest::scalatest:3.2.7") ++ Agg(ivy"org.mockito:mockito-core:5.17.0") ++ outer.deps() ++ deps()
   }
 }
+

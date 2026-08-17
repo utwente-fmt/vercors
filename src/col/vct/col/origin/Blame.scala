@@ -48,8 +48,10 @@ trait VerificationFailure {
 
   def position: String
 
-  def desc: String
+  def desc: String = Message.messagesInContext(originsWithMessages: _*)
   def inlineDesc: String
+
+  def originsWithMessages: Seq[(Origin, String)]
 
   def asTableEntry: TableEntry = TableEntry(position, code, inlineDesc)
 
@@ -95,13 +97,11 @@ trait NodeVerificationFailure extends VerificationFailure {
   def inlineDescWithSource(source: String): String
 
   override def position: String = node.o.shortPositionText
-  override def desc: String = node.o.messageInContext(descInContext + errUrl)
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq((node.o, descInContext))
+
   override def inlineDesc: String =
     inlineDescWithSource(node.o.inlineContextText)
-}
-
-trait MultiOriginFailure {
-  def originsWithMessages: Seq[(Origin, String)]
 }
 
 trait WithContractFailure extends VerificationFailure {
@@ -116,8 +116,8 @@ trait WithContractFailure extends VerificationFailure {
 
   override def code: String = s"$baseCode:${failure.code}"
 
-  override def desc: String =
-    Message.messagesInContext(
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq(
       (node.o, descInContext + " ..."),
       (failure.node.o, "... " + failure.descCompletion + errUrl),
     )
@@ -137,11 +137,12 @@ case class ExpectedErrorTrippedTwice(
 ) extends ExpectedErrorFailure {
   override def code: String = "trippedTwice"
   override def position: String = err.errorRegion.shortPositionText
-  override def desc: String =
-    err.errorRegion.messageInContext(
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq((
+      err.errorRegion,
       s"The expected error with code `${err.errorCode}` occurred multiple times." +
-        errUrl
-    )
+        errUrl,
+    ))
   override def inlineDesc: String =
     s"The expected error with code `${err.errorCode}` occurred multiple times."
 }
@@ -150,11 +151,12 @@ case class ExpectedErrorNotTripped(err: ExpectedError)
     extends ExpectedErrorFailure {
   override def code: String = "notTripped"
   override def position: String = err.errorRegion.shortPositionText
-  override def desc: String =
-    err.errorRegion.messageInContext(
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq((
+      err.errorRegion,
       s"The expected error with code `${err.errorCode}` was not encountered." +
-        errUrl
-    )
+        errUrl,
+    ))
   override def inlineDesc: String =
     s"The expected error with code `${err.errorCode}` was not encountered."
 }
@@ -351,11 +353,13 @@ case class MismatchedArrayDimension(
 
   override def position: String = node.o.shortPositionText
 
-  override def desc: String =
-    Message.messagesInContext(
-      node.o -> "Call to applicable may fail, because ...",
-      dimension.o ->
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq(
+      (node.o, "Call to applicable may fail, because ..."),
+      (
+        dimension.o,
         s"... this dimension might not match expected type ${v.t}$errUrl",
+      ),
     )
 
   override def inlineDesc: String =
@@ -394,23 +398,18 @@ case class DecreaseTerminationMeasureFailed(
     applicable: ContractApplicable[_],
     apply: InvokingNode[_],
     measure: DecreasesClause[_],
-) extends TerminationMeasureFailed with MultiOriginFailure {
+) extends TerminationMeasureFailed {
   override def code: String = "decreasesFailed"
   override def position: String = measure.o.shortPositionText
-  override def desc: String =
-    Message.messagesInContext(
+  override def inlineDesc: String =
+    s"${apply.o.inlineContextText} may not terminate, since `${measure.o.inlineContextText}` is not decreased or not bounded"
+
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq(
       applicable.o -> "Applicable may not terminate, since ...",
       apply.o -> "... from this invocation ...",
       measure.o -> "... this measure may not be bounded, or may not decrease.",
     )
-  override def inlineDesc: String =
-    s"${apply.o.inlineContextText} may not terminate, since `${measure.o.inlineContextText}` is not decreased or not bounded"
-
-  override def originsWithMessages: Seq[(Origin, String)] = Seq(
-    applicable.o -> "Applicable may not terminate, since ...",
-    apply.o -> "... from this invocation ...",
-    measure.o -> "... this measure may not be bounded, or may not decrease.",
-  )
 }
 
 case class DecreaseTerminationMeasureFailedDueToWhile(node: Loop[_])
@@ -423,52 +422,42 @@ case class DecreaseTerminationMeasureFailedDueToWhile(node: Loop[_])
     s"Loop may not terminate, since ${node.o.inlineContextText} is not proven to be decreasing with a decrease clause"
 }
 
-case class CallTerminationMeasureFailed(apply: InvokingNode[_],
-  calledMethod: ContractApplicable[_],
-  ) extends TerminationMeasureFailed with MultiOriginFailure {
+case class CallTerminationMeasureFailed(
+    apply: InvokingNode[_],
+    calledMethod: ContractApplicable[_],
+) extends TerminationMeasureFailed {
   override def code: String = "callDecreasesFailed"
   override def position: String = calledMethod.o.shortPositionText
-  override def desc: String =
-    Message.messagesInContext(
-      apply.o -> "The invocation does not terminate, since ...",
-      calledMethod.o -> "... this called method may not decrease.",
-    )
   override def inlineDesc: String =
     s"The invocation ${apply.o.inlineContextText} may not terminate, since `${calledMethod.o.inlineContextText}` is not decreasing"
 
-  override def originsWithMessages: Seq[(Origin, String)] = Seq(
-    apply.o -> "The invocation does not terminate, since ...",
-    calledMethod.o -> "... this called method may not decrease.",
-  )
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq(
+      apply.o -> "The invocation does not terminate, since ...",
+      calledMethod.o -> "... this called method may not decrease.",
+    )
 }
 
 sealed trait ExtractTerminationMeasureFailed extends TerminationMeasureFailed
 
-case class ExtractTerminationMeasureFailedNoClause(extract: Extract[_])
-    extends ExtractTerminationMeasureFailed {
+case class ExtractTerminationMeasureFailedNoClause(node: Extract[_])
+    extends ExtractTerminationMeasureFailed with NodeVerificationFailure {
   override def code: String = "extractDecreasesFailedNoClause"
-  override def position: String = extract.o.shortPositionText
-  override def desc: String =
-    Message.messagesInContext(
-      extract.o ->
-        "This extract may not terminate, since no decreases measure was specified."
-    )
-  override def inlineDesc: String =
-    s"The extract ${extract.o.inlineContextText} may not terminate, since no decreases measure was specified"
+  override def descInContext: String =
+    "This extract may not terminate, since no decreases measure was specified."
+  override def inlineDescWithSource(source: String): String =
+    s"The extract $source may not terminate, since no decreases measure was specified"
 }
 
 case class ExtractTerminationMeasureFailedClause(
-    extract: Extract[_],
+    node: Extract[_],
     failure: TerminationMeasureFailed,
-) extends ExtractTerminationMeasureFailed {
+) extends ExtractTerminationMeasureFailed with NodeVerificationFailure {
   override def code: String = "extractDecreasesFailedClause"
-  override def position: String = extract.o.shortPositionText
-  override def desc: String =
-    Message.messagesInContext(
-      extract.o -> s"This extract may not terminate, since...\n $failure "
-    )
-  override def inlineDesc: String =
-    s"The extract ${extract.o.inlineContextText} may not terminate, since no decreases measure was specified"
+  override def descInContext: String =
+    s"This extract may not terminate, since...\n $failure "
+  override def inlineDescWithSource(source: String): String =
+    s"The extract $source may not terminate, since no decreases measure was specified"
 }
 
 case class ContextEverywhereFailedInPost(
@@ -520,6 +509,8 @@ case class SYCLKernelLambdaFailure(kernelFailure: KernelFailure)
   override def code: String = "syclKernelLambda" + kernelFailure.code.capitalize
   override def position: String = kernelFailure.position
   override def desc: String = kernelFailure.desc
+  override def originsWithMessages: Seq[(Origin, String)] =
+    kernelFailure.originsWithMessages
   override def inlineDesc: String = kernelFailure.inlineDesc
 }
 sealed trait LoopInvariantFailure extends VerificationFailure
@@ -553,7 +544,7 @@ case class LoopTerminationMeasureFailed(node: DecreasesClause[_])
     s"Loop may not terminate, since ${node.o.inlineContextText} may be unbounded or nondecreasing"
 }
 case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_])
-    extends VerificationFailure with AnyStarError with MultiOriginFailure {
+    extends VerificationFailure with AnyStarError {
   override def code: String = "notInjective"
   override def desc: String =
     Message.messagesInContext(
@@ -567,12 +558,13 @@ case class ReceiverNotInjective(quantifier: Starall[_], resource: Expr[_])
 
   override def position: String = resource.o.shortPositionText
 
-  override def originsWithMessages: Seq[(Origin, String)] = Seq(
-    quantifier.o ->
-      "This quantifier causes the resources in its body to be quantified, ...",
-    resource.o ->
-      "... but this resource may not be unique with regards to the quantified variables.",
-  )
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq(
+      quantifier.o ->
+        "This quantifier causes the resources in its body to be quantified, ...",
+      resource.o ->
+        "... but this resource may not be unique with regards to the quantified variables.",
+    )
 }
 sealed trait DivByZero extends NodeVerificationFailure
 
@@ -644,7 +636,7 @@ case class ChorRunContextEverywhereFailedInPre(
 sealed trait FrontendIfFailure extends VerificationFailure
 
 case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_])
-    extends FrontendIfFailure with ChorStatementFailure with MultiOriginFailure {
+    extends FrontendIfFailure with ChorStatementFailure {
   override def code: String = "branchNotUnanimous"
 
   override def desc: String =
@@ -660,19 +652,20 @@ case class BranchUnanimityFailed(guard1: Node[_], guard2: Node[_])
   override def inlineDesc: String =
     "Two conditions in this branch might disagree."
 
-  override def originsWithMessages: Seq[(Origin, String)] = Seq(
-    (guard1.o, "This condition..."),
-    (
-      guard2.o,
-      "...should agree with this condition, but this might not be the case",
-    ),
-  )
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq(
+      (guard1.o, "This condition..."),
+      (
+        guard2.o,
+        "...should agree with this condition, but this might not be the case",
+      ),
+    )
 }
 
 sealed trait FrontEndLoopFailure extends VerificationFailure
 
 case class LoopUnanimityNotEstablished(guard1: Node[_], guard2: Node[_])
-    extends FrontEndLoopFailure with ChorStatementFailure with MultiOriginFailure {
+    extends FrontEndLoopFailure with ChorStatementFailure {
   override def code: String = "loopUnanimityNotEstablished"
 
   override def desc: String =
@@ -688,39 +681,32 @@ case class LoopUnanimityNotEstablished(guard1: Node[_], guard2: Node[_])
   override def inlineDesc: String =
     "The agreement of two conditions in this branch could not be established before the loop."
 
-  override def originsWithMessages: Seq[(Origin, String)] = Seq(
-    (guard1.o, "This condition..."),
-    (
-      guard2.o,
-      "...should agree with this condition, but this could not be established before the loop.",
-    ),
-  )
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq(
+      (guard1.o, "This condition..."),
+      (
+        guard2.o,
+        "...should agree with this condition, but this could not be established before the loop.",
+      ),
+    )
 }
 
 case class LoopUnanimityNotMaintained(guard1: Node[_], guard2: Node[_])
-    extends FrontEndLoopFailure with ChorStatementFailure with MultiOriginFailure {
+    extends FrontEndLoopFailure with ChorStatementFailure {
   override def code: String = "loopUnanimityNotMaintained"
 
-  override def desc: String =
-    Message.messagesInContext(
+  override def position: String = guard1.o.shortPositionText
+  override def inlineDesc: String =
+    "The agreement of two conditions in this branch could not be maintained for an arbitrary loop iteration."
+
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq(
       (guard1.o, "This condition..."),
       (
         guard2.o,
         "...should agree with this condition, but this could not be maintained for an arbitrary loop iteration.",
       ),
     )
-
-  override def position: String = guard1.o.shortPositionText
-  override def inlineDesc: String =
-    "The agreement of two conditions in this branch could not be maintained for an arbitrary loop iteration."
-
-  override def originsWithMessages: Seq[(Origin, String)] = Seq(
-    (guard1.o, "This condition..."),
-    (
-      guard2.o,
-      "...should agree with this condition, but this could not be maintained for an arbitrary loop iteration.",
-    ),
-  )
 }
 
 sealed trait ChorStatementFailure extends VerificationFailure
@@ -905,28 +891,9 @@ case class ExtractedKernelPostconditionFailed(
 case class KernelPredicateNotInjective(
     kernel: Either[CGpgpuKernelSpecifier[_], CPPLambdaDefinition[_]],
     predicate: Expr[_],
-) extends KernelFailure with MultiOriginFailure {
+) extends KernelFailure {
   override def code: String = "kernelNotInjective"
   override def position: String = predicate.o.shortPositionText
-
-  override def desc: String = {
-    val kernelOrigin =
-      kernel match {
-        case Left(cgpuKernelSpec) => cgpuKernelSpec.o
-        case Right(cppLambdaDef) => cppLambdaDef.o
-      }
-    Message.messagesInContext(
-      (
-        kernelOrigin,
-        "This kernel causes the formulas in its body to be quantified over all threads, ...",
-      ),
-      (
-        predicate.o,
-        "... but this expression could not be simplified, and the Perm location is not injective in the thread variables." +
-          errUrl,
-      ),
-    )
-  }
 
   override def inlineDesc: String =
     s"${predicate.o.inlineContextText} does not have a unique location for every thread, and it could not be simplified away."
@@ -936,7 +903,7 @@ case class KernelPredicateNotInjective(
       kernel match {
         case Left(cgpuKernelSpec) => cgpuKernelSpec.o
         case Right(cppLambdaDef) => cppLambdaDef.o
-    }
+      }
 
     Seq(
       (
@@ -947,7 +914,7 @@ case class KernelPredicateNotInjective(
         predicate.o,
         "... but this expression could not be simplified, and the Perm location is not injective in the thread variables." +
           errUrl,
-      )
+      ),
     )
   }
 }
@@ -1055,11 +1022,15 @@ case class ParBarrierInvariantBroken(
 
 sealed trait ParBlockFailure extends VerificationFailure
 case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_])
-    extends ParBlockFailure with MultiOriginFailure {
+    extends ParBlockFailure {
   override def code: String = "parNotInjective"
   override def position: String = predicate.o.shortPositionText
-  override def desc: String =
-    Message.messagesInContext(
+
+  override def inlineDesc: String =
+    s"${predicate.o.inlineContextText} does not have a unique location for every thread, and it could not be simplified away."
+
+  override def originsWithMessages: Seq[(Origin, String)] =
+    Seq(
       (
         block.o,
         "This parallel block causes the formulas in its body to be quantified over all threads, ...",
@@ -1070,21 +1041,6 @@ case class ParPredicateNotInjective(block: ParBlock[_], predicate: Expr[_])
           errUrl,
       ),
     )
-
-  override def inlineDesc: String =
-    s"${predicate.o.inlineContextText} does not have a unique location for every thread, and it could not be simplified away."
-
-  override def originsWithMessages: Seq[(Origin, String)] = Seq(
-    (
-      block.o,
-      "This parallel block causes the formulas in its body to be quantified over all threads, ...",
-    ),
-    (
-      predicate.o,
-      "... but this expression could not be simplified, and the Perm location is not injective in the thread variables." +
-        errUrl,
-    ),
-  )
 }
 
 sealed trait ParBlockContractFailure extends ParBlockFailure

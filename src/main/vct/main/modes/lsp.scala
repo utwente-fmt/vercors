@@ -2,7 +2,7 @@ package vct.main.modes
 
 import com.typesafe.scalalogging.LazyLogging
 import hre.progress.task.RootTask
-import lsp.MyLanguageServer
+import vct.lsp.MyLanguageServer
 import org.eclipse.lsp4j.jsonrpc.MessageConsumer
 import org.eclipse.lsp4j.launch.LSPLauncher
 import vct.main.Main

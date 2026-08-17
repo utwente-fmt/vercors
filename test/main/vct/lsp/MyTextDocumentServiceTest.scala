@@ -1,6 +1,5 @@
 package vct.lsp
 
-import lsp.{MyLanguageServer, MyTextDocumentService}
 import org.eclipse.lsp4j._
 import org.eclipse.lsp4j.services.LanguageClient
 import org.mockito.ArgumentMatchers._

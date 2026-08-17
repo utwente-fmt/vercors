@@ -87,6 +87,12 @@ case object Main extends LazyLogging {
       return 0
     }
 
+    options.mode match {
+      case Mode.LSP =>
+        System.setProperty("logback.configurationFile", "logback-lsp.xml")
+      case _ =>
+    }
+
     Middleware.using(
       true -> InterruptibleStdin,
       true -> Logging.withLogLevels(options.logLevels),

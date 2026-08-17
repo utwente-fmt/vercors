@@ -1,6 +1,6 @@
-package lsp
+package vct.lsp
 
-import lsp.MyLanguageServer.cancelledTokens
+import vct.lsp.MyLanguageServer.cancelledTokens
 import org.eclipse.lsp4j._
 import org.eclipse.lsp4j.services.{
   LanguageClient,

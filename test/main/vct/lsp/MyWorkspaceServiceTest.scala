@@ -1,6 +1,5 @@
 package vct.lsp
 
-import lsp.{MyLanguageServer, MyWorkspaceService}
 import org.eclipse.lsp4j._
 import org.eclipse.lsp4j.services.LanguageClient
 import org.mockito.ArgumentCaptor
@@ -43,7 +42,7 @@ class MyWorkspaceServiceTest extends AnyFunSuiteLike with Matchers {
 
     d.getSeverity shouldBe DiagnosticSeverity.Error
     d.getSource shouldBe "VerCors"
-    d.getMessage shouldBe "Something went wrong"
+    d.getMessage shouldBe org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft("Something went wrong")
     d.getRange.getStart.getLine shouldBe 0
     d.getRange.getStart.getCharacter shouldBe 0
     d.getRange.getEnd.getLine shouldBe 0
@@ -54,18 +53,12 @@ class MyWorkspaceServiceTest extends AnyFunSuiteLike with Matchers {
     val client = mock(classOf[LanguageClient])
     MyLanguageServer.client = client
 
-    val service = new MyWorkspaceService()
-
-    val m =
-      classOf[MyWorkspaceService].getDeclaredMethods
-        .find(_.getName == "sendUnexpectedFailureDiagnostics").get
-    m.setAccessible(true)
-
     val vf = mock(classOf[VerificationFailure])
     when(vf.inlineDesc).thenReturn("Unexpected failure")
+    when(vf.originsWithMessages).thenReturn(Nil)
 
     val uri = "file:///fake"
-    m.invoke(service, uri, Seq(vf))
+    VerificationErrorsUtils.sendUnexpectedFailureDiagnostics(uri, Seq(vf))
 
     val msgCaptor = ArgumentCaptor.forClass(classOf[MessageParams])
     verify(client).showMessage(msgCaptor.capture())

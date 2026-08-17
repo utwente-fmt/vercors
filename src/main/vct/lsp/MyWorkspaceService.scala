@@ -1,16 +1,19 @@
-package lsp
+package vct.lsp
 
 import com.google.gson.{JsonArray, JsonElement, JsonObject, JsonPrimitive}
 import hre.progress.TaskRegistry
 import hre.progress.task.{AbstractTask, RootTask}
-import lsp.MyLanguageServer.cancelledTokens
+import vct.lsp.MyLanguageServer.cancelledTokens
 import org.eclipse.lsp4j._
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.services.WorkspaceService
 import vct.col.origin._
 import vct.col.rewrite.bip.BIP
 import vct.lsp.LspMessages._
-import vct.lsp.VerificationErrorsUtils.sendVerificationErrorDiagnostic
+import vct.lsp.VerificationErrorsUtils.{
+  sendUnexpectedFailureDiagnostics,
+  sendVerificationErrorDiagnostic,
+}
 import vct.main.stages._
 import vct.options.Options
 import vct.parsers.transform.ConstantBlameProvider
@@ -58,38 +61,39 @@ class MyWorkspaceService extends WorkspaceService {
         val syntheticArgs = collection.mutable.ListBuffer("--verify")
         if (params.getArguments.size > 1) {
           val arg1 = params.getArguments.get(1)
-          if (arg1.isInstanceOf[JsonElement]) {
-            val json = arg1.asInstanceOf[JsonElement]
-            if (json.isJsonObject) {
-              val obj = json.getAsJsonObject
+          arg1 match {
+            case json: JsonElement =>
+              if (json.isJsonObject) {
+                val obj = json.getAsJsonObject
 
-              def addArray(key: String): Unit =
-                if (obj.has(key)) {
-                  obj.get(key) match {
-                    case arr if arr.isJsonArray =>
-                      arr.getAsJsonArray.iterator().asScala.foreach { elem =>
-                        syntheticArgs += elem.getAsString
-                      }
-                    case str if str.isJsonPrimitive =>
-                      str.getAsString.trim.split("\\s+")
-                        .foreach(syntheticArgs += _)
-                    case _ =>
+                def addArray(key: String): Unit =
+                  if (obj.has(key)) {
+                    obj.get(key) match {
+                      case arr if arr.isJsonArray =>
+                        arr.getAsJsonArray.iterator().asScala.foreach { elem =>
+                          syntheticArgs += elem.getAsString
+                        }
+                      case str if str.isJsonPrimitive =>
+                        str.getAsString.trim.split("\\s+")
+                          .foreach(syntheticArgs += _)
+                      case _ =>
+                    }
                   }
-                }
 
-              def addSingleFlagWithValue(flag: String, key: String): Unit =
-                if (obj.has(key)) {
-                  val value = obj.get(key).getAsString
-                  syntheticArgs += flag
-                  syntheticArgs += value
-                }
+                def addSingleFlagWithValue(flag: String, key: String): Unit =
+                  if (obj.has(key)) {
+                    val value = obj.get(key).getAsString
+                    syntheticArgs += flag
+                    syntheticArgs += value
+                  }
 
-              addArray("flags")
-              addArray("customFlags")
-              addArray("rawArgs")
+                addArray("flags")
+                addArray("customFlags")
+                addArray("rawArgs")
 
-              addSingleFlagWithValue("--backend", "backend")
-            }
+                addSingleFlagWithValue("--backend", "backend")
+              }
+            case _ =>
           }
         }
         syntheticArgs += path.toString
@@ -229,129 +233,6 @@ class MyWorkspaceService extends WorkspaceService {
             ex.getStackTrace.mkString("", "\n", "")
         MyLanguageServer.client
           .logMessage(new MessageParams(MessageType.Error, full))
-    }
-  }
-
-  private def sendUnexpectedFailureDiagnostics(
-      uri: String,
-      failures: Seq[VerificationFailure],
-  ): Unit = {
-    val diagnostics = failures.flatMap {
-      case vf: WithContractFailure =>
-        val cause = nodeFailureToDiagnostic(
-          vf.failure,
-          vf.failure.inlineDescCompletion,
-        )
-        val main = nodeFailureToDiagnostic(vf, vf.inlineDesc)
-
-        cause.map { causeDiagnostics =>
-          main.foreach { mainDiagnostics =>
-            val related =
-              new DiagnosticRelatedInformation(
-                new Location(uri, mainDiagnostics.getRange),
-                mainDiagnostics.getMessage,
-              )
-            causeDiagnostics.setRelatedInformation(List(related).asJava)
-          }
-          causeDiagnostics
-        }.orElse(main).toList
-
-      case vf: NodeVerificationFailure =>
-        nodeFailureToDiagnostic(vf, vf.inlineDesc) match {
-          case Some(diag) => List(diag)
-          case None =>
-            showError("NodeVerificationFailure had no usable origin")
-            Nil
-        }
-
-      case vf: MultiOriginFailure =>
-        val mainDiagOpt = vf.originsWithMessages.headOption.flatMap {
-          case (origin, _) => originToDiagnostic(origin, vf.inlineDesc)
-        }
-        val related = vf.originsWithMessages.drop(1)
-          .flatMap { case (origin, msg) =>
-            originToDiagnostic(origin, msg).map { diag =>
-              new DiagnosticRelatedInformation(
-                new Location(uri, diag.getRange),
-                diag.getMessage,
-              )
-            }
-          }
-
-        mainDiagOpt match {
-          case Some(mainDiag) =>
-            if (related.nonEmpty) {
-              mainDiag.setRelatedInformation(related.asJava)
-            }
-            List(mainDiag)
-          case None =>
-            showError("MultiOriginFailure had no usable origin")
-            Nil
-        }
-
-      case SYCLKernelLambdaFailure(inner) =>
-        sendUnexpectedFailureDiagnostics(uri, Seq(inner))
-        Nil
-
-      case eef: ExpectedErrorFailure =>
-        originToDiagnostic(eef.err.errorRegion, eef.inlineDesc) match {
-          case Some(diag) => List(diag)
-          case None =>
-            showError("ExpectedErrorFailure had no usable origin")
-            Nil
-        }
-
-      case vf =>
-        showError(
-          s"Unhandled verification failure: ${vf.getClass.getSimpleName} – ${vf.inlineDesc}"
-        )
-        Seq.empty
-    }
-    MyLanguageServer.client
-      .publishDiagnostics(new PublishDiagnosticsParams(uri, diagnostics.asJava))
-  }
-
-  private def originToDiagnostic(
-      origin: Origin,
-      message: String,
-  ): Option[Diagnostic] = {
-    origin.find[PositionRange].flatMap {
-      case PositionRange(startLine, endLine, Some((startCol, endCol))) =>
-        Some(new Diagnostic(
-          new Range(
-            new Position(startLine, startCol),
-            new Position(endLine, endCol),
-          ),
-          message,
-          DiagnosticSeverity.Error,
-          "VerCors",
-        ))
-      case PositionRange(startLine, endLine, None) =>
-        Some(new Diagnostic(
-          new Range(new Position(startLine, 0), new Position(endLine, 0)),
-          message,
-          DiagnosticSeverity.Error,
-          "VerCors",
-        ))
-    }
-  }
-
-  private def nodeFailureToDiagnostic(
-      vf: { def node: vct.col.ast.Node[_] },
-      message: String,
-  ): Option[Diagnostic] = {
-    vf.node.o.find[PositionRange].flatMap { pos =>
-      pos.startEndColIdx.map { case (startCol, endCol) =>
-        val diag = new Diagnostic()
-        diag.setSeverity(DiagnosticSeverity.Error)
-        diag.setMessage(message)
-        diag.setSource("VerCors")
-        diag.setRange(new Range(
-          new Position(pos.startLineIdx, startCol),
-          new Position(pos.endLineIdx, endCol),
-        ))
-        diag
-      }
     }
   }
 

@@ -1,6 +1,5 @@
 package vct.lsp
 
-import lsp.MyLanguageServer
 import org.eclipse.lsp4j.{MessageParams, MessageType}
 
 object LspMessages {

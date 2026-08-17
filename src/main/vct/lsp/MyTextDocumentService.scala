@@ -1,4 +1,4 @@
-package lsp
+package vct.lsp
 
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.generic.auto._
@@ -47,8 +47,8 @@ import scala.jdk.CollectionConverters._
 
 class MyTextDocumentService extends TextDocumentService with LazyLogging {
   private val docs = TrieMap.empty[String, String]
-  var parsingResults: Option[ParseResult[Nothing]] = None
-  var resolutionResults: Option[Verification[_ <: Generation]] = None
+  private var parsingResults: Option[ParseResult[Nothing]] = None
+  private var resolutionResults: Option[Verification[_ <: Generation]] = None
   var originMap: TreeMap[(Int, Int, Int), (Int, Int, Int)] = TreeMap.empty
   private val dirty = TrieMap.empty[String, Boolean]
   private lazy val javaCompletions: List[CompletionItem] = loadCompletions(
@@ -167,7 +167,7 @@ class MyTextDocumentService extends TextDocumentService with LazyLogging {
     CompletableFuture.completedFuture(result)
   }
 
-  case class ParsedError(
+  private case class ParsedError(
       message: String,
       startLine: Int,
       startCol: Int,
