@@ -13,7 +13,7 @@ import vct.col.ast.Node
 import vct.col.check.CheckError
 import vct.col.origin.{Origin, PositionRange, VerificationFailure}
 import vct.lsp.LspMessages.showError
-import vct.main.stages.HasCheckErrors
+import vct.main.stages.Resolution.InputResolutionError
 import vct.result.VerificationError
 
 import scala.jdk.CollectionConverters._
@@ -88,8 +88,8 @@ object VerificationErrorsUtils {
     err match {
       case vf: VerificationFailure =>
         sendUnexpectedFailureDiagnostics(uri, Seq(vf))
-      case hc: HasCheckErrors =>
-        val diagnostics = hc.errors.flatMap { chk: CheckError =>
+      case InputResolutionError(errors) =>
+        val diagnostics = errors.flatMap { chk: CheckError =>
           val mainDiagOpt = chk.originsWithMessages(_.o).headOption.flatMap {
             case (origin, msg) => originToDiagnostic(origin, msg)
           }
