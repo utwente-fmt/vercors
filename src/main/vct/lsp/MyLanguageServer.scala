@@ -55,6 +55,13 @@ class MyLanguageServer extends LanguageServer {
   override def getTextDocumentService: TextDocumentService = textDocumentService
 
   override def getWorkspaceService: WorkspaceService = workspaceService
+
+  // These seemingly unnecessary overrides are necessary due to a scala bug
+  override def initialized(params: InitializedParams): Unit =
+    super.initialized(params)
+
+  override def setTrace(params: SetTraceParams): Unit = super.setTrace(params)
+
 }
 
 object MyLanguageServer {

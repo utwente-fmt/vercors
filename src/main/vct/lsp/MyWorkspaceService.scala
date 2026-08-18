@@ -22,6 +22,7 @@ import viper.api.backend.silicon.{DataRecordTask, Util}
 
 import java.net.URI
 import java.nio.file.Paths
+import java.util
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.jdk.CollectionConverters._
@@ -386,4 +387,36 @@ class MyWorkspaceService extends WorkspaceService {
       s"[Monitor] $msg: ${ex.getMessage}",
     ))
   }
+
+  // These seemingly unnecessary overrides are necessary due to a scala bug
+
+  override def symbol(params: WorkspaceSymbolParams): CompletableFuture[
+    Either[util.List[_ <: SymbolInformation], util.List[_ <: WorkspaceSymbol]]
+  ] = super.symbol(params)
+
+  override def resolveWorkspaceSymbol(
+      workspaceSymbol: WorkspaceSymbol
+  ): CompletableFuture[WorkspaceSymbol] =
+    super.resolveWorkspaceSymbol(workspaceSymbol)
+
+  override def diagnostic(
+      params: WorkspaceDiagnosticParams
+  ): CompletableFuture[WorkspaceDiagnosticReport] = super.diagnostic(params)
+
+  override def textDocumentContent(
+      params: TextDocumentContentParams
+  ): CompletableFuture[TextDocumentContentResult] =
+    super.textDocumentContent(params)
+
+  override def willCreateFiles(
+      params: CreateFilesParams
+  ): CompletableFuture[WorkspaceEdit] = super.willCreateFiles(params)
+
+  override def willRenameFiles(
+      params: RenameFilesParams
+  ): CompletableFuture[WorkspaceEdit] = super.willRenameFiles(params)
+
+  override def willDeleteFiles(
+      params: DeleteFilesParams
+  ): CompletableFuture[WorkspaceEdit] = super.willDeleteFiles(params)
 }
