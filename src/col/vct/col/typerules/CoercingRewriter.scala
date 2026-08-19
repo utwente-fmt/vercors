@@ -1567,6 +1567,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case Let(binding, value, main) =>
         Let(binding, coerce(value, binding.t), main)
+      case let @ LetSuchThat(binding, condition, main) =>
+        LetSuchThat(binding, bool(condition), main)(let.blame)
       case LiteralBag(element, values) =>
         LiteralBag(element, values.map(coerce(_, element)))
       case LiteralMap(k, v, values) =>
@@ -2474,6 +2476,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         AssignInitial(target, coerce(value, target.t, canCDemote = true))(
           a.blame
         )
+      case a @ AssignSuchThat(target, constraint) =>
+        AssignSuchThat(target, bool(constraint))(a.blame)
       case Assume(assn) => Assume(bool(assn))
       case Block(statements) => Block(statements)
       case Branch(branches) =>

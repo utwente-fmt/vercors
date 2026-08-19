@@ -201,6 +201,7 @@ case class EncodePointerComparison[Pre <: Generation]() extends Rewriter[Pre] {
               main = context.having(InQuantifier()) { dispatch(main) },
             )
           case let @ Let(_, _, _) => super.dispatch(let)
+          case let @ LetSuchThat(_, _, _) => super.dispatch(let)
         }
       case e => super.dispatch(e)
     }

@@ -439,6 +439,7 @@ case class SilverTransformation(
         EncodeCurrentThread,
         EncodeIntrinsicLock,
         EncodeForkJoin,
+        EncodeSuchThatAssign,
         // PureMethodsToFunctions should be before InlineApplicables since InlineApplicables treats functions and methods differently
         PureMethodsToFunctions,
         InlineApplicables,
