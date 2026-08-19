@@ -331,10 +331,10 @@ case class EncodeBoundsChecks[Pre <: Generation]()
           case _ => super.dispatch(e)
         }
       case DerefPointer(p) if inLocation.isEmpty =>
-        p.t.asPointer.get.element match {
+        e.t match {
           case TCheckedInt(gte, lt) =>
             let(
-              dispatch(p.t.asPointer.get.element),
+              dispatch(e.t),
               super.dispatch(e),
               x => Assuming(x >= const(gte) && x < const(lt), x),
             )
