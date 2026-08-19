@@ -1460,7 +1460,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     specs.foreach {
       case GPULocal() => shared = true
       case GPUGlobal() => global = true
-      case CSpecificationType(t) if t.asPointer.isDefined =>
+      case CSpecificationType(t)
+          if t.asPointer.isDefined || t.asPointerArray.isDefined =>
         val (inner, sizes) = getInnerPointerInfo(t)
         arrayOrPointer = true
         innerType = Some(inner)
