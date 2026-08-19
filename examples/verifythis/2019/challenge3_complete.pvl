@@ -15,7 +15,7 @@
   context |m_| == m.length && (\forall int i=0..m.length; {:m_[i]:} == m[i]);
   given seq<int> x_;
   context |x_| == x.length && (\forall int i=0..x.length; {:x_[i]:} == x[i]);
-  
+
   // The full matrix
   given seq<seq<int>> m_full;
   requires |m_full| == N;
@@ -35,7 +35,7 @@
 
   decreases;
 int[] parallel_sum(tuple<tuple<int, int>, int>[] m, int[] x, int N, int M){
-  
+
   int len = m.length;
   Ghost g = newGhost(len);
   // Ghost g = new Ghost();
@@ -45,10 +45,10 @@ int[] parallel_sum(tuple<tuple<int, int>, int>[] m, int[] x, int N, int M){
   // int[] y = new int[M];
   int [] y = newInt(M);
   lemma_sum_init_zero_all(m_, x_, g.written_, N, M);
-  
+
 
   invariant sumInv(
-    (\forall* int j=0..y.length; Perm({:y[j]:}, write)) ** Perm(g.written_, write) ** |g.written_| == len 
+    (\forall* int j=0..y.length; Perm({:y[j]:}, write)) ** Perm(g.written_, write) ** |g.written_| == len
     ** (\forall int i=0..M; {:SparseXxMcolPartial(m_, x_, g.written_, i, N, M):} == y[i])
     ** Perm(g.written, 1\2) ** \array(g.written, len)
     ** (\forall* int i=0..len; Perm({:g.written[i]:}, 1\2))
@@ -75,7 +75,7 @@ int[] parallel_sum(tuple<tuple<int, int>, int>[] m, int[] x, int N, int M){
 
       atomic(sumInv){
         lemma_sum_upd(m_, x_, g.written_, N, M, tid);
-        assert (\forall int i=0..M; i!=c(m[tid]); {:SparseXxMcolPartial(m_, x_, g.written_, i, N, M):} == 
+        assert (\forall int i=0..M; i!=c(m[tid]); {:SparseXxMcolPartial(m_, x_, g.written_, i, N, M):} ==
           SparseXxMcolPartial(m_, x_, update(g.written_, tid, true), i, N, M));
 
         y[c] = y[c] + add;
@@ -93,13 +93,13 @@ int[] parallel_sum(tuple<tuple<int, int>, int>[] m, int[] x, int N, int M){
 //-----------------------------------------------
 // Definitions for the implementation
 //-----------------------------------------------
-inline resource m_perm(tuple<tuple<int, int>, int>[] m, int N, int M, rational r) = 
+inline resource m_perm(tuple<tuple<int, int>, int>[] m, int N, int M, rational r) =
   (m != null && m.length < M * N) ** (\forall* int i; 0<=i && i<m.length; Perm({:m[i]:}, r));
 
-inline resource x_perm(int[] x, int N, rational r) = 
+inline resource x_perm(int[] x, int N, rational r) =
   (x != null && x.length == N) ** (\forall* int i; 0<=i && i<x.length; Perm({:x[i]:}, r));
 
-inline pure bool boundAndSorted(tuple<tuple<int, int>, int>[] m, int N, int M) = 
+inline pure bool boundAndSorted(tuple<tuple<int, int>, int>[] m, int N, int M) =
   // The matrix is bound
   (\forall int i; 0<=i && i<m.length; 0 <= {:r(m[i]):} && r(m[i]) < N) &&
   (\forall int i; 0<=i && i<m.length; 0 <= {:c(m[i]):} && c(m[i]) < M) &&
@@ -159,11 +159,11 @@ void lemma_sum_init_zero(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<boo
   context_everywhere boundAndSorted(m, N, M);
   context_everywhere |x| == N;
   ensures (\forall int i; 0 <= i && i < M && i != c(m[tid]);
-    {:1:SparseXxMcolPartial(m, x, update(mask, tid, true), i, N, M):} == 
+    {:1:SparseXxMcolPartial(m, x, update(mask, tid, true), i, N, M):} ==
       {:SparseXxMcolPartial(m, x, mask, i, N, M):});
   ensures SparseXxMcolPartial(m, x, update(mask, tid, true), c(m[tid]), N, M) ==
     SparseXxMcolPartial(m, x, mask, c(m[tid]), N, M) + x[r(m[tid])]*v(m[tid]);
-  
+
   decreases |m|;
 void lemma_sum_upd(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> mask, int N, int M, int tid){
   if(tid > 0){
@@ -197,7 +197,7 @@ void lemma_sum_final(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> m
   context_everywhere M >= 0;
 
   requires (\forall int i=0..|mask|; {:mask[i]:} == true);
-  ensures (\forall int i=0..M; {:SparseXxMcolPartial(m, x, mask, i, N, M):} == SparseXxMcol(m, x, i, N, M));
+  ensures (\forall int i=0..M; SparseXxMcolPartial(m, x, mask, i, N, M) == {:SparseXxMcol(m, x, i, N, M):});
 
   decreases;
 void lemma_sum_final_all(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> mask, int N, int M){
@@ -216,10 +216,10 @@ void lemma_sum_final_all(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<boo
   requires |x| == N;
   requires |mask| == |m|;
   decreases |m|;
-pure int SparseXxMcolPartial(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> mask, int col, int N, int M) = 
-  |m| > 0 
+pure int SparseXxMcolPartial(seq<tuple<tuple<int, int>, int>> m, seq<int> x, seq<bool> mask, int col, int N, int M) =
+  |m| > 0
     ? (!mask.head ? 0 : (c(m.head) == col ? x[r(m.head)] * v(m.head) : 0))
-      + SparseXxMcolPartial(m.tail, x, mask.tail, col, N, M) 
+      + SparseXxMcolPartial(m.tail, x, mask.tail, col, N, M)
     : 0;
 
 class Ghost {
@@ -266,7 +266,7 @@ pure int c(tuple<tuple<int, int>, int> i) = i.fst.snd;
   decreases;
 pure int v(tuple<tuple<int, int>, int> i) = i.snd;
 
-inline pure bool boundAndSorted(seq<tuple<tuple<int, int>, int>> m, int N, int M) = 
+inline pure bool boundAndSorted(seq<tuple<tuple<int, int>, int>> m, int N, int M) =
   // The matrix is bound
   (\forall int i; 0<=i && i<|m|; 0 <= {:r(m[i]):} && {:r(m[i]):} < N) &&
   (\forall int i; 0<=i && i<|m|; 0 <= {:c(m[i]):} && {:c(m[i]):} < M) &&
@@ -288,9 +288,9 @@ pure tuple<int, int> lookup(int x, int y, seq<tuple<tuple<int, int>, int>> m, in
   ensures \result.snd != -1 ==> \result.fst == (v(m[\result.snd]));
   decreases |m|-k;
 pure tuple<int, int> lookupH(int x, int y, seq<tuple<tuple<int, int>, int>> m, int N, int M, int k) =
-  k == |m| ? tuple<int, int>{0, -1} : 
+  k == |m| ? tuple<int, int>{0, -1} :
     (r(m[k]) == y && c(m[k]) == x ? tuple<int, int>{v(m[k]), k} :
-      (r(m[k]) > y ? tuple<int, int>{0, -1} : 
+      (r(m[k]) > y ? tuple<int, int>{0, -1} :
         r(m[k]) == y && c(m[k]) > x ? tuple<int, int>{0, -1} :
           lookupH(x, y, m, N, M, k+1)));
 
@@ -298,16 +298,16 @@ pure tuple<int, int> lookupH(int x, int y, seq<tuple<tuple<int, int>, int>> m, i
   requires |x| == N;
   requires col >= 0 && col < M;
   decreases |m|;
-pure int SparseXxMcol(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, int N, int M) = 
-  |m| > 0 ? 
-    (c(m.head) == col ? x[r(m.head)] * v(m.head) : 0) + SparseXxMcol(m.tail, x, col, N, M) 
+pure int SparseXxMcol(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, int N, int M) =
+  |m| > 0 ?
+    (c(m.head) == col ? x[r(m.head)] * v(m.head) : 0) + SparseXxMcol(m.tail, x, col, N, M)
     : 0;
 
   requires boundAndSorted(m, N, M);
   requires |x| == N;
   requires col >= 0 && col < M;
   decreases;
-pure int SparseXxMcol2(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, int N, int M) = 
+pure int SparseXxMcol2(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, int N, int M) =
   SparseXxMcol2H(m, x, col, N, M, 0);
 
   requires boundAndSorted(m, N, M);
@@ -315,9 +315,9 @@ pure int SparseXxMcol2(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, 
   requires col >= 0 && col < M;
   requires k >= 0 && k <= |m|;
   decreases |m|-k;
-pure int SparseXxMcol2H(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, int N, int M, int k) = 
-  k < |m| ? 
-    (c(m[k]) == col ? x[r(m[k])] * v(m[k]) : 0) + SparseXxMcol2H(m, x, col, N, M, k+1) 
+pure int SparseXxMcol2H(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col, int N, int M, int k) =
+  k < |m| ?
+    (c(m[k]) == col ? x[r(m[k])] * v(m[k]) : 0) + SparseXxMcol2H(m, x, col, N, M, k+1)
     : 0;
 
   requires |x| == N;
@@ -325,7 +325,7 @@ pure int SparseXxMcol2H(seq<tuple<tuple<int, int>, int>> m, seq<int> x, int col,
   requires (\forall int i=0..N; {:|m[i]|:} == M);
   requires col >= 0 && col < M;
   decreases |m|;
-pure int XxMcol(seq<seq<int>> m, seq<int> x, int col, int N, int M) = 
+pure int XxMcol(seq<seq<int>> m, seq<int> x, int col, int N, int M) =
   |m| > 0 ?
     (m.head[col] * x.head) + XxMcol(m.tail, x.tail, col, N-1, M)
     : 0;
@@ -335,7 +335,7 @@ pure int XxMcol(seq<seq<int>> m, seq<int> x, int col, int N, int M) =
   requires (\forall int i=0..N; {:|m[i]|:} == M);
   requires col >= 0 && col < M;
   decreases;
-pure int XxMcol2(seq<seq<int>> m, seq<int> x, int col, int N, int M) = 
+pure int XxMcol2(seq<seq<int>> m, seq<int> x, int col, int N, int M) =
   XxMcol2H(m, x, col, N, M, 0);
 
   requires |x| == N;
@@ -344,11 +344,11 @@ pure int XxMcol2(seq<seq<int>> m, seq<int> x, int col, int N, int M) =
   requires col >= 0 && col < M;
   requires k >= 0 && k <= N;
   decreases |m|-k;
-pure int XxMcol2H(seq<seq<int>> m, seq<int> x, int col, int N, int M, int k) = 
+pure int XxMcol2H(seq<seq<int>> m, seq<int> x, int col, int N, int M, int k) =
   k < |m| ?
     (m[k][col] * x[k]) + XxMcol2H(m, x, col, N, M, k+1)
     : 0;
-  
+
 //-----------------------------------------------
 // Lemma's
 //-----------------------------------------------
