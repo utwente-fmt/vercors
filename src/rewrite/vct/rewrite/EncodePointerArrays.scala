@@ -925,7 +925,7 @@ case class EncodePointerArrays[Pre <: Generation]()
         case p: InlinePattern[Pre] => throw InvalidPatternLocation(p)
         case inner: PointerArraySubscript[Pre] =>
           calculateOffset(inner, depth + 1)
-        case inner: PointerAdd[Pre] => calculateOffset(inner, depth + 1)
+        case inner: PointerAdd[Pre] => calculateOffset(inner, depth)
         case dp @ DerefPointer(inner) if inner.t.asPointerArray.isDefined =>
           calculateOffset(dp, depth + 1)
         case other => (other, const[Post](0), arrayT.dimensions.length)
@@ -952,7 +952,7 @@ case class EncodePointerArrays[Pre <: Generation]()
         case p: InlinePattern[Pre] => throw InvalidPatternLocation(p)
         case inner: PointerArraySubscript[Pre] =>
           calculateOffset(inner, depth + 1)
-        case inner: PointerAdd[Pre] => calculateOffset(inner, depth + 1)
+        case inner: PointerAdd[Pre] => calculateOffset(inner, depth)
         case dp @ DerefPointer(inner) if inner.t.asPointerArray.isDefined =>
           calculateOffset(dp, depth + 1)
         case other => (other, const[Post](0), arrayT.dimensions.length)
@@ -979,7 +979,7 @@ case class EncodePointerArrays[Pre <: Generation]()
         case p: InlinePattern[Pre] => throw InvalidPatternLocation(p)
         case inner: PointerArraySubscript[Pre] =>
           calculateOffset(inner, depth + 1)
-        case inner: PointerAdd[Pre] => calculateOffset(inner, depth + 1)
+        case inner: PointerAdd[Pre] => calculateOffset(inner, depth)
         case dp @ DerefPointer(inner) if inner.t.asPointerArray.isDefined =>
           calculateOffset(dp, depth + 1)
         case other => (other, const[Post](0), arrayT.dimensions.length)
