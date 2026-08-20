@@ -66,6 +66,7 @@ translate_c_file examples/concepts/llvm/pallas/ghost/pallas_c_ghost_arg.c exampl
 translate_c_file examples/concepts/llvm/pallas/pallas_c_linked_list.c examples/concepts/llvm/pallas/pallas_c_linked_list.ll ""
 translate_c_file examples/concepts/llvm/pallas/pallas_byval.c examples/concepts/llvm/pallas/pallas_byval.ll ""
 translate_c_file examples/concepts/llvm/pallas/ghost/c_byval_ghost.c examples/concepts/llvm/pallas/ghost/c_byval_ghost.ll ""
+translate_c_file examples/concepts/llvm/pallas/pallas_c_seq.c examples/concepts/llvm/pallas/pallas_c_seq.ll ""
 
 
 
