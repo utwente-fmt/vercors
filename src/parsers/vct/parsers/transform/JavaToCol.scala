@@ -2630,6 +2630,12 @@ case class JavaToCol[G](
       // TODO: Remove this when we support nested enums (for the JavaBIP casino example)
       case ValExpr2(_, _, _, replacer, _, _, inner, _, _, _) =>
         convert(replacer)
+      case ValExpr2(_, _, _, replacer, _, _, inner, _, _, _) =>
+        convert(replacer)
+      case ValUnfoldingInPrimary(_, _, predExpr, _, _, body) =>
+        Unfolding(AmbiguousFoldTarget(convert(predExpr)), convert(body))(blame(
+          e
+        ))
     }
 
   def convert(implicit id: ValIdentifierContext): String =
