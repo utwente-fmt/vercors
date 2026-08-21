@@ -1783,6 +1783,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case inv @ LLVMFunctionInvocation(ref, args, givenMap, yields) =>
         LLVMFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
+      case inv @ LLVMWrapperInvocation(ref, callArgs) =>
+        LLVMWrapperInvocation(ref, callArgs)(inv.blame)
       case inv @ LLVMAmbiguousFunctionInvocation(
             name,
             args,
@@ -2322,6 +2324,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case LLVMSeqEq(_, _) => e
       case LLVMSeqGet(_, _, _) => e
       case LLVMSeqSlice(_, _, _) => e
+      case LLVMSeqPrepend(_, _) => e
+      case LLVMSeqUpdate(_, _, _) => e
       case PVLEndpointExpr(_, _) => e
       case EndpointExpr(ref, expr) => e
       case ChorExpr(expr) => ChorExpr(bool(expr))
@@ -2446,6 +2450,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case memset: LLVMMemset[Pre] => memset
       case memcpy: LLVMMemcpy[Pre] => memcpy
       case seqNew: LLVMSeqNew[Pre] => seqNew
+      case llvmRet: LLVMReturn[Pre] => llvmRet
+      case llvmGAssign: LLVMGhostAssign[Pre] => llvmGAssign
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)

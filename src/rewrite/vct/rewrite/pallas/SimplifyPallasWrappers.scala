@@ -24,8 +24,8 @@ case object SimplifyPallasWrappers extends RewriterBuilder {
   * simplifications:
   *   - Pointer-typed locals that are only ever accessed through a deref are
   *     lowered to non-pointer variables
-  *   - Calls to wrapper-functions often contain the following pattern
-  *     ´*&arg_XX´ which is simplified to ´arg_XX´.
+  *   - Wrapper-functions and calls to wrapper functions often contain the
+  *     following patterns ´*&arg_XX´ which is simplified to ´arg_XX´.
   */
 
 case class SimplifyPallasWrappers[Pre <: Generation]() extends Rewriter[Pre] {
@@ -127,12 +127,13 @@ case class SimplifyPallasWrappers[Pre <: Generation]() extends Rewriter[Pre] {
         // Remove the deref around lowered locals.
         case DerefPointer(l @ Local(Ref(v))) if shouldLower(v) =>
           l.rewriteDefault()
+        case DerefPointer(AddrOf(l: Local[Pre])) => l.rewriteDefault()
         case _ => node.rewriteDefault()
       }
     } else if (inWCall()) {
       // In call to wrapper function
       node match {
-        case DerefPointer(AddrOf(l @ Local(Ref(v)))) => l.rewriteDefault()
+        case DerefPointer(AddrOf(l: Local[Pre])) => l.rewriteDefault()
         case _ => node.rewriteDefault()
       }
     } else {

@@ -29,7 +29,10 @@ trait LLVMFunctionDefinitionImpl[G]
 
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
-      contract,
+      if (isWrapper) { Text("@Wrapper") }
+      else if (isGhostWrapper) { Text("@GhostWrapper") }
+      else if (isPredicate) { Text("@Predicate") }
+      else { contract },
       Group(
         (if (pure)
            Text("pure") <+> returnType
@@ -41,8 +44,21 @@ trait LLVMFunctionDefinitionImpl[G]
 
   val args: Seq[Variable[G]] = llvmArgs.map(_.v)
 
+  // All arguments that have a byval-attibute
   val byValArgs: Seq[LLVMFunctionArgument[G]] = llvmArgs
     .filter(_.byValType.nonEmpty)
+
+  // Sret-argument if one exists
+  val sretArg: Option[LLVMFunctionArgument[G]] =
+    llvmArgs.filter(_.isSret).headOption
+
+  // All arguments that do NOT have the sret-attribute
+  val argsWithoutSret: Seq[LLVMFunctionArgument[G]] = {
+    sretArg match {
+      case Some(retArg) => llvmArgs.filter(a => a != retArg)
+      case None => llvmArgs
+    }
+  }
 
   val isWrapper: Boolean =
     functionType match {

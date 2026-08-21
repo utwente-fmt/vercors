@@ -3985,9 +3985,6 @@ final class LLVMFunctionDefinition[G](
     val functionBody: Option[Statement[G]],
     val contract: LLVMFunctionContract[G],
     val pure: Boolean = false,
-    // If the result is returned in an sret-argument, this contains the index
-    // and the type of the sret-argument.
-    val returnInParam: Option[(Int, Type[G])] = None,
     val functionType: LLVMFunctionType[G],
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends LLVMCallable[G]
@@ -4034,6 +4031,14 @@ final case class LLVMPredicateApply[G](
     args: Seq[Expr[G]],
 )(implicit val o: Origin)
     extends ApplyAnyPredicate[G] with LLVMPredicateApplyImpl[G]
+// Special node for invoking a wrapper-function that hides the case
+// of an sret-return.
+// Note: callArgs to NOT include the sret-argument!
+final case class LLVMWrapperInvocation[G](
+    ref: Ref[G, LLVMFunctionDefinition[G]],
+    callArgs: Seq[Expr[G]],
+)(val blame: Blame[InvocationFailure])(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMWrapperInvocationImpl[G]
 
 final class LLVMBasicBlock[G](
     val label: LabelDecl[G],
@@ -4199,6 +4204,16 @@ final case class LLVMMultWithOverflow[G](
     signed: Boolean,
 )(val blame: Blame[AssignFailed])(implicit val o: Origin)
     extends LLVMArithOpWithOverflow[G] with LLVMMultWithOverflowImpl[G]
+
+final case class LLVMReturn[G](result: Expr[G])(implicit val o: Origin)
+    extends ExceptionalStatement[G]
+    with ExpressionContainerStatement[G]
+    with LLVMReturnImpl[G]
+
+final case class LLVMGhostAssign[G](target: Expr[G], value: Expr[G])(
+    val blame: Blame[AssignFailed]
+)(implicit val o: Origin)
+    extends AssignStmt[G] with LLVMGhostAssignImpl[G]
 
 final class LLVMGlobalSpecification[G](val value: String)(
     implicit val o: Origin
