@@ -24,11 +24,13 @@ case object EncodeByValueClassUsage extends RewriterBuilder {
   ) extends Blame[ClassDerefError] {
     override def blame(error: ClassDerefError): Unit = {
       if (blame.isInstanceOf[PanicBlame]) {
-        assign.o
-          .blame(CopyClassFailed(assign, clazz, Referrable.originName(field)))
+        assign.o.blame(
+          CopyClassFailed(assign, clazz, Referrable.originNameOrEmpty(field))
+        )
       } else {
-        blame
-          .blame(CopyClassFailed(assign, clazz, Referrable.originName(field)))
+        blame.blame(
+          CopyClassFailed(assign, clazz, Referrable.originNameOrEmpty(field))
+        )
       }
     }
   }
@@ -44,16 +46,6 @@ case object EncodeByValueClassUsage extends RewriterBuilder {
         CopyClassFailedBeforeCall(inv, clazz, Referrable.originName(field))
       )
     }
-  }
-
-  private case class InvocationBlameAdapter(blame: Blame[InvocationFailure])
-      extends Blame[PointerDerefError] {
-    override def blame(error: PointerDerefError) =
-      error match {
-        case e @ CopyClassFailed(_, _, _) => blame.blame(e)
-        case e @ CopyClassFailedBeforeCall(_, _, _) => blame.blame(e)
-        case _ => ???
-      }
   }
 
   case class UnsupportedStructPerm(o: Origin) extends UserError {

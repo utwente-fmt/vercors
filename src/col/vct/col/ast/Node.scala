@@ -3919,12 +3919,16 @@ final class VCLLVMFunctionContract[G](
     extends LLVMFunctionContract[G] with VCLLVMFunctionContractImpl[G] {
   var data: Option[ApplicableContract[G]] = None
 }
-final class PallasFunctionContract[G](
-    val content: ApplicableContract[G],
-    val assumed: Boolean = false,
-    val external: Boolean,
+final case class PallasFunctionContract[G](
+    // content: ApplicableContract[G],
+    requires: AccountedPredicate[G],
+    ensures: AccountedPredicate[G],
+    llvmGivenArgs: Seq[LLVMFunctionArgument[G]],
+    llvmYieldsArgs: Seq[LLVMFunctionArgument[G]],
+    assumed: Boolean = false,
+    external: Boolean,
 )(val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin)
-    extends LLVMFunctionContract[G] with PallasFunctionContractImpl[G] {}
+    extends LLVMFunctionContract[G] with PallasFunctionContractImpl[G]
 
 final case class LLVMLoopContract[G](invariant: Expr[G])(
     val blame: Blame[LoopInvariantFailure]
@@ -3957,17 +3961,30 @@ final case class PredicateDefinition[G](val inlined: Boolean)(
     implicit val o: Origin
 ) extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
 
+// Attributes of function arguments in LLVM
+@family
+sealed trait LLVMArgAttribute[G]
+    extends NodeFamily[G] with LLVMArgAttributeImpl[G]
+final case class LLVMByValArg[G](t: Type[G])(implicit val o: Origin)
+    extends LLVMArgAttribute[G] with LLVMByValArgImpl[G]
+final case class LLVMSretArg[G](t: Type[G])(implicit val o: Origin)
+    extends LLVMArgAttribute[G] with LLVMSretArgImpl[G]
+
+@family
+final class LLVMFunctionArgument[G](
+    val v: Variable[G],
+    val attributes: Seq[LLVMArgAttribute[G]],
+)(implicit val o: Origin)
+    extends NodeFamily[G] with LLVMFunctionArgumentImpl[G]
+
 sealed trait LLVMCallable[G] extends GlobalDeclaration[G]
 @scopes[LabelDecl]
 final class LLVMFunctionDefinition[G](
     val returnType: Type[G],
-    val args: Seq[Variable[G]],
+    val llvmArgs: Seq[LLVMFunctionArgument[G]],
     val functionBody: Option[Statement[G]],
     val contract: LLVMFunctionContract[G],
     val pure: Boolean = false,
-    // If the result is returned in an sret-argument, this contains the index
-    // and the type of the sret-argument.
-    val returnInParam: Option[(Int, Type[G])] = None,
     val functionType: LLVMFunctionType[G],
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends LLVMCallable[G]
@@ -4014,6 +4031,14 @@ final case class LLVMPredicateApply[G](
     args: Seq[Expr[G]],
 )(implicit val o: Origin)
     extends ApplyAnyPredicate[G] with LLVMPredicateApplyImpl[G]
+// Special node for invoking a wrapper-function that hides the case
+// of an sret-return.
+// Note: callArgs to NOT include the sret-argument!
+final case class LLVMWrapperInvocation[G](
+    ref: Ref[G, LLVMFunctionDefinition[G]],
+    callArgs: Seq[Expr[G]],
+)(val blame: Blame[InvocationFailure])(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMWrapperInvocationImpl[G]
 
 final class LLVMBasicBlock[G](
     val label: LabelDecl[G],
@@ -4180,6 +4205,16 @@ final case class LLVMMultWithOverflow[G](
 )(val blame: Blame[AssignFailed])(implicit val o: Origin)
     extends LLVMArithOpWithOverflow[G] with LLVMMultWithOverflowImpl[G]
 
+final case class LLVMReturn[G](result: Expr[G])(implicit val o: Origin)
+    extends ExceptionalStatement[G]
+    with ExpressionContainerStatement[G]
+    with LLVMReturnImpl[G]
+
+final case class LLVMGhostAssign[G](target: Expr[G], value: Expr[G])(
+    val blame: Blame[AssignFailed]
+)(implicit val o: Origin)
+    extends AssignStmt[G] with LLVMGhostAssignImpl[G]
+
 final class LLVMGlobalSpecification[G](val value: String)(
     implicit val o: Origin
 ) extends GlobalDeclaration[G] with LLVMGlobalSpecificationImpl[G] {
@@ -4266,6 +4301,41 @@ final case class LLVMPtrBlockOffset[G](ptr: Expr[G])(
 final case class LLVMPtrLength[G](ptr: Expr[G])(val blame: Blame[PointerNull])(
     implicit val o: Origin
 ) extends Expr[G] with LLVMPtrLengthImpl[G]
+
+final case class LLVMSeqNew[G](target: Expr[G], cType: Type[G])(
+    val blame: Blame[AssignFailed]
+)(implicit val o: Origin)
+    extends LLVMStatement[G] with LLVMSeqNewImpl[G]
+
+final case class LLVMSeqSize[G](seq: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqSizeImpl[G]
+
+final case class LLVMSeqEq[G](s1: Expr[G], s2: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqEqImpl[G]
+
+final case class LLVMSeqGet[G](seq: Expr[G], idx: Expr[G], elemType: Type[G])(
+    val blame: Blame[VerificationFailure]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqGetImpl[G]
+
+final case class LLVMSeqSlice[G](seq: Expr[G], sIdx: Expr[G], eIdx: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqSliceImpl[G]
+
+final case class LLVMSeqPrepend[G](elem: Expr[G], seq: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqPrependImpl[G]
+
+final case class LLVMSeqUpdate[G](seq: Expr[G], idx: Expr[G], elem: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqUpdateImpl[G]
 
 @family
 sealed trait LLVMMemoryOrdering[G]
