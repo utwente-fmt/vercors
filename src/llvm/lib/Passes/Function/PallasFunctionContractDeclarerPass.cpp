@@ -32,6 +32,7 @@ const std::string SOURCE_LOC =
     "Passes::Function::PallasFunctionContractDeclarerPass";
 
 using namespace llvm;
+using GhostArgT = PallasFunctionContractDeclarerPass::GhostArgType;
 
 /*
  * Pallas Function Contract Declarer Pass
@@ -46,17 +47,18 @@ PallasFunctionContractDeclarerPass::run(Module &m, ModuleAnalysisManager &mam) {
     return PreservedAnalyses::all();
 }
 
-llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
+PallasFunctionContractDeclarerPass::GhostArgType
+PallasFunctionContractDeclarerPass::getGhostArgType(
     const irspec::FunctionContract &contract, const llvm::MDNode &gArgMD,
     llvm::Function &f, bool isGivenArg) {
 
     auto gArgDef = irspec::getGhostArgDef(&gArgMD);
     if (!gArgDef.has_value())
-        return nullptr;
+        return GhostArgT();
 
-    llvm::Type *currentType = nullptr;
-    // Check the signature of the contract's claues to determine the type of the
-    // ghost argument
+    auto currentType = GhostArgT();
+    // Check the signature of the contract's clauses to determine the type of
+    // the ghost argument
     for (auto &clause : contract.clauses) {
         // Skip requires-clauses for yields args:
         if (!isGivenArg &&
@@ -69,7 +71,7 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
             ErrorReporter::addError(
                 SOURCE_LOC,
                 "Failed to find DIVariable for ghost-arg definition ", f);
-            return nullptr;
+            return GhostArgT();
         }
         auto *mappedArg = utils::mapDIVarToArg(clause.getWrapper(), *diVar);
         if (mappedArg == nullptr) {
@@ -77,21 +79,22 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
                               gArgDef->name + " based on wrapper function " +
                               clause.getWrapper().getName().str();
             ErrorReporter::addError(SOURCE_LOC, err, f);
-            return nullptr;
+            return GhostArgT();
         }
-        auto newType = mappedArg->getType();
+
+        auto newType = GhostArgT(*mappedArg);
 
         // Compare type to previously determined type to check consistency
-        if (currentType != nullptr && newType != currentType) {
+        if (currentType.isValid() && newType != currentType) {
             std::string err =
                 "Found conflicting types for ghost-arg " + gArgDef->name;
             ErrorReporter::addError(SOURCE_LOC, err, f);
-            return nullptr;
+            return GhostArgT();
         }
         currentType = newType;
     }
 
-    if (currentType == nullptr) {
+    if (!currentType.isValid()) {
         std::string err =
             "Failed to determine type for ghost-arg " + gArgDef->name;
         ErrorReporter::addError(SOURCE_LOC, err, f);
@@ -100,19 +103,45 @@ llvm::Type *PallasFunctionContractDeclarerPass::getGhostArgType(
 }
 
 void PallasFunctionContractDeclarerPass::transformGhostArg(
-    const irspec::GhostArgDef &gArgDef, col::Variable *colVar, llvm::Type &type,
+    const irspec::GhostArgDef &gArgDef, col::LlvmFunctionArgument *colArg,
+    PallasFunctionContractDeclarerPass::GhostArgType &type,
     llvm::Function &parentFunc, FunctionAnalysisManager &fam) {
+    assert(type.isValid());
 
     auto &mamProxy =
         fam.getResult<llvm::ModuleAnalysisManagerFunctionProxy>(parentFunc);
     auto *sdRes =
         mamProxy.getCachedResult<StructTDeclarer>(*parentFunc.getParent());
     assert(sdRes != nullptr);
+    colArg->set_allocated_origin(
+        llvm2col::generatePallasSpecOrigin(gArgDef.loc, gArgDef.name));
+    auto *colVar = colArg->mutable_v();
     colVar->set_allocated_origin(
         llvm2col::generatePallasSpecOrigin(gArgDef.loc, gArgDef.name));
     llvm2col::setColNodeId(colVar);
+
     try {
-        llvm2col::transformAndSetType(type, *colVar->mutable_t(), *sdRes);
+        // Type
+        llvm2col::transformAndSetType(*type.type, *colVar->mutable_t(), *sdRes);
+
+        // Byval attribute
+        if (type.hasByVal()) {
+            auto *bvAttr = colArg->add_attributes()->mutable_llvm_by_val_arg();
+            bvAttr->set_allocated_origin(
+                llvm2col::generatePallasSpecOrigin(gArgDef.loc, "byval"));
+            llvm2col::transformAndSetType(*type.byValType, *bvAttr->mutable_t(),
+                                          *sdRes);
+        }
+
+        // Sret attribute
+        if (type.hasSret()) {
+            auto *sretAttr = colArg->add_attributes()->mutable_llvm_sret_arg();
+            sretAttr->set_allocated_origin(
+                llvm2col::generatePallasSpecOrigin(gArgDef.loc, "sret"));
+            llvm2col::transformAndSetType(*type.sretType,
+                                          *sretAttr->mutable_t(), *sdRes);
+        }
+
     } catch (pallas::UnsupportedTypeException &e) {
         std::stringstream errorStream;
         errorStream << e.what() << " in ghost argument " << gArgDef.name;
@@ -151,81 +180,69 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
                                  .mutable_pallas_function_contract();
     colPallasContract->set_allocated_blame(new col::Blame());
 
+    // Build origin based on the source-location
+    colPallasContract->set_allocated_origin(
+        llvm2col::generatePallasFunctionContractOrigin(f, irContract->loc));
+
     // external-flag
     colPallasContract->set_external(isExternal);
     // Set assumed-flag
     colPallasContract->set_assumed(irContract->assumed);
 
-    // Get COL function
-    FDResult fResult = fam.getResult<FunctionDeclarer>(f);
-
-    col::ApplicableContract *colContract = colPallasContract->mutable_content();
-    colContract->set_allocated_blame(new col::Blame());
-
-    // Build origin based on the source-location
-    colPallasContract->set_allocated_origin(
-        llvm2col::generatePallasFunctionContractOrigin(f, irContract->loc));
-    colContract->set_allocated_origin(
-        llvm2col::generatePallasFunctionContractOrigin(f, irContract->loc));
-
-    // Add given-args
+    // Given-args
     for (const auto g : irContract->givenArgs) {
         auto gDef = irspec::getGhostArgDef(g);
         if (!gDef.has_value())
             return;
-        llvm::Type *gType = getGhostArgType(*irContract, *g, f, true);
-        auto *colVar = colContract->add_given_args();
-        transformGhostArg(*gDef, colVar, *gType, f, fam);
-        cResult.addGhostArgMapEntry(*g, *colVar);
+        auto gType = getGhostArgType(*irContract, *g, f, true);
+        auto *colArg = colPallasContract->add_llvm_given_args();
+        transformGhostArg(*gDef, colArg, gType, f, fam);
+        cResult.addGhostArgMapEntry(*g, colArg->v());
     }
 
-    // Add yields-args
+    // Yields-args
     for (const auto y : irContract->yieldsArgs) {
         auto yDef = irspec::getGhostArgDef(y);
         if (!yDef.has_value())
             return;
-        llvm::Type *yType = getGhostArgType(*irContract, *y, f, false);
-        auto *colVar = colContract->add_yields_args();
-        transformGhostArg(*yDef, colVar, *yType, f, fam);
-        cResult.addGhostArgMapEntry(*y, *colVar);
+        auto yType = getGhostArgType(*irContract, *y, f, false);
+        auto *colArg = colPallasContract->add_llvm_yields_args();
+        transformGhostArg(*yDef, colArg, yType, f, fam);
+        cResult.addGhostArgMapEntry(*y, colArg->v());
     }
 
-    // Handle contract clauses
+    // Contract clauses
     for (size_t idx = 0; idx < irContract->clauses.size(); ++idx) {
-        bool addClauseSuccess = addClauseToContract(*colContract, *irContract,
-                                                    idx, fam, f, isExternal);
+        bool addClauseSuccess = addClauseToContract(
+            *colPallasContract, *irContract, idx, fam, f, isExternal);
         if (!addClauseSuccess)
             return;
     }
 
     // Ensure, that the required fields of the contract are set.
     // I.e. add trivial clauses if they are currently empty.
-    addEmptyRequires(*colContract, f);
-    addEmptyEnsures(*colContract, f);
-    addEmptyContextEverywhere(*colContract, f);
-    addEmptyKernelInvariant(*colContract, f);
+    addEmptyRequires(*colPallasContract, f);
+    addEmptyEnsures(*colPallasContract, f);
 }
 
 bool PallasFunctionContractDeclarerPass::addClauseToContract(
-    col::ApplicableContract &contract,
+    col::PallasFunctionContract &contract,
     const irspec::FunctionContract &irContract, unsigned int clauseIdx,
     FunctionAnalysisManager &fam, Function &parentFunc, const bool isExternal) {
 
     auto &clause = irContract.clauses[clauseIdx];
 
     // Build a call to the wrapper-function with the gathered arguments
-    col::LlvmFunctionInvocation *wrapperCall =
-        new col::LlvmFunctionInvocation();
-    llvm2col::buildContractWrapperCall(clause, parentFunc, *wrapperCall, fam,
-                                       isExternal);
+    auto *wrapperInv = new col::LlvmWrapperInvocation();
+    llvm2col::buildContractWrapperInv(clause, parentFunc, *wrapperInv, fam,
+                                      isExternal);
 
     // Construct an AccountedPredicate that wraps the call to the
     // wrapper-function
     col::UnitAccountedPredicate *newPred = new col::UnitAccountedPredicate();
     newPred->set_allocated_origin(llvm2col::generatePallasFContractClauseOrigin(
         parentFunc, clause.getLoc(), clauseIdx + 1));
-    newPred->mutable_pred()->set_allocated_llvm_function_invocation(
-        wrapperCall);
+    newPred->mutable_pred()->set_allocated_llvm_wrapper_invocation(wrapperInv);
 
     if (clause.getType() == pallas::irspec::ContractClauseType::REQUIRES) {
         // Add to requires clauses
@@ -260,7 +277,7 @@ bool PallasFunctionContractDeclarerPass::addClauseToContract(
 }
 
 void PallasFunctionContractDeclarerPass::addEmptyRequires(
-    col::ApplicableContract &contract, Function &f) {
+    col::PallasFunctionContract &contract, Function &f) {
 
     // If the contract already has a requires-clause, do nothing
     if (contract.has_requires_())
@@ -278,7 +295,7 @@ void PallasFunctionContractDeclarerPass::addEmptyRequires(
 }
 
 void PallasFunctionContractDeclarerPass::addEmptyEnsures(
-    col::ApplicableContract &contract, Function &f) {
+    col::PallasFunctionContract &contract, Function &f) {
 
     // If the contract already has a requires-clause, do nothing
     if (contract.has_ensures())
@@ -295,32 +312,6 @@ void PallasFunctionContractDeclarerPass::addEmptyEnsures(
     ensuresExpr->set_value(true);
 }
 
-void PallasFunctionContractDeclarerPass::addEmptyContextEverywhere(
-    col::ApplicableContract &contract, Function &f) {
-
-    // If the contract already has a contextEverywhere-clause, do nothing
-    if (contract.has_context_everywhere())
-        return;
-
-    // Build expression for contextEverywhere
-    auto *contextExpr =
-        contract.mutable_context_everywhere()->mutable_boolean_value();
-    contextExpr->set_allocated_origin(
-        llvm2col::generateFunctionContractOrigin(f, "true"));
-    contextExpr->set_value(true);
-}
-
-void PallasFunctionContractDeclarerPass::addEmptyKernelInvariant(
-    col::ApplicableContract &contract, Function &f) {
-    if (contract.has_kernel_invariant())
-        return;
-    // Build expression for kernelInvariant
-    auto *kernelInvariant =
-        contract.mutable_kernel_invariant()->mutable_boolean_value();
-    kernelInvariant->set_allocated_origin(
-        llvm2col::generateFunctionContractOrigin(f, "true"));
-    kernelInvariant->set_value(true);
-}
 void PallasFunctionContractDeclarerPass::extendPredicate(
     col::AccountedPredicate *newPred, col::Origin *newPredOrigin,
     col::AccountedPredicate *left, col::UnitAccountedPredicate *right) {

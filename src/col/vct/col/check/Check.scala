@@ -210,6 +210,11 @@ sealed trait CheckError {
           context(expr) ->
             "This construct must be in a \\polarity_dependent expression since it must be evaluated in a specific heap"
         )
+      case LLVMInvalidGhostAssign(node) =>
+        Seq(
+          context(node) ->
+            "LLVMGhostAssignments must always assign the value of a LLVMWrapperInvocation."
+        )
     }): _*)
 
   def subcode: String
@@ -365,6 +370,12 @@ case class TriggerWithoutDependentVars(node: Node[_]) extends CheckError {
 }
 case class MustBeInPolarityDependent(node: Node[_]) extends CheckError {
   val subcode: String = "polarityDependent"
+}
+case class LLVMReturnOutsideFunction(ret: LLVMReturn[_]) extends CheckError {
+  val subcode = "llvmResultOutsideFunction"
+}
+case class LLVMInvalidGhostAssign(value: Node[_]) extends CheckError {
+  val subcode = "llvmInvalidGhostAssign"
 }
 
 case object CheckContext {

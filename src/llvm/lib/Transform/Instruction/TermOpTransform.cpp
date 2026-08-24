@@ -41,8 +41,8 @@ void llvm2col::transformTermOp(llvm::Instruction &llvmInstruction,
 void llvm2col::transformRet(llvm::ReturnInst &llvmRetInstruction,
                             col::LlvmBasicBlock &colBlock,
                             pallas::FunctionCursor &funcCursor) {
-    col::Return *returnStatement =
-        colBlock.mutable_terminator()->mutable_return_();
+    auto *returnStatement =
+        colBlock.mutable_terminator()->mutable_llvm_return();
     returnStatement->set_allocated_origin(
         generateSingleStatementOrigin(llvmRetInstruction));
 

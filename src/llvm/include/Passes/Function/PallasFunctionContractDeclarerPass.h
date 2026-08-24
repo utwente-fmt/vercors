@@ -52,6 +52,24 @@ class PallasFunctionContractDeclarerPass
      */
     PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 
+    struct GhostArgType {
+        llvm::Type *type = nullptr;
+        llvm::Type *byValType = nullptr;
+        llvm::Type *sretType = nullptr;
+
+        GhostArgType(llvm::Argument &arg)
+            : type(arg.getType()), byValType(arg.getParamByValType()),
+              sretType(arg.getParamStructRetType()) {}
+
+        GhostArgType() {}
+
+        inline bool isValid() { return type != nullptr; }
+        inline bool hasByVal() { return byValType != nullptr; }
+        inline bool hasSret() { return sretType != nullptr; }
+
+        bool operator==(const GhostArgType &) const = default;
+    };
+
   private:
     /**
      * Run the transformation on the given function.
@@ -69,27 +87,13 @@ class PallasFunctionContractDeclarerPass
      * Adds an empty requires-clause (i.e. requires true;) to the given contract
      * if it does not already have a requires-clause.
      */
-    void addEmptyRequires(col::ApplicableContract &contract, Function &f);
+    void addEmptyRequires(col::PallasFunctionContract &contract, Function &f);
 
     /**
      * Adds an empty ensures-clause (i.e. ensures true;) to the given contract
      * if it does not already have a requires-clause.
      */
-    void addEmptyEnsures(col::ApplicableContract &contract, Function &f);
-
-    /**
-     * Adds an empty context_everywhere (i.e. context_everywhere true;) to the
-     * given contract if it does not already have a context_everywhere-clause.
-     */
-    void addEmptyContextEverywhere(col::ApplicableContract &contract,
-                                   Function &f);
-
-    /**
-     * Adds an empty kernel_invariant (i.e. kernel_invariant true;) to the
-     * given contract if it does not already have a kernel_invariant-clause.
-     */
-    void addEmptyKernelInvariant(col::ApplicableContract &contract,
-                                 Function &f);
+    void addEmptyEnsures(col::PallasFunctionContract &contract, Function &f);
 
     /**
      * Tries to add a clause, that is represented by the given metadata-node, to
@@ -102,7 +106,7 @@ class PallasFunctionContractDeclarerPass
      * parent function are implicitly encoded in the contract (i.e. in external
      * or ghost contracts).
      */
-    bool addClauseToContract(col::ApplicableContract &contract,
+    bool addClauseToContract(col::PallasFunctionContract &contract,
                              const irspec::FunctionContract &irContract,
                              unsigned int clauseIdx,
                              FunctionAnalysisManager &fam, Function &parentFunc,
@@ -133,17 +137,17 @@ class PallasFunctionContractDeclarerPass
      * isGivenArg = false --> Assumed to be yields-arg
      * If the type cannot be determined, returns nullptr and adds error.
      */
-    llvm::Type *getGhostArgType(const irspec::FunctionContract &contract,
-                                const llvm::MDNode &gArgMD, llvm::Function &f,
-                                bool isGivenArg);
+    GhostArgType getGhostArgType(const irspec::FunctionContract &contract,
+                                 const llvm::MDNode &gArgMD, llvm::Function &f,
+                                 bool isGivenArg);
 
     /**
      * Initializes the given col-variable (colVar) based on theg given
      * ghost argument definition (gArgDef).
      */
     void transformGhostArg(const irspec::GhostArgDef &gArgDef,
-                           col::Variable *colVar, llvm::Type &type,
-                           llvm::Function &parentFunc,
+                           col::LlvmFunctionArgument *colArg,
+                           GhostArgType &type, llvm::Function &parentFunc,
                            FunctionAnalysisManager &fam);
 };
 } // namespace pallas

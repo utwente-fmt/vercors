@@ -383,6 +383,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: LLVMFloatType[Pre] => node
       case node: LLVMFieldDefinition[Pre] => node
       case node: LLVMFunctionType[Pre] => node
+      case node: LLVMArgAttribute[Pre] => node
+      case node: LLVMFunctionArgument[Pre] => node
       case node: ProverLanguage[Pre] => node
       case node: SmtlibFunctionSymbol[Pre] => node
       case node: ChorRun[Pre] => node
@@ -1781,6 +1783,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case inv @ LLVMFunctionInvocation(ref, args, givenMap, yields) =>
         LLVMFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
+      case inv @ LLVMWrapperInvocation(ref, callArgs) =>
+        LLVMWrapperInvocation(ref, callArgs)(inv.blame)
       case inv @ LLVMAmbiguousFunctionInvocation(
             name,
             args,
@@ -2316,6 +2320,12 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case LLVMSepForall(_, _) => e
       case LLVMExists(_, _) => e
       case LLVMExtractValue(_, _, _, _) => e
+      case LLVMSeqSize(_) => e
+      case LLVMSeqEq(_, _) => e
+      case LLVMSeqGet(_, _, _) => e
+      case LLVMSeqSlice(_, _, _) => e
+      case LLVMSeqPrepend(_, _) => e
+      case LLVMSeqUpdate(_, _, _) => e
       case PVLEndpointExpr(_, _) => e
       case EndpointExpr(ref, expr) => e
       case ChorExpr(expr) => ChorExpr(bool(expr))
@@ -2439,6 +2449,9 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case mult: LLVMMultWithOverflow[Pre] => mult
       case memset: LLVMMemset[Pre] => memset
       case memcpy: LLVMMemcpy[Pre] => memcpy
+      case seqNew: LLVMSeqNew[Pre] => seqNew
+      case llvmRet: LLVMReturn[Pre] => llvmRet
+      case llvmGAssign: LLVMGhostAssign[Pre] => llvmGAssign
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)
@@ -3162,6 +3175,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: LLVMMemoryOrdering[Pre]): LLVMMemoryOrdering[Pre] = node
   def coerce(node: LLVMFloatType[Pre]): LLVMFloatType[Pre] = node
   def coerce(node: LLVMFunctionType[Pre]): LLVMFunctionType[Pre] = node
+  def coerce(node: LLVMArgAttribute[Pre]): LLVMArgAttribute[Pre] = node
+  def coerce(node: LLVMFunctionArgument[Pre]): LLVMFunctionArgument[Pre] = node
   def coerce(node: LLVMFieldDefinition[Pre]): LLVMFieldDefinition[Pre] = node
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node

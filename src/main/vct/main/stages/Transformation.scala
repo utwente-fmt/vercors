@@ -60,6 +60,7 @@ import vct.rewrite.pallas.{
   InlinePallasWrappers,
   ResolvePallasPredicates,
   ResolvePallasQuantifiers,
+  SimplifyPallasWrappers,
 }
 import vct.rewrite.veymont._
 import vct.rewrite.veymont.generation._
@@ -378,6 +379,7 @@ case class SilverTransformation(
         ReplaceSYCLTypes,
         TypeQualifierCoercion,
         MakeUniqueMethodCopies,
+        SimplifyPallasWrappers,
         // Inline pallas-specifications
         InlinePallasWrappers,
         ResolvePallasPredicates,
