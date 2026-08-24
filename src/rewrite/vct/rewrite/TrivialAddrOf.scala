@@ -12,7 +12,9 @@ case object TrivialAddrOf extends RewriterBuilder {
   case class UnsupportedLocation(loc: Expr[_]) extends UserError {
     override def code: String = "wrongAddrOf"
     override def text: String =
-      "Non-trivial instances of the address-of operator are not supported."
+      loc.o.messageInContext(
+        "Non-trivial instances of the address-of operator are not supported."
+      )
   }
 }
 
@@ -26,7 +28,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
             offset.asInstanceOf[ConstantInt[Pre]].value.signum == 0 =>
         dispatch(pointer)
       case AddrOf(DerefPointer(p)) => dispatch(p)
-
+      case DerefPointer(AddrOf(p)) => dispatch(p)
       case AddrOf(sub @ PointerSubscript(p, i)) =>
         PointerAdd(dispatch(p), dispatch(i))(PointerSubscriptToAddBlame(
           sub.blame
