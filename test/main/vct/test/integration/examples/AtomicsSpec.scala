@@ -8,5 +8,6 @@ class AtomicsSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/atomics/RBLock.java"
   vercors should verify using silicon example "concepts/atomics/CountDownLatch.java"
   vercors should verify using silicon example "concepts/atomics/ReentractLock.java"
+  vercors should verify using silicon example "concepts/atomics/Semaphore.java"
 
 }
