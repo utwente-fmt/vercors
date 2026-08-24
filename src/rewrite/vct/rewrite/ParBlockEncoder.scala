@@ -166,18 +166,20 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
             val res =
               body match {
                 // TODO: Make sure to not merge if this breaks triggers
-//                case Forall(bindings, Nil, body) =>
-//                  Forall(
-//                    variables.dispatch(bindings ++ quantVars),
-//                    Nil,
-//                    range ==> scale(dispatch(body)),
-//                  )(body.o)
-//                case s @ Starall(bindings, Nil, body) =>
-//                  Starall(
-//                    variables.dispatch(bindings ++ quantVars),
-//                    Nil,
-//                    range ==> scale(dispatch(body)),
-//                  )(s.blame)(body.o)
+                case f @ Forall(bindings, _, body)
+                    if checkSafeMerge(quantVars, f) =>
+                  Forall(
+                    variables.dispatch(bindings ++ quantVars),
+                    Nil,
+                    range ==> scale(dispatch(body)),
+                  )(body.o)
+                case s @ Starall(bindings, _, body)
+                    if checkSafeMerge(quantVars, s) =>
+                  Starall(
+                    variables.dispatch(bindings ++ quantVars),
+                    Nil,
+                    range ==> scale(dispatch(body)),
+                  )(s.blame)(body.o)
                 case other =>
                   Starall(
                     variables.dispatch(quantVars),
@@ -191,6 +193,28 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
     })
 
     AstBuildHelpers.foldStar(rewrittenExpr)
+  }
+
+  private def checkSafeMerge(
+      outerVars: Set[Variable[Pre]],
+      quantifier: Binder[Pre],
+  ): Boolean = {
+    val newQ =
+      quantifier match {
+        case f @ Forall(innerVars, triggers, body) =>
+          Forall(innerVars ++ outerVars, triggers, body)(f.o)
+        case s @ Starall(innerVars, triggers, body) =>
+          Starall(innerVars ++ outerVars, triggers, body)(s.blame)(s.o)
+      }
+    val rw = ExtractInlineQuantifierPatterns[Pre, Pre]()
+    val (parentPatterns, validTriggers) = rw.patterns.collect {
+      rw.dispatch(newQ) match {
+        case f @ Forall(_, triggers, _) => f.checkTriggers(triggers).isEmpty
+        case s @ Starall(_, triggers, _) => s.checkTriggers(triggers).isEmpty
+      }
+    }
+    // We want the given triggers to be valid and if there were unbound patterns meant for a outer quantifier we also want to avoid merging the quantifiers
+    validTriggers && parentPatterns.isEmpty
   }
 
   def requires(region: ParRegion[Pre], nonEmpty: Boolean)(

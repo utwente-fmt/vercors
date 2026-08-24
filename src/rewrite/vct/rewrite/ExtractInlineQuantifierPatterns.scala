@@ -20,10 +20,15 @@ case object ExtractInlineQuantifierPatterns extends RewriterBuilder {
       s"inlinedPatterns:${errors.map(_.subcode).mkString(",")}"
     override def text: String = errors.map(_.message(_.o)).mkString("\n")
   }
+
+  override def apply[Pre <: Generation]()
+      : AbstractRewriter[Pre, _ <: Generation] = apply[Pre, Rewritten[Pre]]()
 }
 
-case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
-    extends Rewriter[Pre] {
+case class ExtractInlineQuantifierPatterns[
+    Pre <: Generation,
+    Post <: Generation,
+]() extends NonLatchingRewriter[Pre, Post] {
   outer =>
   import ExtractInlineQuantifierPatterns._
   // PB: letBindingsHere are all let bindings valid at the site where the trigger is defined: they need to be inlined,
@@ -38,10 +43,12 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
 
   private type LetBinding = (Variable[Pre], Expr[Pre])
 
-  private val patterns: ScopedStack[ArrayBuffer[Pattern]] = ScopedStack()
+  val patterns: ScopedStack[ArrayBuffer[Pattern]] = ScopedStack()
   private val letBindings: ScopedStack[ScopedStack[LetBinding]] = ScopedStack()
+  letBindings.push(ScopedStack())
 
-  private case class MakePattern(pattern: Pattern) extends Rewriter[Pre] {
+  private case class MakePattern(pattern: Pattern)
+      extends NonLatchingRewriter[Pre, Post] {
     override val allScopes = outer.allScopes
 
     override def dispatch(e: Expr[Pre]): Expr[Post] =
@@ -54,9 +61,6 @@ case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
         case e => e.rewriteDefault()
       }
   }
-
-  override def dispatch(p: Program[Pre]): Program[Post] =
-    letBindings.having(ScopedStack()) { p.rewrite() }
 
   override def dispatch(loc: Location[Pre]): Location[Post] =
     loc match {
