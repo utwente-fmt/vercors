@@ -569,6 +569,12 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     ): Option[(Object, Type[Pre] => Type[Pre], Type[Pre] => Type[Pre])] =
       expr match {
         case Local(Ref(v)) => Some((v, t => t, t => t))
+        case LLVMPointerValue(Ref(g: LLVMGlobalVariable[Pre])) =>
+          Some((
+            g,
+            { t: Type[Pre] => t.asPointer.get.element },
+            { t: Type[Pre] => LLVMTPointer(Some(t)) },
+          ))
         case LLVMPointerValue(Ref(g)) => Some((g, t => t, t => t))
         case DerefPointer(p) =>
           getVariablePossiblyWrapped(p).map { case (v, strip, wrap) =>
@@ -729,8 +735,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           .foreach { case (arg, idx) =>
             // Infer type of variable that is used as arg in function call
             // from function definition
+            // We skip global variables to ensure that their type is not
+            // affected by their usage.
             if (inv.args(idx).t.asPointer.isDefined) {
               getVariable(inv.args(idx))
+                .filter(v => !v.isInstanceOf[LLVMGlobalVariable[Pre]])
                 .foreach(v => addTypeGuess(v, Set.empty, _ => Seq(arg.t)))
             }
           }
@@ -1377,7 +1386,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               )(struct.o),
               None,
             )(struct.o),
-            decl.value.map(rw.dispatch),
+            // Types do not match, i.e. global turns into ptr, but initializer not
+            // For now we just skip the initializer!
+            // decl.value.map(rw.dispatch)
+            None,
           )
         case array: LLVMTArray[Pre] =>
           (
@@ -1835,8 +1847,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       // localVariableInferredType.getOrElse(v, e.t)
       // Making assumption here that LLVMPointerValue only contains LLVMGlobalVariables whereas LLVMGlobalVariableImpl assumes it can also contain HeapVariables
       case LLVMPointerValue(Ref(v)) =>
-        globalVariableInferredType
-          .getOrElse(v.asInstanceOf[LLVMGlobalVariable[Pre]], e.t)
+        globalVariableInferredType.get(v.asInstanceOf[LLVMGlobalVariable[Pre]])
+          .map(t => LLVMTPointer[Pre](Some(t))).getOrElse(e.t)
       case res: LLVMResult[Pre] => res.t
       case DerefPointer(inner) =>
         val innerT = getInferredType(inner)
