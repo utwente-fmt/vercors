@@ -11,4 +11,5 @@ case object Mode {
   case object CFG extends Mode
   case object Compile extends Mode
   case object Patcher extends Mode
+  case object LSP extends Mode
 }
