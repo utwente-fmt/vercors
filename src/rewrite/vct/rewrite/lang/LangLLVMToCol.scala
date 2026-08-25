@@ -2220,11 +2220,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewritePointerValue(pointer: LLVMPointerValue[Pre]): Expr[Post] = {
     implicit val o: Origin = pointer.o
     // Will be transformed by VariableToPointer pass
-    new AddrOf[Post](
-      DerefHeapVariable[Post](globalVariableMap.ref(
-        pointer.value.decl.asInstanceOf[LLVMGlobalVariable[Pre]]
-      ))(pointer.o)
-    )
+    DerefHeapVariable[Post](globalVariableMap.ref(
+      pointer.value.decl.asInstanceOf[LLVMGlobalVariable[Pre]]
+    ))(pointer.o)
   }
 
   def rewriteResult(res: LLVMResult[Pre]): LLVMIntermediaryResult[Post] = {
