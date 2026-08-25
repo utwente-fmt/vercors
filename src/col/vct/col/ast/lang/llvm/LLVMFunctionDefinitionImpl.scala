@@ -29,6 +29,8 @@ trait LLVMFunctionDefinitionImpl[G]
 
   override def layout(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(
+      if (hasNoreturnAttr) { Text("@Noreturn") }
+      else { Empty },
       if (isWrapper) { Text("@Wrapper") }
       else if (isGhostWrapper) { Text("@GhostWrapper") }
       else if (isPredicate) { Text("@Predicate") }

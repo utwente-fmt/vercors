@@ -1827,6 +1827,24 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
+  def rewriteLLVMEval(eval: LLVMEval[Pre]): Statement[Post] = {
+    implicit val o: Origin = eval.o
+
+    // If we are in a specification and invoke a function that is marked
+    // as non-returning, transform into assert false.
+    // This is primarily used to handle panics in Rust and failures in Swift.
+    val callNonret =
+      eval.expr match {
+        case inv: LLVMFunctionInvocation[Pre] if inv.ref.decl.hasNoreturnAttr =>
+          true
+        case _ => false;
+      }
+    if (inSpec() && callNonret) {
+      val invBlame = eval.expr.asInstanceOf[LLVMFunctionInvocation[Pre]].blame
+      Assert[Post](ff)(InvocationToAssertFailedError(invBlame))
+    } else { Eval[Post](rw.dispatch(eval.expr)) }
+  }
+
   private def getNondetValFunc(t: Type[Post]): Function[Post] = {
     if (!nondetGetters.contains(t)) {
       val getterFunc = rw.globalDeclarations.declare(
@@ -2656,9 +2674,11 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   }
 
   private def requireInWrapper(node: Node[_]): Unit = {
-    if (inSpecDefFunction.isEmpty || !inSpecDefFunction.top) {
-      throw UnexpectedLLVMNode(node)
-    }
+    if (!inSpec()) { throw UnexpectedLLVMNode(node) }
+  }
+
+  private def inSpec(): Boolean = {
+    inSpecDefFunction.nonEmpty && inSpecDefFunction.top
   }
 
   def structType(t: LLVMTStruct[Pre]): Type[Post] = {

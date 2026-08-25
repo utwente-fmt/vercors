@@ -1850,6 +1850,15 @@ case class NoContext(inner: Blame[PreconditionFailed])
     }
 }
 
+case class InvalidEvalReached(node: Node[_])
+    extends InvocationFailure with NodeVerificationFailure {
+  override def code: String = "InvalidEvalReached"
+  override def descInContext: String =
+    s"An invalid invocation was reached: '$node'."
+  override def inlineDescWithSource(source: String): String =
+    s"Invalid invocation `$source`."
+}
+
 // Adapters below here
 case class PointerSubscriptToAddBlame(blame: Blame[PointerSubscriptError])
     extends Blame[PointerAddError] {
@@ -1857,6 +1866,15 @@ case class PointerSubscriptToAddBlame(blame: Blame[PointerSubscriptError])
     error match {
       case e @ PointerNull(_) => blame.blame(e)
       case e @ PointerBounds(_) => blame.blame(e)
+    }
+  }
+}
+
+case class InvocationToAssertFailedError(blame: Blame[InvocationFailure])
+    extends Blame[AssertFailed] {
+  override def blame(error: AssertFailed): Unit = {
+    error match {
+      case AssertFailed(_, n) => blame.blame(InvalidEvalReached(n))
     }
   }
 }

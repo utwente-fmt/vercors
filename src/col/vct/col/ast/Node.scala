@@ -3986,6 +3986,7 @@ final class LLVMFunctionDefinition[G](
     val contract: LLVMFunctionContract[G],
     val pure: Boolean = false,
     val functionType: LLVMFunctionType[G],
+    val hasNoreturnAttr: Boolean,
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends LLVMCallable[G]
     with Applicable[G]
@@ -4214,6 +4215,11 @@ final case class LLVMGhostAssign[G](target: Expr[G], value: Expr[G])(
     val blame: Blame[AssignFailed]
 )(implicit val o: Origin)
     extends AssignStmt[G] with LLVMGhostAssignImpl[G]
+
+final case class LLVMEval[G](expr: Expr[G])(implicit val o: Origin)
+    extends ExceptionalStatement[G]
+    with ControlContainerStatement[G]
+    with LLVMEvalImpl[G]
 
 final class LLVMGlobalSpecification[G](val value: String)(
     implicit val o: Origin

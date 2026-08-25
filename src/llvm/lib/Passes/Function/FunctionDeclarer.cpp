@@ -224,6 +224,11 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
 
         llvmFuncDef->set_pure(false);
     }
+
+    // Function Attributes
+    llvmFuncDef->set_has_noreturn_attr(
+        F.hasFnAttribute(llvm::Attribute::NoReturn));
+
     return result;
 }
 
