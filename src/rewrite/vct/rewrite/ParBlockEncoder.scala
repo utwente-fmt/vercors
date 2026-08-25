@@ -98,6 +98,7 @@ case object ParBlockEncoder extends RewriterBuilder {
 }
 
 case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
+  outer =>
 
   import ParBlockEncoder._
 
@@ -206,7 +207,10 @@ case class ParBlockEncoder[Pre <: Generation]() extends Rewriter[Pre] {
         case s @ Starall(innerVars, triggers, body) =>
           Starall(innerVars ++ outerVars, triggers, body)(s.blame)(s.o)
       }
-    val rw = ExtractInlineQuantifierPatterns[Pre, Pre]()
+    val rw =
+      new ExtractInlineQuantifierPatterns[Pre]() {
+        override val allScopes = outer.allScopes
+      }
     val (parentPatterns, validTriggers) = rw.patterns.collect {
       rw.dispatch(newQ) match {
         case f @ Forall(_, triggers, _) => f.checkTriggers(triggers).isEmpty

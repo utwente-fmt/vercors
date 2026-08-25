@@ -20,15 +20,10 @@ case object ExtractInlineQuantifierPatterns extends RewriterBuilder {
       s"inlinedPatterns:${errors.map(_.subcode).mkString(",")}"
     override def text: String = errors.map(_.message(_.o)).mkString("\n")
   }
-
-  override def apply[Pre <: Generation]()
-      : AbstractRewriter[Pre, _ <: Generation] = apply[Pre, Rewritten[Pre]]()
 }
 
-case class ExtractInlineQuantifierPatterns[
-    Pre <: Generation,
-    Post <: Generation,
-]() extends NonLatchingRewriter[Pre, Post] {
+case class ExtractInlineQuantifierPatterns[Pre <: Generation]()
+    extends Rewriter[Pre] {
   outer =>
   import ExtractInlineQuantifierPatterns._
   // PB: letBindingsHere are all let bindings valid at the site where the trigger is defined: they need to be inlined,
