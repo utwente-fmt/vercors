@@ -166,6 +166,15 @@ case class AssignFieldFailed(node: SilverFieldAssign[_])
     s"Insufficient permission for assignment `$source`."
 }
 
+case class AssignSuchThatFailed(node: Node[_])
+    extends AssignFailed with NodeVerificationFailure {
+  override def code: String = "assignSuchThatFailed"
+  override def descInContext: String =
+    "There might not exist a value for this condition"
+  override def inlineDescWithSource(source: String): String =
+    s"There might not exist a value for this condition `$source`."
+}
+
 case class CopyClassFailed(node: Node[_], clazz: ByValueClass[_], field: String)
     extends PointerDerefError
     with InvocationFailure
@@ -191,6 +200,16 @@ case class CopyClassFailedBeforeCall(
         .find[TypeName].map(_.name).getOrElse("class")} before call."
   override def inlineDescWithSource(source: String): String =
     s"Insufficient permission for call `$source`."
+}
+
+case class InvocationBlameAdapter(blame: Blame[InvocationFailure])
+    extends Blame[PointerDerefError] {
+  override def blame(error: PointerDerefError) =
+    error match {
+      case e @ CopyClassFailed(_, _, _) => blame.blame(e)
+      case e @ CopyClassFailedBeforeCall(_, _, _) => blame.blame(e)
+      case _ => ???
+    }
 }
 
 case class TypeSizeMayBeZero(node: CCast[_])

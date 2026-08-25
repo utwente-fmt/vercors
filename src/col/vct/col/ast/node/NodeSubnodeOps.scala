@@ -2,6 +2,7 @@ package vct.col.ast.node
 
 import vct.col.ast.Node
 
+import java.util.Optional
 import scala.collection.SeqOps
 
 trait NodeSubnodeOps[G] {
@@ -47,6 +48,33 @@ trait NodeSubnodeOps[G] {
       }
     }
     None
+  }
+
+  /** Version of visit that stops recursing once ´f´ returns ´true´.
+    */
+  def visitShallow(f: Node[G] => Boolean): Unit = {
+    val stop = f(this)
+    if (!stop) { subnodes.foreach(_.visitShallow(f)) }
+  }
+
+  /** Version of collect that stops recursing into the subnodes when the partial
+    * function ´f´ is defined on ´this´ node. Can e.g. be used to check if a
+    * certain node only ever occurs nested inside another node.
+    */
+  def collectShallow[T](f: PartialFunction[Node[G], T]): Seq[T] = {
+    val builder = Vector.newBuilder[T]
+    val optF = f.lift
+    visitShallow { node =>
+      optF(node) match {
+        // Function defined --> Add result and stop recursing
+        case Some(t) =>
+          builder += t
+          true
+        // Function not defined --> Continue recursing
+        case _ => false
+      }
+    }
+    builder.result()
   }
 
   def exists[T](f: PartialFunction[Node[G], Boolean]): Boolean = {

@@ -2,6 +2,7 @@
 #include "Origin/OriginProvider.h"
 #include "Passes/Function/FunctionBodyTransformer.h"
 #include "Passes/Module/StructTDeclarer.h"
+#include "Util/Constants.h"
 #include "Util/Exceptions.h"
 #include "Util/PallasDIMapping.h"
 #include "vct/col/ast/col.pb.h"
@@ -32,6 +33,38 @@ const std::string SOURCE_LOC = "Transform::Transform";
         "Missing support for debug type for " typeType                         \
         ", falling back to LLVM type",                                         \
         typeName);
+
+bool llvm2col::isPallasSequenceType(const llvm::Type *llvmType) {
+    auto *sType = llvm::dyn_cast_if_present<llvm::StructType>(llvmType);
+    if (sType == nullptr)
+        return false;
+    if (sType->getNumElements() != 4)
+        return false;
+    return sType->getName().starts_with(
+        pallas::constants::PALLAS_SPEC_SEQ_TYPE_PREFIX);
+}
+
+llvm::Type *llvm2col::getPallasSequenceContentType(const llvm::Type *seqType) {
+    if (!isPallasSequenceType(seqType))
+        return nullptr;
+    return llvm::dyn_cast_if_present<llvm::StructType>(seqType)->getElementType(
+        0);
+}
+
+bool llvm2col::transformAndSetSequenceType(llvm::Type *llvmType,
+                                           col::Type &colType,
+                                           pallas::SDResult &sdRes) {
+
+    // Get the content-type of the sequence (encoded in the first element)
+    auto *llvmElementType = getPallasSequenceContentType(llvmType);
+    if (llvmElementType == nullptr)
+        return false;
+
+    auto *colSeqT = colType.mutable_t_seq();
+    colSeqT->set_allocated_origin(generateTypeOrigin(*llvmType));
+    transformAndSetType(*llvmElementType, *colSeqT->mutable_element(), sdRes);
+    return true;
+}
 
 void llvm2col::transformAndSetPointerType(llvm::Type &llvmType,
                                           col::Type &colType,
@@ -309,6 +342,9 @@ bool llvm2col::transformAndSetCompositeTypeWithDebugInfo(
     }
     case llvm::dwarf::DW_TAG_class_type:
     case llvm::dwarf::DW_TAG_structure_type: {
+        if (isPallasSequenceType(llvmType))
+            return transformAndSetSequenceType(llvmType, colType, sdRes);
+
         auto sDeclID = sdRes.getStructDeclId({llvmType, &compositeType});
         auto *sType = colType.mutable_llvmt_struct();
         if (!sDeclID.has_value())
@@ -532,6 +568,10 @@ void llvm2col::transformAndSetType(llvm::Type &llvmType, col::Type &colType,
             generateTypeOrigin(llvmType));
         break;
     case llvm::Type::StructTyID: {
+        if (isPallasSequenceType(&llvmType)) {
+            transformAndSetSequenceType(&llvmType, colType, sdRes);
+            break;
+        }
         auto sDeclID = sdRes.getStructDeclId({&llvmType, nullptr});
         assert(sDeclID.has_value());
         auto *sType = colType.mutable_llvmt_struct();

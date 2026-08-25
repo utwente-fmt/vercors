@@ -624,6 +624,7 @@ case class CTypeConversions[Pre <: Generation](
               _: Product[Pre] =>
             inPure.having(()) { super.postCoerce(binder) }
           case let @ Let(_, _, _) => super.postCoerce(let)
+          case let @ LetSuchThat(_, _, _) => super.postCoerce(let)
         }
       case _ => super.postCoerce(e)
     }
