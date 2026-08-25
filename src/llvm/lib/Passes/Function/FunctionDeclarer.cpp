@@ -215,6 +215,8 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
     if (F.isDeclaration()) {
         // Defined outside of this module so we don't know if it's pure or what
         // its contract is
+        // If it has an external contract, this will be overwritten by the
+        // ContractDeclarer
         col::VcllvmFunctionContract *colContract =
             llvmFuncDef->mutable_contract()->mutable_vcllvm_function_contract();
         colContract->set_allocated_blame(new col::Blame());
@@ -222,7 +224,18 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         colContract->set_name(F.getName());
         colContract->set_allocated_origin(new col::Origin());
 
-        llvmFuncDef->set_pure(false);
+        // In the case of an external contract pure needs to be set here,
+        // because the PureAssigner is not invoked.
+        if (irspec::hasExternalPallasContract(F)) {
+            auto pureRes = irspec::getContractPure(*irspec::getContractMD(F));
+            if (!pureRes) {
+                pallas::ErrorReporter::addError(
+                    SOURCE_LOC, "Ill formed external contract on function", F);
+            }
+            llvmFuncDef->set_pure(pureRes.value_or(false));
+        } else {
+            llvmFuncDef->set_pure(false);
+        }
     }
 
     // Function Attributes

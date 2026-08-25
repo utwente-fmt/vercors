@@ -323,13 +323,13 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md) {
     }
 
     // Pure
-    auto *pureConst = asConstantInt(md->getOperand(1).get());
-    if (pureConst == nullptr || (pureConst->getBitWidth() != 1)) {
+    auto pureRes = getContractPure(*md);
+    if (!pureRes) {
         addError("Second operand operand of contract must be boolean constant.",
                  md);
         return std::nullopt;
     }
-    bool pure = pureConst->isOne();
+    bool pure = pureRes.value();
 
     // Assumed
     auto *assumedConst = asConstantInt(md->getOperand(2).get());
@@ -410,6 +410,17 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md) {
     }
 
     return std::make_optional(contract);
+}
+
+std::optional<bool> getContractPure(const llvm::MDNode &md) {
+    if (md.getNumOperands() < 2)
+        return std::nullopt;
+
+    auto *pureConst = asConstantInt(md.getOperand(1).get());
+    if (pureConst == nullptr || (pureConst->getBitWidth() != 1))
+        return std::nullopt;
+
+    return pureConst->isOne();
 }
 
 std::optional<LoopInvariantClause> getLoopInvariantClause(llvm::MDNode *md) {
