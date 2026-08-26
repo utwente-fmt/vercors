@@ -234,6 +234,11 @@ bool isPallasGhostWrapper(const llvm::Function &f);
 bool isPallasPredDef(const llvm::Function &f);
 
 /**
+ * Checks if the given function is marked as a ghost function.
+ */
+bool isPallasGhostFunc(const llvm::Function &f);
+
+/**
  * Checks if the given function that represents a pallas predicate definition
  * is marked as inline or not.
  * If the function is not a valid predicate or if the metadata is malformed,

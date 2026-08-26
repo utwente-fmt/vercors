@@ -3,6 +3,7 @@ package vct.col.ast.lang.llvm
 import vct.col.ast.declaration.category.ApplicableImpl
 import vct.col.ast.{
   Declaration,
+  GhostFunction,
   GhostWrapperFunction,
   LLVMFunctionArgument,
   LLVMFunctionDefinition,
@@ -34,6 +35,7 @@ trait LLVMFunctionDefinitionImpl[G]
       if (isWrapper) { Text("@Wrapper") }
       else if (isGhostWrapper) { Text("@GhostWrapper") }
       else if (isPredicate) { Text("@Predicate") }
+      else if (isGhostFunc) { Text("@Ghost") }
       else { contract },
       Group(
         (if (pure)
@@ -77,6 +79,12 @@ trait LLVMFunctionDefinitionImpl[G]
   val isPredicate: Boolean =
     functionType match {
       case _: PredicateDefinition[G] => true
+      case _ => false
+    }
+
+  val isGhostFunc: Boolean =
+    functionType match {
+      case _: GhostFunction[G] => true
       case _ => false
     }
 }

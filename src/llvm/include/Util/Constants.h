@@ -14,6 +14,7 @@ const std::string PALLAS_ENSURES = "pallas.ensures";
 const std::string PALLAS_WRAPPER_FUNC = "pallas.exprWrapper";
 const std::string PALLAS_GHOST_WRAPPER_FUNC = "pallas.ghostWrapper";
 const std::string PALLAS_PRED_DEF = "pallas.predDef";
+const std::string PALLAS_GHOST_FUNC = "pallas.ghost";
 const std::string PALLAS_SRC_LOC_ID = "pallas.srcLoc";
 const std::string PALLAS_LOOP_CONTR_ID = "pallas.loopInvBlock";
 const std::string PALLAS_LOOP_INV_ID = "pallas.loopInv";

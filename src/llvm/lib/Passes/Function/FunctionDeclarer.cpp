@@ -198,6 +198,9 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
             pallas::ErrorReporter::addError(SOURCE_LOC,
                                             "Invalid predicate definition!", F);
         }
+    } else if (irspec::isPallasGhostFunc(F)) {
+        fType->mutable_ghost_function()->set_allocated_origin(
+            llvm2col::generateFuncDefOrigin(F));
     } else {
         fType->mutable_normal_function()->set_allocated_origin(
             llvm2col::generateFuncDefOrigin(F));

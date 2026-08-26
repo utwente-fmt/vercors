@@ -931,6 +931,10 @@ bool isPallasPredDef(const llvm::Function &f) {
     return f.hasMetadata(pallas::constants::PALLAS_PRED_DEF);
 }
 
+bool isPallasGhostFunc(const llvm::Function &f) {
+    return f.hasMetadata(pallas::constants::PALLAS_GHOST_FUNC);
+}
+
 std::optional<bool> isPallasPredInline(const llvm::Function &f) {
     if (!isPallasPredDef(f))
         return std::nullopt;

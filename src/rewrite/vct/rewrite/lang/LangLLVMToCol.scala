@@ -220,6 +220,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   // (i.e. a wrapper-function or a predicate definition).
   private val inSpecDefFunction: ScopedStack[Boolean] = ScopedStack()
 
+  // Tracks if the rewrite is currently in a ghost-function
+  private val inGhostFunction: ScopedStack[Boolean] = ScopedStack()
+
   // If the function that is currently being rewritten is a wrapper with
   // a sret-argument, this stack points to that sret-argument.
   private val currentWrapperSret
@@ -846,11 +849,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteLocal(local: Local[Pre]): Expr[Post] = {
     implicit val o: Origin = local.o
     val v = local.ref.decl
-    if (
-      (inSpecDefFunction.isEmpty || !inSpecDefFunction.top) &&
-      heapVariables.contains(v)
-    ) { HeapLocal(heapVariableSucc.ref(v)) }
-    else {
+    if (!inSpec() && heapVariables.contains(v)) {
+      HeapLocal(heapVariableSucc.ref(v))
+    } else {
       if (byvalArgs.contains(v) || isCurrentWrapperSret(v)) {
         AddrOf(Local(rw.succ(v)))
       } else { Local(rw.succ(v)) }
@@ -861,11 +862,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = local.o
     val v = local.ref.get.decl
     // Keep this in sync with rewriteLocal!!!!
-    if (
-      (inSpecDefFunction.isEmpty || !inSpecDefFunction.top) &&
-      heapVariables.contains(v)
-    ) { HeapLocal(heapVariableSucc.ref(v)) }
-    else {
+    if (!inSpec() && heapVariables.contains(v)) {
+      HeapLocal(heapVariableSucc.ref(v))
+    } else {
       if (byvalArgs.contains(v) || isCurrentWrapperSret(v)) {
         AddrOf(Local(rw.succ(v)))
       } else { Local(rw.succ(v)) }
@@ -882,10 +881,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteLocalVariable(v: Variable[Pre]): Unit = {
     implicit val o: Origin = v.o
     // Need to check for wrapper functions since there alloca is skipped
-    if (
-      (!inSpecDefFunction.isEmpty && inSpecDefFunction.top) ||
-      !heapVariables.contains(v)
-    ) {
+    if (inSpec() || !heapVariables.contains(v)) {
       rw.variables
         .succeed(v, new Variable[Post](rw.dispatch(getLocalVarType(v))))
     }
@@ -966,15 +962,17 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                   if (assumeBody) { None }
                   else {
                     inSpecDefFunction.having(isWrapper) {
-                      func.functionBody.map { functionBody =>
-                        val rewrittenBody =
-                          if (func.pure) {
-                            GotoEliminator(functionBody match {
-                              case scope: Scope[Pre] => scope;
-                              case other => throw UnexpectedLLVMNode(other)
-                            }).eliminate()
-                          } else { rw.dispatch(functionBody) }
-                        addWrapperSretScope(rewrittenBody)
+                      inGhostFunction.having(func.isGhostFunc) {
+                        func.functionBody.map { functionBody =>
+                          val rewrittenBody =
+                            if (func.pure) {
+                              GotoEliminator(functionBody match {
+                                case scope: Scope[Pre] => scope;
+                                case other => throw UnexpectedLLVMNode(other)
+                              }).eliminate()
+                            } else { rw.dispatch(functionBody) }
+                          addWrapperSretScope(rewrittenBody)
+                        }
                       }
                     }
                   },
@@ -1140,14 +1138,16 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             args = newArgs,
             body =
               inSpecDefFunction.having(true) {
-                allocaVars.having(mutable.Set[Variable[Pre]]()) {
-                  pred.body match {
-                    case None => None
-                    case Some(fBody) =>
-                      Some(GotoEliminator(fBody match {
-                        case scope: Scope[Pre] => scope;
-                        case other => throw UnexpectedLLVMNode(other)
-                      }).eliminate())
+                inGhostFunction.having(false) {
+                  allocaVars.having(mutable.Set[Variable[Pre]]()) {
+                    pred.body match {
+                      case None => None
+                      case Some(fBody) =>
+                        Some(GotoEliminator(fBody match {
+                          case scope: Scope[Pre] => scope;
+                          case other => throw UnexpectedLLVMNode(other)
+                        }).eliminate())
+                    }
                   }
                 }
               },
@@ -1783,7 +1783,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     // If we are in a wrapper-function, the type needs to be set to bool.
     // The default-type of Resource causes isses in the col->viper conversion
     val t =
-      if (!inSpecDefFunction.isEmpty && inSpecDefFunction.top) { TBool[Post]() }
+      if (inSpec()) { TBool[Post]() }
       else { funcRetType.top }
     val nondetGetter = getNondetValFunc(t)
     val r = Return[Post](
@@ -1839,7 +1839,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           true
         case _ => false;
       }
-    if (inSpec() && callNonret) {
+    if (callNonret && (inSpec() || inGhostFunc())) {
       val invBlame = eval.expr.asInstanceOf[LLVMFunctionInvocation[Pre]].blame
       Assert[Post](ff)(InvocationToAssertFailedError(invBlame))
     } else { Eval[Post](rw.dispatch(eval.expr)) }
@@ -2062,7 +2062,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     not needed and causes problems when converting the wrapper into
     an expression
      */
-    if (!inSpecDefFunction.isEmpty && inSpecDefFunction.top) {
+    if (inSpec()) {
       // Skip the initialization if we are in a wrapper function.
       return Block(Seq())
     }
@@ -2677,6 +2677,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   private def inSpec(): Boolean = {
     inSpecDefFunction.nonEmpty && inSpecDefFunction.top
+  }
+
+  private def inGhostFunc(): Boolean = {
+    inGhostFunction.nonEmpty && inGhostFunction.top
   }
 
   def structType(t: LLVMTStruct[Pre]): Type[Post] = {
