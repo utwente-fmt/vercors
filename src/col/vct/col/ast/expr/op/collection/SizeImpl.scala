@@ -13,10 +13,10 @@ trait SizeImpl[G] extends SizeOps[G] {
     ctx.syntax match {
       case Ctx.Isar =>
         obj.t match {
-          case TSeq(_) => Text("int(length") <+> obj <> ")"
-          case TSet(_) => Text("int(fcard") <+> obj <> ")"
-          case TBag(_) => Text("int(size") <+> obj <> ")"
-          case TMap(_, _) => Text("int(fcard (fmdom") <+> obj <> "))"
+          case TSeq(_) => Text("(int (length") <+> obj <> "))"
+          case TSet(_) => Text("(int (fcard") <+> obj <> "))"
+          case TBag(_) => Text("(int (size") <+> obj <> "))"
+          case TMap(_, _) => Text("(int (fcard (fmdom") <+> obj <> ")))"
         }
       case _ => Text("|") <> obj <> "|"
     }
