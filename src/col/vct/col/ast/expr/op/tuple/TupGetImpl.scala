@@ -6,6 +6,7 @@ import vct.col.ast.{TTuple, TupGet, Type}
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.TupGetOps
+import vct.col.print.Line.<+>
 
 trait TupGetImpl[G] extends ExprImpl[G] with TupGetOps[G] {
   this: TupGet[G] =>
@@ -25,10 +26,18 @@ trait TupGetImpl[G] extends ExprImpl[G] with TupGetOps[G] {
     }
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    index match {
-      case 0 => assoc(tup) <> ".fst"
-      case 1 => assoc(tup) <> ".snd"
-      case other => assoc(tup) <> "." <> other.toString
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => index match {
+        case 0 => Text("fst") <+> assoc(tup)
+        case 1 => Text("snd") <+> assoc(tup)
+      }
+      case _ =>
+        index match {
+          case 0 => assoc(tup) <> ".fst"
+          case 1 => assoc(tup) <> ".snd"
+          case other => assoc(tup) <> "." <> other.toString
+        }
     }
+  }
 }

@@ -59,6 +59,7 @@ import vct.col.ast.family.parregion._
 import vct.col.ast.family.pvlcommunicate._
 import vct.col.ast.family.seqrun._
 import vct.col.ast.family.signals._
+import vct.col.ast.lang.Isar._
 import vct.col.ast.lang.c._
 import vct.col.ast.lang.cpp._
 import vct.col.ast.lang.gpgpu._
@@ -4743,3 +4744,96 @@ case class SilverPartialTAxiomatic[G](
     partialTypeArgs: Seq[(Ref[G, Variable[G]], Type[G])],
 )(implicit val o: Origin = DiagnosticOrigin)
     extends SilverType[G] with SilverPartialTAxiomaticImpl[G]
+
+// Isar
+
+@scopes[IsarCommand]
+class IsarTheory[G](
+    val imports: Seq[String],
+    val commands: Seq[IsarCommand[G]],
+)(implicit val o: Origin)
+    extends GlobalDeclaration[G] with IsarTheoryImpl[G]
+
+@family
+sealed trait IsarCommand[G] extends Declaration[G] with IsarCommandImpl[G]
+
+class IsarDataConstructor[G](val name: String, val signature: Seq[Type[G]])(
+    implicit val o: Origin
+) extends IsarCommand[G] with IsarDataConstructorImpl[G]
+
+@scopes[Variable]
+class IsarDatatypeCommand[G](
+    val typename: String,
+    val typevars: Seq[Variable[G]],
+    val constructors: Seq[IsarCommand[G]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarDatatypeCommandImpl[G]
+
+@scopes[Variable]
+class IsarDefinitionCommand[G](
+    val name: String,
+    val typevars: Seq[Variable[G]],
+    val args: Seq[Variable[G]],
+    val returnType: Type[G],
+    val body: Option[Expr[G]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarDefinitionCommandImpl[G]
+
+@scopes[Variable]
+class IsarPartialConstructorCommand[G](
+    val name: String,
+    val typevars: Seq[Variable[G]],
+    val args: Seq[Variable[G]],
+    val returnType: Type[G],
+    val guard: Ref[G, IsarCommand[G]],
+    val constructor: Ref[G, IsarCommand[G]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarPartialConstructorCommandImpl[G]
+
+@scopes[Variable]
+class IsarTypedefCommand[G](
+    val typename: String,
+    val typevars: Seq[Variable[G]],
+    val rawtype: Ref[G, IsarCommand[G]], // references datatype command
+    val typeAxiom: Ref[G, IsarCommand[G]], // references axiom definition
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarTypedefCommandImpl[G]
+
+@scopes[Variable]
+class IsarLiftDefinitionCommand[G](
+    val name: String,
+    val typevars: Seq[Variable[G]],
+    val signature: Seq[Type[G]],
+    val inner: Ref[G, IsarCommand[G]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarLiftDefinitionCommandImpl[G]
+
+@scopes[Variable]
+class IsarLocaleCommand[G](
+    val name: String,
+    val extensions: Seq[Ref[G, IsarCommand[G]]], // locale inheritance
+    val typevars: Seq[Variable[G]],
+    val fixes: Seq[ADTDeclaration[G]],
+    val assumes: Seq[Expr[G]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarLocaleCommandImpl[G]
+
+class IsarInterpretationCommand[G](
+    val target: Ref[G, IsarCommand[G]], // IsarLocaleCommand
+    val localeParameters: Seq[Ref[G, IsarCommand[G]]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarInterpretationCommandImpl[G]
+
+final case class TIsarType[G](adt: Ref[G, IsarCommand[G]], args: Seq[Type[G]])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends DeclaredType[G] with TIsarTypeImpl[G]
+
+final case class IsarFunctionInvocation[G](
+    typeArgs: Seq[Type[G]],
+    ref: Ref[G, IsarCommand[G]],
+    args: Seq[Expr[G]],
+)(implicit val o: Origin)
+    extends Expr[G]
+    with IsarFunctionInvocationImpl[G]
+    with SymbolicTerm[G]
+    with PossibleTrigger[G]

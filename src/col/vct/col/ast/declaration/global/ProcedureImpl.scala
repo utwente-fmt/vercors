@@ -58,5 +58,6 @@ trait ProcedureImpl[G] extends ProcedureOps[G] {
       case Ctx.Silver => layoutSilver
       case Ctx.C | Ctx.Cuda | Ctx.OpenCL | Ctx.CPP => layoutC
       case Ctx.PVL | Ctx.Java => Doc.spec(Show.lazily(layoutSpec(_)))
+      case Ctx.Isar => Empty
     }
 }

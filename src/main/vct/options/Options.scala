@@ -432,6 +432,16 @@ case object Options {
           .action((path, c) => c.copy(compileOutput = Some(path)))
           .text("Output Java file")
       ),
+      note("Isar mode"),
+      opt[Unit]("isar").action((_, c) => c.copy(mode = Mode.Isar))
+        .text("Translates ADTs to Isar.").children(
+          opt[Path]("isar-output").valueName("<path>")
+            .action((path, c) => c.copy(isarOutput = Some(path)))
+            .text("Output Isar file"),
+          opt[Unit]("isar-triggers")
+            .action((_, c) => c.copy(isarTriggers = true))
+            .text("Include trigger syntax in Isar output."),
+        ),
       note(""),
       note("Patcher mode"),
       opt[Unit]("patcher").action((_, c) => c.copy(mode = Mode.Patcher)).text(
@@ -577,6 +587,10 @@ case class Options(
 
     // Compile options
     compileOutput: Option[Path] = None,
+
+    // Compile options
+    isarOutput: Option[Path] = None,
+    isarTriggers: Boolean = false,
 
     // Patch options
     patchFile: Path = null,
