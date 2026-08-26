@@ -459,6 +459,11 @@ case object Options {
         ),
       ),
       note(""),
+      note("LSP Mode"),
+      opt[Unit]("lsp")
+        .action((_, c) => c.copy(mode = Mode.LSP))
+        .text("Run the LSP server"),
+      note(""),
       note(""),
       arg[PathOrStd]("<path>...").unbounded().optional()
         .action((path, c) => c.copy(inputs = c.inputs :+ path))
