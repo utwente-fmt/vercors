@@ -220,8 +220,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   // (i.e. a wrapper-function or a predicate definition).
   private val inSpecDefFunction: ScopedStack[Boolean] = ScopedStack()
 
-  // Tracks if the rewrite is currently in a ghost-function
-  private val inGhostFunction: ScopedStack[Boolean] = ScopedStack()
+  // Tracks if the rewrite is currently in a pure-context
+  private val inPureFunction: ScopedStack[Boolean] = ScopedStack()
 
   // If the function that is currently being rewritten is a wrapper with
   // a sret-argument, this stack points to that sret-argument.
@@ -962,7 +962,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                   if (assumeBody) { None }
                   else {
                     inSpecDefFunction.having(isWrapper) {
-                      inGhostFunction.having(func.isGhostFunc) {
+                      inPureFunction.having(func.pure) {
                         func.functionBody.map { functionBody =>
                           val rewrittenBody =
                             if (func.pure) {
@@ -1138,7 +1138,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             args = newArgs,
             body =
               inSpecDefFunction.having(true) {
-                inGhostFunction.having(false) {
+                inPureFunction.having(true) {
                   allocaVars.having(mutable.Set[Variable[Pre]]()) {
                     pred.body match {
                       case None => None
@@ -1839,7 +1839,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           true
         case _ => false;
       }
-    if (callNonret && (inSpec() || inGhostFunc())) {
+    if (callNonret && (inSpec() || inPureFunc())) {
       val invBlame = eval.expr.asInstanceOf[LLVMFunctionInvocation[Pre]].blame
       Assert[Post](ff)(InvocationToAssertFailedError(invBlame))
     } else { Eval[Post](rw.dispatch(eval.expr)) }
@@ -2679,8 +2679,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     inSpecDefFunction.nonEmpty && inSpecDefFunction.top
   }
 
-  private def inGhostFunc(): Boolean = {
-    inGhostFunction.nonEmpty && inGhostFunction.top
+  private def inPureFunc(): Boolean = {
+    inPureFunction.nonEmpty && inPureFunction.top
   }
 
   def structType(t: LLVMTStruct[Pre]): Type[Post] = {
