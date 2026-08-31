@@ -10,7 +10,7 @@ class VerifyThisSpec extends VercorsSpec {
   // vercors should verify using silicon example "verifythis/2017/other_attempts/kadane2D.java"
   // vercors should verify using silicon example "verifythis/2017/submission/VerCors_challenge3.pvl"
   vercors should verify using silicon example "verifythis/2017/VerCors_challenge1.pvl"
-  vercors should verify using silicon example "verifythis/2017/VerCors_challenge2.java"
+  vercors should verify using silicon examples("verifythis/2017/VerCors_challenge2.java", "verifythis/2017/VerCors_challenge2_bonus.java")
   vercors should verify using silicon example "verifythis/2017/VerCors_challenge4.pvl"
   // vercors should verify using silicon example "verifythis/2017/submission/Vercors_challenge3_2D.pvl"
   vercors should verify using silicon example "verifythis/2018/challenge1.pvl"
