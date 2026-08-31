@@ -25,7 +25,7 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
     };
 
     struct ArgInfo {
-        const Argument *Arg;
+        Argument *Arg;
         uint64_t Offset;
         uint64_t Size;
     };
@@ -44,6 +44,8 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
         AllocaInst *Intermediary;
         DenseMap<CallBase *, CallInfo> Calls;
         bool Valid;
+        // Writes that initialize the alloca
+        SmallVector<Instruction *> Writes;
     };
 
     struct Fail {};
@@ -74,7 +76,23 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
      * wrapper-function WF with references to function NWF.
      */
     void replaceWrapperReferences(Function &WF, Function &NWF);
-    const Function &updateFunction(Function &F, const ReplaceableVec &Sets);
+
+    /**
+     * If the given offset maps to the start of an element in the given 
+     * struct type, return the index of the element. Otherwise return nullopt.
+     */
+    std::optional<unsigned> getStructElemAtOffset(
+        StructType &S, uint64_t Offset, const DataLayout &L);
+
+    /**
+     * Find users of the argument that are not part of the provided list 
+     * of writes.
+     */
+    SmallSet<llvm::User *, 8>
+    getDirectUsers(Argument &Arg, const SmallVector<Instruction *> &Writes);
+
+    const Function &updateFunction(Function &F, const ReplaceableVec &Sets, 
+                                   const DataLayout &L);
     void replaceFunctionUse(CallInst *Call, const Function &OldF,
                             Function *NewF, const ReplaceableVec &Sets);
     ReplaceableVec findReplaceableSets(Function &F, const DataLayout &L,
