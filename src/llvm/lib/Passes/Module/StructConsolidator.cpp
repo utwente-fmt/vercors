@@ -520,9 +520,9 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
         //  align 4; call void f(%3, %2))
         // If found store origin (and intermediary), we'll allow multiple
         // origins as long as they're all of the appropriate type
-        // TODO: If fields points to an argument of the function in which the 
-        // call is made, this will fail if the functions are transformed in the 
-        // wrong order! 
+        // TODO: If fields points to an argument of the function in which the
+        // call is made, this will fail if the functions are transformed in the
+        // wrong order!
         Set.Calls.insert({Call, {Fields, Intermediary, StmntBlock}});
     }
 }
@@ -794,11 +794,11 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
             if (!AllocA)
                 continue;
 
-            // Skip Allocas that were inserted by this pass itself on the 
-            // call-site of function. 
+            // Skip Allocas that were inserted by this pass itself on the
+            // call-site of function.
             if (CallSiteAllocas.contains(AllocA)) {
                 continue;
-            } 
+            }
 
             // We only want to find alloca's allocating space for a single
             // struct
@@ -1038,7 +1038,22 @@ SmallSet<llvm::User *, 8> StructConsolidatorPass::getDirectUsers(
     llvm::SmallSet<User *, 8> users;
     for (auto *U : Arg.users()) {
         if (auto *I = dyn_cast<Instruction>(U)) {
-            if (!writeSet.contains(I)) {
+
+            auto *innerI = I;
+            // Handle the case where gatherWrite looks through a chain of casts
+            while (isa<CastInst>(innerI)) {
+                auto *castI = cast<CastInst>(innerI);
+                // Check that cast has exactly one use
+                // (TODO: We might want to generalize to multiple uses)
+                if (!castI->hasOneUser() ||
+                    !isa<Instruction>(castI->user_back())) {
+                    break;
+                }
+                innerI = cast<Instruction>(castI->user_back());
+            }
+
+            // Check that the use is part of the initializing writes.
+            if (!writeSet.contains(innerI)) {
                 users.insert(I);
             }
         }

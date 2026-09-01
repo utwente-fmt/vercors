@@ -60,9 +60,9 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
     using AllocaMap = DenseMap<AllocaInst *, WriteVec>;
     using ReplaceableVec = SmallVector<ReplaceableArgSet>;
 
-    // Set to track the alloca-instructions that were inserted on the call-site 
-    // of functions with consolidated arguments. 
-    // Required to prevent the inserted allocas to be consolidated as well. 
+    // Set to track the alloca-instructions that were inserted on the call-site
+    // of functions with consolidated arguments.
+    // Required to prevent the inserted allocas to be consolidated as well.
     SmallPtrSet<AllocaInst *, 8> CallSiteAllocas;
 
     void removeRecursively(Value *V, SmallSet<Value *, 8> &Visited);
