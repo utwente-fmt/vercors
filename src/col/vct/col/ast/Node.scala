@@ -3961,6 +3961,10 @@ final case class GhostWrapperFunction[G]()(implicit val o: Origin)
 final case class PredicateDefinition[G](val inlined: Boolean)(
     implicit val o: Origin
 ) extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
+// Ghost function from Pallas.
+// (Currently there are only ghost functions and no ´ghost methods´)
+final case class GhostFunction[G]()(implicit val o: Origin)
+    extends LLVMFunctionType[G] with GhostFunctionImpl[G]
 
 // Attributes of function arguments in LLVM
 @family
@@ -3987,6 +3991,7 @@ final class LLVMFunctionDefinition[G](
     val contract: LLVMFunctionContract[G],
     val pure: Boolean = false,
     val functionType: LLVMFunctionType[G],
+    val hasNoreturnAttr: Boolean,
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends LLVMCallable[G]
     with Applicable[G]
@@ -4215,6 +4220,11 @@ final case class LLVMGhostAssign[G](target: Expr[G], value: Expr[G])(
     val blame: Blame[AssignFailed]
 )(implicit val o: Origin)
     extends AssignStmt[G] with LLVMGhostAssignImpl[G]
+
+final case class LLVMEval[G](expr: Expr[G])(implicit val o: Origin)
+    extends ExceptionalStatement[G]
+    with ControlContainerStatement[G]
+    with LLVMEvalImpl[G]
 
 final class LLVMGlobalSpecification[G](val value: String)(
     implicit val o: Origin

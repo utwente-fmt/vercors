@@ -5,7 +5,6 @@
 #include "Util/PallasMD.h"
 #include <algorithm>
 #include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/ADT/SmallVector.h>
@@ -20,6 +19,7 @@
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/GlobalVariable.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/Intrinsics.h>
@@ -30,6 +30,7 @@
 #include <llvm/Support/Debug.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/Local.h>
+#include <optional>
 #include <variant>
 
 namespace pallas {
@@ -423,18 +424,21 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
     const StructLayout *SL = L.getStructLayout(ST);
     const auto Offsets = SL->getMemberOffsets();
     AllocaInst *Intermediary = nullptr;
+    // vvv Check every use of the consoliated function
     for (const Use &U : F.uses()) {
         FieldMap Fields(Offsets.size());
         for (size_t Idx = 0, E = Offsets.size(); Idx < E; ++Idx) {
             Fields.insert({Offsets[Idx].getFixedValue(), {Idx, nullptr}});
         }
 
+        // vvv Filter out functions that are used outside of a call
         if (!isa<CallInst>(U.getUser())) {
             // Copy of logic from Function::hasAddressTaken
             const User *FUU = U.getUser();
             if (isa<BitCastOperator, AddrSpaceCastOperator>(U) &&
                 FUU->hasOneUse() && !FUU->user_begin()->user_empty())
                 FUU = *FUU->user_begin();
+            // vvv Allow uses in llvm.used that are not a call.
             if (llvm::all_of(FUU->users(), [](const User *U) {
                     if (const auto *GV = dyn_cast<GlobalVariable>(U))
                         return GV->hasName() &&
@@ -442,7 +446,7 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
                                 GV->getName() == "llvm.used");
                     return false;
                 }))
-                return;
+                continue;
 
             std::string M;
             {
@@ -468,7 +472,7 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
         // Find operands for every arg in set.arguments
         for (const Argument *FA = F.arg_begin(), *E = F.arg_end(); FA != E;
              ++FA, ++P) {
-            DigToFieldResult Result = Fail{};
+            std::optional<DigToFieldResult> Result = std::nullopt;
             for (ArgInfo &SA : Set.Arguments) {
                 if (FA != SA.Arg) {
                     continue;
@@ -479,7 +483,7 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
                           false),
                     0, 0, &StmntBlock);
 
-                if (!std::holds_alternative<Fail>(Result)) {
+                if (!std::holds_alternative<Fail>(*Result)) {
                     break;
                 }
                 Set.Valid = false;
@@ -492,14 +496,20 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
                 return;
             }
 
-            if (std::holds_alternative<Fail>(Result)) {
+            if (!Result) {
+                // Skip args that to not belong to a consolidated set.
+                continue;
+            }
+
+            assert(Result.has_value());
+            if (std::holds_alternative<Fail>(*Result)) {
                 Set.Valid = false;
                 return;
-            } else if (auto FA = std::get_if<FoundAll>(&Result)) {
+            } else if (auto FA = std::get_if<FoundAll>(&*Result)) {
                 Intermediary = FA->Intermediary;
                 break;
             } else {
-                assert(std::holds_alternative<Found>(Result));
+                assert(std::holds_alternative<Found>(*Result));
             }
         }
         // For each operand move up until we find a variable of type
@@ -510,6 +520,9 @@ void StructConsolidatorPass::gatherUseData(const Function &F,
         //  align 4; call void f(%3, %2))
         // If found store origin (and intermediary), we'll allow multiple
         // origins as long as they're all of the appropriate type
+        // TODO: If fields points to an argument of the function in which the
+        // call is made, this will fail if the functions are transformed in the
+        // wrong order!
         Set.Calls.insert({Call, {Fields, Intermediary, StmntBlock}});
     }
 }
@@ -546,6 +559,7 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
         AllocaInst *AllocA = new AllocaInst(Set.Alloc->getAllocatedType(),
                                             NewF->getAddressSpace(),
                                             Twine("InsertedAllocA"), Call);
+        CallSiteAllocas.insert(AllocA);
         bool Found = false;
         for (const auto &[C, CallInfo] : Set.Calls) {
             if (C != Call)
@@ -600,13 +614,24 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
 
     // Again most of this is from the DeadArgumentElimination pass
     AttributeList PAL = Call->getAttributes();
-    if (!PAL.isEmpty()) {
-        SmallVector<AttributeSet, 8> ArgAttrs;
-        for (unsigned ArgNo = 0; ArgNo < NewArgs.size(); ++ArgNo)
-            ArgAttrs.push_back(PAL.getParamAttrs(ArgNo));
-        PAL = AttributeList::get(OldF.getContext(), PAL.getFnAttrs(),
-                                 PAL.getRetAttrs(), ArgAttrs);
+    SmallVector<AttributeSet, 8> ArgAttrs;
+    // Copy attributes of unchanged arguments
+    for (unsigned ArgIdx = 0, NoArgs = Call->arg_size(); ArgIdx < NoArgs;
+         ++ArgIdx) {
+        if (!ToBeRemoved.contains(ArgIdx)) {
+            ArgAttrs.push_back(PAL.getParamAttrs(ArgIdx));
+        }
     }
+    // Add attriutes to consolidated arguments based on signature of new,
+    // called function
+    auto NewFAttributes = NewF->getAttributes();
+    for (unsigned ArgIdx = ArgAttrs.size(), NoNewArgs = NewArgs.size();
+         ArgIdx < NoNewArgs; ++ArgIdx) {
+        ArgAttrs.push_back(NewFAttributes.getParamAttrs(ArgIdx));
+    }
+
+    auto NewPAL = AttributeList::get(OldF.getContext(), PAL.getFnAttrs(),
+                                     PAL.getRetAttrs(), ArgAttrs);
 
     SmallVector<OperandBundleDef, 1> OpBundles;
     Call->getOperandBundlesAsDefs(OpBundles);
@@ -615,7 +640,7 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
         CallInst::Create(NewF, ArrayRef(NewArgs), OpBundles, "", Call);
     newCall->setTailCallKind(Call->getTailCallKind());
     newCall->setCallingConv(Call->getCallingConv());
-    newCall->setAttributes(PAL);
+    newCall->setAttributes(NewPAL);
     newCall->copyMetadata(*Call, {LLVMContext::MD_prof, LLVMContext::MD_dbg});
     if (StmntBlock != nullptr)
         newCall->setMetadata(constants::PALLAS_SPEC_STMNT_BLOCK, StmntBlock);
@@ -768,6 +793,13 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
             auto *AllocA = dyn_cast<AllocaInst>(&I);
             if (!AllocA)
                 continue;
+
+            // Skip Allocas that were inserted by this pass itself on the
+            // call-site of function.
+            if (CallSiteAllocas.contains(AllocA)) {
+                continue;
+            }
+
             // We only want to find alloca's allocating space for a single
             // struct
             Type *type = AllocA->getAllocatedType();
@@ -791,6 +823,7 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
 
             bool Valid = true;
 
+            // Check that the initializing writes occur before any other writes
             for (const Instruction *I : LaterWrites) {
                 for (const Write &W : Writes) {
                     if (!DT.dominates(W.WriteI, I)) {
@@ -805,6 +838,7 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
 
             const auto *SL = L.getStructLayout(ST);
 
+            // Check that the initializing writes cover the full struct
             IntervalSet Intervals;
             for (const Write &W : Writes) {
                 Intervals.add(W.Offset, W.Offset + W.Size);
@@ -829,11 +863,18 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
                 AllocAs.insert({AllocA, Writes});
         }
     }
+
+    // vvv Try to map the pair of alloca and initializing writes to arguments
     for (std::pair<AllocaInst *, WriteVec> AllocA : AllocAs) {
         ReplaceableArgSet Set;
         Set.Alloc = AllocA.first;
         Set.Intermediary = NULL;
         Set.Valid = true;
+
+        for (Write &W : AllocA.second) {
+            Set.Writes.push_back(W.WriteI);
+        }
+
         for (Write &W : AllocA.second) {
             assert(W.Src != NULL);
             if (auto *Intermediary = dyn_cast<AllocaInst>(W.Src)) {
@@ -851,8 +892,29 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
                 assert(isa<Argument>(W.Src) &&
                        "Expected the write src to be an alloca or function "
                        "argument");
-                Set.Arguments.push_back(
-                    {cast<Argument>(W.Src), W.Offset, W.Size});
+                auto *Arg = cast<Argument>(W.Src);
+                // Check that if direct uses of the arg exist (i.e. uses that do
+                // not belong to the writes that initialize the alloca) then the
+                // arg directly maps to an element of the consolidated struct.
+                if (!getDirectUsers(*Arg, Set.Writes).empty()) {
+                    auto *ST =
+                        dyn_cast<StructType>(AllocA.first->getAllocatedType());
+                    assert(ST != nullptr);
+                    auto elemIdx = getStructElemAtOffset(*ST, W.Offset, L);
+                    if (!elemIdx ||
+                        (ST->getElementType(*elemIdx) != Arg->getType())) {
+                        AllocA.first->dump();
+                        ST->getElementType(*elemIdx)->dump();
+                        Arg->getType()->dump();
+                        ErrorReporter::addWarning(
+                            SOURCE_LOC,
+                            "Not adding because invalid direct uses exist");
+                        Set.Valid = false;
+                        break;
+                    }
+                }
+
+                Set.Arguments.push_back({Arg, W.Offset, W.Size});
             }
         }
         if (Set.Valid) {
@@ -865,6 +927,8 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
             Sets.push_back(Set);
         }
     }
+
+    // Propagate arguments accross intermediary & analyze call-sites
     for (auto &Set : Sets) {
         if (!Set.Valid || Intermediaries.contains(Set.Alloc))
             continue;
@@ -888,6 +952,9 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
                 }
                 llvm::sort(Set.Arguments.begin(), Set.Arguments.end(),
                            CompareArgs);
+                for (auto *w : OtherSet->Writes) {
+                    Set.Writes.push_back(w);
+                }
 
                 assert(std::unique(Set.Arguments.begin(), Set.Arguments.end(),
                                    EqualArgs) == Set.Arguments.end());
@@ -960,9 +1027,57 @@ void StructConsolidatorPass::replaceWrapper(irspec::WrappedSpecElement &S,
     S.getMD()->replaceOperandWith(2, llvm::ValueAsMetadata::get(&NWF));
 }
 
+SmallSet<llvm::User *, 8> StructConsolidatorPass::getDirectUsers(
+    Argument &Arg, const SmallVector<Instruction *> &Writes) {
+
+    SmallPtrSet<Instruction *, 8> writeSet;
+    for (auto *w : Writes) {
+        writeSet.insert(w);
+    }
+
+    llvm::SmallSet<User *, 8> users;
+    for (auto *U : Arg.users()) {
+        if (auto *I = dyn_cast<Instruction>(U)) {
+
+            auto *innerI = I;
+            // Handle the case where gatherWrite looks through a chain of casts
+            while (isa<CastInst>(innerI)) {
+                auto *castI = cast<CastInst>(innerI);
+                // Check that cast has exactly one use
+                // (TODO: We might want to generalize to multiple uses)
+                if (!castI->hasOneUser() ||
+                    !isa<Instruction>(castI->user_back())) {
+                    break;
+                }
+                innerI = cast<Instruction>(castI->user_back());
+            }
+
+            // Check that the use is part of the initializing writes.
+            if (!writeSet.contains(innerI)) {
+                users.insert(I);
+            }
+        }
+    }
+
+    return users;
+}
+
+std::optional<unsigned>
+StructConsolidatorPass::getStructElemAtOffset(StructType &S, uint64_t Offset,
+                                              const DataLayout &L) {
+    // Get element that contains the offset
+    auto SL = L.getStructLayout(&S);
+    auto ElemIdx = SL->getElementContainingOffset(Offset);
+    // Check that the offset is the start of the element
+    if (SL->getElementOffset(ElemIdx) == Offset) {
+        return std::make_optional(ElemIdx);
+    }
+    return std::nullopt;
+}
+
 const Function &
-StructConsolidatorPass::updateFunction(Function &F,
-                                       const ReplaceableVec &Sets) {
+StructConsolidatorPass::updateFunction(Function &F, const ReplaceableVec &Sets,
+                                       const DataLayout &L) {
     // Based on DeadArgumentEliminationPass::removeDeadStuffFromFunction
     assert(!F.isVarArg());
 
@@ -972,6 +1087,8 @@ StructConsolidatorPass::updateFunction(Function &F,
             ToBeRemoved.insert(A.Arg);
         }
     }
+
+    // vvv Construct new Function-type vvv
     FunctionType *FTy = F.getFunctionType();
     std::vector<Type *> Params;
     Params.reserve(F.arg_size() - ToBeRemoved.size() + Sets.size());
@@ -1013,6 +1130,7 @@ StructConsolidatorPass::updateFunction(Function &F,
 
     assert(NFTy != FTy);
 
+    // vvv Setup function with new signature vvv
     Function *NF = Function::Create(NFTy, F.getLinkage(), F.getAddressSpace());
     NF->copyAttributesFrom(&F);
     NF->setComdat(F.getComdat());
@@ -1033,13 +1151,54 @@ StructConsolidatorPass::updateFunction(Function &F,
     for (Argument *I = F.arg_begin(), *E = F.arg_end(); I != E; ++I) {
         if (!ToBeRemoved.contains(I)) {
             I->replaceAllUsesWith(NF->getArg(ArgI));
+            NF->getArg(ArgI)->takeName(I);
             ++ArgI;
         }
     }
 
+    // vvv Point uses of the alloca to the new argument
     for (; ArgI < Params.size(); ++ArgI) {
         const auto &Set = Sets[ArgI - NewIdx];
-        Set.Alloc->replaceAllUsesWith(NF->getArg(ArgI));
+        auto *NewArg = NF->getArg(ArgI);
+
+        // vvv Fix direct uses of the old argument vvv
+        for (auto Arg : Set.Arguments) {
+            // Identify direct uses of the old argument that are not part of the
+            // writes that initialize the alloca.
+            auto Users = getDirectUsers(*Arg.Arg, Set.Writes);
+            if (Users.empty()) {
+                // Arg not used directly, so no intermediaries needed
+                continue;
+            }
+
+            // vvv Insert intermediaries that replace the old argument
+
+            // Get the index of the struct element to which the arg coresponds
+            // The argument should correspond to an element of the struct type
+            // due to the earlier check in findReplaceableSets
+            auto ArgT = Arg.Arg->getType();
+            assert(NewArg->hasByValAttr());
+            assert(isa<StructType>(NewArg->getParamByValType()));
+            auto StructT = cast<StructType>(NewArg->getParamByValType());
+            auto ElemIdx = getStructElemAtOffset(*StructT, Arg.Offset, L);
+            assert(ElemIdx);
+            assert(ArgT == StructT->getElementType(*ElemIdx));
+
+            // Insert intermediary to replace the old arg
+            auto *insertPoint = &*NF->getEntryBlock().getFirstInsertionPt();
+            IRBuilder Builder(insertPoint);
+            auto IPtr = Builder.CreateStructGEP(StructT, NewArg, *ElemIdx);
+            auto IntermArg = Builder.CreateLoad(
+                ArgT, IPtr, Twine("old_") + Arg.Arg->getName());
+
+            // vvv Point uses of the old arg to the new intermediary
+
+            Arg.Arg->replaceUsesWithIf(IntermArg, [&Users](Use &U) {
+                return Users.contains(U.getUser());
+            });
+        }
+
+        Set.Alloc->replaceAllUsesWith(NewArg);
         Set.Alloc->eraseFromParent();
         if (Set.Intermediary) {
             SmallSet<Value *, 8> Visited;
@@ -1095,9 +1254,15 @@ PreservedAnalyses StructConsolidatorPass::run(Module &M,
     FunctionAnalysisManager &FAM =
         MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
 
-    DenseMap<Function *, ReplaceableVec> transformableFunctions;
+    // TODO: If the consolidation introduces too many unneccessary de- and
+    //       reconstructions of structs, we could consider to use the (reversed)
+    //       scc_iterator to transform functions 'outside-in'
+    SmallVector<Function *> OldFunctions;
+    for (auto &F : M.functions()) {
+        OldFunctions.push_back(&F);
+    }
 
-    for (Function &F : M) {
+    for (Function *F : OldFunctions) {
         // Ensure that this a function which we can safely transform:
         // - It is not a declaration and cannot change externally
         // - It is not a varargs function
@@ -1106,22 +1271,22 @@ PreservedAnalyses StructConsolidatorPass::run(Module &M,
         // regarding the value this function returns and how we treat the
         // passed in arguments) These checks match those in the
         // DeadArgumentEliminationPass
-        if (!F.hasExactDefinition() || F.isVarArg() ||
-            F.getAttributes().hasAttrSomewhere(Attribute::InAlloca) ||
-            F.getAttributes().hasAttrSomewhere(Attribute::Preallocated) ||
-            F.hasFnAttribute(Attribute::Naked)) {
+        if (!F->hasExactDefinition() || F->isVarArg() ||
+            F->getAttributes().hasAttrSomewhere(Attribute::InAlloca) ||
+            F->getAttributes().hasAttrSomewhere(Attribute::Preallocated) ||
+            F->hasFnAttribute(Attribute::Naked)) {
             continue;
         }
 
-        if (ReplaceableVec Sets = findReplaceableSets(
-                F, L, FAM.getResult<DominatorTreeAnalysis>(F));
-            !Sets.empty()) {
-            transformableFunctions.insert({&F, Sets});
+        // Gather sets of arguments that can be consolidated
+        auto Sets = findReplaceableSets(
+            *F, L, FAM.getResult<DominatorTreeAnalysis>(*F));
+        if (Sets.empty()) {
+            continue;
         }
-    }
 
-    for (auto const &[F, sets] : transformableFunctions) {
-        updateFunction(*F, sets);
+        // Consolidate argument-sets
+        updateFunction(*F, Sets, L);
         MadeChanges = true;
     }
 
