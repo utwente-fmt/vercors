@@ -614,13 +614,24 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
 
     // Again most of this is from the DeadArgumentElimination pass
     AttributeList PAL = Call->getAttributes();
-    if (!PAL.isEmpty()) {
-        SmallVector<AttributeSet, 8> ArgAttrs;
-        for (unsigned ArgNo = 0; ArgNo < NewArgs.size(); ++ArgNo)
-            ArgAttrs.push_back(PAL.getParamAttrs(ArgNo));
-        PAL = AttributeList::get(OldF.getContext(), PAL.getFnAttrs(),
-                                 PAL.getRetAttrs(), ArgAttrs);
+    SmallVector<AttributeSet, 8> ArgAttrs;
+    // Copy attributes of unchanged arguments
+    for (unsigned ArgIdx = 0, NoArgs = Call->arg_size(); ArgIdx < NoArgs;
+         ++ArgIdx) {
+        if (!ToBeRemoved.contains(ArgIdx)) {
+            ArgAttrs.push_back(PAL.getParamAttrs(ArgIdx));
+        }
     }
+    // Add attriutes to consolidated arguments based on signature of new,
+    // called function
+    auto NewFAttributes = NewF->getAttributes();
+    for (unsigned ArgIdx = ArgAttrs.size(), NoNewArgs = NewArgs.size();
+         ArgIdx < NoNewArgs; ++ArgIdx) {
+        ArgAttrs.push_back(NewFAttributes.getParamAttrs(ArgIdx));
+    }
+
+    auto NewPAL = AttributeList::get(OldF.getContext(), PAL.getFnAttrs(),
+                                     PAL.getRetAttrs(), ArgAttrs);
 
     SmallVector<OperandBundleDef, 1> OpBundles;
     Call->getOperandBundlesAsDefs(OpBundles);
@@ -629,7 +640,7 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
         CallInst::Create(NewF, ArrayRef(NewArgs), OpBundles, "", Call);
     newCall->setTailCallKind(Call->getTailCallKind());
     newCall->setCallingConv(Call->getCallingConv());
-    newCall->setAttributes(PAL);
+    newCall->setAttributes(NewPAL);
     newCall->copyMetadata(*Call, {LLVMContext::MD_prof, LLVMContext::MD_dbg});
     if (StmntBlock != nullptr)
         newCall->setMetadata(constants::PALLAS_SPEC_STMNT_BLOCK, StmntBlock);
