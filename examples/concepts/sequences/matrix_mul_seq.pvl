@@ -7,16 +7,15 @@ context matrix(B, N, O);
 context matrixArr(C, M, O, write); 
 
 ensures (∀ int r=0..M; (∀ int c=0..O; 
-    C[r][c] == mul(row(A,r,M,N),col(B,c,N,O),N)
+    {:C[r][c]:} == mul(row(A,r,M,N),col(B,c,N,O),N)
 ));
 void matrixmul(seq<seq<int>> A, seq<seq<int>> B, int [][] C, int M, int N, int O) {
-
-    par(int r=0..M, int c=0..O) 
+    par(int r=0..M, int c=0..O)
         context bounds(M, N, O);
         context matrix(A, M, N) ** matrix(B, N, O);
         context matrixpart(C, M, O);
-        context Perm(C[r][c], write);
-        ensures C[r][c] == mul(row(A,r,M,N),col(B,c,N,O),N);
+        context Perm({:C[r][c]:}, write);
+        ensures {:C[r][c]:} == mul(row(A,r,M,N),col(B,c,N,O),N);
     {
             int sum = 0;
             int i = 0;
@@ -43,8 +42,14 @@ void matrixmul(seq<seq<int>> A, seq<seq<int>> B, int [][] C, int M, int N, int O
 /// Auxiliary Methods ///
 /////////////////////////
 inline resource matrix(seq<seq<int>> mat, int M, int N) = |mat| == M ** (∀ int i=0..M; |{:mat[i]:}| == N);
-inline resource matrixArr(int[][] mat, int M, int N, frac p1) = matrixpart(mat, M, N) ** (∀* int i1=0..M; (∀* int j1=0..N; Perm(mat[i1][j1],p1)));
-inline resource matrixpart(int[][] mat, int M, int N) = mat != null ** mat.length == M ** (∀* int i=0..M; Perm(mat[i], read)) ** (∀ int i=0..M; mat[i] != null && mat[i].length == N) ** (∀ int i=0..M; (∀ int j=0..M; mat[i] == mat[j]; i == j));
+inline resource matrixArr(int[][] mat, int M, int N, frac p1) = matrixpart(mat, M, N) **
+                                                                    (∀* int i1=0..M, int j1=0..N; Perm({:mat[i1][j1]:},p1));
+inline resource matrixpart(int[][] mat, int M, int N) = mat != null **
+                                                        mat.length == M **
+                                                        bound(M) ** bound(N) **
+                                                        (∀* int i=0..M; Perm({:mat[i]:}, read)) **
+                                                        (∀ int i=0..M; {:mat[i]:} != null && mat[i].length == N) **
+                                                        (∀ int i=0..M, int j=0..M; i != j ==> {:mat[j]:} != {:mat[i]:});
 
 
 ///////////////////////
