@@ -95,7 +95,7 @@ case class CheckContractSatisfiability[Pre <: Generation](
         expectedErrors.top += err
         val extractObj = Extract[Pre]()
         val result = extractObj.extract(pred)
-        val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
+        val extractObj.Data(ts, in, inForOut, _, _, _) = extractObj.finish()
         variables.scope {
           localHeapVariables.scope {
             globalDeclarations.declare(procedure(
@@ -112,7 +112,8 @@ case class CheckContractSatisfiability[Pre <: Generation](
                   }
                 )(result.o),
               typeArgs = variables.dispatch(ts.keys),
-              args = variables.dispatch(in.keys),
+              args = variables
+                .dispatch(in.keys ++ inForOut.keys.map(_._1).toSeq),
               body = Some(Scope[Post](Nil, Assert(ff)(onlyAssertBlame))),
             ))
           }

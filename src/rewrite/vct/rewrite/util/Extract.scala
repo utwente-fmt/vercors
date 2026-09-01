@@ -5,8 +5,10 @@ import vct.col.origin._
 import vct.col.rewrite.util.FreeVariables.{
   FreeThisModel,
   FreeThisObject,
+  ReadFreeHeapVar,
   ReadFreeVar,
   ReadTypeVar,
+  WriteFreeHeapVar,
   WriteFreeVar,
 }
 import vct.col.util.AstBuildHelpers.{VarBuildHelpers, assignLocal}
@@ -30,10 +32,11 @@ case object Extract {
   ): (Seq[Expr[G]], ListMap[Variable[G], Expr[G]]) = {
     val extract = Extract[G]()
     val result = nodes.map(extract.extract)
-    val extract.Data(ts, in, inForOut, out, _) = extract.finish()
+    val extract.Data(ts, in, inForOut, out, outHeap, _) = extract.finish()
     require(ts.isEmpty)
     require(inForOut.isEmpty)
     require(out.isEmpty)
+    require(outHeap.isEmpty)
     (result, in)
   }
 
@@ -47,8 +50,11 @@ case class Extract[G]() {
   import Extract._
 
   private var map = ListMap[FreeVariables.FreeVariable[G], Variable[G]]()
+  private var mapHeap = ListMap[FreeVariables.FreeVariable[G], Variable[G]]()
   private val write = mutable.Set[Local[G]]()
   private val read = mutable.Set[Local[G]]()
+  private val writeHeap = mutable.Set[HeapLocal[G]]()
+  private val readHeap = mutable.Set[HeapLocal[G]]()
 
   def getOrElseUpdate(
       free: FreeVariables.FreeVariable[G],
@@ -75,6 +81,20 @@ case class Extract[G]() {
         v -> Local(
           getOrElseUpdate(
             ReadFreeVar(v),
+            new Variable(extract(v.t))(v.ref.decl.o),
+          ).ref[Variable[G]]
+        )(ExtractOrigin(""))
+      case free @ ReadFreeHeapVar(v) =>
+        readHeap += v
+        v -> Local(
+          getOrElseUpdate(free, new Variable(extract(v.t))(v.ref.decl.o))
+            .ref[Variable[G]]
+        )(ExtractOrigin(""))
+      case WriteFreeHeapVar(v) =>
+        writeHeap += v
+        v -> Local(
+          getOrElseUpdate(
+            ReadFreeHeapVar(v),
             new Variable(extract(v.t))(v.ref.decl.o),
           ).ref[Variable[G]]
         )(ExtractOrigin(""))
@@ -130,6 +150,7 @@ case class Extract[G]() {
       in: ListMap[Variable[G], Expr[G]],
       inForOut: ListMap[(Variable[G], Variable[G]), Expr[G]],
       out: ListMap[Variable[G], Expr[G]],
+      outHeap: ListMap[Variable[G], Expr[G]],
       initialAssignments: Statement[G],
   )
 
@@ -141,6 +162,8 @@ case class Extract[G]() {
     // Locals that are not written: their usage becomes a parameter
     val in = map.collect {
       case (ReadFreeVar(v), extracted) if !write.contains(v) => extracted -> v
+      case (ReadFreeHeapVar(v), extracted) if !writeHeap.contains(v) =>
+        extracted -> v
       case (FreeThisObject(t), extracted) => extracted -> t
       case (FreeThisModel(t), extracted) => extracted -> t
     }.to(ListMap)
@@ -149,6 +172,9 @@ case class Extract[G]() {
     val inForOut = map.collect {
       case (ReadFreeVar(v), extracted)
           if read.contains(v) && write.contains(v) =>
+        (new Variable[G](extract(v.t))(v.ref.decl.o), extracted) -> v
+      case (ReadFreeHeapVar(v), extracted)
+          if readHeap.contains(v) && writeHeap.contains(v) =>
         (new Variable[G](extract(v.t))(v.ref.decl.o), extracted) -> v
     }.to(ListMap)
 
@@ -167,6 +193,11 @@ case class Extract[G]() {
       case (ReadFreeVar(v), extracted) if write.contains(v) => extracted -> v
     }.to(ListMap)
 
-    Data(types, in, inForOut, out, initialAssignments)
+    val outHeap = map.collect {
+      case (ReadFreeHeapVar(v), extracted) if writeHeap.contains(v) =>
+        extracted -> v
+    }.to(ListMap)
+
+    Data(types, in, inForOut, out, outHeap, initialAssignments)
   }
 }

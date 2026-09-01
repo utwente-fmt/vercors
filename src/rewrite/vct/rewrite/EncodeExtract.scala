@@ -138,7 +138,8 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
     val newBody = extract.extract(body)
     val newDecreases = decreases.map(d => extract.extract(d))
 
-    val extract.Data(typeMap, inMap, inForOutMap, outMap, inForOutAssign) =
+    val extract
+      .Data(typeMap, inMap, inForOutMap, outMap, outHeap, inForOutAssign) =
       extract.finish()
 
     val fixMap = Substitute[Pre](inForOutMap.keys.map { case (in, out) =>
@@ -152,7 +153,7 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
         returnType = TVoid(),
         args = variables
           .dispatch(inMap.keys.toSeq ++ inForOutMap.keys.map(_._1).toSeq),
-        outArgs = variables.dispatch(outMap.keys.toSeq),
+        outArgs = variables.dispatch(outMap.keys.toSeq ++ outHeap.keys.toSeq),
         typeArgs = variables.dispatch(typeMap.keys.toSeq),
         body = Some(Block(Seq(dispatch(inForOutAssign), dispatch(newBody)))),
         contract = contract(
@@ -169,7 +170,8 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
     InvokeProcedure[Post](
       proc.ref,
       args = (inMap.values ++ inForOutMap.values).map(dispatch).toSeq,
-      outArgs = outMap.values.map(dispatch).toSeq,
+      outArgs =
+        outMap.values.map(dispatch).toSeq ++ outMap.values.map(dispatch).toSeq,
       typeArgs = typeMap.values.map(dispatch).toSeq,
       givenMap = Nil,
       yields = Nil,

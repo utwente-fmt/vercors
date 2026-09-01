@@ -460,12 +460,11 @@ case class SilverTransformation(
         DetectDeadCode
           .withArg(
             detectDead
-          ), // before RefuteToInvertedAssert so inserted Refute nodes are transformed, and before ParBlockEncoder so ParBlock/ParAtomic still exist
+          ), // before ParBlockEncoder so ParBlock/ParAtomic still exist
         CheckInvariantSatisfiability
           .withArg(
             checkLoopInvSat
           ), // before EncodeExtract (encodes Extract+FramedProof) and before EncodeProofHelpers (encodes FramedProof); also before ParBlockEncoder so ParInvariant still exists
-        RefuteToInvertedAssert,
         ExplicitResourceValues,
         EncodeResourceValues,
         EncodeAssuming,

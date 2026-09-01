@@ -16,10 +16,15 @@ case object CheckInvariantSatisfiability extends RewriterBuilderArg[Boolean] {
   override def desc: String =
     "Check that loop invariants and parallel invariants are not internally contradictory (i.e. unsatisfiable)."
 
+  trait SkippableBlame {
+    var shouldSkip: Boolean = false
+  }
+
   case class LoopInvariantUnsatisfiableBlame(li: LoopInvariant[_])
-      extends Blame[RefuteFailed] {
+      extends Blame[RefuteFailed] with SkippableBlame {
     override def blame(error: RefuteFailed): Unit =
-      li.blame.blame(LoopInvariantUnsatisfiable(li))
+      if (!shouldSkip)
+        li.blame.blame(LoopInvariantUnsatisfiable(li))
   }
 
   // ParInvariant's own blame only accepts ParInvariantNotEstablished, so this
@@ -27,16 +32,19 @@ case object CheckInvariantSatisfiability extends RewriterBuilderArg[Boolean] {
   case class ParInvariantUnsatisfiableBlame(
       parInv: ParInvariant[_],
       anchor: ContractApplicable[_],
-  ) extends Blame[RefuteFailed] {
-    override def blame(error: RefuteFailed): Unit =
-      anchor.blame.blame(ParInvariantUnsatisfiable(parInv))
+  ) extends Blame[RefuteFailed] with SkippableBlame {
+    override def blame(error: RefuteFailed): Unit = {
+      if (!shouldSkip)
+        anchor.blame.blame(ParInvariantUnsatisfiable(parInv))
+    }
   }
 
   // The empty heap here can spuriously flag well-definedness errors that don't
   // occur in the invariant's real position; suppress to avoid a duplicate report.
-  case class IgnoreWellformednessInInvSat[T <: VerificationFailure]()
-      extends Blame[T] {
-    override def blame(error: T): Unit = ()
+  case class IgnoreWellformednessInInvSat[T <: VerificationFailure](
+      blame: SkippableBlame
+  ) extends Blame[T] {
+    override def blame(error: T): Unit = blame.shouldSkip = true
   }
 }
 
@@ -61,9 +69,10 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
 
   // Builds the shared isolated-context check: an Extract/FramedProof that inhales
   // the enclosing method's non-heap preconditions, then `inv`, then refutes false.
-  private def isolatedSatCheck(inv: Expr[Pre], blame: Blame[RefuteFailed])(
-      implicit o: Origin
-  ) = {
+  private def isolatedSatCheck(
+      inv: Expr[Pre],
+      blame: Blame[RefuteFailed] with SkippableBlame,
+  )(implicit o: Origin) = {
     val pre = foldStar(currentApplicable.topOption.toSeq.map { ca =>
       foldStar(unfoldPredicate(ca.contract.requires))
     })
@@ -71,7 +80,7 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
     val extractObj = ExtractObj[Pre]()
     val preExtract = extractObj.extract(pre)
     val invExtract = extractObj.extract(inv)
-    val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
+    val extractObj.Data(ts, in, inForOut, _, _, _) = extractObj.finish()
 
     variables.scope {
       localHeapVariables.scope {
@@ -80,17 +89,22 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
           contractBlame = TrueSatisfiable,
           requires = UnitAccountedPredicate(dispatch(preExtract)),
           typeArgs = variables.dispatch(ts.keys),
-          args = variables.dispatch(in.keys),
-          body = Some(Scope[Post](Nil, Block(Seq(
-            Exhale(dispatch(preExtract))(PanicBlame("Exhaling just inhaled precondition should not fail")),
-            Inhale(
-              wellFormednessBlame
-                .having(IgnoreWellformednessInInvSat()) {
-                  dispatch(invExtract)
-                }
-            ),
-            Refute(ff)(blame),
-          ))))
+          args = variables.dispatch(in.keys ++ inForOut.keys.map(_._1).toSeq),
+          body = Some(Scope[Post](
+            Nil,
+            Block(Seq(
+              Exhale(dispatch(preExtract))(PanicBlame(
+                "Exhaling just inhaled precondition should not fail"
+              )),
+              Inhale(
+                wellFormednessBlame
+                  .having(IgnoreWellformednessInInvSat(blame)) {
+                    dispatch(invExtract)
+                  }
+              ),
+              Refute(ff)(blame),
+            )),
+          )),
         ))
       }
     }
@@ -105,8 +119,11 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
     else
       stat match {
         // We cannot do smoke checks with labelled old's
-        case loop @ Loop(_, _, _, li @ LoopInvariant(inv, _), _) if hasOld(inv) => super.dispatch(loop)
-        case parInv @ ParInvariant(_, inv, _) if hasOld(inv) => super.dispatch(parInv)
+        case loop @ Loop(_, _, _, li @ LoopInvariant(inv, _), _)
+            if hasOld(inv) =>
+          super.dispatch(loop)
+        case parInv @ ParInvariant(_, inv, _) if hasOld(inv) =>
+          super.dispatch(parInv)
         case loop @ Loop(_, _, _, li @ LoopInvariant(inv, _), _) =>
           implicit val o: Origin = li.o.where(prefix = "checkInvSat")
           isolatedSatCheck(inv, LoopInvariantUnsatisfiableBlame(li))
@@ -117,7 +134,10 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
             case None =>
             case Some(anchor) =>
               implicit val o: Origin = parInv.o.where(prefix = "checkInvSat")
-              isolatedSatCheck(inv, ParInvariantUnsatisfiableBlame(parInv, anchor))
+              isolatedSatCheck(
+                inv,
+                ParInvariantUnsatisfiableBlame(parInv, anchor),
+              )
           }
           super.dispatch(parInv)
 

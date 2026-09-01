@@ -97,7 +97,8 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
   ): Unit = {
     implicit val origin: Origin = applicable.o.where(prefix = "checkPostSat")
 
-    val ensuresPred = unfoldPredicate(contract.ensures).reduce((e1, e2) => Star(e1, e2)(e1.o))
+    val ensuresPred = unfoldPredicate(contract.ensures)
+      .reduce((e1, e2) => Star(e1, e2)(e1.o))
     ensuresPred match {
       case BooleanValue(
             false
@@ -126,8 +127,9 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
 
         val extractObj = Extract[Pre]()
         val extracted = extractObj.extract(combined)
-        val precond = extractObj.extract(foldStar(unfoldPredicate(contract.requires)))
-        val extractObj.Data(ts, in, _, _, _) = extractObj.finish()
+        val precond = extractObj
+          .extract(foldStar(unfoldPredicate(contract.requires)))
+        val extractObj.Data(ts, in, inForOut, _, _, _) = extractObj.finish()
         variables.scope {
           localHeapVariables.scope {
             globalDeclarations.declare(procedure(
@@ -139,21 +141,22 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
               ),
               requires = UnitAccountedPredicate(dispatch(precond)),
               typeArgs = variables.dispatch(ts.keys),
-              args = variables.dispatch(in.keys),
+              args = variables
+                .dispatch(in.keys ++ inForOut.keys.map(_._1).toSeq),
               body = Some(Scope[Post](
                 Nil,
-                Block(
-                  Seq(
-                    Exhale(dispatch(precond))(PanicBlame("Exhaling just inhaled precondition should not fail")),
-                    Inhale(
-                      wellFormednessBlame
-                        .having(NotWellFormedIgnoreCheckPostSat(err)) {
-                          dispatch(extracted)
-                        }
-                    ),
-                    Assert(ff)(onlyAssertBlame),
-                  )
-                ),
+                Block(Seq(
+                  Exhale(dispatch(precond))(PanicBlame(
+                    "Exhaling just inhaled precondition should not fail"
+                  )),
+                  Inhale(
+                    wellFormednessBlame
+                      .having(NotWellFormedIgnoreCheckPostSat(err)) {
+                        dispatch(extracted)
+                      }
+                  ),
+                  Assert(ff)(onlyAssertBlame),
+                )),
               )),
             ))
           }
