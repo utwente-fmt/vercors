@@ -322,7 +322,10 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case CoerceDecreasePrecision(_, _) => e
       case CoerceCFloatCInt(_) => e
       case CoerceCIntCFloat(_) => e
+      case CoerceBoolCInt(_) => e
+      case CoerceCIntBool() => e
       case CoerceCIntInt(_) => e
+      case CoerceCheckedIntInt() => e
       case CoerceCFloatFloat(_, _) => e
 
       case CoerceLLVMIntInt() => e
@@ -380,6 +383,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case node: LLVMFloatType[Pre] => node
       case node: LLVMFieldDefinition[Pre] => node
       case node: LLVMFunctionType[Pre] => node
+      case node: LLVMArgAttribute[Pre] => node
+      case node: LLVMFunctionArgument[Pre] => node
       case node: ProverLanguage[Pre] => node
       case node: SmtlibFunctionSymbol[Pre] => node
       case node: ChorRun[Pre] => node
@@ -465,6 +470,13 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def bool(e: Expr[Pre]): Expr[Pre] = coerce(e, TBool[Pre]())
   def res(e: Expr[Pre]): Expr[Pre] = coerce(e, TResource[Pre]())
   def int(e: Expr[Pre]): Expr[Pre] = coerce(e, TInt[Pre]())
+  // TODO: This is a bit of a hack and using this actually allows you to do things which should not be allowed in non-C languages
+  def boolAndCInt(e: Expr[Pre]): Expr[Pre] =
+    e.t match {
+      case TCInt() => coerce(e, TCInt())
+      case TBool() => coerce(e, TCInt())
+      case _ => throw IncoercibleText(e, "C integer")
+    }
   def string(e: Expr[Pre]): Expr[Pre] = coerce(e, TString[Pre]())
   def float(e: Expr[Pre]): Expr[Pre] =
     firstOk(
@@ -742,12 +754,13 @@ abstract class CoercingRewriter[Pre <: Generation]()
       alt10: => T = throw IncoercibleDummy,
       alt11: => T = throw IncoercibleDummy,
       alt12: => T = throw IncoercibleDummy,
+      alt13: => T = throw IncoercibleDummy,
   ): T = {
     Left(Nil).onCoercionError(alt1).onCoercionError(alt2).onCoercionError(alt3)
       .onCoercionError(alt4).onCoercionError(alt5).onCoercionError(alt6)
       .onCoercionError(alt7).onCoercionError(alt8).onCoercionError(alt9)
-      .onCoercionError(alt10).onCoercionError(alt11)
-      .onCoercionError(alt12) match {
+      .onCoercionError(alt10).onCoercionError(alt11).onCoercionError(alt12)
+      .onCoercionError(alt13) match {
       case Left(errs) =>
         for (err <- errs) { logger.debug(err.text) }
         throw IncoercibleExplanation(expr, message)
@@ -845,6 +858,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be int, float, vector[int] or vector[float], but got ${left
               .t} and ${right.t}.",
           AmbiguousDiv(int(left), int(right))(div.blame),
+          AmbiguousDiv(boolAndCInt(left), boolAndCInt(right))(div.blame),
           floatOp2(div, (l, r) => AmbiguousDiv(l, r)(div.blame)),
           vectorIntOp2(div, (l, r) => AmbiguousDiv(l, r)(div.blame)),
           vectorFloatOp2(div, (l, r) => AmbiguousDiv(l, r)(div.blame)),
@@ -857,6 +871,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be numeric, a set, a bag, or a pointer but got ${left
               .t} and ${right.t}.",
           AmbiguousGreater(int(left), int(right), elementSize),
+          AmbiguousGreater(boolAndCInt(left), boolAndCInt(right), elementSize),
           floatOp2(g, (l, r) => AmbiguousGreater(l, r, elementSize)),
           AmbiguousGreater(rat(left), rat(right), elementSize), {
             val (coercedLeft, leftSet) = set(left)
@@ -887,6 +902,11 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be numeric, a set, a bag, or a pointer but got ${left
               .t} and ${right.t}.",
           AmbiguousGreaterEq(int(left), int(right), elementSize),
+          AmbiguousGreaterEq(
+            boolAndCInt(left),
+            boolAndCInt(right),
+            elementSize,
+          ),
           floatOp2(g, (l, r) => AmbiguousGreaterEq(l, r, elementSize)),
           AmbiguousGreaterEq(rat(left), rat(right), elementSize), {
             val (coercedLeft, leftSet) = set(left)
@@ -917,6 +937,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be numeric, a set, a bag, or a pointer but got ${left
               .t} and ${right.t}.",
           AmbiguousLess(int(left), int(right), elementSize),
+          AmbiguousLess(boolAndCInt(left), boolAndCInt(right), elementSize),
           floatOp2(less, (l, r) => AmbiguousLess(l, r, elementSize)),
           AmbiguousLess(rat(left), rat(right), elementSize), {
             val (coercedLeft, leftSet) = set(left)
@@ -947,6 +968,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be numeric, a set, a bag, or a pointer but got ${left
               .t} and ${right.t}.",
           AmbiguousLessEq(int(left), int(right), elementSize),
+          AmbiguousLessEq(boolAndCInt(left), boolAndCInt(right), elementSize),
           floatOp2(less, (l, r) => AmbiguousLessEq(l, r, elementSize)),
           AmbiguousLessEq(rat(left), rat(right), elementSize), {
             val (coercedLeft, leftSet) = set(left)
@@ -977,6 +999,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be numeric, a numeric vector, a set or a bag; or a pointer and integer, but got ${left
               .t} and ${right.t}.",
           Minus(int(left), int(right)),
+          AmbiguousMinus(boolAndCInt(left), boolAndCInt(right))(minus.blame),
           floatOp2(minus, (l, r) => Minus(l, r)),
           Minus(rat(left), rat(right)),
           { vectorOp2(minus, (l, r) => AmbiguousMinus(l, r)(minus.blame)) },
@@ -1035,6 +1058,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be ints or vector[int], but got ${left
               .t} and ${right.t}.",
           AmbiguousMod(int(left), int(right))(mod.blame),
+          AmbiguousMod(boolAndCInt(left), boolAndCInt(right))(mod.blame),
           vectorIntOp2(mod, (l, r) => AmbiguousMod(l, r)(mod.blame)),
         )
       case mult @ AmbiguousMult(left, right) =>
@@ -1043,6 +1067,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be numeric, a numeric vector, a process, a set or a bag but got ${left
               .t} and ${right.t}.",
           AmbiguousMult(int(left), int(right)),
+          AmbiguousMult(boolAndCInt(left), boolAndCInt(right)),
           floatOp2(mult, (l, r) => AmbiguousMult(l, r)),
           AmbiguousMult(rat(left), rat(right)),
           { vectorOp2(mult, (l, r) => AmbiguousMult(l, r)) },
@@ -1082,6 +1107,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be numeric, a process, a sequence, set, bag, numeric vector, or string; or a pointer and integer, but got ${left
               .t} and ${right.t}.",
           AmbiguousPlus(int(left), int(right))(plus.blame),
+          AmbiguousPlus(boolAndCInt(left), boolAndCInt(right))(plus.blame),
           floatOp2(plus, (l, r) => AmbiguousPlus(l, r)(plus.blame)),
           AmbiguousPlus(rat(left), rat(right))(plus.blame),
           AmbiguousPlus(process(left), process(right))(plus.blame),
@@ -1150,8 +1176,14 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected collection to be a sequence, vector, array, pointer or map, but got ${collection.t}.",
           AmbiguousSubscript(seq(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(vector(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(vector(collection)._1, boolAndCInt(index))(
+            sub.blame
+          ),
           AmbiguousSubscript(array(collection)._1, int(index))(sub.blame),
           AmbiguousSubscript(pointer(collection)._1, int(index))(sub.blame),
+          AmbiguousSubscript(pointer(collection)._1, boolAndCInt(index))(
+            sub.blame
+          ),
           AmbiguousSubscript(
             map(collection)._1,
             coerce(index, map(collection)._2.key),
@@ -1164,6 +1196,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be int, float, vector[int] or vector[float], but got ${left
               .t} and ${right.t}.",
           AmbiguousTruncDiv(int(left), int(right))(div.blame),
+          AmbiguousTruncDiv(boolAndCInt(left), boolAndCInt(right))(div.blame),
           floatOp2(div, (l, r) => AmbiguousTruncDiv(l, r)(div.blame)),
           vectorIntOp2(div, (l, r) => AmbiguousTruncDiv(l, r)(div.blame)),
           vectorFloatOp2(div, (l, r) => AmbiguousTruncDiv(l, r)(div.blame)),
@@ -1174,6 +1207,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
           s"Expected both operands to be ints or vector[int], but got ${left
               .t} and ${right.t}.",
           AmbiguousTruncMod(int(left), int(right))(mod.blame),
+          AmbiguousTruncMod(boolAndCInt(left), boolAndCInt(right))(mod.blame),
           vectorIntOp2(mod, (l, r) => AmbiguousTruncMod(l, r)(mod.blame)),
         )
       case And(left, right) => And(bool(left), bool(right))
@@ -1213,6 +1247,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case bgi @ BipGuardInvocation(obj, ref) =>
         BipGuardInvocation(cls(obj), ref)
+      // TODO: Technically we should be able to do (1 | true) and stuff like that, but adding all these cases is a hassle
       case op @ BitAnd(left, right, bits, signed) =>
         BitAnd(int(left), int(right), bits, signed)(op.blame)
       case op @ BitNot(arg, bits, signed) =>
@@ -1462,6 +1497,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case Let(binding, value, main) =>
         Let(binding, coerce(value, binding.t), main)
+      case let @ LetSuchThat(binding, condition, main) =>
+        LetSuchThat(binding, bool(condition), main)(let.blame)
       case LiteralBag(element, values) =>
         LiteralBag(element, values.map(coerce(_, element)))
       case LiteralMap(k, v, values) =>
@@ -1746,6 +1783,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         )
       case inv @ LLVMFunctionInvocation(ref, args, givenMap, yields) =>
         LLVMFunctionInvocation(ref, args, givenMap, yields)(inv.blame)
+      case inv @ LLVMWrapperInvocation(ref, callArgs) =>
+        LLVMWrapperInvocation(ref, callArgs)(inv.blame)
       case inv @ LLVMAmbiguousFunctionInvocation(
             name,
             args,
@@ -2094,6 +2133,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         ValidMatrix(arrayMatrix(mat)._1, int(w), int(h))
       case value: BooleanValue[Pre] => e
       case value: CIntegerValue[Pre] => e
+      case value: CheckedIntegerValue[Pre] => e
+      case _: UncheckedMath[Pre] => e
       case value: IntegerValue[Pre] => e
       case value: FloatValue[Pre] => e
       case value: FloatNaN[Pre] => e
@@ -2279,9 +2320,16 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case LLVMSepForall(_, _) => e
       case LLVMExists(_, _) => e
       case LLVMExtractValue(_, _, _, _) => e
+      case LLVMSeqSize(_) => e
+      case LLVMSeqEq(_, _) => e
+      case LLVMSeqGet(_, _, _) => e
+      case LLVMSeqSlice(_, _, _) => e
+      case LLVMSeqPrepend(_, _) => e
+      case LLVMSeqUpdate(_, _, _) => e
       case PVLEndpointExpr(_, _) => e
       case EndpointExpr(ref, expr) => e
       case ChorExpr(expr) => ChorExpr(bool(expr))
+      case IsarFunctionInvocation(_, _, _) => e
     }
   }
 
@@ -2295,6 +2343,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
         AssignInitial(target, coerce(value, target.t, canCDemote = true))(
           a.blame
         )
+      case a @ AssignSuchThat(target, constraint) =>
+        AssignSuchThat(target, bool(constraint))(a.blame)
       case Assume(assn) => Assume(bool(assn))
       case Block(statements) => Block(statements)
       case Branch(branches) =>
@@ -2400,6 +2450,9 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case mult: LLVMMultWithOverflow[Pre] => mult
       case memset: LLVMMemset[Pre] => memset
       case memcpy: LLVMMemcpy[Pre] => memcpy
+      case seqNew: LLVMSeqNew[Pre] => seqNew
+      case llvmRet: LLVMReturn[Pre] => llvmRet
+      case llvmGAssign: LLVMGhostAssign[Pre] => llvmGAssign
       case ModelDo(model, perm, after, action, impl) =>
         ModelDo(model, rat(perm), after, action, impl)
       case n @ Notify(obj) => Notify(cls(obj))(n.blame)
@@ -2663,6 +2716,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case synchronization: BipTransitionSynchronization[Pre] => synchronization
       case definition: LLVMFunctionDefinition[Pre] => definition
       case llvmPred: LLVMPredicateDefinition[Pre] => llvmPred
+      case llvmSDecl: LLVMStructDeclaration[Pre] => llvmSDecl
       case typ: ProverType[Pre] => typ
       case func: ProverFunction[Pre] => func
       case function: LLVMSpecFunction[Pre] =>
@@ -2701,6 +2755,9 @@ abstract class CoercingRewriter[Pre <: Generation]()
           c,
           s"The message should have type ${c.target.t}, but actually has type ${c.msg.t}.",
         )
+      case _: IsarTheory[Pre] => decl
+      case _: IsarCommand[Pre] => decl
+      case _: IsarDataConstructor[Pre] => decl
     }
   }
 
@@ -3122,6 +3179,8 @@ abstract class CoercingRewriter[Pre <: Generation]()
   def coerce(node: LLVMMemoryOrdering[Pre]): LLVMMemoryOrdering[Pre] = node
   def coerce(node: LLVMFloatType[Pre]): LLVMFloatType[Pre] = node
   def coerce(node: LLVMFunctionType[Pre]): LLVMFunctionType[Pre] = node
+  def coerce(node: LLVMArgAttribute[Pre]): LLVMArgAttribute[Pre] = node
+  def coerce(node: LLVMFunctionArgument[Pre]): LLVMFunctionArgument[Pre] = node
   def coerce(node: LLVMFieldDefinition[Pre]): LLVMFieldDefinition[Pre] = node
 
   def coerce(node: ProverLanguage[Pre]): ProverLanguage[Pre] = node

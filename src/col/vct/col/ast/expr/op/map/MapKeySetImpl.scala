@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.map
 
 import vct.col.ast.{MapKeySet, TSet, Type}
-import vct.col.print.{Ctx, Doc, Precedence}
+import vct.col.print.{Ctx, Doc, Precedence, Text}
 import vct.col.ast.ops.MapKeySetOps
 
 trait MapKeySetImpl[G] extends MapKeySetOps[G] {
@@ -9,5 +9,9 @@ trait MapKeySetImpl[G] extends MapKeySetOps[G] {
   override def t: Type[G] = TSet(mapType.key)
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc = assoc(map) <> ".keys"
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Isar => Text("fmdom") <+> (map)
+      case _ => assoc(map) <> ".keys"
+    }
 }

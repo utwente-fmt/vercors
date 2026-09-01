@@ -466,7 +466,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   private def isInt(t: Type[Pre]): Boolean =
     getBaseType(t) match {
-      case _: IntType[Pre] => true
+      // TBool handled in CTypeConversions
+      case _: IntType[Pre] | TBool() => true
       case _ => false
     }
 
@@ -533,6 +534,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   private def castIsId(exprType: Type[Pre], castType: Type[Pre]): Boolean = {
     (getBaseType(castType), getBaseType(exprType)) match {
+      case (tc @ TCInt(), te @ TCInt()) =>
+        tc.signed == te.signed && tc.rank == te.rank
       case (tc, te) if tc == te && tc.bits == te.bits => true
       case (TCInt(), TBoundedInt(_, _)) => true
       case (TBoundedInt(_, _), TCInt()) => true
@@ -639,7 +642,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def cast(c: CCast[Pre]): Expr[Post] =
     c match {
       case CCast(e, t) if castIsId(e.t, t) => rw.dispatch(c.expr)
-      case CCast(e, t @ TCInt()) if isInt(e.t) =>
+      case CCast(e, t) if isInt(e.t) && isInt(t) =>
         Cast(rw.dispatch(e), TypeValue(rw.dispatch(t))(c.o))(c.o)
       case CCast(e, t)
           if (isFloat(t) && isRatFloatOrInt(e.t)) ||
@@ -716,6 +719,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           TPointer(rw.dispatch(innerType), None),
           getStride(innerType, c.o),
         )(c.o)
+      // Handled in CTypeConversions
+      case CCast(e, t @ TBool()) if e.t.asPointer.isDefined =>
+        Cast(rw.dispatch(e), TypeValue(rw.dispatch(t))(c.o))(c.o)
       case _ => throw UnsupportedCast(c)
     }
 
@@ -1579,9 +1585,10 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           t +: getFirstTypes(t)
         }.getOrElse(Nil)
       case TArray(element) => element +: getFirstTypes(element)
-      case LLVMTStruct(_, _, _, elements, _) =>
-        elements.headOption.map { field => field.t +: getFirstTypes(field.t) }
-          .getOrElse(Nil)
+      case sType: LLVMTStruct[Pre] =>
+        sType.ref.decl.elements.headOption.map { field =>
+          field.t +: getFirstTypes(field.t)
+        }.getOrElse(Nil)
       case LLVMTArray(_, elementType) =>
         elementType +: getFirstTypes(elementType)
       case _ => Nil

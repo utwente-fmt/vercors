@@ -11,8 +11,12 @@ trait SelectImpl[G] extends SelectOps[G] {
     .leastCommonSuperType(whenTrue.t, whenFalse.t)
 
   override def precedence: Int = Precedence.SELECT
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(nassoc(condition) <>> { Text("?") <+> nassoc(whenTrue) } <>> {
-      Text(":") <+> assoc(whenFalse)
-    })
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Group(Text("(if") <+> nassoc(condition) <+> Text("then") <+> nassoc(whenTrue) <+> Text("else") <+> nassoc(whenFalse) <+> Text(")"))
+      case _ => Group(nassoc(condition) <>> { Text("?") <+> nassoc(whenTrue) } <>> {
+        Text(":") <+> assoc(whenFalse)
+      })
+    }
+  }
 }

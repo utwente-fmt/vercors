@@ -4,7 +4,7 @@
 int failing() {
     int a[] = {5, 6, 7, 8};
     int b[] = {1, 2, 3, 4};
-    intptr_t c = (uintptr_t)&a[3];
+    uintptr_t c = (uintptr_t)&a[3];
     int *d = (int *)(c + 4);
     // The compiler is allowed to assume d==b includes checking for provenance (i.e. it may be false even if the adress is equal)
     if (d == b) {
@@ -23,7 +23,7 @@ int failing() {
 
 int passing() {
     int a[] = {5, 6, 7, 8};
-    intptr_t c = (intptr_t)&a[2];
+    uintptr_t c = (uintptr_t)&a[2];
     int *d = (int *)(c + 4);
     if (d == a + 3) {
         // Here we assume that the pointer acquired through the integer to pointer cast has the same provenance as a

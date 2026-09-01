@@ -1,6 +1,8 @@
 #ifndef PALLAS_EXPRWRAPPERMAPPER_H
 #define PALLAS_EXPRWRAPPERMAPPER_H
 
+#include "IRSpec/PallasIRSpec.h"
+
 #include <llvm/IR/Function.h>
 #include <llvm/IR/PassManager.h>
 #include <optional>
@@ -11,28 +13,14 @@
  */
 namespace pallas {
 
-enum PallasWrapperContext {
-    FuncContractPre,
-    FuncContractPost,
-    LoopContractInv,
-    AssertStmnt,
-    AssumeStmnt,
-    FoldStmnt,
-    UnfoldStmnt
-};
-
 class EWMResult {
   private:
     llvm::Function *parentFunc;
-    std::optional<PallasWrapperContext> context;
 
   public:
-    explicit EWMResult(llvm::Function *parentFunc,
-                       std::optional<PallasWrapperContext> ctx);
+    explicit EWMResult(llvm::Function *parentFunc);
 
     llvm::Function *getParentFunc();
-
-    std::optional<PallasWrapperContext> getContext();
 };
 
 class ExprWrapperMapper : public llvm::AnalysisInfoMixin<ExprWrapperMapper> {
@@ -49,19 +37,6 @@ class ExprWrapperMapper : public llvm::AnalysisInfoMixin<ExprWrapperMapper> {
      * the result contains a nullpointer.
      */
     Result run(llvm::Function &F, llvm::FunctionAnalysisManager &FAM);
-
-  private:
-    /**
-     * Attempts to get the wrapper-function from the given MDNode which
-     * represents a clause of a Pallas function contract.
-     */
-    llvm::Function *getWrapperFromFContractClause(const llvm::MDNode &clause);
-
-    std::optional<PallasWrapperContext>
-    getContextForFContractClause(const llvm::MDNode &clause);
-
-    std::optional<PallasWrapperContext>
-    getContextForSpecStmnt(const llvm::MDNode &stmnt);
 };
 
 } // namespace pallas

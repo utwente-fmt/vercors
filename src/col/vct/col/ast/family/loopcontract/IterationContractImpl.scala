@@ -1,8 +1,9 @@
 package vct.col.ast.family.loopcontract
 
-import vct.col.ast.IterationContract
+import vct.col.ast.{IterationContract, Node}
 import vct.col.print._
 import vct.col.ast.ops.IterationContractOps
+import vct.col.check.CheckContext
 
 trait IterationContractImpl[G] extends IterationContractOps[G] {
   this: IterationContract[G] =>
@@ -15,4 +16,8 @@ trait IterationContractImpl[G] extends IterationContractOps[G] {
 
   override def layout(implicit ctx: Ctx): Doc =
     Doc.spec(Show.lazily(layoutSpec(_)))
+
+  override def enterCheckContextInPolarExpression(
+      context: CheckContext[G]
+  ): Boolean = true
 }

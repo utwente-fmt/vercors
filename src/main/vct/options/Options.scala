@@ -333,6 +333,10 @@ case object Options {
       ).text(
         "Replace bitwise operations (&, |, ^, <<, >>, ~) with opaque functions"
       ),
+      opt[Unit]("check-integer-bounds")
+        .action((_, c) => c.copy(checkIntegerBounds = true)).text(
+          "Check for integer bounds, currently only C is supported. Make sure to set the target so that sizes are known"
+        ),
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
@@ -428,6 +432,16 @@ case object Options {
           .action((path, c) => c.copy(compileOutput = Some(path)))
           .text("Output Java file")
       ),
+      note("Isar mode"),
+      opt[Unit]("isar").action((_, c) => c.copy(mode = Mode.Isar))
+        .text("Translates ADTs to Isar.").children(
+          opt[Path]("isar-output").valueName("<path>")
+            .action((path, c) => c.copy(isarOutput = Some(path)))
+            .text("Output Isar file"),
+          opt[Unit]("isar-triggers")
+            .action((_, c) => c.copy(isarTriggers = true))
+            .text("Include trigger syntax in Isar output."),
+        ),
       note(""),
       note("Patcher mode"),
       opt[Unit]("patcher").action((_, c) => c.copy(mode = Mode.Patcher)).text(
@@ -444,6 +458,11 @@ case object Options {
             "If the patcher is given multiple inputs, this is interpreted as a directory path."
         ),
       ),
+      note(""),
+      note("LSP Mode"),
+      opt[Unit]("lsp")
+        .action((_, c) => c.copy(mode = Mode.LSP))
+        .text("Run the LSP server"),
       note(""),
       note(""),
       arg[PathOrStd]("<path>...").unbounded().optional()
@@ -516,6 +535,7 @@ case class Options(
     generatePermissions: Boolean = false,
     targetString: Option[String] = None,
     opaqueBitwiseOperators: Boolean = false,
+    checkIntegerBounds: Boolean = false,
 
     // Verify options - hidden
     devParserReportAmbiguities: Boolean = false,
@@ -567,6 +587,10 @@ case class Options(
 
     // Compile options
     compileOutput: Option[Path] = None,
+
+    // Compile options
+    isarOutput: Option[Path] = None,
+    isarTriggers: Boolean = false,
 
     // Patch options
     patchFile: Path = null,

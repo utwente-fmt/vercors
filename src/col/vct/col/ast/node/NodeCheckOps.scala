@@ -58,6 +58,7 @@ trait NodeCheckOps[G] {
       enterCheckContextInGPUKernel(context),
       enterCheckContextInPreCondition(context),
       enterCheckContextInPostCondition(context),
+      enterCheckContextInPolarExpression(context),
       enterCheckContextCurrentChoreography(context),
       enterCheckContextCurrentReceiverEndpoint(context),
       enterCheckContextCurrentParticipatingEndpoints(context),
@@ -88,6 +89,8 @@ trait NodeCheckOps[G] {
     context.inPreCondition
   def enterCheckContextInPostCondition(context: CheckContext[G]): Boolean =
     context.inPostCondition
+  def enterCheckContextInPolarExpression(context: CheckContext[G]): Boolean =
+    context.inPolarExpression
   def enterCheckContextCurrentChoreography(
       context: CheckContext[G]
   ): Option[Choreography[G]] = context.currentChoreography

@@ -8,5 +8,10 @@ trait TruncModImpl[G] extends TruncModOps[G] {
   this: TruncMod[G] =>
   override def t: Type[G] = TInt()
   override def precedence: Int = Precedence.MULTIPLICATIVE
-  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "%", right)
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => lassoc(left, "dvd", right)
+      case _ => lassoc(left, "%", right)
+    }
+  }
 }

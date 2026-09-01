@@ -6,12 +6,22 @@ import vct.col.ast.ops.TAxiomaticOps
 
 trait TAxiomaticImpl[G] extends TAxiomaticOps[G] {
   this: TAxiomatic[G] =>
-  override def layout(implicit ctx: Ctx): Doc =
+  override def layout(implicit ctx: Ctx): Doc = {
     Group(
-      Text(ctx.name(adt)) <>
-        (if (args.isEmpty)
-           Empty
-         else
-           open <> Doc.args(args) <> close)
+      ctx.syntax match {
+        case Ctx.Isar =>
+          (if (args.isEmpty)
+            Empty
+          else
+            open <> Doc.args(args) <> close
+            ) <+> Text(ctx.name(adt))
+        case _ =>
+          Text(ctx.name(adt)) <>
+          (if (args.isEmpty)
+            Empty
+          else
+            open <> Doc.args(args) <> close)
+      }
     )
+  }
 }

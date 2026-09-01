@@ -30,6 +30,9 @@ case object Doc {
   def fold(docs: Iterable[Show])(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc =
     docs.map(_.show).filter(_.nonEmpty).reduceLeftOption(f).getOrElse(Empty)
 
+  def foldr(docs: Iterable[Show])(f: (Doc, Doc) => Doc)(implicit ctx: Ctx): Doc =
+    docs.map(_.show).filter(_.nonEmpty).reduceRightOption(f).getOrElse(Empty)
+
   def concat(docs: Iterable[Show])(implicit ctx: Ctx): Doc = fold(docs)(_ <> _)
 
   def spread(docs: Iterable[Show])(implicit ctx: Ctx): Doc = fold(docs)(_ <+> _)
