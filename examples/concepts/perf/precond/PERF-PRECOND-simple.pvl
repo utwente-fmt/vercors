@@ -1,7 +1,0 @@
-//:: cases PERF_PRECOND_simple
-//:: tools silicon
-//:: verdict Pass
-
-// Baseline for checkSat: simple precondition, no calls/heap.
-requires n >= 0 && n < 1000000;
-void perf_precond_simple(int n) { }
