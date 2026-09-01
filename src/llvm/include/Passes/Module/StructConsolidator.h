@@ -2,6 +2,7 @@
 #define PALLAS_STRUCTCONSOLIDATOR_H
 
 #include "IRSpec/PallasIRSpec.h"
+#include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Dominators.h>
@@ -59,6 +60,11 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
     using AllocaMap = DenseMap<AllocaInst *, WriteVec>;
     using ReplaceableVec = SmallVector<ReplaceableArgSet>;
 
+    // Set to track the alloca-instructions that were inserted on the call-site 
+    // of functions with consolidated arguments. 
+    // Required to prevent the inserted allocas to be consolidated as well. 
+    SmallPtrSet<AllocaInst *, 8> CallSiteAllocas;
+
     void removeRecursively(Value *V, SmallSet<Value *, 8> &Visited);
     void removeParentless(Value *V);
     DigToFieldResult digToField(const Function &F, Value *V,
@@ -78,20 +84,20 @@ class StructConsolidatorPass : public PassInfoMixin<StructConsolidatorPass> {
     void replaceWrapperReferences(Function &WF, Function &NWF);
 
     /**
-     * If the given offset maps to the start of an element in the given 
+     * If the given offset maps to the start of an element in the given
      * struct type, return the index of the element. Otherwise return nullopt.
      */
-    std::optional<unsigned> getStructElemAtOffset(
-        StructType &S, uint64_t Offset, const DataLayout &L);
+    std::optional<unsigned>
+    getStructElemAtOffset(StructType &S, uint64_t Offset, const DataLayout &L);
 
     /**
-     * Find users of the argument that are not part of the provided list 
+     * Find users of the argument that are not part of the provided list
      * of writes.
      */
     SmallSet<llvm::User *, 8>
     getDirectUsers(Argument &Arg, const SmallVector<Instruction *> &Writes);
 
-    const Function &updateFunction(Function &F, const ReplaceableVec &Sets, 
+    const Function &updateFunction(Function &F, const ReplaceableVec &Sets,
                                    const DataLayout &L);
     void replaceFunctionUse(CallInst *Call, const Function &OldF,
                             Function *NewF, const ReplaceableVec &Sets);

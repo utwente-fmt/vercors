@@ -5,7 +5,6 @@
 #include "Util/PallasMD.h"
 #include <algorithm>
 #include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/ADT/SmallVector.h>
@@ -560,6 +559,7 @@ void StructConsolidatorPass::replaceFunctionUse(CallInst *Call,
         AllocaInst *AllocA = new AllocaInst(Set.Alloc->getAllocatedType(),
                                             NewF->getAddressSpace(),
                                             Twine("InsertedAllocA"), Call);
+        CallSiteAllocas.insert(AllocA);
         bool Found = false;
         for (const auto &[C, CallInfo] : Set.Calls) {
             if (C != Call)
@@ -793,6 +793,13 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
             auto *AllocA = dyn_cast<AllocaInst>(&I);
             if (!AllocA)
                 continue;
+
+            // Skip Allocas that were inserted by this pass itself on the 
+            // call-site of function. 
+            if (CallSiteAllocas.contains(AllocA)) {
+                continue;
+            } 
+
             // We only want to find alloca's allocating space for a single
             // struct
             Type *type = AllocA->getAllocatedType();
@@ -816,6 +823,7 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
 
             bool Valid = true;
 
+            // Check that the initializing writes occur before any other writes
             for (const Instruction *I : LaterWrites) {
                 for (const Write &W : Writes) {
                     if (!DT.dominates(W.WriteI, I)) {
@@ -830,6 +838,7 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
 
             const auto *SL = L.getStructLayout(ST);
 
+            // Check that the initializing writes cover the full struct
             IntervalSet Intervals;
             for (const Write &W : Writes) {
                 Intervals.add(W.Offset, W.Offset + W.Size);
@@ -854,7 +863,8 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
                 AllocAs.insert({AllocA, Writes});
         }
     }
-    // Map the pair of alloca and writes to the corresponding arguments
+
+    // vvv Try to map the pair of alloca and initializing writes to arguments
     for (std::pair<AllocaInst *, WriteVec> AllocA : AllocAs) {
         ReplaceableArgSet Set;
         Set.Alloc = AllocA.first;
@@ -887,7 +897,8 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
                 // not belong to the writes that initialize the alloca) then the
                 // arg directly maps to an element of the consolidated struct.
                 if (!getDirectUsers(*Arg, Set.Writes).empty()) {
-                    auto *ST = dyn_cast<StructType>(AllocA.first->getAllocatedType());
+                    auto *ST =
+                        dyn_cast<StructType>(AllocA.first->getAllocatedType());
                     assert(ST != nullptr);
                     auto elemIdx = getStructElemAtOffset(*ST, W.Offset, L);
                     if (!elemIdx ||
@@ -917,7 +928,7 @@ StructConsolidatorPass::findReplaceableSets(Function &F, const DataLayout &L,
         }
     }
 
-    // Propagate arguments accross intermediary
+    // Propagate arguments accross intermediary & analyze call-sites
     for (auto &Set : Sets) {
         if (!Set.Valid || Intermediaries.contains(Set.Alloc))
             continue;
@@ -1125,6 +1136,7 @@ StructConsolidatorPass::updateFunction(Function &F, const ReplaceableVec &Sets,
     for (Argument *I = F.arg_begin(), *E = F.arg_end(); I != E; ++I) {
         if (!ToBeRemoved.contains(I)) {
             I->replaceAllUsesWith(NF->getArg(ArgI));
+            NF->getArg(ArgI)->takeName(I);
             ++ArgI;
         }
     }
@@ -1227,9 +1239,15 @@ PreservedAnalyses StructConsolidatorPass::run(Module &M,
     FunctionAnalysisManager &FAM =
         MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
 
-    DenseMap<Function *, ReplaceableVec> transformableFunctions;
+    // TODO: If the consolidation introduces too many unneccessary de- and
+    //       reconstructions of structs, we could consider to use the (reversed)
+    //       scc_iterator to transform functions 'outside-in'
+    SmallVector<Function *> OldFunctions;
+    for (auto &F : M.functions()) {
+        OldFunctions.push_back(&F);
+    }
 
-    for (Function &F : M) {
+    for (Function *F : OldFunctions) {
         // Ensure that this a function which we can safely transform:
         // - It is not a declaration and cannot change externally
         // - It is not a varargs function
@@ -1238,22 +1256,22 @@ PreservedAnalyses StructConsolidatorPass::run(Module &M,
         // regarding the value this function returns and how we treat the
         // passed in arguments) These checks match those in the
         // DeadArgumentEliminationPass
-        if (!F.hasExactDefinition() || F.isVarArg() ||
-            F.getAttributes().hasAttrSomewhere(Attribute::InAlloca) ||
-            F.getAttributes().hasAttrSomewhere(Attribute::Preallocated) ||
-            F.hasFnAttribute(Attribute::Naked)) {
+        if (!F->hasExactDefinition() || F->isVarArg() ||
+            F->getAttributes().hasAttrSomewhere(Attribute::InAlloca) ||
+            F->getAttributes().hasAttrSomewhere(Attribute::Preallocated) ||
+            F->hasFnAttribute(Attribute::Naked)) {
             continue;
         }
 
-        if (ReplaceableVec Sets = findReplaceableSets(
-                F, L, FAM.getResult<DominatorTreeAnalysis>(F));
-            !Sets.empty()) {
-            transformableFunctions.insert({&F, Sets});
+        // Gather sets of arguments that can be consolidated
+        auto Sets = findReplaceableSets(
+            *F, L, FAM.getResult<DominatorTreeAnalysis>(*F));
+        if (Sets.empty()) {
+            continue;
         }
-    }
 
-    for (auto const &[F, sets] : transformableFunctions) {
-        updateFunction(*F, sets, L);
+        // Consolidate argument-sets
+        updateFunction(*F, Sets, L);
         MadeChanges = true;
     }
 
