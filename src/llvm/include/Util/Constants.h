@@ -46,6 +46,16 @@ const std::string PALLAS_SPEC_SEPFORALL = "pallas.forallSep";
 const std::string PALLAS_SPEC_EXISTS = "pallas.exists";
 const std::string PALLAS_SPEC_UNFOLDING = "pallas.unfolding";
 
+const std::string PALLAS_SPEC_SEQ_NEW = "pallas.seq.new";
+const std::string PALLAS_SPEC_SEQ_SIZE = "pallas.seq.size";
+const std::string PALLAS_SPEC_SEQ_GET = "pallas.seq.get";
+const std::string PALLAS_SPEC_SEQ_PREPEND = "pallas.seq.prepend";
+const std::string PALLAS_SPEC_SEQ_EQUALS = "pallas.seq.equals";
+const std::string PALLAS_SPEC_SEQ_SLICE = "pallas.seq.slice";
+const std::string PALLAS_SPEC_SEQ_SET = "pallas.seq.set";
+
+const std::string PALLAS_SPEC_SEQ_TYPE_PREFIX = "pallas.seq.";
+
 // Legacy VCLLVM constants
 const std::string VC_PREFIX = "VC.";
 

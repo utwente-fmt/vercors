@@ -1,0 +1,361 @@
+// Basic well-formedness of the graph encoding:
+// transitions has one adjacency set per node and every target stays in bounds.
+inline pure boolean ValidGraph(int N, seq<set<int>> transitions) =
+  N >= 0 &&
+  |transitions| == N &&
+  (\forall int v, int w; 0 <= v && v < N && {:w in transitions[v]:}; w in transitions[v] ==> 0 <= w && w < N)
+  ;
+
+  requires ValidGraph(N, transitions);
+  decreases;
+pure boolean isAPath(int N, seq<set<int>> transitions, seq<int> path)
+{
+  return |path| > 0 &&
+    (\forall int i; 0 <= i && i < |path| ==> 0 <= {:path[i]:} && path[i] < N) && 
+    (\forall int i; 0 <= i && i < |path| - 1 ==> {:path[i + 1]:} in transitions[{:path[i]:}]);
+}
+
+  requires ValidGraph(N, transitions);
+  requires 0 <= start && start < N;
+  requires 0 <= end && end < N;
+  decreases;
+pure boolean pathExists(int N, seq<set<int>> transitions, int start, int end)
+{
+  return (start == end) ||
+    (start != end &&
+      (\exists seq<int> path; {:isAPath(N, transitions, path):} && path[0] == start && path[|path| - 1] == end));
+}
+
+  requires ValidGraph(N, transitions);
+  requires 0 <= start && start < N;
+  requires 0 <= end && end < N;
+  decreases;
+pure boolean existsPathOfLengthM(int N, seq<set<int>> transitions, int start, int end, int M)
+{
+  return (M == 0 && start == end) ||
+    (M > 0 &&
+      (\exists seq<int> path; {:isAPath(N, transitions, path):} && path[0] == start && path[|path| - 1] == end && |path| == M + 1));
+}
+
+  requires ValidGraph(N, transitions);
+  requires 0 <= start && start < N;
+  requires 0 <= end && end < N;
+  requires existsPathOfLengthM(N, transitions, start, end, M);
+  requires next in transitions[end];
+  ensures existsPathOfLengthM(N, transitions, start, next, M + 1);
+  decreases;
+void extendPath(int N, seq<set<int>> transitions, int start, int end, int next, int M){
+  if(M == 0){
+    assert start == end;
+    assert next in transitions[end];
+    seq<int> path = [start, next];
+    assert isAPath(N, transitions, path);
+  } else {
+    seq<int> path :| isAPath(N, transitions, path) && path[0] == start && path[|path| - 1] == end && |path| == M + 1;
+    seq<int> newPath = path + [next];
+    assert isAPath(N, transitions, newPath);
+  }
+}
+
+  requires ValidGraph(N, transitions);
+  requires reachable <= nodes(N);
+  requires (\forall int v; {:v in reachable:} ==> transitions[v] <= reachable);
+  requires isAPath(N, transitions, path);
+  requires path[0] in reachable;
+  requires 0 <= i && i < |path|;
+  ensures path[i] in reachable;
+  decreases i;
+void PathInReachable(
+    int N, seq<set<int>> transitions, 
+    set<int> reachable, seq<int> path, int i)
+{
+  if(i > 0) {
+    PathInReachable(N, transitions, reachable, path, i - 1);
+    assert path[i - 1] in reachable;
+    assert path[i] in transitions[path[i - 1]];
+    assert path[i] in nodes(N);
+    assert path[i] in transitions[path[i - 1]];
+  }
+}
+
+  requires ValidGraph(N, transitions);
+  requires 0 <= start && start < N;
+  requires 0 <= end && end < N;
+  requires reachable <= nodes(N);
+  requires start in reachable;
+  requires !(end in reachable);
+  requires (\forall int v; {:v in reachable:} ==> transitions[v] <= reachable);
+  ensures !pathExists(N, transitions, start, end);
+  decreases;
+void NoPathWhenClosed(int N, seq<set<int>> transitions, set<int> reachable, int start, int end)
+{
+    if(pathExists(N, transitions, start, end)) {
+        if(start == end) {
+            assert false;
+        } else {
+            // Unpack an existential witness
+            seq<int> path :| isAPath(N, transitions, path) && path[0] == start && path[|path| - 1] == end;
+            PathInReachable(N, transitions, reachable, path, |path| - 1);
+            assert path[|path| - 1] in reachable;
+            assert false;
+        }
+    }
+}
+
+  requires xs != null && xs.length >= N;
+  requires Perm(xs[*], read);
+  decreases;
+pure boolean setIsArray(set<int> s, bool[] xs, int N) =
+  |s| <= N &&
+  (\forall int i; {:i in s:}; 0 <= i && i < N) &&
+  (\forall int i; 0 <= i && i < N ==> {:xs[i]:} == {:2:(i in s):});
+
+  requires xs != null;
+  requires Perm(xs[*], read);
+  decreases;
+pure boolean setIsArray(set<int> s, bool[] xs) = setIsArray(s, xs, xs.length);
+
+  requires xs != null;
+  requires Perm(xs[*], read);
+  ensures setIsArray(\result, xs);
+  decreases;
+opaque pure set<int> arrayAsSet(bool[] xs) =
+  arrayAsSetH(xs, xs.length);
+
+  requires xs != null;
+  requires 0 <= i && i <= xs.length;
+  requires Perm(xs[*], read);
+  ensures setIsArray(\result, xs, i);
+  decreases i;
+pure set<int> arrayAsSetH(bool[] xs, int i) =
+  i == 0 ? {t:int} : arrayAsSetH(xs, i - 1) + (xs[i - 1] ? {i - 1} : {t:int});
+
+ requires N>=0;
+ ensures |\result| == N &&
+  (\forall int v; 0 <= v && v < N ==> {:v in \result:}) &&
+  (\forall int v; {:v in \result:} ==> 0 <= v && v < N);
+  decreases N;
+opaque pure set<int> nodes(int N) = 
+  N>0 ? nodes(N-1) + {N-1} : {t:int};
+
+
+  context_everywhere xs != null;
+  context_everywhere Perm(xs[*], 1\2);
+  ensures \result == (|arrayAsSet(xs)| == 0);
+  decreases;
+bool isEmpty(bool[] xs){
+
+    loop_invariant 0<=i && i<=xs.length;
+    loop_invariant |arrayAsSetH(xs, i)| == 0;
+    decreases xs.length - i;
+  for(int i=0; i<xs.length; i++){
+    if(xs[i]){
+      return false;
+    }
+  }
+  return true;
+}
+
+
+  requires ValidGraph(N, transitions);
+  requires N > 0;
+  requires 0 <= source && source < N;
+  ensures \result != null && \result.length == N;
+  ensures Perm(\result[*], write);
+  ensures (\forall int i; 0 <= i && i < N && {:\result[i]:} >= 0; existsPathOfLengthM(N, transitions, source, i, \result[i]));
+  ensures (\forall int i; 0 <= i && i < N && {:\result[i]:} < 0; !pathExists(N, transitions, source, i));
+  decreases;
+int[] BFS(int N, seq<set<int>> transitions, int source){
+  bool[] frontier = new bool[N];
+  bool[] visited = new bool[N];
+  int[] cost = new int[N];
+
+    loop_invariant 0<=i && i<=N;
+    loop_invariant Perm(frontier[*], write) ** Perm(visited[*], write) ** Perm(cost[*], write);
+    loop_invariant (\forall int j; 0 <= j && j < i; {:cost[j]:} == -1);
+    loop_invariant (\forall int j; 0 <= j && j < i; {:visited[j]:} == false);
+    loop_invariant (\forall int j; 0 <= j && j < i; {:frontier[j]:} == false);
+    decreases N - i;
+  for(int i=0; i<N; i++){
+    cost[i] = -1;
+    visited[i] = false;
+    frontier[i] = false;
+  }
+  frontier[source] = true;
+  cost[source] = 0;
+
+    loop_invariant Perm(frontier[*], write) ** Perm(visited[*], write) ** Perm(cost[*], write);
+    loop_invariant (frontier[source] || visited[source]) && cost[source] == 0;
+    loop_invariant (\forall int i; 0 <= i && i < N && frontier[i]; !{:visited[i]:});
+    loop_invariant (\forall int i; 0 <= i && i < N && frontier[i]; {:cost[i]:} >= 0);
+    loop_invariant (\forall int i; 0 <= i && i < N && visited[i]; {:cost[i]:} >= 0);
+    loop_invariant (\forall int i; 0 <= i && i < N && !visited[i] && !frontier[i]; {:cost[i]:} == -1);
+    loop_invariant (\forall int i; 0 <= i && i < N && {:cost[i]:} >= 0;
+      existsPathOfLengthM(N, transitions, source, i, cost[i])
+    );
+    loop_invariant (\forall int i, int j; 0 <= i && i < N && {:visited[i]:};
+        {:j in transitions[i]:} ==> visited[j] || frontier[j]);
+    decreases N - |arrayAsSet(visited)|;
+  while(!isEmpty(frontier)){
+    set<int> visitedBefore = arrayAsSet(visited);
+    set<int> frontierSet = arrayAsSet(frontier);
+    assert |frontierSet.intersect(visitedBefore)| == 0;
+
+    BFS_kernel(frontier, visited, cost, N, transitions, source);
+    
+    set<int> visitedAfter = arrayAsSet(visited);
+    assert |visitedBefore - visitedAfter| == 0;
+    assert |visitedAfter| > |visitedBefore|;
+  }
+  
+  ghost par(int i=0..N)
+    context Perm(cost[*], 1\N\2);
+    context Perm(visited[*], 1\N\2);
+    context cost[source] == 0;
+    ensures {:cost[i]:} < 0 ==> !pathExists(N, transitions, source, i);
+  {
+    if(cost[i] < 0){
+      NoPathWhenClosed(N, transitions, arrayAsSet(visited), source, i);
+    }
+  }
+
+
+  assert (\forall int i; 0 <= i && i < N && !visited[i]; {:cost[i]:} == -1);
+  assert (\forall int i; 0 <= i && i < N && {:cost[i]:} >= 0 ==> visited[i]);
+  assert (\forall int i; 0 <= i && i < N && {:cost[i]:} >= 0; existsPathOfLengthM(N, transitions, source, i, {:cost[i]:}));
+
+  return cost;
+}
+
+  requires ValidGraph(N, transitions);
+  requires N > 0;
+  requires 0 <= source && source < N;
+  context_everywhere frontier != null && frontier.length == N &&
+                     visited != null && visited.length == N &&
+                     cost != null && cost.length == N;
+  context Perm(frontier[*], write) ** Perm(visited[*], write) ** Perm(cost[*], write);
+  context (frontier[source] || visited[source]) && cost[source] == 0;
+  
+  context (\forall int i; 0 <= i && i < N && frontier[i]; !{:visited[i]:});
+  context (\forall int i; 0 <= i && i < N && frontier[i]; {:cost[i]:} >= 0);
+  context (\forall int i; 0 <= i && i < N && visited[i]; {:cost[i]:} >= 0);
+  context (\forall int i; 0 <= i && i < N && !visited[i] && !frontier[i]; {:cost[i]:} == -1);
+  context (\forall int i; 0 <= i && i < N && {:cost[i]:} >= 0;
+    existsPathOfLengthM(N, transitions, source, i, {:cost[i]:})
+  );
+  context (\forall int i, int j; 0 <= i && i < N && {:visited[i]:};
+        {:j in transitions[i]:} ==> visited[j] || frontier[j]);
+  ensures (\forall int i; 0 <= i && i < N && \old(visited[i]); {:visited[i]:});
+  ensures (\forall int i; 0 <= i && i < N && \old(frontier[i]); {:visited[i]:});
+  decreases;
+void BFS_kernel(bool[] frontier, bool[] visited, int[] cost, int N, seq<set<int>> transitions, int source){
+  bool[] was_frontier = new bool[N];
+
+  // Phase 1: snapshot current frontier and mark those nodes as visited.
+  // Clearing frontier here ensures we rebuild the next layer from scratch.
+  
+  par(int tid = 0..N)
+    context Perm({:was_frontier[tid]:}, write);
+    context Perm({:visited[tid]:}, write);
+    context Perm({:frontier[tid]:}, write);
+
+    ensures {:was_frontier[tid]:} == \old(frontier[tid]);
+    ensures !{:frontier[tid]:};
+    ensures !\old(frontier[tid]) ==> {:visited[tid]:} == \old(visited[tid]);
+    ensures \old(frontier[tid]) ==> {:visited[tid]:};
+    ensures \old(visited[tid]) ==> {:visited[tid]:};
+  {
+    was_frontier[tid] = frontier[tid];
+    if(frontier[tid]){
+      visited[tid] = true;
+      frontier[tid] = false;
+    }
+  }
+  
+  ghost int[] contrib = new int[N];
+  // contrib[tid] tracks the latest neighbor index handled by worker tid.
+  // It is used only in specifications to justify that not-yet-frontier nodes
+  // are not missed by already processed neighbors.
+  ghost par(int tid = 0..N) 
+    context Perm({:contrib[tid]:}, write);
+    ensures {:contrib[tid]:} == -1;
+  {
+    contrib[tid] = -1;
+  }
+
+  // Phase 2: expand all nodes from was_frontier in parallel.
+  // The invariant captures three facts:
+  // 1) visited nodes never return to frontier,
+  // 2) for processed neighbors up to contrib[tid], non-frontier means no edge,
+  // 3) every current frontier node has a witness predecessor in was_frontier.
+  invariant inv(
+    Perm(cost[*], write) ** Perm(frontier[*], write) ** Perm(was_frontier[*], 1\4) **
+      Perm(contrib[*], 1\2) 
+      **
+      (\forall int i;0 <= i && i < N && visited[i]; !{:frontier[i]:})
+      **
+      (\forall int i, int _tid; 
+        0 <= i && i < N && !visited[i] &&
+        0 <= _tid && _tid < N &&
+        was_frontier[_tid] &&
+        i <= contrib[_tid] &&
+        !frontier[i]
+        ;
+        !({:i in transitions[_tid]:}) 
+      )
+      **
+      (\forall int i; 
+        0 <= i && i < N && !visited[i] && {:frontier[i]:};
+          (\exists int _tid; 0 <= _tid && _tid < N && was_frontier[_tid] && {:i in transitions[_tid]:})
+      )
+      **
+      (visited[source] && cost[source] == 0)
+      **
+      (\forall int i; 0 <= i && i < N && frontier[i]; {:cost[i]:} >= 0)
+      ** (\forall int i; 0 <= i && i < N && visited[i]; {:cost[i]:} >= 0)
+      ** (\forall int i; 0 <= i && i < N && !visited[i] && !frontier[i]; {:cost[i]:} == -1)
+      ** (\forall int i; 0 <= i && i < N && {:cost[i]:} >= 0;
+        existsPathOfLengthM(N, transitions, source, i, {:cost[i]:})
+      )
+    ) {
+    par(int tid = 0..N)
+      context Perm({:was_frontier[tid]:}, 1\4);
+      context Perm(visited[*], 1\N\2);
+      context Perm({:contrib[tid]:}, 1\2);
+      context was_frontier[tid] ==> {:visited[tid]:};
+      requires {:contrib[tid]:} == -1;
+      ensures was_frontier[tid] ==> {:contrib[tid]:} == N-1;
+      ensures !was_frontier[tid] ==> {:contrib[tid]:} == -1; 
+    {
+      if(was_frontier[tid]){
+          loop_invariant 0 <= nid && nid <= N;
+          loop_invariant Perm(visited[*], 1\N\2);
+          loop_invariant Perm({:contrib[tid]:}, 1\2);
+          loop_invariant contrib[tid] == nid-1;
+          loop_invariant Perm({:was_frontier[tid]:}, 1\4) ** was_frontier[tid];
+          loop_invariant visited[tid];
+          decreases N - nid;
+        for(int nid=0; nid<N; nid++){  
+          if(nid in transitions[tid] && !visited[nid]){
+            // Atomic update ties together witness progress (contrib), distance write,
+            // and frontier insertion so the invariant observes a consistent step.
+            atomic(inv){
+              ghost contrib[tid] = nid;
+              cost[nid] = cost[tid] + 1;
+              frontier[nid] = true;
+              extendPath(N, transitions, source, tid, nid, cost[tid]);
+            }
+          } 
+          
+          ghost if(!(nid in transitions[tid] && !visited[nid])){
+            // Even when no enqueue happens, advancing contrib records that this
+            // neighbor has been considered by this worker.
+            ghost atomic(inv){
+              contrib[tid] = nid;
+            }
+          }
+        }
+      }
+    }
+  }
+}

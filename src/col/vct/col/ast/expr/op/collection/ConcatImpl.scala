@@ -15,5 +15,10 @@ trait ConcatImpl[G] extends ConcatOps[G] {
   )
 
   override def precedence: Int = Precedence.ADDITIVE
-  override def layout(implicit ctx: Ctx): Doc = lassoc(xs, "+", ys)
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => lassoc(xs, "@", ys)
+      case _ => lassoc(xs, "+", ys)
+    }
+  }
 }

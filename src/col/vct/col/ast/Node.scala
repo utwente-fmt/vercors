@@ -59,6 +59,7 @@ import vct.col.ast.family.parregion._
 import vct.col.ast.family.pvlcommunicate._
 import vct.col.ast.family.seqrun._
 import vct.col.ast.family.signals._
+import vct.col.ast.lang.Isar._
 import vct.col.ast.lang.c._
 import vct.col.ast.lang.cpp._
 import vct.col.ast.lang.gpgpu._
@@ -410,6 +411,12 @@ final case class AssignInitial[G](target: Expr[G], value: Expr[G])(
     val blame: Blame[AssignFailed]
 )(implicit val o: Origin)
     extends AssignStmt[G] with AssignInitialImpl[G]
+final case class AssignSuchThat[G](target: Expr[G], constraint: Expr[G])(
+    val blame: Blame[AssignSuchThatFailed]
+)(implicit val o: Origin)
+    extends NormallyCompletingStatement[G]
+    with ExpressionContainerStatement[G]
+    with AssignSuchThatImpl[G]
 final case class Send[G](decl: SendDecl[G], delta: BigInt, res: Expr[G])(
     val blame: Blame[SendFailed]
 )(implicit val o: Origin)
@@ -1563,6 +1570,14 @@ final case class ForPermWithValue[G](binding: Variable[G], body: Expr[G])(
 final case class Let[G](binding: Variable[G], value: Expr[G], main: Expr[G])(
     implicit val o: Origin
 ) extends Binder[G] with LetImpl[G]
+@scopes[Variable]
+@scopes[LocalHeapVariable]
+final case class LetSuchThat[G](
+    binding: Variable[G],
+    condition: Expr[G],
+    main: Expr[G],
+)(val blame: Blame[AssignSuchThatFailed])(implicit val o: Origin)
+    extends Binder[G] with LetSuchThatImpl[G]
 final case class InlinePattern[G](
     inner: Expr[G],
     parent: Int = 0,
@@ -3922,12 +3937,16 @@ final class VCLLVMFunctionContract[G](
     extends LLVMFunctionContract[G] with VCLLVMFunctionContractImpl[G] {
   var data: Option[ApplicableContract[G]] = None
 }
-final class PallasFunctionContract[G](
-    val content: ApplicableContract[G],
-    val assumed: Boolean = false,
-    val external: Boolean,
+final case class PallasFunctionContract[G](
+    // content: ApplicableContract[G],
+    requires: AccountedPredicate[G],
+    ensures: AccountedPredicate[G],
+    llvmGivenArgs: Seq[LLVMFunctionArgument[G]],
+    llvmYieldsArgs: Seq[LLVMFunctionArgument[G]],
+    assumed: Boolean = false,
+    external: Boolean,
 )(val blame: Blame[NontrivialUnsatisfiable])(implicit val o: Origin)
-    extends LLVMFunctionContract[G] with PallasFunctionContractImpl[G] {}
+    extends LLVMFunctionContract[G] with PallasFunctionContractImpl[G]
 
 final case class LLVMLoopContract[G](invariant: Expr[G])(
     val blame: Blame[LoopInvariantFailure]
@@ -3960,17 +3979,30 @@ final case class PredicateDefinition[G](val inlined: Boolean)(
     implicit val o: Origin
 ) extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
 
+// Attributes of function arguments in LLVM
+@family
+sealed trait LLVMArgAttribute[G]
+    extends NodeFamily[G] with LLVMArgAttributeImpl[G]
+final case class LLVMByValArg[G](t: Type[G])(implicit val o: Origin)
+    extends LLVMArgAttribute[G] with LLVMByValArgImpl[G]
+final case class LLVMSretArg[G](t: Type[G])(implicit val o: Origin)
+    extends LLVMArgAttribute[G] with LLVMSretArgImpl[G]
+
+@family
+final class LLVMFunctionArgument[G](
+    val v: Variable[G],
+    val attributes: Seq[LLVMArgAttribute[G]],
+)(implicit val o: Origin)
+    extends NodeFamily[G] with LLVMFunctionArgumentImpl[G]
+
 sealed trait LLVMCallable[G] extends GlobalDeclaration[G]
 @scopes[LabelDecl]
 final class LLVMFunctionDefinition[G](
     val returnType: Type[G],
-    val args: Seq[Variable[G]],
+    val llvmArgs: Seq[LLVMFunctionArgument[G]],
     val functionBody: Option[Statement[G]],
     val contract: LLVMFunctionContract[G],
     val pure: Boolean = false,
-    // If the result is returned in an sret-argument, this contains the index
-    // and the type of the sret-argument.
-    val returnInParam: Option[(Int, Type[G])] = None,
     val functionType: LLVMFunctionType[G],
 )(val blame: Blame[CallableFailure])(implicit val o: Origin)
     extends LLVMCallable[G]
@@ -4017,6 +4049,14 @@ final case class LLVMPredicateApply[G](
     args: Seq[Expr[G]],
 )(implicit val o: Origin)
     extends ApplyAnyPredicate[G] with LLVMPredicateApplyImpl[G]
+// Special node for invoking a wrapper-function that hides the case
+// of an sret-return.
+// Note: callArgs to NOT include the sret-argument!
+final case class LLVMWrapperInvocation[G](
+    ref: Ref[G, LLVMFunctionDefinition[G]],
+    callArgs: Seq[Expr[G]],
+)(val blame: Blame[InvocationFailure])(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMWrapperInvocationImpl[G]
 
 final class LLVMBasicBlock[G](
     val label: LabelDecl[G],
@@ -4183,6 +4223,16 @@ final case class LLVMMultWithOverflow[G](
 )(val blame: Blame[AssignFailed])(implicit val o: Origin)
     extends LLVMArithOpWithOverflow[G] with LLVMMultWithOverflowImpl[G]
 
+final case class LLVMReturn[G](result: Expr[G])(implicit val o: Origin)
+    extends ExceptionalStatement[G]
+    with ExpressionContainerStatement[G]
+    with LLVMReturnImpl[G]
+
+final case class LLVMGhostAssign[G](target: Expr[G], value: Expr[G])(
+    val blame: Blame[AssignFailed]
+)(implicit val o: Origin)
+    extends AssignStmt[G] with LLVMGhostAssignImpl[G]
+
 final class LLVMGlobalSpecification[G](val value: String)(
     implicit val o: Origin
 ) extends GlobalDeclaration[G] with LLVMGlobalSpecificationImpl[G] {
@@ -4269,6 +4319,41 @@ final case class LLVMPtrBlockOffset[G](ptr: Expr[G])(
 final case class LLVMPtrLength[G](ptr: Expr[G])(val blame: Blame[PointerNull])(
     implicit val o: Origin
 ) extends Expr[G] with LLVMPtrLengthImpl[G]
+
+final case class LLVMSeqNew[G](target: Expr[G], cType: Type[G])(
+    val blame: Blame[AssignFailed]
+)(implicit val o: Origin)
+    extends LLVMStatement[G] with LLVMSeqNewImpl[G]
+
+final case class LLVMSeqSize[G](seq: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqSizeImpl[G]
+
+final case class LLVMSeqEq[G](s1: Expr[G], s2: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqEqImpl[G]
+
+final case class LLVMSeqGet[G](seq: Expr[G], idx: Expr[G], elemType: Type[G])(
+    val blame: Blame[VerificationFailure]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqGetImpl[G]
+
+final case class LLVMSeqSlice[G](seq: Expr[G], sIdx: Expr[G], eIdx: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqSliceImpl[G]
+
+final case class LLVMSeqPrepend[G](elem: Expr[G], seq: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqPrependImpl[G]
+
+final case class LLVMSeqUpdate[G](seq: Expr[G], idx: Expr[G], elem: Expr[G])(
+    val blame: Blame[PointerDerefError]
+)(implicit val o: Origin)
+    extends LLVMExpr[G] with LLVMSeqUpdateImpl[G]
 
 @family
 sealed trait LLVMMemoryOrdering[G]
@@ -4676,3 +4761,96 @@ case class SilverPartialTAxiomatic[G](
     partialTypeArgs: Seq[(Ref[G, Variable[G]], Type[G])],
 )(implicit val o: Origin = DiagnosticOrigin)
     extends SilverType[G] with SilverPartialTAxiomaticImpl[G]
+
+// Isar
+
+@scopes[IsarCommand]
+class IsarTheory[G](
+    val imports: Seq[String],
+    val commands: Seq[IsarCommand[G]],
+)(implicit val o: Origin)
+    extends GlobalDeclaration[G] with IsarTheoryImpl[G]
+
+@family
+sealed trait IsarCommand[G] extends Declaration[G] with IsarCommandImpl[G]
+
+class IsarDataConstructor[G](val name: String, val signature: Seq[Type[G]])(
+    implicit val o: Origin
+) extends IsarCommand[G] with IsarDataConstructorImpl[G]
+
+@scopes[Variable]
+class IsarDatatypeCommand[G](
+    val typename: String,
+    val typevars: Seq[Variable[G]],
+    val constructors: Seq[IsarCommand[G]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarDatatypeCommandImpl[G]
+
+@scopes[Variable]
+class IsarDefinitionCommand[G](
+    val name: String,
+    val typevars: Seq[Variable[G]],
+    val args: Seq[Variable[G]],
+    val returnType: Type[G],
+    val body: Option[Expr[G]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarDefinitionCommandImpl[G]
+
+@scopes[Variable]
+class IsarPartialConstructorCommand[G](
+    val name: String,
+    val typevars: Seq[Variable[G]],
+    val args: Seq[Variable[G]],
+    val returnType: Type[G],
+    val guard: Ref[G, IsarCommand[G]],
+    val constructor: Ref[G, IsarCommand[G]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarPartialConstructorCommandImpl[G]
+
+@scopes[Variable]
+class IsarTypedefCommand[G](
+    val typename: String,
+    val typevars: Seq[Variable[G]],
+    val rawtype: Ref[G, IsarCommand[G]], // references datatype command
+    val typeAxiom: Ref[G, IsarCommand[G]], // references axiom definition
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarTypedefCommandImpl[G]
+
+@scopes[Variable]
+class IsarLiftDefinitionCommand[G](
+    val name: String,
+    val typevars: Seq[Variable[G]],
+    val signature: Seq[Type[G]],
+    val inner: Ref[G, IsarCommand[G]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarLiftDefinitionCommandImpl[G]
+
+@scopes[Variable]
+class IsarLocaleCommand[G](
+    val name: String,
+    val extensions: Seq[Ref[G, IsarCommand[G]]], // locale inheritance
+    val typevars: Seq[Variable[G]],
+    val fixes: Seq[ADTDeclaration[G]],
+    val assumes: Seq[Expr[G]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarLocaleCommandImpl[G]
+
+class IsarInterpretationCommand[G](
+    val target: Ref[G, IsarCommand[G]], // IsarLocaleCommand
+    val localeParameters: Seq[Ref[G, IsarCommand[G]]],
+)(implicit val o: Origin)
+    extends IsarCommand[G] with IsarInterpretationCommandImpl[G]
+
+final case class TIsarType[G](adt: Ref[G, IsarCommand[G]], args: Seq[Type[G]])(
+    implicit val o: Origin = DiagnosticOrigin
+) extends DeclaredType[G] with TIsarTypeImpl[G]
+
+final case class IsarFunctionInvocation[G](
+    typeArgs: Seq[Type[G]],
+    ref: Ref[G, IsarCommand[G]],
+    args: Seq[Expr[G]],
+)(implicit val o: Origin)
+    extends Expr[G]
+    with IsarFunctionInvocationImpl[G]
+    with SymbolicTerm[G]
+    with PossibleTrigger[G]

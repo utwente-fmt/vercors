@@ -30,6 +30,7 @@ import vct.result.VerificationError.SystemError
 import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
   CTypeConversions,
+  ColToIsar,
   CollectLocalDeclarations,
   DisambiguateLocation,
   DisambiguatePredicateExpression,
@@ -60,6 +61,7 @@ import vct.rewrite.pallas.{
   InlinePallasWrappers,
   ResolvePallasPredicates,
   ResolvePallasQuantifiers,
+  SimplifyPallasWrappers,
 }
 import vct.rewrite.veymont._
 import vct.rewrite.veymont.generation._
@@ -212,6 +214,14 @@ object Transformation extends LazyLogging {
     PvlJavaCompat(onPassEvent =
       options.outputIntermediatePrograms
         .map(p => reportIntermediateProgram(p, "pvlJavaCompat")).toSeq ++
+        writeOutFunctions(before, options.outputBeforePass) ++
+        writeOutFunctions(after, options.outputAfterPass)
+    )
+
+  def isarOfOptions(options: Options): Transformation =
+    Isar(onPassEvent =
+      options.outputIntermediatePrograms
+        .map(p => reportIntermediateProgram(p, "isarGen")).toSeq ++
         writeOutFunctions(before, options.outputBeforePass) ++
         writeOutFunctions(after, options.outputAfterPass)
     )
@@ -378,6 +388,7 @@ case class SilverTransformation(
         ReplaceSYCLTypes,
         TypeQualifierCoercion,
         MakeUniqueMethodCopies,
+        SimplifyPallasWrappers,
         // Inline pallas-specifications
         InlinePallasWrappers,
         ResolvePallasPredicates,
@@ -437,6 +448,7 @@ case class SilverTransformation(
         EncodeCurrentThread,
         EncodeIntrinsicLock,
         EncodeForkJoin,
+        EncodeSuchThatAssign,
         // PureMethodsToFunctions should be before InlineApplicables since InlineApplicables treats functions and methods differently
         PureMethodsToFunctions,
         InlineApplicables,
@@ -569,3 +581,6 @@ case class PvlJavaCompat(override val onPassEvent: Seq[PassEventHandler] = Nil)
       onPassEvent,
       Seq(ImplicationToTernary, EncodeGlobalApplicables),
     )
+
+case class Isar(override val onPassEvent: Seq[PassEventHandler] = Nil)
+    extends Transformation(onPassEvent, Seq(Disambiguate, ColToIsar))
