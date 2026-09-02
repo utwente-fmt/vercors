@@ -326,13 +326,21 @@ case class LangSpecificToCol[Pre <: Generation](
         java.initLocal(locals)
 
       case CDeclarationStatement(decl) => c.rewriteLocal(decl)
-      case CPPDeclarationStatement(decl) => cpp.rewriteLocalDecl(decl)
+      case CPPDeclarationStatement(decl) =>
+        if (cpp.gatherBlockStatements) cpp.visitedKernelStatements=cpp.visitedKernelStatements ++ Seq(decl)
+        cpp.rewriteLocalDecl(decl)
+      case assign: AssignInitial[Pre] if cpp.gatherBlockStatements =>
+        cpp.visitedKernelStatements=cpp.visitedKernelStatements ++ Seq(assign)
+        assign.rewriteDefault()
+      case assign: Assign[Pre] if cpp.gatherBlockStatements =>
+        cpp.visitedKernelStatements=cpp.visitedKernelStatements ++ Seq(assign)
+        assign.rewriteDefault()
       case scope: CPPLifetimeScope[Pre] => cpp.rewriteLifetimeScope(scope)
       case goto: CGoto[Pre] => c.rewriteGoto(goto)
       case barrier: GpgpuBarrier[Pre] => c.gpuBarrier(barrier)
       case atomic: GpgpuAtomic[Pre] => c.gpuAtomic(atomic)
 
-      case eval @ Eval(CPPInvocation(_, _, _, _)) =>
+      case eval @ Eval(CPPInvocation(_, _, _, _,_,_)) =>
         cpp.invocationStatement(eval)
 
       case fold: Fold[Pre] =>
@@ -422,10 +430,16 @@ case class LangSpecificToCol[Pre <: Generation](
       case kernel: GpgpuCudaKernelInvocation[Pre] =>
         c.cudaKernelInvocation(kernel)
       case local: LocalThreadId[Pre] => c.cudaLocalThreadId(local)
-      case global: GlobalThreadId[Pre] => c.cudaGlobalThreadId(global)
+      case sglaneId: SubGroupLaneId[Pre] if cpp.syclSubgroupInvSuccessors.exists(_.contains(sglaneId)) =>
+        cpp.syclSubgroupInvSuccessors.top(sglaneId)
+      case global: GlobalThreadId[Pre] if cpp.syclSubgroupInvSuccessors.exists(_.contains(global)) =>
+        cpp.syclSubgroupInvSuccessors.top(global)
+      case global: GlobalThreadId[Pre] =>
+        c.cudaGlobalThreadId(global)
+      case sgfv: SubGroupFuncValue[Pre] if cpp.syclSubgroupInvSuccessors.exists(_.contains(sgfv)) =>
+        cpp.syclSubgroupInvSuccessors.top(sgfv)
       case cast: CCast[Pre] => c.cast(cast)
       case sizeof: SizeOf[Pre] => c.sizeOf(sizeof.tname, sizeof.o)
-
       case local: CPPLocal[Pre] => cpp.local(local)
       case deref: CPPClassMethodOrFieldAccess[Pre] => cpp.deref(deref)
       case inv: CPPInvocation[Pre] => cpp.invocation(inv)
@@ -436,8 +450,11 @@ case class LangSpecificToCol[Pre <: Generation](
         cpp.checkPredicateFoldingAllowed(unfolding.res)
         super.dispatch(unfolding)
       }
-
+      case assign: PostAssignExpression[Pre] =>
+        if (cpp.gatherBlockStatements) cpp.visitedKernelStatements=cpp.visitedKernelStatements ++ Seq(assign)
+        super.dispatch(assign)
       case assign: PreAssignExpression[Pre] =>
+        if (cpp.gatherBlockStatements) cpp.visitedKernelStatements=cpp.visitedKernelStatements ++ Seq(assign)
         assign.target match {
           case AmbiguousSubscript(v, _) =>
             v.t match {
@@ -619,6 +636,7 @@ case class LangSpecificToCol[Pre <: Generation](
         case t: CTArray[Pre] => c.arrayType(t)
         case t: CTStruct[Pre] => c.structType(t)
         case t: CTStructUnique[Pre] => c.structType(t)
+        case t: SYCLTSubGroup[Pre] => cpp.subgroupToSeq(t)
         case t: LLVMTInt[Pre] => llvm.intType(t)
         case t: LLVMTFloat[Pre] => TFloat(t.exponent, t.mantissa)
         case t: LLVMTStruct[Pre] => llvm.structType(t)

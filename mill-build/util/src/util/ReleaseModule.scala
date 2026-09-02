@@ -93,7 +93,7 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
          |ENTRYPOINT ${executableName()}
          |""".stripMargin)
 
-    os.proc("docker", "build", "--file", T.dest / "Dockerfile", "--iidfile", T.dest / "id", ".").call(cwd = T.dest)
+    os.proc("docker", "build", "--platform", "linux/amd64", "--file", T.dest / "Dockerfile", "--iidfile", T.dest / "id", ".").call(cwd = T.dest)
     val id = os.read(T.dest / "id")
     val tempTag = s"mill-build-${id.replace(":", "-")}"
     os.proc("docker", "tag", id, tempTag).call(cwd = T.dest)

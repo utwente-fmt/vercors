@@ -15,13 +15,9 @@ void test(int* a) {
         cgh.parallel_for(sycl::range<1>(12),
         /*@
           context it.get_id(0) < a_accessor.get_range().get(0);
-          context Perm(aa_accessor[it.get_id(0)], write);
         */
         [=] (sycl::item<1> it) {
-          // Not allowed in SYCL, but is allowed in VerCors,
-          // because a_accessor and aa_accessor are both mapped to the same buffer,
-          // to which there is write access because of aa_accessor
-          a_accessor[it.get_id(0)] = 10;
+          aa_accessor[it.get_id(0)] = 10;
         });
       }
     );
