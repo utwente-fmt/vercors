@@ -72,10 +72,10 @@ case object ExampleFiles {
   ).map(_.replaceAll("/", File.separator))
 
   val SLOW_EXAMPLES_TO_SKIP: Set[String] = Set(
-    "examples/concepts/sycl/kernels/ShiftGroupSum.cpp",
-    "examples/concepts/sycl/kernels/ShiftGroupSumHelper.cpp",
-    "examples/concepts/sycl/kernels/MatrixMultiplicationSG.cpp",
-    "examples/concepts/sycl/kernels/MatrixMultiplicationSGLemmaProofs.cpp",
+    "examples/concepts/sycl/fullExamples/mmWithSubgroups/MatrixMultiplicationSG.cpp",
+    "examples/concepts/sycl/fullExamples/mmWithSubgroups/MatrixMultiplicationSGLemmaProofs.cpp",
+    "examples/concepts/sycl/fullExamples/shiftFunctions/ShiftGroupSum.cpp",
+    "examples/concepts/sycl/fullExamples/shiftFunctions/ShiftGroupSumHelper.cpp",
   ).map(_.replaceAll("/", File.separator))
 
   val EXCLUSIONS: Seq[Path => Boolean] = Seq(
