@@ -76,7 +76,7 @@ case object ExampleFiles {
     "examples/concepts/sycl/kernels/ShiftGroupSumHelper.cpp",
     "examples/concepts/sycl/kernels/MatrixMultiplicationSG.cpp",
     "examples/concepts/sycl/kernels/MatrixMultiplicationSGLemmaProofs.cpp",
-  )
+  ).map(_.replaceAll("/", File.separator))
 
   val EXCLUSIONS: Seq[Path => Boolean] = Seq(
     f => IGNORE_DIRS.exists(dir => f.toString.startsWith(dir)),
