@@ -86,6 +86,9 @@ case class ResolveScale[Pre <: Generation]()
           isNonNegative = true
           isPositive = true
         }
+      case WritePerm() =>
+        isNonNegative = true
+        isPositive = true
       case e =>
         isNonNegative = equalityChecker.lessThenEq(const(0)(e.o), e)
           .getOrElse(false)
