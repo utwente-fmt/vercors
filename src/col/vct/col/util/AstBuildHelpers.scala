@@ -262,7 +262,7 @@ object AstBuildHelpers {
           .dispatch(method.typeArgs),
         inline: => Boolean = method.inline,
         pure: => Boolean = method.pure,
-        blame: Blame[CallableFailure] = method.blame,
+        blame: => Blame[CallableFailure] = method.blame,
     ): AbstractMethod[Post] =
       method match {
         case procedure: Procedure[Pre] =>

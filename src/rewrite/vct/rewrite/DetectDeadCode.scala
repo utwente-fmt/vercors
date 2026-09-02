@@ -6,20 +6,17 @@ import vct.col.origin.{
   Blame,
   ContractedFailure,
   DeadBranch,
+  ExtractTerminationMeasureFailed,
   LoopInvariantFailure,
   LoopInvariantNotEstablished,
   LoopInvariantNotMaintained,
   NamePrefix,
   Origin,
   RefuteFailed,
+  TerminationMeasureFailed,
 }
-import vct.col.rewrite.{
-  Generation,
-  Rewriter,
-  RewriterBuilder,
-  RewriterBuilderArg,
-}
-import vct.col.util.AstBuildHelpers.ff
+import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
+import vct.col.util.AstBuildHelpers._
 
 // Instruments branches, loop bodies, switch cases, and code after state-narrowing
 // statements with Refute(false). If the prover state is unreachable at that point,
@@ -50,8 +47,9 @@ case object DetectDeadCode extends RewriterBuilderArg[Boolean] {
 
 case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
     extends Rewriter[Pre] {
-  import DetectDeadCode.DeadCodeBlame
+  import DetectDeadCode._
 
+  // TODO: A more general approach is needed to catch all the verification failures leading up to a refute, can use a similar thing to the wellformedness blame used elsewhere to transform all the blames in a block
   val methodBlame: ScopedStack[Blame[ContractedFailure]] = ScopedStack()
   val currentBlame: ScopedStack[DeadCodeBlame] = ScopedStack()
   val afterAssertFalse: ScopedStack[Unit] = ScopedStack()
@@ -87,13 +85,14 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
     (blame, Refute(ff)(blame))
   }
 
-  private def startsWithAssertFalse(stat: Statement[Pre]): Boolean = stat match {
-    case Scope(_, body) => startsWithAssertFalse(body)
-    case Block(Nil) => false
-    case Block(stats) => startsWithAssertFalse(stats.head)
-    case Assert(BooleanValue(false)) => true
-    case _ => false
-  }
+  private def startsWithAssertFalse(stat: Statement[Pre]): Boolean =
+    stat match {
+      case Scope(_, body) => startsWithAssertFalse(body)
+      case Block(Nil) => false
+      case Block(stats) => startsWithAssertFalse(stats.head)
+      case Assert(BooleanValue(false)) => true
+      case _ => false
+    }
 
   // prepends Refute(false) before the body
   private def instrumentBody(
@@ -102,15 +101,17 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
       body: Statement[Pre],
       originNode: Node[Pre] = null,
       extraSuppressor: () => Boolean = () => false,
-  )(implicit o: Origin): Statement[Post] = if (startsWithAssertFalse(body)) { dispatch(body) } else {
-    val origin =
-      if (originNode != null)
-        originNode
-      else
-        node
-    val (blame, check) = makeCheck(origin, label, extraSuppressor)
-    currentBlame.having(blame) { Block(Seq(check, dispatch(body))) }
-  }
+  )(implicit o: Origin): Statement[Post] =
+    if (startsWithAssertFalse(body)) { dispatch(body) }
+    else {
+      val origin =
+        if (originNode != null)
+          originNode
+        else
+          node
+      val (blame, check) = makeCheck(origin, label, extraSuppressor)
+      currentBlame.having(blame) { Block(Seq(check, dispatch(body))) }
+    }
 
   // appends Refute false after the statement
   private def appendCheck(
@@ -120,6 +121,76 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
     implicit val o: Origin = node.o
     val (blame, check) = makeCheck(node, label)
     Block(Seq(node.rewriteDefault(), currentBlame.having(blame) { check }))
+  }
+
+  private def instrumentLoop(
+      loop: Loop[Pre],
+      extracted: Option[Extract[Pre]],
+  ): Statement[Post] = {
+    implicit val o: Origin = loop.o
+    val Loop(init, cond, update, contract, body) = loop
+    // suppress body/post-loop dead reports if the invariant itself failed
+    var invNotEstablishedFired = false
+    var invNotMaintainedFired = false
+    var extractContractFired = false
+    val bodySuppress: () => Boolean = () => invNotEstablishedFired
+    val postLoopSuppress: () => Boolean =
+      () =>
+        invNotEstablishedFired || invNotMaintainedFired || extractContractFired
+
+    val (invInfo, dispatchedContract) =
+      contract match {
+        case li: LoopInvariant[Pre] =>
+          val wrappedBlame =
+            new Blame[LoopInvariantFailure] {
+              override def blame(error: LoopInvariantFailure): Unit = {
+                error match {
+                  case _: LoopInvariantNotEstablished =>
+                    invNotEstablishedFired = true
+                  case _: LoopInvariantNotMaintained =>
+                    invNotMaintainedFired = true
+                  case _ =>
+                }
+                li.blame.blame(error)
+              }
+            }
+          (
+            s", invariant: `${condText(li.invariant)}`",
+            li.rewrite(blame = wrappedBlame),
+          )
+        case other => ("", dispatch(other))
+      }
+
+    val instrumentedLoop = Loop(
+      dispatch(init),
+      dispatch(cond),
+      dispatch(update),
+      dispatchedContract,
+      instrumentBody(
+        loop,
+        s"loop body (condition: `${condText(cond)}`$invInfo)",
+        body,
+        extraSuppressor = bodySuppress,
+      ),
+    )
+    val (afterBlame, afterCheck) = makeCheck(
+      loop,
+      s"code after loop (condition: `${condText(cond)}`$invInfo)",
+      extraSuppressor = postLoopSuppress,
+    )
+    Block(Seq(
+      if (extracted.isDefined) {
+        extracted.get.rewrite(
+          contractedStatement = instrumentedLoop,
+          blame =
+            (error: ExtractTerminationMeasureFailed) => {
+              extractContractFired = true
+              extracted.get.blame.blame(error)
+            },
+        )
+      } else { instrumentedLoop },
+      currentBlame.having(afterBlame) { afterCheck },
+    ))
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
@@ -163,59 +234,24 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
             ),
           )))
 
-        case loop @ Loop(init, cond, update, contract, body) =>
-          implicit val o: Origin = loop.o
-          // suppress body/post-loop dead reports if the invariant itself failed
-          var invNotEstablishedFired = false
-          var invNotMaintainedFired = false
-          val bodySuppress: () => Boolean = () => invNotEstablishedFired
-          val postLoopSuppress: () => Boolean =
-            () => invNotEstablishedFired || invNotMaintainedFired
-
-          val (invInfo, dispatchedContract) =
-            contract match {
-              case li: LoopInvariant[Pre] =>
-                val wrappedBlame =
-                  new Blame[LoopInvariantFailure] {
-                    override def blame(error: LoopInvariantFailure): Unit = {
-                      error match {
-                        case _: LoopInvariantNotEstablished =>
-                          invNotEstablishedFired = true
-                        case _: LoopInvariantNotMaintained =>
-                          invNotMaintainedFired = true
-                        case _ =>
-                      }
-                      li.blame.blame(error)
-                    }
-                  }
-                (
-                  s", invariant: `${condText(li.invariant)}`",
-                  li.rewrite(blame = wrappedBlame),
-                )
-              case other => ("", dispatch(other))
-            }
-
-          val instrumentedLoop = Loop(
-            dispatch(init),
-            dispatch(cond),
-            dispatch(update),
-            dispatchedContract,
-            instrumentBody(
-              loop,
-              s"loop body (condition: `${condText(cond)}`$invInfo)",
-              body,
-              extraSuppressor = bodySuppress,
-            ),
+        // Copied from EncodeExtract such that we can do the pattern match below too
+        case extract @ Extract(scope @ Scope(_, Block(Seq(body))), _) =>
+          dispatch(
+            scope.copy(body =
+              extract.copy(contractedStatement = body)(extract.blame)(extract.o)
+            )(scope.o)
           )
-          val (afterBlame, afterCheck) = makeCheck(
-            loop,
-            s"code after loop (condition: `${condText(cond)}`$invInfo)",
-            extraSuppressor = postLoopSuppress,
+        case extract @ Extract(scope: Scope[Pre], _) =>
+          dispatch(
+            scope.copy(body =
+              extract.copy(contractedStatement = scope.body)(extract.blame)(
+                extract.o
+              )
+            )(scope.o)
           )
-          Block(Seq(
-            instrumentedLoop,
-            currentBlame.having(afterBlame) { afterCheck },
-          ))
+        case extract @ Extract(loop: Loop[Pre], _) =>
+          instrumentLoop(loop, Some(extract))
+        case loop: Loop[Pre] => instrumentLoop(loop, None)
 
         case block @ Block(stmts) =>
           implicit val o: Origin = block.o

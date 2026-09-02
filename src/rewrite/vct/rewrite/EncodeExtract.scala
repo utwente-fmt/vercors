@@ -171,7 +171,7 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
       proc.ref,
       args = (inMap.values ++ inForOutMap.values).map(dispatch).toSeq,
       outArgs =
-        outMap.values.map(dispatch).toSeq ++ outMap.values.map(dispatch).toSeq,
+        outMap.values.map(dispatch).toSeq ++ outHeap.values.map(dispatch).toSeq,
       typeArgs = typeMap.values.map(dispatch).toSeq,
       givenMap = Nil,
       yields = Nil,
