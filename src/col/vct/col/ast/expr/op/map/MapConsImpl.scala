@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.map
 
 import vct.col.ast.{MapCons, TMap, Type}
-import vct.col.print.{Ctx, Doc, Group, Precedence}
+import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.MapConsOps
 
 trait MapConsImpl[G] extends MapConsOps[G] {
@@ -10,6 +10,11 @@ trait MapConsImpl[G] extends MapConsOps[G] {
   def tailType: TMap[G] = map.t.asMap.get
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(map) <> ".add(" <> Doc.args(Seq(k, v)) <> ")")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar =>
+        Group(Text("(fmupd") <+> assoc(k) <+> assoc(v) <+> assoc(map) <> ")")
+      case _ => Group(assoc(map) <> ".add(" <> Doc.args(Seq(k, v)) <> ")")
+    }
+  }
 }

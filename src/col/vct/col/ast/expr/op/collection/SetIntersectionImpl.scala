@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.collection
 
 import vct.col.ast.{SetIntersection, TSet}
-import vct.col.print.{Ctx, Doc, Group, Precedence}
+import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.typerules.Types
 import vct.col.ast.ops.SetIntersectionOps
 
@@ -14,6 +14,11 @@ trait SetIntersectionImpl[G] extends SetIntersectionOps[G] {
   )
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(xs) <> ".intersect(" <> Doc.arg(ys) <> ")")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Group(assoc(xs) <+> Text("|∩|") <+> assoc(ys))
+      case _ => Group(assoc(xs) <> ".intersect(" <> Doc.arg(ys) <> ")")
+    }
+
+  }
 }

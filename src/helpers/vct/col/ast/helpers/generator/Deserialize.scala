@@ -52,7 +52,7 @@ class Deserialize extends NodeGenerator {
         """
 
     if (node.kind == DeclaredNode)
-      q"{ val res = $instance; decls($term.id) = res; res }"
+      q"""{ val res = $instance; if (decls.contains($term.id)) { throw $UnreachableError(s"Got a duplicate declaration id new: `$$res`, old: `$${decls($term.id)}`") }; decls($term.id) = res; res }"""
     else
       instance
   }

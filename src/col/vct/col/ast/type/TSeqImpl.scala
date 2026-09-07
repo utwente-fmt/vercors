@@ -6,7 +6,14 @@ import vct.col.ast.ops.TSeqOps
 
 trait TSeqImpl[G] extends TSeqOps[G] {
   this: TSeq[G] =>
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("seq") <> open <> Doc.arg(element) <> close)
+  override def layout(implicit ctx: Ctx): Doc = {
+    Group(
+      ctx.syntax match {
+        case Ctx.Isar => open <> Doc.arg(element) <> close <+> Text("list")
+        case _ => Text("seq") <> open <> Doc.arg(element) <> close
+      }
+    )
+  }
+
   val subtypes: Seq[Type[G]] = Seq(element)
 }

@@ -78,6 +78,7 @@ valStatement
  | 'assume' langExpr ';' # valAssume
  | 'inhale' langExpr ';' # valInhale
  | 'exhale' langExpr ';' # valExhale
+ | langExpr ':|' langExpr ';' # valSuchThat
  | valContractClause* 'label' langId ';' # valLabel
  | 'refute' langExpr ';' # valRefute
  | 'witness' langExpr ';' # valWitness
@@ -222,6 +223,7 @@ valBinderCont: ';' langExpr;
 valPrimaryBinder
  : '(' valBinderSymbol valBindings ';' langExpr valBinderCont? ')' # valQuantifier
  | '(' '\\let' langType langId '=' langExpr ';' langExpr ')' # valLet
+ | '(' '\\let' langType langId ':|' langExpr ';' langExpr ')' # valLetSuchThat
  | '(' '\\forperm' valArgList '\\in' langExpr ';' langExpr ')' #valForPerm
  | '(' '\\forpermwithvalue' 'any' langId ';' langExpr ')' #valForPermWithValue
  ;
@@ -262,6 +264,7 @@ valExpr
  : {specLevel>0}? valPrimary
  | {specLevel>0}? valKeywordExpr
  | startSpec '\\replacing' '(' langExpr ')' endSpec langExpr startSpec '\\replacing_done' endSpec
+ | startSpec ('\\unfolding'|'\\Unfolding') langExpr '\\in' endSpec langExpr #valUnfoldingInPrimary
  ;
 
 valIdentifier

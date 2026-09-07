@@ -6,7 +6,14 @@ import vct.col.ast.ops.TOptionOps
 
 trait TOptionImpl[G] extends TOptionOps[G] {
   this: TOption[G] =>
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("option") <> open <> Doc.arg(element) <> close)
+  override def layout(implicit ctx: Ctx): Doc = {
+    Group(
+      ctx.syntax match {
+        case Ctx.Isar => open <> Doc.arg(element) <+> Text("option")
+        case _ => Text("option") <> open <> Doc.arg(element) <> close
+      }
+    )
+  }
+
   val subtypes: Seq[Type[G]] = Seq(element)
 }

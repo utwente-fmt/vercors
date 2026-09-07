@@ -1,0 +1,212 @@
+  requires ValidGraph(N, transitions);
+  requires 0 <= start && start < N;
+  requires 0 <= end && end < N;
+  ensures \result ==> pathExists(N, transitions, start, end);
+  ensures pathExists(N, transitions, start, end) ==> \result;
+  decreases;
+boolean IsReachable(int N, seq<set<int>> transitions, int start, int end)
+{
+  set<int> reachable = set<int>{};
+  set<int> frontier = set<int>{start};
+
+    loop_invariant
+      (\forall int v; {:v in reachable:} ==> 0 <= v && v < N) &&
+      (\forall int v; {:v in frontier:} ==> 0 <= v && v < N) &&
+      (\forall int v; {:v in reachable:} ==> !(v in frontier)) &&
+      start in (reachable + frontier) &&
+      !(end in reachable);
+    loop_invariant (\forall int v; {:v in (reachable + frontier):} ==> pathExists(N, transitions, start, v));
+    loop_invariant (\forall int v; {:v in reachable:} ==> transitions[v].intersect(nodes(N)) <= (reachable + frontier));
+    decreases |nodes(N) - reachable|;
+  while(|frontier| > 0) {
+    if(end in frontier) {
+      assert pathExists(N, transitions, start, end);
+      return true;
+    }
+
+    int curr = 0;
+    boolean hasCurr = false;
+    loop_invariant 0 <= curr && curr <= N;
+    loop_invariant !hasCurr ==> (\forall int i = 0 .. curr; !({:i in frontier:}));
+    loop_invariant hasCurr ==> (curr in frontier);
+    decreases N - curr;
+    while(curr < N && !hasCurr) {
+      if(curr in frontier) {
+      hasCurr = true;
+      } else {
+      curr = curr + 1;
+      }
+    }
+    assert hasCurr;
+    assert pathExists(N, transitions, start, curr);
+
+    frontier = frontier - {curr};
+    reachable = reachable + {curr};
+    set<int> succ = transitions[curr].intersect(nodes(N));
+
+    ExtendPathPrefix(N, transitions, start, curr, 0);
+    assert (\forall int u; {:u in (succ - reachable):} ==> pathExists(N, transitions, start, u));
+
+    frontier = frontier + (succ - reachable);
+  }
+
+  NoPathWhenClosed(N, transitions, reachable, start, end);
+  return false;
+}
+
+void Example()
+{
+  int N = 5;
+  seq<set<int>> transitions = seq<set<int>>{
+    set<int>{1, 2} // 0 -> 1,2
+    , set<int>{3}    // 1 -> 3
+    , set<int>{}     // 2
+    , set<int>{4}    // 3 -> 4
+    , set<int>{}     // 4
+  };
+
+  assert ValidGraph(N, transitions);
+
+  boolean r1 = IsReachable(N, transitions, 0, 4);
+
+  seq<int> path = seq<int>{0, 1, 3, 4};
+  assert isAPath(N, transitions, path);
+  assert pathExists(N, transitions, 0, 4);
+  assert r1;
+
+
+  boolean r2 = IsReachable(N, transitions, 1, 2);
+  set<int> reachableFrom1 = set<int>{1, 3, 4};
+  NoPathWhenClosed(N, transitions, reachableFrom1, 1, 2);
+  assert !r2;
+}
+
+//---- Graph and path definitions ----
+
+inline pure boolean ValidGraph(int N, seq<set<int>> transitions) =
+  N >= 0 &&
+  |transitions| == N &&
+  (\forall int v, int w; 0 <= v && v < N && {:w in transitions[v]:}; w in transitions[v] ==> 0 <= w && w < N)
+  ;
+
+  requires ValidGraph(N, transitions);
+  decreases;
+pure boolean isAPath(int N, seq<set<int>> transitions, seq<int> path)
+{
+  return |path| > 0 &&
+    (\forall int i; 0 <= i && i < |path| ==> 0 <= {:path[i]:} && path[i] < N) &&
+    (\forall int i; 0 <= i && i < |path| - 1 ==> {:path[i + 1]:} in transitions[{:path[i]:}]);
+}
+
+  requires ValidGraph(N, transitions);
+  requires 0 <= start && start < N;
+  requires 0 <= end && end < N;
+  decreases;
+pure boolean pathExists(int N, seq<set<int>> transitions, int start, int end)
+{
+  return (start == end) ||
+  (start != end &&
+    (\exists seq<int> path; {:isAPath(N, transitions, path):} && path[0] == start && path[|path| - 1] == end));
+}
+
+ requires N>=0;
+ ensures |\result| == N &&
+  (\forall int v; 0 <= v && v < N ==> {:v in \result:}) &&
+  (\forall int v; {:v in \result:} ==> 0 <= v && v < N);
+  decreases N;
+opaque pure set<int> nodes(int N) =
+  N>0 ? nodes(N-1) + {N-1} : {t:int};
+
+
+//---- Lemmas used in proof
+
+// If pathExists(start, v) and u is a direct successor of v, then pathExists(start, u).
+  requires ValidGraph(N, transitions);
+  requires 0 <= start && start < N;
+  requires 0 <= v && v < N;
+  requires 0 <= u && u < N;
+  requires pathExists(N, transitions, start, v);
+  requires u in transitions[v];
+  ensures pathExists(N, transitions, start, u);
+  decreases;
+void ExtendPath(int N, seq<set<int>> transitions, int start, int v, int u)
+{
+  if(start == u) {
+  } else if(start == v) {
+    seq<int> path = [v, u];
+    assert isAPath(N, transitions, path);
+  } else {
+    seq<int> path :| isAPath(N, transitions, path) && path[0] == start && path[|path| - 1] == v;
+    seq<int> newPath = path + [u];
+    assert newPath[|path|] == u;
+    assert newPath[|newPath| - 1] == u;
+    assert isAPath(N, transitions, newPath);
+  }
+}
+
+  requires ValidGraph(N, transitions);
+  requires 0 <= start && start < N;
+  requires 0 <= v && v < N;
+  requires 0 <= k && k <= N;
+  requires pathExists(N, transitions, start, v);
+  ensures (\forall int u; k <= u && u < N && u in transitions[v] ==> {:pathExists(N, transitions, start, u):});
+  decreases N - k;
+void ExtendPathPrefix(int N, seq<set<int>> transitions, int start, int v, int k)
+{
+  if(k < N) {
+  if(k in transitions[v]) {
+    ExtendPath(N, transitions, start, v, k);
+  }
+  ExtendPathPrefix(N, transitions, start, v, k + 1);
+  }
+}
+
+// If reachable is closed under transitions, start in reachable, and end !in reachable,
+// then no path from start to end exists.
+  requires ValidGraph(N, transitions);
+  requires reachable <= nodes(N);
+  requires (\forall int v; {:v in reachable:} ==> transitions[v].intersect(nodes(N)) <= reachable);
+  requires isAPath(N, transitions, path);
+  requires path[0] in reachable;
+  requires 0 <= i && i < |path|;
+  ensures path[i] in reachable;
+  decreases i;
+void PathInReachable(
+  int N, seq<set<int>> transitions,
+  set<int> reachable, seq<int> path, int i)
+{
+  if(i > 0) {
+  PathInReachable(N, transitions, reachable, path, i - 1);
+  assert path[i - 1] in reachable;
+  assert path[i] in transitions[path[i - 1]];
+  assert path[i] in nodes(N);
+  assert path[i] in transitions[path[i - 1]].intersect(nodes(N));
+  }
+}
+
+// If reachable is closed under transitions, start in reachable, and end !in reachable,
+// then no path from start to end exists.
+  requires ValidGraph(N, transitions);
+  requires 0 <= start && start < N;
+  requires 0 <= end && end < N;
+  requires reachable <= nodes(N);
+  requires start in reachable;
+  requires !(end in reachable);
+  requires (\forall int v; {:v in reachable:} ==> transitions[v].intersect(nodes(N)) <= reachable);
+  ensures !pathExists(N, transitions, start, end);
+  decreases;
+void NoPathWhenClosed(int N, seq<set<int>> transitions, set<int> reachable, int start, int end)
+{
+  if(pathExists(N, transitions, start, end)) {
+    if(start == end) {
+      assert false;
+    } else {
+      seq<int> path :| isAPath(N, transitions, path) && path[0] == start && path[|path| - 1] == end;
+      PathInReachable(N, transitions, reachable, path, |path| - 1);
+      assert path[|path| - 1] in reachable;
+      assert false;
+    }
+  }
+}
+
+

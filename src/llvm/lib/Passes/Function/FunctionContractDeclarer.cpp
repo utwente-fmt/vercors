@@ -4,6 +4,7 @@
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
+#include "IRSpec/PallasSpecDecoding.h"
 
 namespace pallas {
 const std::string SOURCE_LOC = "Passes::Function::FunctionContractDeclarer";
@@ -19,6 +20,27 @@ FDCResult::FDCResult(vct::col::ast::LlvmFunctionContract &colFuncContract)
 
 col::LlvmFunctionContract &FDCResult::getAssociatedColFuncContract() {
     return associatedColFuncContract;
+}
+
+void FDCResult::addGhostArgMapEntry(const llvm::MDNode &arg,
+                                    const col::Variable &colVar) {
+    ghostArgMap.insert({&arg, &colVar});
+}
+
+const col::Variable *FDCResult::getGhostArgMapEntry(const llvm::MDNode &arg) {
+    return ghostArgMap.at(&arg);
+}
+
+void FDCResult::setIRContract(irspec::FunctionContract irContract) {
+    associatedIRContract = std::make_optional(std::move(irContract));
+}
+
+const irspec::FunctionContract *FDCResult::getIRContract() {
+    if (associatedIRContract.has_value()) {
+        return &associatedIRContract.value();
+    } else {
+        return nullptr;
+    }
 }
 
 /*

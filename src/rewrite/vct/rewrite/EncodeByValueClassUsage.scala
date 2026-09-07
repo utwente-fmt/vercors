@@ -21,14 +21,16 @@ case object EncodeByValueClassUsage extends RewriterBuilder {
       assign: Node[_],
       clazz: ByValueClass[_],
       field: InstanceField[_],
-  ) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit = {
+  ) extends Blame[ClassDerefError] {
+    override def blame(error: ClassDerefError): Unit = {
       if (blame.isInstanceOf[PanicBlame]) {
-        assign.o
-          .blame(CopyClassFailed(assign, clazz, Referrable.originName(field)))
+        assign.o.blame(
+          CopyClassFailed(assign, clazz, Referrable.originNameOrEmpty(field))
+        )
       } else {
-        blame
-          .blame(CopyClassFailed(assign, clazz, Referrable.originName(field)))
+        blame.blame(
+          CopyClassFailed(assign, clazz, Referrable.originNameOrEmpty(field))
+        )
       }
     }
   }
@@ -38,22 +40,12 @@ case object EncodeByValueClassUsage extends RewriterBuilder {
       inv: Invocation[_],
       clazz: ByValueClass[_],
       field: InstanceField[_],
-  ) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit = {
+  ) extends Blame[ClassDerefError] {
+    override def blame(error: ClassDerefError): Unit = {
       blame.blame(
         CopyClassFailedBeforeCall(inv, clazz, Referrable.originName(field))
       )
     }
-  }
-
-  private case class InvocationBlameAdapter(blame: Blame[InvocationFailure])
-      extends Blame[PointerDerefError] {
-    override def blame(error: PointerDerefError) =
-      error match {
-        case e @ CopyClassFailed(_, _, _) => blame.blame(e)
-        case e @ CopyClassFailedBeforeCall(_, _, _) => blame.blame(e)
-        case _ => ???
-      }
   }
 
   case class UnsupportedStructPerm(o: Origin) extends UserError {
@@ -121,7 +113,7 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
       obj: Expr[Post],
       t: TByValueClass[Pre],
       target: Expr[Post],
-      blame: InstanceField[Pre] => Blame[InsufficientPermission],
+      blame: InstanceField[Pre] => Blame[ClassDerefError],
   ): Statement[Post] = {
     implicit val o: Origin = obj.o
     val ov = new Variable[Post](dispatch(t))(o.where(name = "original"))
@@ -199,9 +191,19 @@ case class EncodeByValueClassUsage[Pre <: Generation]() extends Rewriter[Pre] {
       case AutoValue(ByValueClassLocation(e)) =>
         unwrapClassPerm(dispatch(e), AutoValue(_), e.t.asByValueClass.get)
       // Only doing this for TNonNullPointer pointers since those originate from the frontend and users can define heap variables of the normal TPointer pointer type
-      case Perm(pl @ PointerLocation(dhv @ DerefHeapVariable(Ref(v))), p)
-          if v.t.isInstanceOf[TNonNullPointer[Pre]] ||
-            v.t.isInstanceOf[TNonNullConstPointer[Pre]] =>
+      case Perm(
+            pl @ PointerLocation(
+              dhv @ DerefHeapVariable(
+                Ref(
+                  WithExactType(
+                    v,
+                    _: TNonNullPointer[Pre] | _: TNonNullConstPointer[Pre],
+                  )
+                )
+              )
+            ),
+            p,
+          ) =>
         val t = v.t.asPointer.get
         if (t.element.asByValueClass.isDefined) {
           val newV: Ref[Post, HeapVariable[Post]] = succ(v)

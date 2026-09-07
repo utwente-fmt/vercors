@@ -56,7 +56,7 @@ object LLVM {
               case value: IntegerValue[G] => value.value.intValue
               case _ => throw NonConstantStructIndex(gep.o)
             }
-          currentType = struct.elements(value).t
+          currentType = struct.ref.decl.elements(value).t
         case array: LLVMTArray[G] => currentType = array.elementType
         case vector: LLVMTVector[G] => currentType = vector.elementType
         // We don't know how to index other types

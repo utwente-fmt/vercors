@@ -4,7 +4,8 @@ import com.typesafe.scalalogging.LazyLogging
 import hre.io.RWFile
 import hre.progress.Progress
 import vct.col.ast.Node
-import vct.col.origin.AccountedDirection
+import vct.col.origin.{AccountedDirection, FailLeft, FailRight}
+import vct.col.ref.Ref
 import vct.col.{ast => col, origin => blame}
 import vct.result.VerificationError.{SystemError, TimeOut}
 import viper.api.SilverTreeCompare
@@ -33,7 +34,6 @@ import viper.silver.{ast => silver}
 
 import java.nio.file.{Files, Path}
 import scala.reflect.ClassTag
-import scala.util.matching.Regex
 import scala.util.{Try, Using}
 
 trait SilverBackend
@@ -202,8 +202,19 @@ trait SilverBackend
             ))
           case PreconditionInAppFalse(node, reason, _) =>
             val invocation = get[col.FunctionInvocation[_]](node)
+            val offendingArgs = node.args.zipWithIndex.collect {
+              case (a, i)
+                  if System.identityHashCode(a) ==
+                    System.identityHashCode(reason.offendingNode) =>
+                i
+            }
+            // Using collectFirst here, not sure how you would realistically get more than one here, but I guess if there's multiple they're probably identical
+            val offendingPath = offendingArgs.map(invocation.ref.decl.args(_))
+              .collectFirst(Function.unlift(
+                argToPath(invocation.ref.decl.contract.requires, _)
+              )).getOrElse(path(reason.offendingNode))
             invocation.blame.blame(blame.PreconditionFailed(
-              path(reason.offendingNode),
+              offendingPath,
               getFailure(reason),
               invocation,
             ))
@@ -227,22 +238,29 @@ trait SilverBackend
           case IfFailed(node, reason, _) => defer(reason)
           case WhileFailed(node, reason, _) => defer(reason)
           case AssertFailed(node, reason, _) =>
-            val assert = get[col.Assert[_]](node)
+            val offNode =
+              reason match {
+                case reasons.InsufficientPermission(n) => n
+                case reasons.MagicWandChunkNotFound(n) => n
+                case reasons.AssertionFalse(n) => n
+                case reasons.NegativePermission(n) => n
+                case reasons.QPAssertionNotInjective(n) => n
+              }
+            val (bl, assert) = info(offNode).asserting.map(n => (n.blame, n))
+              .getOrElse[(blame.Blame[blame.AssertFailed], Node[_])](
+                (get[col.Assert[_]] _).andThen(n => (n.blame, n))(node)
+              )
             reason match {
               case reasons.InsufficientPermission(permNode) =>
                 get[col.Node[_]](permNode) match {
                   case _: col.Perm[_] | _: col.PredicateApply[_] |
                       _: col.Value[_] =>
-                    assert.blame
-                      .blame(blame.AssertFailed(getFailure(reason), assert))
+                    bl.blame(blame.AssertFailed(getFailure(reason), assert))
                   case _ => defer(reason)
                 }
-              case _: reasons.MagicWandChunkNotFound =>
-                assert.blame
-                  .blame(blame.AssertFailed(getFailure(reason), assert))
-              case reasons.AssertionFalse(_) | reasons.NegativePermission(_) =>
-                assert.blame
-                  .blame(blame.AssertFailed(getFailure(reason), assert))
+              case reasons.MagicWandChunkNotFound(_) | reasons
+                    .AssertionFalse(_) | reasons.NegativePermission(_) =>
+                bl.blame(blame.AssertFailed(getFailure(reason), assert))
               case otherReason => defer(otherReason)
             }
           case PostconditionViolated(_, member, reason, _) =>
@@ -395,6 +413,40 @@ trait SilverBackend
           .NegativePermissionValue(
             info(p).permissionValuePermissionNode.get
           ) // need to fetch access
+      // Keep in sync with defer()
+      case reasons.DivisionByZero(e) =>
+        val division = info(e).dividingExpr.get
+        blame.NotWellDefined(division, blame.ScalarDivByZero(division))
+      case reasons.InsufficientPermission(f @ silver.FieldAccess(_, _)) =>
+        val deref = get[col.SilverDeref[_]](f)
+        blame.NotWellDefined(deref, blame.InsufficientPermission(deref))
+      case reasons.InsufficientPermission(p @ silver.PredicateAccess(_, _)) =>
+        val unfolding = info(p).unfolding.get
+        blame.NotWellDefined(unfolding, blame.UnfoldFailed(unfolding))
+      case reasons.QPAssertionNotInjective(access: silver.ResourceAccess) =>
+        val starall = info(access).starall.get
+        blame.NotWellDefined(
+          starall,
+          blame.ReceiverNotInjective(starall, get(access)),
+        )
+      case reasons.LabelledStateNotReached(expr) =>
+        val old = get[col.Old[_]](expr)
+        blame.NotWellDefined(old, blame.LabelNotReached(old))
+      case reasons.SeqIndexNegative(_, idx) =>
+        val subscript = info(idx).seqIndexSubscriptNode.get
+        blame.NotWellDefined(subscript, blame.SeqBoundNegative(subscript))
+      case reasons.SeqIndexExceedsLength(_, idx) =>
+        val subscript = info(idx).seqIndexSubscriptNode.get
+        blame.NotWellDefined(subscript, blame.SeqBoundExceedsLength(subscript))
+      case reasons.MapKeyNotContained(_, key) =>
+        val get = info(key).mapGet.get
+        blame.NotWellDefined(get, blame.MapKeyError(get))
+      case reasons.AssertionFalse(expr) =>
+        val asserting = info(expr).asserting.get
+        blame.NotWellDefined(
+          asserting,
+          blame.AssertFailed(getFailure(reason), asserting),
+        )
       case r => throw new NotImplementedError("Missing: " + r)
     }
 
@@ -444,6 +496,7 @@ trait SilverBackend
         )
     }
 
+  // Keep in sync with getFailure
   def defer(reason: ErrorReason): Unit =
     reason match {
       case reasons.DivisionByZero(e) =>
@@ -477,5 +530,24 @@ trait SilverBackend
         throw NotSupported(
           s"Viper returned an error reason that VerCors does not recognize: $other"
         )
+    }
+
+  private def argInExpr(e: col.Expr[_], arg: col.Variable[_]): Boolean =
+    e match {
+      case col.Local(Ref(v)) => v == arg
+      case col.And(l, r) => argInExpr(l, arg) || argInExpr(r, arg)
+      case col.Star(l, r) => argInExpr(l, arg) || argInExpr(r, arg)
+      case _ => false
+    }
+  private def argToPath(
+      p: col.AccountedPredicate[_],
+      arg: col.Variable[_],
+  ): Option[Seq[AccountedDirection]] =
+    p match {
+      case col.UnitAccountedPredicate(e) if argInExpr(e, arg) => Some(Nil)
+      case col.UnitAccountedPredicate(_) => None
+      case col.SplitAccountedPredicate(left, right) =>
+        argToPath(left, arg).map(FailLeft +: _)
+          .orElse(argToPath(right, arg).map(FailRight +: _))
     }
 }

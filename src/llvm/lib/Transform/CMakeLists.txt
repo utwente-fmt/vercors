@@ -3,6 +3,7 @@ add_library(Transform STATIC
     LoopContractTransform.cpp
     SpecStatementTransform.cpp
     Transform.cpp
+    WrapperCallTransform.cpp
     # Instruction/
     Instruction/BinaryOpTransform.cpp
     Instruction/CastOpTransform.cpp
@@ -13,7 +14,7 @@ add_library(Transform STATIC
     Instruction/TermOpTransform.cpp
     Instruction/UnaryOpTransform.cpp
 )
-target_link_libraries(Transform COL Util Origin)
+target_link_libraries(Transform COL Util Origin IRSpec)
 target_include_directories(Transform PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
 )

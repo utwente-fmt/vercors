@@ -20,10 +20,16 @@ trait LetImpl[G] extends LetOps[G] {
         ")" <+> "in" <>> main </> ")"
     )
 
+  def layoutIsar(implicit ctx : Ctx): Doc =
+    Group(
+      Text("(") <> Text("let") <+> ctx.name(binding) <+> "=" <+> value <+> "in" <>> main <> Text(")")
+    )
+
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =
     ctx.syntax match {
       case Ctx.Silver => layoutSilver
+      case Ctx.Isar => layoutIsar
       case _ => layoutSpec
     }
 }

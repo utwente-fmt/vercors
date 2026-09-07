@@ -75,9 +75,10 @@ add_library(Pallas SHARED
     $<TARGET_OBJECTS:Plugin>
     $<TARGET_OBJECTS:Transform>
     $<TARGET_OBJECTS:Passes>
+    $<TARGET_OBJECTS:IRSpec>
     $<TARGET_OBJECTS:Origin>
     $<TARGET_OBJECTS:Util>
     $<TARGET_OBJECTS:COL>
     $<TARGET_OBJECTS:protobuf::libprotobuf>
 )
-target_link_libraries(Pallas PUBLIC Plugin Transform Passes Origin Util)
+target_link_libraries(Pallas PUBLIC Plugin Transform Passes IRSpec Origin Util)

@@ -61,6 +61,14 @@ translate_c_file examples/concepts/llvm/pallas/extContracts/pallas_c_genContrAss
 translate_c_file examples/concepts/llvm/pointer_casts.c examples/concepts/llvm/pointer_casts.ll
 translate_c_file examples/concepts/c/pointer_relations.c examples/concepts/llvm/pointer_relations.ll
 translate_c_file examples/concepts/llvm/structs.c examples/concepts/llvm/structs.ll
+translate_c_file examples/concepts/llvm/pallas/ghost/pallas_ghost_func.c examples/concepts/llvm/pallas/ghost/pallas_ghost_func.ll ""
+translate_c_file examples/concepts/llvm/pallas/ghost/pallas_c_ghost_arg.c examples/concepts/llvm/pallas/ghost/pallas_c_ghost_arg.ll ""
+translate_c_file examples/concepts/llvm/pallas/pallas_c_linked_list.c examples/concepts/llvm/pallas/pallas_c_linked_list.ll ""
+translate_c_file examples/concepts/llvm/pallas/pallas_byval.c examples/concepts/llvm/pallas/pallas_byval.ll ""
+translate_c_file examples/concepts/llvm/pallas/ghost/c_byval_ghost.c examples/concepts/llvm/pallas/ghost/c_byval_ghost.ll ""
+translate_c_file examples/concepts/llvm/pallas/pallas_c_seq.c examples/concepts/llvm/pallas/pallas_c_seq.ll ""
+
+
 
 # C++ Tests
 echo "=============================================="
@@ -69,6 +77,7 @@ echo "=============================================="
 translate_cpp_file examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.cpp examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.ll "--cLib=examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.h"
 translate_cpp_file examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.cpp examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.ll "--cLib=examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.h"
 translate_cpp_file examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.cpp examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.ll
+translate_cpp_file examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.cpp examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.ll ""
 
 # Swift Tests
 echo "=============================================="
@@ -77,5 +86,6 @@ echo "=============================================="
 translate_swift_file examples/concepts/llvm/pallas/pallas_swift_assert.swift examples/concepts/llvm/pallas/pallas_swift_assert.ll "-mem2reg"
 translate_swift_file examples/concepts/llvm/pallas/pallas_swift_fib.swift examples/concepts/llvm/pallas/pallas_swift_fib.ll "-mem2reg"
 translate_swift_file examples/concepts/llvm/pallas/pallas_swift_fib_fail.swift examples/concepts/llvm/pallas/pallas_swift_fib_fail.ll "-mem2reg"
+translate_swift_file examples/concepts/llvm/pallas/ghost/pallas_swift_ghost.swift examples/concepts/llvm/pallas/ghost/pallas_swift_ghost.ll ""
 
 rm -r $W_DIR

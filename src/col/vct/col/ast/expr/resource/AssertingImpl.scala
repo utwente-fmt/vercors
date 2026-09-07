@@ -2,7 +2,7 @@ package vct.col.ast.expr.resource
 
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.ops.AssertingOps
-import vct.col.ast.{Type, Asserting}
+import vct.col.ast.{Asserting, Node, Type}
 import vct.col.print._
 
 trait AssertingImpl[G] extends NodeFamilyImpl[G] with AssertingOps[G] {

@@ -12,9 +12,10 @@ add_library(Passes STATIC
     Module/ProtobufPrinter.cpp
     Module/RootContainer.cpp
     Module/StructConsolidator.cpp
+    Module/StructTDeclarer.cpp
 )
 
-target_link_libraries(Passes COL)
+target_link_libraries(Passes COL IRSpec)
 target_include_directories(Passes PRIVATE
     "${CMAKE_SOURCE_DIR}/include"
 )

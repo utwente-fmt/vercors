@@ -24,11 +24,26 @@ case object TypeSize {
     }
 }
 
-sealed trait TypeSize {
+sealed trait TypeSize extends Ordered[TypeSize] {
+  import TypeSize._
+
   def getExact: BigInt =
     this match {
       case TypeSize.Unknown() | TypeSize.Minimally(_) =>
         throw new IllegalArgumentException("Expected an exact size")
       case TypeSize.Exact(size) => size
+    }
+
+  override def compare(other: TypeSize): Int =
+    (this, other) match {
+      // Unknown is bigger than all
+      case (Unknown(), Unknown()) => 0
+      case (Unknown(), _) => 1
+      case (_, Unknown()) => -1
+      // Minimally is bigger than exact
+      case (Minimally(a), Minimally(b)) => a.compare(b)
+      case (Exact(_), Minimally(_)) => -1
+      case (Minimally(_), Exact(_)) => 1
+      case (Exact(a), Exact(b)) => a.compare(b)
     }
 }

@@ -204,6 +204,7 @@ EMPTY_SEQ_OPEN: '[t:';
 EMPTY_SET_OPEN: '{t:';
 EMPTY_BAG_OPEN: 'b{t:';
 ARROW_LEFT: '<-';
+SUCH_THAT: ':|';
 
 VAL_EXPECT_ERROR_OPEN: '/*'? '[/expect ' [a-zA-Z:]+ ']' '*/'? -> channel(EXPECTED_ERROR_CHANNEL);
 VAL_EXPECT_ERROR_CLOSE: '/*'? '[/end]' '*/'? -> channel(EXPECTED_ERROR_CHANNEL);

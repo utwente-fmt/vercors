@@ -1,5 +1,6 @@
 #include "Passes/Module/GlobalVariableDeclarer.h"
 #include "Passes/Module/RootContainer.h"
+#include "Passes/Module/StructTDeclarer.h"
 #include "Transform/Transform.h"
 #include "Util/Constants.h"
 #include "Util/Exceptions.h"
@@ -14,6 +15,7 @@ using namespace llvm;
 PreservedAnalyses GlobalVariableDeclarerPass::run(Module &M,
                                                   ModuleAnalysisManager &MAM) {
     auto pProgram = MAM.getResult<RootContainer>(M).program;
+    auto &sdResult = MAM.getResult<StructTDeclarer>(M);
 
     for (auto &global : M.globals()) {
         llvm::SmallVector<llvm::DIGlobalVariableExpression *> debugExprs;
@@ -49,12 +51,12 @@ PreservedAnalyses GlobalVariableDeclarerPass::run(Module &M,
                         llvm2col::generateGlobalVariableInitializerOrigin(
                             M, global, *global.getInitializer()),
                         *global.getInitializer(), *colGlobal->mutable_value(),
-                        M.getDataLayout());
+                        sdResult);
                 }
                 // TODO: What to do here? How can we get the DIType?
                 llvm2col::transformAndSetType(
                     *global.getInitializer()->getType(),
-                    *colGlobal->mutable_variable_type(), M.getDataLayout());
+                    *colGlobal->mutable_variable_type(), sdResult);
             } else {
                 // We don't know more about the type because we don't have an
                 // initializer
@@ -63,12 +65,12 @@ PreservedAnalyses GlobalVariableDeclarerPass::run(Module &M,
                 // instead set the type to be TAny maybe?
                 llvm2col::transformAndSetType(
                     *global.getType(), *colGlobal->mutable_variable_type(),
-                    M.getDataLayout());
+                    sdResult);
             }
         } else {
             llvm2col::transformAndSetTypeWithDebugInfo(
                 global.getType(), diType, *colGlobal->mutable_variable_type(),
-                M.getDataLayout());
+                sdResult);
         }
 
         colGlobal->set_constant(global.isConstant());
