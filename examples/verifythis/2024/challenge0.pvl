@@ -1,0 +1,75 @@
+class Rope {
+    Rope left;
+    Rope right;
+
+    seq<int> data;
+    int weight;
+
+    inline pure boolean isChild() = left == null;
+
+    resource state() =
+        this != null **
+        Perm(left, write) **
+        Perm(right, write) **
+        Perm(data, write) **
+        Perm(weight, write) **
+        (isChild() ==> left == null ** right == null ** weight == |data| ** |data| > 0) **
+        (!isChild() ==> left != null ** right != null ** left.state() ** right.state() ** data.isEmpty ** weight > 0 ** weight == |left.repr()|)
+        ;
+
+    requires [1\2]state();
+    pure seq<int> repr() =
+        \unfolding [1\2]state() \in (
+            isChild() ?
+                data :
+                left.repr() + right.repr()
+        );
+
+    context [1\2]state();
+    ensures repr() == \old(repr());
+    ensures \result == repr();
+    seq<int> toStr() {
+        unfold [1\2]state();
+
+        if(left == null) {
+            return data then { fold [1\2]state(); };
+        } else {
+            return left.toStr() + right.toStr() then { fold [1\2]state(); };
+        }
+    }
+
+    context [1\2]state();
+    ensures repr() == \old(repr());
+    ensures \result == |repr()|;
+    ensures \result > 0;
+    int strLen() {
+        unfold [1\2]state();
+        if (left == null) {
+            return this.weight then { fold [1\2]state(); };
+        } else {
+            return (this.weight + this.right.strLen()) then { fold [1\2]state(); };
+        }
+    }
+
+    requires state() ** other.state();
+    ensures \result.state();
+    ensures \result.repr() == \old(repr() + other.repr());
+    Rope concat(Rope other) {
+        Rope result = new Rope();
+        result.data = [t:int];
+        result.left = this;
+        result.right = other;
+        result.weight = strLen();
+
+        assert !result.isChild();
+
+        assert result.left != null ** result.right != null ** result.data.isEmpty ** result.weight > 0 ** result.weight == |result.left.repr()|;
+
+        fold result.state();
+        return result;
+    }
+
+    Rope delete(int idx, int len) {
+
+    }
+}
