@@ -55,8 +55,10 @@ trait NodeCheckOps[G] {
       enterCheckContextRoScopes(context),
       enterCheckContextRoScopeReason(context),
       enterCheckContextCurrentApplicable(context),
+      enterCheckContextInGPUKernel(context),
       enterCheckContextInPreCondition(context),
       enterCheckContextInPostCondition(context),
+      enterCheckContextInPolarExpression(context),
       enterCheckContextCurrentChoreography(context),
       enterCheckContextCurrentReceiverEndpoint(context),
       enterCheckContextCurrentParticipatingEndpoints(context),
@@ -81,10 +83,14 @@ trait NodeCheckOps[G] {
   def enterCheckContextCurrentApplicable(
       context: CheckContext[G]
   ): Option[Applicable[G]] = context.currentApplicable
+  def enterCheckContextInGPUKernel(context: CheckContext[G]): Boolean =
+    context.inGPUKernel
   def enterCheckContextInPreCondition(context: CheckContext[G]): Boolean =
     context.inPreCondition
   def enterCheckContextInPostCondition(context: CheckContext[G]): Boolean =
     context.inPostCondition
+  def enterCheckContextInPolarExpression(context: CheckContext[G]): Boolean =
+    context.inPolarExpression
   def enterCheckContextCurrentChoreography(
       context: CheckContext[G]
   ): Option[Choreography[G]] = context.currentChoreography

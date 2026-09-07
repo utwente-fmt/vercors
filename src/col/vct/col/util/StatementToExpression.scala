@@ -28,11 +28,13 @@ case class StatementToExpression[Pre <: Generation, Post <: Generation](
       case Branch(Nil) => alt
       case Branch((BooleanValue(true), impl) +: _) => toExpression(impl, alt)
       case Branch((cond, impl) +: branches) =>
-        Some(Select(
-          rw.dispatch(cond),
-          toExpression(impl, alt).getOrElse(return None),
-          toExpression(Branch(branches), alt).getOrElse(return None),
-        ))
+        Some(
+          Select(
+            rw.dispatch(cond),
+            toExpression(impl, alt).getOrElse(return None),
+            toExpression(Branch(branches), alt).getOrElse(return None),
+          )(stat.o)
+        )
       case Scope(locals, impl) =>
         if (!locals.forall(countAssignments(_, impl).exists(_ <= 1))) {
           throw errorBuilder("Variables may only be assigned once.")
@@ -62,6 +64,13 @@ case class StatementToExpression[Pre <: Generation, Post <: Generation](
           case None =>
             throw errorBuilder("Assert may not be the last statement")
         }
+      case a @ Assume(e) =>
+        alt match {
+          case Some(exprAlt) =>
+            Some(Assuming[Post](rw.dispatch(e), exprAlt)(a.o))
+          case None =>
+            throw errorBuilder("Assume may not be the last statement")
+        }
       case _ => None
     }
   }
@@ -79,6 +88,7 @@ case class StatementToExpression[Pre <: Generation, Post <: Generation](
             case _ => None
           }
         x
+      case Scope(_, body) => countAssignments(v, body)
       case Branch(conds) =>
         val assignmentCounts = conds.map(_._2).map(countAssignments(v, _))
           .collect {
@@ -96,6 +106,7 @@ case class StatementToExpression[Pre <: Generation, Post <: Generation](
             0
         )
       case Assert(_) => Some(0)
+      case Assume(_) => Some(0)
       case _ => None
     }
 

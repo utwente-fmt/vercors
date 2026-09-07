@@ -111,7 +111,8 @@ case class CToCol[G](
           contract =>
             new CFunctionDefinition(
               contract.consumeApplicableContract(blame(funcDef)),
-              convert(declSpecs),
+              convert(declSpecs) ++
+                contract.consumeOpt(contract.extract_gpu_body),
               convert(declarator),
               convert(body),
             )(blame(funcDef)),
@@ -220,7 +221,6 @@ case class CToCol[G](
           case "_Bool" => CBool()
           case _ => ??(typeSpec)
         }
-//    case TypeSpecifier1(_, _, _, _) => ??(typeSpec)
       case TypeSpecifier1(valType) => CSpecificationType(convert(valType))
       case TypeSpecifier2(_) => ??(typeSpec)
       case TypeSpecifier3(struct) => convert(struct)
@@ -373,7 +373,6 @@ case class CToCol[G](
   def convert(implicit list: GccAttributeContext): Option[CTypeExtensions[G]] =
     list match {
       case GccAttribute0(name, args) =>
-//      Some(CTypeAttribute(name, args.map(convert(_)).getOrElse(Seq())))
         Some(
           CTypeAttribute(convert(name), args.map(convert(_)).getOrElse(Seq()))
         )
@@ -1159,6 +1158,11 @@ case class CToCol[G](
   ): Unit =
     contract match {
       case ValEmbedContract0(blocks) => blocks.foreach(convert(_, collector))
+      case ValEmbedContract1(_, extract, clauses, _, blocks) =>
+        clauses.foreach(convert(_, collector))
+        blocks.foreach(convert(_, collector))
+        collector.extract_gpu_body +=
+          ((contract, CExtractGPUKernelBody()(OriginProvider(contract))))
     }
 
   def convert(
@@ -1212,10 +1216,14 @@ case class CToCol[G](
           ))
       case ValContractClause11(_, invariant, _) =>
         collector.lock_invariant += ((contract, convert(invariant)))
-      case ValContractClause12(_, None, _) =>
-        collector.decreases += ((contract, DecreasesClauseNoRecursion()))
-      case ValContractClause12(_, Some(clause), _) =>
-        collector.decreases += ((contract, convert(clause)))
+      case ValContractClause12(decreases, _) =>
+        collector.decreases += ((contract, convert(decreases)))
+    }
+
+  def convert(implicit decreases: ValDecreasesContext): DecreasesClause[G] =
+    decreases match {
+      case ValDecreases0(_, None) => DecreasesClauseNoRecursion()
+      case ValDecreases0(_, Some(clause)) => convert(clause)
     }
 
   def convert(implicit clause: ValDecreasesMeasureContext): DecreasesClause[G] =
@@ -1473,7 +1481,8 @@ case class CToCol[G](
     block match {
       case ValEmbedStatementBlock0(_, stats, _) => Block(stats.map(convert(_)))
       case ValEmbedStatementBlock1(stats) => Block(stats.map(convert(_)))
-      case ValEmbedStatementBlock2(_, _, _, stat) => Extract(convert(stat))
+      case ValEmbedStatementBlock2(_, extract, decreases, _, stat) =>
+        Extract(convert(stat), decreases.map(convert(_)))(blame(block))
       case ValEmbedStatementBlock3(_, _, clauses, _, _, body, _, _, _) =>
         withContract(
           clauses,
@@ -1485,6 +1494,60 @@ case class CToCol[G](
             )(blame(block))
           },
         )
+      case ValEmbedStatementBlock4(
+            _,
+            _,
+            decreases,
+            _,
+            clauses,
+            _,
+            _,
+            body,
+            _,
+            _,
+            _,
+          ) =>
+        Extract(
+          withContract(
+            clauses,
+            contract => {
+              FramedProof(
+                AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+                Block(body.map(convert(_))),
+                AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+              )(blame(block))
+            },
+          ),
+          decreases.map(convert(_)),
+        )(blame(block))
+      case ValEmbedStatementBlock5(
+            _,
+            _,
+            decreases,
+            _,
+            _,
+            clauses,
+            _,
+            _,
+            _,
+            body,
+            _,
+            _,
+            _,
+          ) =>
+        Extract(
+          withContract(
+            clauses,
+            contract => {
+              FramedProof(
+                AstBuildHelpers.foldStar(contract.consume(contract.requires)),
+                Block(body.map(convert(_))),
+                AstBuildHelpers.foldStar(contract.consume(contract.ensures)),
+              )(blame(block))
+            },
+          ),
+          decreases.map(convert(_)),
+        )(blame(block))
     }
 
   def convert(implicit stat: ValStatementContext): Statement[G] =
@@ -1502,6 +1565,8 @@ case class CToCol[G](
       case ValAssume(_, assn, _) => Assume(convert(assn))
       case ValInhale(_, resource, _) => Inhale(convert(resource))
       case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
+      case ValSuchThat(target, _, constraint, _) =>
+        AssignSuchThat(convert(target), convert(constraint))(blame(stat))
       case ValLabel(contract, _, label, _) =>
         withContract(
           contract,
@@ -1545,7 +1610,8 @@ case class CToCol[G](
           convert(body),
         )(blame(stat))
       case ValCommit(_, obj, _) => Commit(convert(obj))(blame(stat))
-      case ValExtract(_, body) => Extract(convert(body))
+      case ValExtract(extract, decreases, body) =>
+        Extract(convert(body), decreases.map(convert(_)))(blame(stat))
       case ValFrame(_, clauses, body) =>
         withContract(
           clauses,
@@ -1913,20 +1979,14 @@ case class CToCol[G](
 
   def convert(implicit e: ValPrimaryPermissionContext): Expr[G] =
     e match {
-      case ValCurPerm(_, _, loc, _) =>
-        CurPerm(AmbiguousLocation(convert(loc))(blame(e)))
+      case ValCurPerm(_, _, loc, _) => CurPerm(AmbiguousLocation(convert(loc)))
       case ValPerm(_, _, loc, _, perm, _) =>
-        Perm(AmbiguousLocation(convert(loc))(blame(e)), convert(perm))
-      case ValValue(_, _, loc, _) =>
-        Value(AmbiguousLocation(convert(loc))(blame(e)))
+        Perm(AmbiguousLocation(convert(loc)), convert(perm))
+      case ValValue(_, _, loc, _) => Value(AmbiguousLocation(convert(loc)))
       case ValAutoValue(_, _, loc, _) =>
-        AutoValue(AmbiguousLocation(convert(loc))(blame(e)))
+        AutoValue(AmbiguousLocation(convert(loc)))
       case ValPointsTo(_, _, loc, _, perm, _, v, _) =>
-        PointsTo(
-          AmbiguousLocation(convert(loc))(blame(e)),
-          convert(perm),
-          convert(v),
-        )
+        PointsTo(AmbiguousLocation(convert(loc)), convert(perm), convert(v))
       case ValHPerm(_, _, loc, _, perm, _) =>
         ModelPerm(convert(loc), convert(perm))
       case ValAPerm(_, _, loc, _, perm, _) =>
@@ -2001,10 +2061,16 @@ case class CToCol[G](
           convert(v),
           convert(body),
         )
+      case ValLetSuchThat(_, _, t, id, _, v, _, body, _) =>
+        LetSuchThat(
+          new Variable(convert(t))(origin(id).sourceName(convert(id))),
+          convert(v),
+          convert(body),
+        )(blame(e))
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
-          AmbiguousLocation(convert(loc))(blame(loc))(origin(loc)),
+          AmbiguousLocation(convert(loc))(origin(loc)),
           convert(body),
         )
       case ValForPermWithValue(_, _, _, id, _, body, _) =>
@@ -2126,6 +2192,10 @@ case class CToCol[G](
     e match {
       case ValExpr0(inner) => convert(inner)
       case ValExpr1(inner) => convert(inner)
+      case ValUnfoldingInPrimary(_, _, predExpr, _, _, body) =>
+        Unfolding(AmbiguousFoldTarget(convert(predExpr)), convert(body))(blame(
+          e
+        ))
     }
 
   def convert(implicit id: ValIdentifierContext): String =

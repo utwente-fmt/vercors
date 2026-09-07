@@ -120,6 +120,11 @@ case class Extract[G]() {
     sub.labelDecls.scope { sub.dispatch(stat) }
   }
 
+  def extract(decr: DecreasesClause[G]): DecreasesClause[G] = {
+    val sub = Substitute(updateExprs(decr), updateTypes(decr))
+    sub.labelDecls.scope { sub.dispatch(decr) }
+  }
+
   case class Data(
       types: ListMap[Variable[G], Type[G]],
       in: ListMap[Variable[G], Expr[G]],

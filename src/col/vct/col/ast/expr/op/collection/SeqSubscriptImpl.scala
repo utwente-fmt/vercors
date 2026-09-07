@@ -9,6 +9,10 @@ trait SeqSubscriptImpl[G] extends SeqSubscriptOps[G] {
   override def t: Type[G] = seq.t.asSeq.get.element
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(seq) <> "[" <> Doc.arg(index) <> "]")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Group(assoc(seq) <+> "!" <+> Doc.arg(index))
+      case _ => Group(assoc(seq) <> "[" <> Doc.arg(index) <> "]")
+    }
+  }
 }

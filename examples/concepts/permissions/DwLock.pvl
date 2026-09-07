@@ -1,0 +1,73 @@
+// Based on examples/archive/chalice/atomics/DWLock.java
+// This implementation has less assumptions: there are no abstract (= assumed) methods. The only
+// assumption necessary is that the underlying memory model supports memory cells with a lock invariant
+// attached.
+// There are some things missing: there is no equal method. As it wasn't used in the previous example, it's
+// semantics are not clear, so I excluded it.
+// This file is also in PVL because there are no features used that require Java.
+
+lock_invariant Perm(atomicInt, 1) ** (atomicInt == 0 ==> userInvariant());
+class MyDwLock {
+  int atomicInt;
+
+  resource userInvariant() = Perm(data, 1);
+  int data;
+
+  constructor() {
+    // Assume we get the userInvariant somehow from the precondition
+    inhale userInvariant();
+    atomicInt = 0;
+    commit this;
+  }
+
+  requires committed(this);
+  requires n == 0 ==> userInvariant();
+  void setAtomicInt(int n) {
+    lock this;
+    atomicInt = n;
+    unlock this;
+  }
+
+  requires committed(this);
+  requires newN == 0 ==> userInvariant();
+  ensures newN == 0 && !\result ==> userInvariant();
+  ensures oldN == 0 && newN != 0 && \result ==> userInvariant();
+  boolean casAtomicInt(int oldN, int newN) {
+    boolean casResult;
+    lock this;
+    if (atomicInt == oldN) {
+      atomicInt = newN;
+      casResult = true;
+    } else {
+      casResult = false;
+    }
+    unlock this;
+    return casResult;
+  }
+
+  requires committed(this);
+  ensures userInvariant();
+  void doLock() {
+    boolean succ = false;
+
+    loop_invariant succ ==> userInvariant();
+    while (!succ) {
+      succ = casAtomicInt(0, 1);
+    }
+  }
+
+  requires committed(this);
+  requires userInvariant();
+  void doUnlock() {
+    setAtomicInt(0);
+  }
+
+  requires committed(this);
+  void userProgram(int v) {
+      doLock();
+      unfold userInvariant();
+      data = 1;
+      fold userInvariant();
+      doUnlock();
+  }
+}

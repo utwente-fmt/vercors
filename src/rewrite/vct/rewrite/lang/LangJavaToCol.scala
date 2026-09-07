@@ -226,12 +226,7 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 fields.decls.indices.map(decl => {
                   val local = JavaLocal[Pre](fields.decls(decl).name)(DerefPerm)
                   local.ref = Some(RefJavaField[Pre](fields, decl))
-                  Perm(
-                    AmbiguousLocation(local)(PanicBlame(
-                      "Field location is not a pointer."
-                    )),
-                    WritePerm(),
-                  )
+                  Perm(AmbiguousLocation(local), WritePerm())
                 })
             }.flatten))
           }
@@ -302,11 +297,14 @@ case class LangJavaToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 outArgs = Nil,
                 typeArgs = Nil,
                 body = Some(rw.currentThis.having(`this`) {
-                  Block(Seq(
-                    fieldInit(`this`),
-                    sharedInit(`this`),
-                    rw.dispatch(cons.body),
-                  ))
+                  Scope(
+                    Nil,
+                    Block(Seq(
+                      fieldInit(`this`),
+                      sharedInit(`this`),
+                      rw.dispatch(cons.body),
+                    )),
+                  )
                 }),
                 contract =
                   rw.currentThis.having(`this`) {

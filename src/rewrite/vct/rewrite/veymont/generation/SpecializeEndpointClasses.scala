@@ -2,8 +2,8 @@ package vct.rewrite.veymont.generation
 
 import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast.{
-  ChorRun,
   ByReferenceClass,
+  ChorRun,
   Choreography,
   Class,
   Communicate,
@@ -21,6 +21,7 @@ import vct.col.ast.{
   LoopInvariant,
   Program,
   Receiver,
+  Scope,
   Sender,
   ThisObject,
   UnitAccountedPredicate,
@@ -100,11 +101,14 @@ case class SpecializeEndpointClasses[Pre <: Generation]()
                   )) === implArg.get)
               ),
             ),
-            body = Some(assignField[Post](
-              ThisObject(classOfEndpoint.ref(endpoint)),
-              implField.ref,
-              implArg.get,
-              PanicBlame("Cannot fail"),
+            body = Some(Scope(
+              Nil,
+              assignField[Post](
+                ThisObject(classOfEndpoint.ref(endpoint)),
+                implField.ref,
+                implArg.get,
+                PanicBlame("Cannot fail"),
+              ),
             )),
             outArgs = Seq(),
             typeArgs = Seq(),

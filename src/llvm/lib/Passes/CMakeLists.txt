@@ -1,0 +1,23 @@
+add_library(Passes STATIC
+    # Function/
+    Function/ExprWrapperMapper.cpp
+    Function/FunctionBodyTransformer.cpp
+    Function/FunctionContractDeclarer.cpp
+    Function/FunctionDeclarer.cpp
+    Function/PallasFunctionContractDeclarerPass.cpp
+    Function/PureAssigner.cpp
+    # Module/
+    Module/GlobalVariableDeclarer.cpp
+    Module/ModuleSpecCollector.cpp
+    Module/ProtobufPrinter.cpp
+    Module/RootContainer.cpp
+    Module/StructConsolidator.cpp
+    Module/StructTDeclarer.cpp
+)
+
+target_link_libraries(Passes COL IRSpec)
+target_include_directories(Passes PRIVATE
+    "${CMAKE_SOURCE_DIR}/include"
+)
+target_precompile_headers(Passes REUSE_FROM COL)
+

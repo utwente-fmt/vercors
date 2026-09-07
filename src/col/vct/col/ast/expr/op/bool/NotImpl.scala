@@ -9,5 +9,11 @@ trait NotImpl[G] extends NotOps[G] {
   override def t: Type[G] = TBool()
 
   override def precedence: Int = Precedence.PREFIX
-  override def layout(implicit ctx: Ctx): Doc = Text("!") <> assoc(arg)
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Text("¬") <> assoc(arg)
+      case _ => Text("!") <> assoc(arg)
+    }
+
+  }
 }

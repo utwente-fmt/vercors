@@ -1,7 +1,15 @@
 #ifndef PALLAS_GLOBALVARIABLEDECLARER_H
 #define PALLAS_GLOBALVARIABLEDECLARER_H
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Woverflow"
+#endif // __GNUC__
 #include "vct/col/ast/col.pb.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
 #include <llvm/IR/PassManager.h>
 
 namespace pallas {

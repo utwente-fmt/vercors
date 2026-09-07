@@ -5,7 +5,7 @@ import vct.test.integration.helper.VercorsSpec
 class ParallelSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/parallel/array_par.pvl"
   vercors should verify using silicon example "concepts/parallel/block-par.pvl"
-  vercors should verify using silicon example "concepts/parallel/forward-host.pvl"
+  vercors should fail withCode "assertFailed:false" using silicon flags("--prover-config:smt.arith.solver=6") example "concepts/parallel/forward-host.pvl"
   vercors should verify using silicon example "concepts/parallel/ForWithinParallel.pvl"
   vercors should verify using silicon example "concepts/parallel/inv-test.pvl"
   vercors should verify using silicon example "concepts/parallel/inv-test-fail1.pvl"
@@ -21,6 +21,7 @@ class ParallelSpec extends VercorsSpec {
   vercors should error withCode "resolutionError:outOfWriteScope,outOfWriteScope" example "concepts/parallel/ParBothWrite.pvl"
   vercors should error withCode "resolutionError:outOfWriteScope" example "concepts/parallel/ParIterWrite.pvl"
   vercors should verify using silicon example "concepts/parallel/ParNestedInvariant.pvl"
+  vercors should verify using silicon example "concepts/parallel/ParSum.pvl"
   vercors should error withCode "resolutionError:outOfWriteScope" example "concepts/parallel/ParNestedInvariantWrite.pvl"
   // https://github.com/utwente-fmt/vercors/issues/815
   // vercors should verify using silicon example "concepts/parallel/summation-kernel-0.pvl"

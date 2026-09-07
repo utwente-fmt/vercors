@@ -14,6 +14,6 @@ trait LLVMLoadImpl[G] extends LLVMLoadOps[G] {
   override def layout(implicit ctx: Ctx): Doc =
     Group(
       Text(ctx.name(variable)) <+> "=" <+>
-        layoutOrdering(Text("store") <+> pointer)
+        layoutOrdering(Text("load") <+> pointer)
     )
 }

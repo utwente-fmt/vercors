@@ -369,6 +369,8 @@ case class GenerateImplementation[Pre <: Generation]()
         exhale.rewrite(res = projectExpr(exhale.res))
       // Rewrite blocks transparently
       case block: Block[Pre] => block.rewriteDefault()
+      // Similarly, for scopes
+      case scope: Scope[Pre] => scope.rewriteDefault()
       // Plain assigns were warned about in LangVeyMontToCol.
       // We just keep them in the program here for debugging purposes.
       case assign: Assign[Pre] => assign.rewriteDefault()

@@ -1,0 +1,189 @@
+class ArraySum {int sum;}// A class to store the shared integer sum;
+class Wr {int[] con;seq<int> cs;}// A class to contain the contribution array and its sequence equivalent cs.
+
+context_everywhere A != null;
+context Perm(A[*], 1\2) ** as != null ** Perm(as.sum, write);
+requires as.sum == 0;
+ensures as.sum == sum(A, 0, A.length);
+void sum(ArraySum as, int[] A) {
+    Wr wr = new Wr();
+    wr.con = new int[A.length];
+    wr.cs = toSeq(wr.con,0);
+
+    assert lemmaSumZeros(wr.cs,0) **
+      lemmaSumSum(wr.con, wr.cs, 0, |wr.cs|) **
+      sum(wr.con, 0, wr.con.length) == 0;
+
+
+    invariant inv(
+            as != null ** Perm(as.sum, write) **
+            wr != null ** Perm(wr.cs, write) ** Perm(wr.con, read) ** Perm(wr.con[*], 1\2) **
+            wr.cs == toSeq(wr.con,0) **
+            as.sum == sum(wr.con, 0, wr.con.length)
+    )
+    {
+        par (int tid = 0 .. A.length)
+            context Perm(A[tid], 1\2) **
+              wr != null **
+              Perm(wr.con, read) ** wr.con!=null ** wr.con.length == A.length **
+              Perm(wr.con[tid], 1\2)
+              ;
+            requires wr.con[tid] == 0;
+            ensures wr.con[tid] == A[tid];
+        {
+            atomic(inv) {
+                assert lemmaSumSum(wr.con, wr.cs, 0, |wr.cs|);
+                label befUpd;
+                as.sum = as.sum + A[tid];
+                wr.con[tid] = A[tid];
+                wr.cs = toSeq(wr.con,0);
+                assert lemmaSumStep(\old[befUpd](wr.cs), wr.cs, tid, A[tid]);
+                assert lemmaSumSum(wr.con, wr.cs, 0, |wr.cs|);
+            }
+        }
+    }
+
+    assert as.sum == sum(wr.con, 0, wr.con.length);
+    assert (\forall int i=0..A.length;wr.con[i] == A[i]);
+    assert lemmaSumEqArrArr(wr.con, A, 0, A.length);
+}
+
+/////////////////
+/// Functions ///
+/////////////////
+/// The two sum functions are the same function, one for arrays and one for sequences.
+/// The lemma lemmaSumSum proves equivalence between the two sum functions.
+
+requires A != null && 0 <= i && i <= until && until <= A.length;
+requires (∀* int j=i..until; Perm(A[j],read));
+decreases until-i;
+pure int sum(int[] A, int i, int until) =
+  (i == until) ? 0 : A[i] + sum(A, i + 1, until);
+
+requires 0 <= i && i <= until && until <= |as|;
+decreases until-i;
+pure int sum(seq<int> as, int i, int until) =
+  (i == until) ? 0 : as[i] + sum(as, i + 1, until);
+
+requires \array(a,a.length) ** Perm(a[*], read);
+requires 0 <= i && i <= a.length;
+ensures |\result| == a.length-i && (∀ int j=0..|\result|; {:\result[j]:} == a[j+i]);
+pure seq<int> toSeq(int[] a, int i) =
+  i == a.length ?
+    [t:int] :
+    [a[i]] + toSeq(a,i+1)
+;
+
+//////////////
+/// Lemmas ///
+//////////////
+// Lemmas are opaque
+context A != null && 0 <= i && i <= until && until <= A.length ** A.length == |as|;
+requires Perm(A[*],read);
+context toSeq(A, 0) == as;
+ensures sum(A, i, until) == sum(as, i, until);
+ensures \result;
+opaque pure boolean lemmaSumSum(int[] A, seq<int> as, int i, int until) =
+  (i == until) ?
+    sum(A, i, until) == sum(as, i, until)
+    :
+    lemmaSumSum(A, as, i+1, until) &&
+    sum(A, i, until) == sum(as, i, until)
+;
+
+
+requires 0 <= i && i <= |cs|;
+requires (∀ int j=i..|cs|; cs[j] == 0);
+ensures sum(cs, i, |cs|) == 0;
+ensures \result;
+decreases |cs|-i;
+/* Prove about the initial state of the contrib array */
+opaque pure boolean lemmaSumZeros(seq<int> cs, int i)
+=
+  i==|cs| ?
+    sum(cs, i, |cs|) == 0
+    :
+    lemmaSumZeros(cs,i+1) &&
+    sum(cs, i, |cs|) == 0
+  ;
+
+context 0 <= i && i <= j && j <= k && k <= |xs|;
+ensures sum(xs, i, k) == sum(xs, i, j) + sum(xs, j, k);
+ensures \result;
+decreases k-i;
+/* Prove about sum and sequence ranges */
+opaque pure boolean lemmaConcatSeqRangesum(seq<int> xs, int i, int j, int k)
+ = (i == j) ?
+      sum(xs, i, k) == sum(xs, i, j) + sum(xs, j, k)
+    :
+      lemmaConcatSeqRangesum(xs, i+1, j, k) &&
+      sum(xs, i, k) == sum(xs, i, j) + sum(xs, j, k)
+  ;
+
+
+context |xs|==|ys|;
+context 0 <= i && i <= j && j <= |xs|;
+requires (∀ int k=i..j; xs[k]==ys[k]);
+ensures sum(xs,i,j) == sum(ys,i,j);
+ensures \result;
+decreases j-i;
+/* Prove about sum and sequence ranges */
+opaque pure boolean lemmaSumEqArr(seq<int> xs, seq<int> ys, int i, int j)
+=
+  (i==j) ?
+    sum(xs,i,j) == sum(ys,i,j)
+    :
+    lemmaSumEqArr(xs,ys,i+1,j) &&
+    sum(xs,i,j) == sum(ys,i,j)
+  ;
+
+context |xs|==|ys|;
+context 0 <= i && i <= j && j <= |xs|;
+requires (∀ int k=i..j; xs[k]==ys[k]);
+ensures sum(xs,i,j) == sum(ys,i,j);
+ensures \result;
+decreases j-i;
+/* Prove about sum and sequence ranges */
+opaque pure boolean lemmaSumEqArr(seq<int> xs, seq<int> ys, int i, int j)
+=
+  (i==j) ?
+    sum(xs,i,j) == sum(ys,i,j)
+    :
+    lemmaSumEqArr(xs,ys,i+1,j) &&
+    sum(xs,i,j) == sum(ys,i,j)
+  ;
+
+requires xs != null && ys != null;
+requires xs.length==ys.length;
+context 0 <= i && i <= j && j <= xs.length;
+requires Perm(xs[*], read) ** Perm(ys[*], read);
+requires (∀ int k=i..j; xs[k]==ys[k]);
+ensures sum(xs,i,j) == sum(ys,i,j);
+ensures \result;
+decreases j-i;
+/* Prove about sum and array ranges */
+opaque pure boolean lemmaSumEqArrArr(int[] xs, int[] ys, int i, int j)
+=
+  (i==j) ?
+    sum(xs,i,j) == sum(ys,i,j)
+    :
+    lemmaSumEqArrArr(xs,ys,i+1,j) &&
+    sum(xs,i,j) == sum(ys,i,j)
+  ;
+
+
+
+
+
+
+context |bef| == |aft| && 0 <= i && i < |bef|;
+context (∀ int j=i+1..|bef|; bef[j]==aft[j]);
+context (∀ int j=0..i; bef[j]==aft[j]);
+context bef[i] == 0 && aft[i] == val;
+ensures \result;
+ensures sum(bef, 0, |bef|) + val == sum(aft, 0, |aft|);
+/* Prove about the update in the atomic block */
+opaque pure boolean lemmaSumStep(seq<int> bef, seq<int> aft, int i, int val) =
+  lemmaConcatSeqRangesum(bef, 0, i, |bef|) && lemmaConcatSeqRangesum(aft, 0, i, |aft|) &&
+  lemmaSumEqArr(bef, aft, 0,i) && lemmaSumEqArr(bef, aft, i+1, |bef|)
+;

@@ -9,6 +9,7 @@ import vct.col.rewrite.{ClassToRef, Generation}
 import vct.col.util.AstBuildHelpers.{functionInvocation, _}
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.Unreachable
+import vct.rewrite.LowerHeapVariables
 
 import scala.collection.mutable
 
@@ -457,18 +458,45 @@ case class ImportPointer[Pre <: Generation](importer: ImportADTImporter)
     s match {
       case scope: Scope[Pre] =>
         scope.rewrite(body = Block(scope.locals.collect {
-          case v if v.t.isInstanceOf[TNonNullPointer[Pre]] => {
+          case WithExactType(v, oldT: TNonNullPointer[Pre]) => {
             val firstUse = scope.body.collectFirst {
               case l @ Local(Ref(variable)) if variable == v => l
             }
             if (
               firstUse.isDefined && scope.body.collectFirst {
+                // This is a bit hacky, we're looking specifically for pointer initialisers from LowerHeapVariable
+                case InvokeProcedure(
+                      Ref(p),
+                      Seq(),
+                      Seq(l @ Local(Ref(variable))),
+                      Seq(),
+                      Seq(),
+                      Seq(),
+                    )
+                    if variable == v &&
+                      p.o.find[LabelContext]
+                        .contains(LowerHeapVariables.PointerCreationLabel) =>
+                  System.identityHashCode(l) !=
+                    System.identityHashCode(firstUse.get)
+                case ProcedureInvocation(
+                      Ref(p),
+                      Seq(),
+                      Seq(l @ Local(Ref(variable))),
+                      Seq(),
+                      Seq(),
+                      Seq(),
+                      false,
+                    )
+                    if variable == v &&
+                      p.o.find[LabelContext]
+                        .contains(LowerHeapVariables.PointerCreationLabel) =>
+                  System.identityHashCode(l) !=
+                    System.identityHashCode(firstUse.get)
                 case Assign(l @ Local(Ref(variable)), _) if variable == v =>
                   System.identityHashCode(l) !=
                     System.identityHashCode(firstUse.get)
               }.getOrElse(true)
             ) {
-              val oldT = v.t.asInstanceOf[TNonNullPointer[Pre]]
               val newT = dispatch(oldT.element)
               Seq(
                 InvokeProcedure[Post](

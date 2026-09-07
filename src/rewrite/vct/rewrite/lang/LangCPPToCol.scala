@@ -419,7 +419,7 @@ case object LangCPPToCol {
 
   private case class SYCLAccessorFieldInsufficientReferencePermissionBlame(
       local: CPPLocal[_]
-  ) extends Blame[InsufficientPermission] {
+  ) extends Blame[ClassDerefError] {
     private case class SYCLAccessorFieldInsufficientReferencePermissionError(
         error: InsufficientPermission
     ) extends UserError {
@@ -428,14 +428,21 @@ case object LangCPPToCol {
       override def text: String = local.o.messageInContext(error.descInContext)
     }
 
-    override def blame(error: InsufficientPermission): Unit =
-      throw SYCLAccessorFieldInsufficientReferencePermissionError(error)
+    override def blame(error: ClassDerefError): Unit = {
+      error match {
+        case permission: InsufficientPermission =>
+          throw SYCLAccessorFieldInsufficientReferencePermissionError(
+            permission
+          )
+        case ClassNull(_) => ???
+      }
+    }
   }
 
   private case class SYCLAccessorRangeIndexFieldInsufficientReferencePermissionBlame(
       inv: CPPInvocation[_]
-  ) extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit =
+  ) extends Blame[ClassDerefError] {
+    override def blame(error: ClassDerefError): Unit =
       PanicBlame(inv.o.messageInContext(
         s"There was not enough permission to access" +
           s" a field containing the size of an accessor dimension. This should not be possible."
@@ -1475,7 +1482,10 @@ case class LangCPPToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     val kernelRunner =
       new RunMethod[Post](
         body = Some(
-          ParStatement[Post](kernelParBlock)(kernelDeclaration.body.o)
+          Scope(
+            Nil,
+            ParStatement[Post](kernelParBlock)(kernelDeclaration.body.o),
+          )(kernelDeclaration.body.o)
         ),
         contract = kernelRunnerContract,
       )(KernelLambdaRunMethodBlame(kernelDeclaration))(commandGroup.o)

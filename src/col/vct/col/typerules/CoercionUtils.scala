@@ -3,6 +3,7 @@ package vct.col.typerules
 import hre.util.FuncTools
 import vct.col.ast._
 import vct.col.origin.{DiagnosticOrigin, Origin}
+import vct.col.ref.Ref
 import vct.col.resolve.lang.{C, CPP}
 import vct.col.resolve.lang.CPP.getBaseTypeFromSpecs
 
@@ -24,7 +25,8 @@ case object CoercionUtils {
   ): Option[Coercion[G]] = {
     Some((innerSource, innerTarget) match {
       case (l, r) if l == r => CoerceIdentity(source)
-      case (TCInt(), TInt()) => CoerceIdentity(source)
+      case (TCInt(), TInt()) => CoerceCIntInt(source)
+      case (TCheckedInt(_, _), TInt()) => CoerceCheckedIntInt()
       case (CPrimitiveType(specs), r) =>
         specs.collectFirst { case spec: CSpecificationType[G] => spec } match {
           case Some(CSpecificationType(t)) =>
@@ -235,6 +237,10 @@ case object CoercionUtils {
       case (TNull(), TEnum(target)) => CoerceNullEnum(target)
       case (TNull(), LLVMTPointer(target)) => CoerceNullLLVMPointer(target)
 
+      case (CTPointer(_), TBool()) => CoercePointerBool(source)
+      case (_: PointerType[G], TBool()) => CoercePointerBool(source)
+      case (_: PointerArrayType[G], TBool()) => CoercePointerBool(source)
+
       case (t: CTArray[G], TArray(element)) if element == t.innerMostType =>
         CoerceCArrayPointer(element)
       case (CPPTArray(_, innerType), TArray(element)) if element == innerType =>
@@ -381,6 +387,8 @@ case object CoercionUtils {
             getAnyCoercion(element, innerType).getOrElse(return None),
           ))
         }
+      // We do not check correct typing on the LLVMTPointers yet, leaving this for after type inference
+      case (LLVMTPointer(_), LLVMTPointer(_)) => CoerceIdentity(source)
       case (TFraction(), TZFraction()) => CoerceFracZFrac()
       case (TFraction(), TRational()) =>
         CoercionSequence(Seq(CoerceFracZFrac(), CoerceZFracRat()))
@@ -421,8 +429,12 @@ case object CoercionUtils {
           CoerceCFloatFloat(coercedCFloat, target),
         ))
       case (TCInt(), TInt()) => CoerceCIntInt(source)
+      case (l @ TCInt(), TBool()) => CoerceCIntBool()
+      case (TBool(), TCInt()) => CoerceBoolCInt(target)
+      case (TCheckedInt(_, _), TInt()) => CoerceCheckedIntInt()
       case (LLVMTInt(_), TInt()) => CoerceLLVMIntInt()
       case (TInt(), LLVMTInt(_)) => CoerceIdentity(target)
+      case (LLVMTInt(_), TBool()) => CoerceLLVMIntBool()
       case (l @ LLVMTFloat(_), TFloat(mantissa, exponent))
           if l.mantissa == mantissa && l.exponent == exponent =>
         CoerceIdentity(target)
@@ -722,7 +734,7 @@ case object CoercionUtils {
       case t: CPPTArray[G] =>
         Some((CoerceCPPArrayPointer(t.innerType), TPointer(t.innerType, None)))
       case LLVMTPointer(None) =>
-        Some((CoerceIdentity(source), TPointer[G](TAnyValue(), None)))
+        Some((CoerceIdentity(source), TPointer[G](TVoid(), None)))
       case LLVMTPointer(Some(innerType)) =>
         Some((CoerceIdentity(source), TPointer(innerType, None)))
       case LLVMTArray(numElements, innerType) if numElements > 0 =>
@@ -761,8 +773,8 @@ case object CoercionUtils {
           firstElementIsType(field.t, innerType)
         }.getOrElse(false)
       case TArray(element) => firstElementIsType(element, innerType)
-      case LLVMTStruct(_, _, elements) =>
-        firstElementIsType(elements.head, innerType)
+      case sType: LLVMTStruct[G] =>
+        firstElementIsType(sType.ref.decl.elements.head.t, innerType)
       case LLVMTArray(numElements, elementType) =>
         numElements > 0 && firstElementIsType(elementType, innerType)
       case LLVMTVector(_, _) => false // TODO: Should this be possible?

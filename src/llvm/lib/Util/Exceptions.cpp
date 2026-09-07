@@ -59,6 +59,12 @@ void ErrorReporter::addError(const std::string &source,
              llvm2col::deriveInstructionShortPosition(llvmInstruction));
 }
 
+void ErrorReporter::addError(const std::string &source,
+                             const std::string &message,
+                             const llvm::Metadata *md) {
+    addError(source, message, llvm2col::deriveMDShortPosition(md));
+}
+
 void ErrorReporter::addWarning(const std::string &source,
                                const std::string &message) {
     llvm::errs() << "[WARN] [pallas] [" << source << "] " << message << "\n\n";

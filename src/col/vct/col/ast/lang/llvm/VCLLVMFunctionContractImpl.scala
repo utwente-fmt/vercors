@@ -5,4 +5,6 @@ import vct.col.ast.ops.{VCLLVMFunctionContractOps}
 
 trait VCLLVMFunctionContractImpl[G] extends VCLLVMFunctionContractOps[G] {
   this: VCLLVMFunctionContract[G] =>
+  override def givenArgs = Seq.empty
+  override def yieldsArgs = Seq.empty
 }

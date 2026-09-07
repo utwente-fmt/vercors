@@ -47,6 +47,7 @@ trait FunctionImpl[G]
   override def layout(implicit ctx: Ctx): Doc =
     ctx.syntax match {
       case Ctx.Silver => layoutSilver
+      case Ctx.Isar => Empty
       case _ => Doc.spec(Show.lazily(layoutSpec(_)))
     }
 }

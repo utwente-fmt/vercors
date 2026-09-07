@@ -56,6 +56,12 @@ void transformMemset(llvm::CallInst &callInstruction,
                      col::LlvmBasicBlock &colBlock,
                      pallas::FunctionCursor &funcCursor);
 
+/**
+ * Transform call to the @llvm.memcpy.*-intrinsic
+ */
+void transformMemcpy(llvm::CallInst &callInstruction,
+                     col::LlvmBasicBlock &colBlock,
+                     pallas::FunctionCursor &funcCursor);
 } // namespace llvm2col
 
 #endif // PALLAS_INTRINSICSTRANSFORM_H

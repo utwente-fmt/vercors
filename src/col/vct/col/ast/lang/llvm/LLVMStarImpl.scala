@@ -10,5 +10,5 @@ trait LLVMStarImpl[G] extends LLVMStarOps[G] {
 
   override def precedence: Int = Precedence.AND
   override def layout(implicit ctx: Ctx): Doc =
-    Text("(") <> left.decl.show <+> "**" <+> right.decl.show <> Text(")")
+    Text("(") <> left.show <+> "**" <+> right.show <> Text(")")
 }

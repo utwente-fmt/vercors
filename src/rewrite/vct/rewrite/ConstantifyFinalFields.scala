@@ -4,10 +4,17 @@ import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.col.util.AstBuildHelpers._
-import vct.col.ast.RewriteHelpers._
-import vct.col.origin.{AbstractApplicable, Origin, PanicBlame, TrueSatisfiable}
+import vct.col.origin.{
+  AbstractApplicable,
+  Blame,
+  ClassDerefError,
+  ClassNull,
+  InvocationFailure,
+  Origin,
+  PanicBlame,
+  TrueSatisfiable,
+}
 import vct.col.ref.Ref
-import vct.col.rewrite.ConstantifyFinalFields.FinalFieldPerm
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 
@@ -16,16 +23,26 @@ case object ConstantifyFinalFields extends RewriterBuilder {
   override def desc: String =
     "Encode final fields with functions, so that they are not on the heap."
 
-  case class FinalFieldPerm(loc: FieldLocation[_]) extends UserError {
+  private case class FinalFieldPerm(loc: FieldLocation[_]) extends UserError {
     override def code: String = "finalFieldPerm"
     override def text: String =
       loc.o.messageInContext(
         "Specifying permission over final fields is not allowed, since they are treated as constants."
       )
   }
+
+  private case class FieldClassNull(
+      blame: Blame[ClassDerefError],
+      deref: HeapDeref[_],
+  ) extends Blame[InvocationFailure] {
+    override def blame(error: InvocationFailure): Unit =
+      blame.blame(ClassNull(deref))
+  }
 }
 
 case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
+  import vct.col.rewrite.ConstantifyFinalFields._
+
   val currentClass: ScopedStack[Class[Pre]] = ScopedStack()
   var finalValueMap: Map[Declaration[Pre], Expr[Pre]] = Map()
   val fieldFunction: SuccessionMap[InstanceField[Pre], Function[Post]] =
@@ -75,76 +92,68 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
-      case cls: Class[Pre] => currentClass.having(cls) { rewriteDefault(cls) }
-      case field: InstanceField[Pre] =>
+      case cls: Class[Pre] => currentClass.having(cls) { super.dispatch(cls) }
+      case field: InstanceField[Pre] if isFinal(field) =>
         implicit val o: Origin = field.o
-        if (isFinal(field)) {
-          val `this` =
-            new Variable(dispatch(
-              currentClass.top.classType(currentClass.top.typeArgs.map {
-                v: Variable[Pre] => TVar(v.ref)
-              })
-            ))
-          fieldFunction(field) = globalDeclarations
-            .declare(withResult((result: Result[Post]) =>
-              function[Post](
-                blame = AbstractApplicable,
-                contractBlame = TrueSatisfiable,
-                returnType = dispatch(field.t),
-                args = Seq(`this`),
-                requires = UnitAccountedPredicate(`this`.get !== Null()),
-                ensures = UnitAccountedPredicate(
-                  finalValueMap.get(field) match {
-                    case Some(value) =>
-                      result === substituteThisObject.having(`this`.get) {
-                        rewriteDefault(value)
-                      }
-                    case None => tt[Post]
+        val `this` =
+          new Variable(dispatch(
+            currentClass.top.classType(currentClass.top.typeArgs.map {
+              v: Variable[Pre] => TVar(v.ref)
+            })
+          ))
+        fieldFunction(field) = globalDeclarations
+          .declare(withResult((result: Result[Post]) =>
+            function[Post](
+              blame = AbstractApplicable,
+              contractBlame = TrueSatisfiable,
+              returnType = dispatch(field.t),
+              args = Seq(`this`),
+              requires = UnitAccountedPredicate(`this`.get !== Null()),
+              ensures = UnitAccountedPredicate(finalValueMap.get(field) match {
+                case Some(value) =>
+                  result === substituteThisObject.having(`this`.get) {
+                    super.dispatch(value)
                   }
-                ),
-              )
-            ))
-        } else { rewriteDefault(field) }
-      case other => rewriteDefault(other)
+                case None => tt[Post]
+              }),
+            )
+          ))
+      case other => super.dispatch(other)
     }
 
   override def dispatch(e: Expr[Pre]): Expr[Post] =
     e match {
       case ThisObject(_) if substituteThisObject.nonEmpty =>
         substituteThisObject.top
-      case Deref(obj, Ref(field)) =>
+      case d @ Deref(obj, Ref(field)) if isFinal(field) =>
         implicit val o: Origin = e.o
-        if (isFinal(field))
-          FunctionInvocation[Post](
-            fieldFunction.ref(field),
-            Seq(dispatch(obj)),
-            Nil,
-            Nil,
-            Nil,
-          )(PanicBlame("requires nothing"))
-        else
-          rewriteDefault(e)
-      case other => rewriteDefault(other)
+        functionInvocation[Post](
+          FieldClassNull(d.blame, d),
+          fieldFunction.ref(field),
+          Seq(dispatch(obj)),
+        )
+      case _ => super.dispatch(e)
     }
 
   override def dispatch(location: Location[Pre]): Location[Post] =
     location match {
       case loc @ FieldLocation(_, Ref(field)) if isFinal(field) =>
         throw FinalFieldPerm(loc)
-      case other => rewriteDefault(other)
+      case _ => super.dispatch(location)
     }
 
-  def makeInhale(obj: Expr[Pre], field: InstanceField[Pre], value: Expr[Pre])(
-      implicit o: Origin
-  ): Statement[Post] =
+  def makeInhale(
+      obj: Expr[Pre],
+      field: InstanceField[Pre],
+      value: Expr[Pre],
+      deref: Deref[Pre],
+  )(implicit o: Origin): Statement[Post] =
     Assume(
-      FunctionInvocation[Post](
+      functionInvocation[Post](
+        FieldClassNull(deref.blame, deref),
         fieldFunction.ref(field),
         Seq(dispatch(obj)),
-        Nil,
-        Nil,
-        Nil,
-      )(PanicBlame("requires nothing")) === dispatch(value)
+      ) === dispatch(value)
     )
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
@@ -155,11 +164,11 @@ case class ConstantifyFinalFields[Pre <: Generation]() extends Rewriter[Pre] {
       case Eval(PreAssignExpression(Deref(obj, Ref(field)), value))
           if isFinal(field) && finalValueMap.contains(field) =>
         Block(Nil)(stat.o)
-      case Assign(Deref(obj, Ref(field)), value) if isFinal(field) =>
-        makeInhale(obj, field, value)(stat.o)
-      case Eval(PreAssignExpression(Deref(obj, Ref(field)), value))
+      case Assign(d @ Deref(obj, Ref(field)), value) if isFinal(field) =>
+        makeInhale(obj, field, value, d)(stat.o)
+      case Eval(PreAssignExpression(d @ Deref(obj, Ref(field)), value))
           if isFinal(field) =>
-        makeInhale(obj, field, value)(stat.o)
-      case other => rewriteDefault(other)
+        makeInhale(obj, field, value, d)(stat.o)
+      case _ => super.dispatch(stat)
     }
 }

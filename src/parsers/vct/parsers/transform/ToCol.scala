@@ -28,6 +28,9 @@ abstract class ToCol[G](
     val decreases
         : mutable.ArrayBuffer[(ParserRuleContext, DecreasesClause[G1])] =
       mutable.ArrayBuffer()
+    val extract_gpu_body
+        : mutable.ArrayBuffer[(ParserRuleContext, CExtractGPUKernelBody[G1])] =
+      mutable.ArrayBuffer()
 
     val requires: mutable.ArrayBuffer[(ParserRuleContext, Expr[G1])] = mutable
       .ArrayBuffer()

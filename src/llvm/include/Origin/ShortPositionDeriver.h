@@ -25,5 +25,8 @@ std::string deriveFunctionShortPosition(llvm::Function &llvmFunction);
 std::string deriveBlockShortPosition(llvm::BasicBlock &llvmBlock);
 
 std::string deriveInstructionShortPosition(llvm::Instruction &llvmInstruction);
+
+std::string deriveMDShortPosition(const llvm::Metadata *md);
+
 } // namespace llvm2col
 #endif // PALLAS_SHORTPOSITIONDERIVER_H

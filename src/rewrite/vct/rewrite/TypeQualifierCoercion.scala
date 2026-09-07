@@ -247,11 +247,9 @@ case class TypeQualifierCoercion[Pre <: Generation]()
   override def postCoerce(e: Expr[Pre]): Expr[Post] = {
     implicit val o: Origin = e.o
     e match {
-      case PreAssignExpression(target, _)
-          if target.t.isInstanceOf[TConst[Pre]] =>
+      case PreAssignExpression(WithExactType(target, _: TConst[Pre]), _) =>
         throw DisallowedConstAssignment(target)
-      case PostAssignExpression(target, _)
-          if target.t.isInstanceOf[TConst[Pre]] =>
+      case PostAssignExpression(WithExactType(target, _: TConst[Pre]), _) =>
         throw DisallowedConstAssignment(target)
       case npa @ NewPointer(t, size, _) =>
         val (info, newT) = getUnqualified(t)
@@ -283,8 +281,7 @@ case class TypeQualifierCoercion[Pre <: Generation]()
       case d @ Deref(obj, ref) =>
         obj match {
           // Always has an CoerceClassAnyClassCoercion
-          case ApplyCoercion(e, _) if e.t.isInstanceOf[TClassUnique[Pre]] =>
-            val source = e.t.asInstanceOf[TClassUnique[Pre]]
+          case ApplyCoercion(WithExactType(e, source: TClassUnique[Pre]), _) =>
             val map = TypeQualifierCoercion.getUniqueMap(source)
             if (!uniqueField.contains(ref.decl, map))
               createUniqueClassCopy(source.cls.decl, map)

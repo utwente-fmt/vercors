@@ -1241,7 +1241,8 @@ case object ResolveReferences extends LazyLogging {
           )
         } else { contract.data = Some(applicableContract) }
         resolve(contract.data.get, ctx)
-      case contract: PallasFunctionContract[G] => resolve(contract.content, ctx)
+      case contract: PallasFunctionContract[G] =>
+        resolve(contract.requires, ctx) ++ resolve(contract.ensures, ctx)
       case local: LLVMLocal[G] =>
         local.ref =
           ctx.currentResult.get match {

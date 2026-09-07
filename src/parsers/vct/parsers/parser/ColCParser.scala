@@ -40,7 +40,7 @@ case class ColCParser(
     targetString: Option[String],
 ) extends Parser with LazyLogging {
   def interpret(input: String, output: String): Process = {
-    var command = Seq(cc.toString, "-C", "-E")
+    var command = Seq(cc.toString, "-CC", "-E")
 
     command ++= Seq("-nostdinc", "-nocudainc", "-nocudalib", "--cuda-host-only")
     command ++= Seq("-isystem", systemInclude.toAbsolutePath.toString)

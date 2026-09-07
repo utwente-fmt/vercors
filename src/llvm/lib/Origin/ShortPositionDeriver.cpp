@@ -47,3 +47,10 @@ llvm2col::deriveInstructionShortPosition(llvm::Instruction &llvmInstruction) {
                          << deriveInstructionContext(llvmInstruction) << ')';
     return instructionPosition;
 }
+
+std::string llvm2col::deriveMDShortPosition(const llvm::Metadata *md) {
+    std::string pos = "";
+    auto stream = llvm::raw_string_ostream(pos);
+    md->print(stream);
+    return pos;
+}

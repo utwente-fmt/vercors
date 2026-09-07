@@ -13,7 +13,8 @@ trait ReturnImpl[G] extends ExceptionalStatementImpl[G] with ReturnOps[G] {
           _: InstanceOperatorMethod[G] =>
         ()
       case _: JavaMethod[G] | _: CFunctionDefinition[G] |
-          _: CPPFunctionDefinition[G] | _: LLVMFunctionDefinition[G] =>
+          _: CPPFunctionDefinition[G] |
+          _: LLVMFunctionDefinition[G] | _: LLVMPredicateDefinition[G] =>
         ()
       case _: BipTransition[G] | _: BipGuard[G] | _: BipOutgoingData[G] => ()
     }

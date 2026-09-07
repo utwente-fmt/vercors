@@ -26,7 +26,8 @@ trait ApplicableContractImpl[G]
   override def checkContextRecursor[T](
       context: CheckContext[G],
       f: (CheckContext[G], Node[G]) => T,
-  ): Seq[T] =
+  ): Seq[T] = {
+    val ctx = context.withPolarExpression
     this match {
       // Redundant match so this doesn't compile if we add a field to ApplicableContract
       case ApplicableContract(
@@ -39,18 +40,17 @@ trait ApplicableContractImpl[G]
             yieldsArgs,
             decreases,
           ) =>
-        f(context.withUndeclared(yieldsArgs).withPrecondition, requires) +:
-          f(context.withPostcondition, ensures) +: f(
-            context.withUndeclared(yieldsArgs).withPrecondition,
-            contextEverywhere,
-          ) +: f(
-            context.withUndeclared(yieldsArgs).withPrecondition,
-            kernelInvariant,
-          ) +:
+        Seq(
+          f(ctx.withUndeclared(yieldsArgs).withPrecondition, requires),
+          f(ctx.withPostcondition, ensures),
+          f(ctx.withUndeclared(yieldsArgs).withPrecondition, contextEverywhere),
+          f(ctx.withUndeclared(yieldsArgs).withPrecondition, kernelInvariant),
+        ) ++
           (signals.map(f(context, _)) ++ givenArgs.map(f(context, _)) ++
             yieldsArgs.map(f(context, _)) ++
             decreases.toSeq.map(f(context.withUndeclared(yieldsArgs), _)))
     }
+  }
 
   def isEmpty: Boolean =
     this match {

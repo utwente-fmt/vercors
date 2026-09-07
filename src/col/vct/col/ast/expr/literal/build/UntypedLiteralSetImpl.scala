@@ -12,5 +12,5 @@ trait UntypedLiteralSetImpl[G] extends UntypedLiteralSetOps[G] {
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("{") <> Doc.args(values) <> "}")
+    Group(Text("{|") <> Doc.args(values) <> "|}")
 }

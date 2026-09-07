@@ -4,9 +4,9 @@
 //:: verdict Pass
 /**
   
-  The command line to verify with the VerCors Tool is:
+  The command line to verify with VerCors is:
   
-  vct --silicon TreeRecursive.java
+  vct --backend silicon TreeRecursive.java
   
   The expected result is Pass.
 */
@@ -30,8 +30,8 @@ public class Tree {
     if(t==null) {
       return [t:int];
     } else {
-      unfold t.state();
-      return contents(t.left)+seq<int>{t.data}+contents(t.right);
+      return \unfolding t.state()
+             \in contents(t.left)+seq<int>{t.data}+contents(t.right);
     }
   }
   */

@@ -7,11 +7,11 @@
 #include <llvm/IR/InstIterator.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Support/Path.h>
 
 #include "Origin/ContextDeriver.h"
 #include "Origin/PreferredNameDeriver.h"
 #include "Origin/ShortPositionDeriver.h"
-#include "Util/Constants.h"
 
 namespace col = vct::col::ast;
 
@@ -143,6 +143,12 @@ void generateSourceRangeOrigin(col::Origin *origin, const llvm::DIScope &scope,
     auto *file = scope.getFile();
     llvm::StringRef filename = file->getFilename();
     llvm::StringRef directory = file->getDirectory();
+    // The compilers sometimes put an absolute-path into the filename which
+    // then duplicates the directory.
+    if (llvm::sys::path::is_absolute(filename)) {
+        directory = "";
+    }
+
     auto checksumOpt = file->getChecksum();
     col::OriginContent *readableOriginContent = origin->add_content();
     col::ReadableOrigin *readableOrigin = new col::ReadableOrigin();
@@ -201,11 +207,6 @@ col::Origin *llvm2col::generateLoopOrigin(llvm::Loop &llvmLoop) {
 }
 
 namespace {
-unsigned int getIntValue(llvm::Metadata *md) {
-    return cast<llvm::ConstantInt>(
-               cast<llvm::ConstantAsMetadata>(md)->getValue())
-        ->getSExtValue();
-}
 
 std::pair<unsigned int, unsigned int> getEndPosFromMD(const llvm::Function &f) {
     unsigned int maxLine = 0;
@@ -264,33 +265,29 @@ col::Origin *llvm2col::generateFuncDefOrigin(llvm::Function &llvmFunction) {
     return origin;
 }
 
-col::Origin *
-llvm2col::generatePallasFunctionContractOrigin(const llvm::Function &f,
-                                               const llvm::MDNode &mdSrcLoc) {
+col::Origin *llvm2col::generatePallasFunctionContractOrigin(
+    const llvm::Function &f, const pallas::irspec::SrcLoc &loc) {
     auto prefName = "Function contract of " + deriveOperandPreferredName(f);
-    return generatePallasSpecOrigin(mdSrcLoc, f, prefName);
+    return generatePallasSpecOrigin(loc, prefName);
 }
 
 col::Origin *
 llvm2col::generatePallasLoopContractOrigin(const llvm::Loop &loop,
-                                           const llvm::MDNode &srcLoc) {
+                                           const pallas::irspec::SrcLoc &loc) {
     auto prefName = "Loop contract (" + loop.getName().str() + ")";
-    auto &parentFunc = *loop.getHeader()->getParent();
-    return generatePallasSpecOrigin(srcLoc, parentFunc, prefName);
+    return generatePallasSpecOrigin(loc, prefName);
 }
 
 col::Origin *
 llvm2col::generatePallasSpecStmntOrigin(const llvm::Instruction &llvmInstr,
-                                        const llvm::MDNode &srcLoc,
+                                        const pallas::irspec::SrcLoc &loc,
                                         const std::string &stmntType) {
     auto prefName = stmntType + " statement";
-    auto &parentFunc = *llvmInstr.getParent()->getParent();
-    return generatePallasSpecOrigin(srcLoc, parentFunc, prefName);
+    return generatePallasSpecOrigin(loc, prefName);
 }
 
 col::Origin *
-llvm2col::generatePallasSpecOrigin(const llvm::MDNode &srcLoc,
-                                   const llvm::Function &parentFunc,
+llvm2col::generatePallasSpecOrigin(const pallas::irspec::SrcLoc &srcLoc,
                                    const std::string &preferedName) {
     col::Origin *origin = new col::Origin();
     // Preferred name
@@ -299,22 +296,16 @@ llvm2col::generatePallasSpecOrigin(const llvm::MDNode &srcLoc,
     preferredNameNode->add_preferred_name(preferedName);
     preferredNameContent->set_allocated_preferred_name(preferredNameNode);
     // Src-loc
-    if (parentFunc.getSubprogram() == nullptr) {
-        return origin;
-    }
-    llvm::DIScope &scope = *parentFunc.getSubprogram();
-    addSourceLocFromPallasMD(origin, srcLoc, scope);
+    addSourceLocFromPallasLoc(origin, srcLoc);
     return origin;
 }
 
-void llvm2col::addSourceLocFromPallasMD(col::Origin *origin,
-                                        const llvm::MDNode &srcLoc,
-                                        const llvm::DIScope &scope) {
-    auto startL = getIntValue(srcLoc.getOperand(1).get());
-    auto startC = getIntValue(srcLoc.getOperand(2).get());
-    auto endL = std::make_optional(getIntValue(srcLoc.getOperand(3).get()));
-    auto endC = std::make_optional(getIntValue(srcLoc.getOperand(4).get()));
-    generateSourceRangeOrigin(origin, scope, startL, startC, endL, endC);
+void llvm2col::addSourceLocFromPallasLoc(col::Origin *origin,
+                                         const pallas::irspec::SrcLoc &loc) {
+    auto endL = std::make_optional(loc.endLine);
+    auto endC = std::make_optional(loc.endCol);
+    generateSourceRangeOrigin(origin, *loc.file, loc.startLine, loc.startCol,
+                              endL, endC);
 }
 
 col::Origin *
@@ -401,14 +392,20 @@ llvm2col::generateFunctionCallOrigin(llvm::CallInst &callInstruction) {
     return origin;
 }
 
-col::Origin *
-llvm2col::generatePallasWrapperCallOrigin(const llvm::Function &wrapperFunc,
-                                          const llvm::MDNode &clauseSrcLoc) {
+col::Origin *llvm2col::generatePallasWrapperCallOrigin(
+    const pallas::irspec::WrappedSpecElement &specElem) {
+    return generatePallasWrapperCallOrigin(specElem.getWrapper(),
+                                           specElem.getLoc());
+}
+
+col::Origin *llvm2col::generatePallasWrapperCallOrigin(
+    const llvm::Function &wrapperFunc,
+    const pallas::irspec::SrcLoc &clauseSrcLoc) {
 
     col::Origin *origin = new col::Origin();
     col::OriginContent *preferredNameContent = origin->add_content();
     col::PreferredName *preferredName = new col::PreferredName();
-    preferredName->add_preferred_name("Contract clause represented by " +
+    preferredName->add_preferred_name("Specification represented by " +
                                       deriveFunctionPreferredName(wrapperFunc));
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
@@ -418,22 +415,17 @@ llvm2col::generatePallasWrapperCallOrigin(const llvm::Function &wrapperFunc,
     }
 
     // Get the source-location from the clause
-    auto startLine = getIntValue(clauseSrcLoc.getOperand(1).get());
-    auto startCol = getIntValue(clauseSrcLoc.getOperand(2).get());
-    auto endLine =
-        std::make_optional(getIntValue(clauseSrcLoc.getOperand(3).get()));
-    auto endCol =
-        std::make_optional(getIntValue(clauseSrcLoc.getOperand(4).get()));
-    generateSourceRangeOrigin(origin, *scope, startLine, startCol, endLine,
-                              endCol);
+    auto endLine = std::make_optional(clauseSrcLoc.endLine);
+    auto endCol = std::make_optional(clauseSrcLoc.endCol);
+    generateSourceRangeOrigin(origin, *scope, clauseSrcLoc.startLine,
+                              clauseSrcLoc.startCol, endLine, endCol);
 
     return origin;
 }
 
-col::Origin *
-llvm2col::generatePallasFContractClauseOrigin(const llvm::Function &parentFunc,
-                                              const llvm::MDNode &clauseSrcLoc,
-                                              unsigned int clauseNum) {
+col::Origin *llvm2col::generatePallasFContractClauseOrigin(
+    const llvm::Function &parentFunc,
+    const pallas::irspec::SrcLoc &clauseSrcLoc, unsigned int clauseNum) {
 
     col::Origin *origin = new col::Origin();
     col::OriginContent *preferredNameContent = origin->add_content();
@@ -449,14 +441,10 @@ llvm2col::generatePallasFContractClauseOrigin(const llvm::Function &parentFunc,
     }
 
     // Get the source-location from the clause
-    auto startLine = getIntValue(clauseSrcLoc.getOperand(1).get());
-    auto startCol = getIntValue(clauseSrcLoc.getOperand(2).get());
-    auto endLine =
-        std::make_optional(getIntValue(clauseSrcLoc.getOperand(3).get()));
-    auto endCol =
-        std::make_optional(getIntValue(clauseSrcLoc.getOperand(4).get()));
-    generateSourceRangeOrigin(origin, *scope, startLine, startCol, endLine,
-                              endCol);
+    auto endLine = std::make_optional(clauseSrcLoc.endLine);
+    auto endCol = std::make_optional(clauseSrcLoc.endCol);
+    generateSourceRangeOrigin(origin, *scope, clauseSrcLoc.startLine,
+                              clauseSrcLoc.endLine, endLine, endCol);
 
     return origin;
 }
@@ -546,6 +534,27 @@ col::Origin *llvm2col::generateTypeOrigin(llvm::Type &llvmType) {
     col::OriginContent *preferredNameContent = origin->add_content();
     col::PreferredName *preferredName = new col::PreferredName();
     preferredName->add_preferred_name(deriveTypePreferredName(llvmType));
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    return origin;
+}
+
+col::Origin *llvm2col::generateDITypeOrigin(llvm::DIType &debugType) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(debugType.getName());
+    preferredNameContent->set_allocated_preferred_name(preferredName);
+
+    return origin;
+}
+
+col::Origin *
+llvm2col::generateStructMemberOrigin(llvm::DIDerivedType &memberType) {
+    col::Origin *origin = new col::Origin();
+    col::OriginContent *preferredNameContent = origin->add_content();
+    col::PreferredName *preferredName = new col::PreferredName();
+    preferredName->add_preferred_name(memberType.getName());
     preferredNameContent->set_allocated_preferred_name(preferredName);
 
     return origin;

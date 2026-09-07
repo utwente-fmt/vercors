@@ -606,7 +606,7 @@ specificationDeclaration : Placeholder ;
  * { return arg + 1; }
  */
 functionDefinition
-    :   valEmbedContract? declarationSpecifiers declarator declarationList? compoundStatement
+    :  valEmbedContract? declarationSpecifiers declarator declarationList? compoundStatement
     ;
 
 

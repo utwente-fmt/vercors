@@ -1,10 +1,12 @@
 package vct.col.ast.expr.binder
 
+import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.{ForPerm, TBool}
 import vct.col.print._
 import vct.col.ast.ops.ForPermOps
+import vct.col.check.{CheckContext, CheckError, MustBeInPolarityDependent}
 
-trait ForPermImpl[G] extends ForPermOps[G] {
+trait ForPermImpl[G] extends NodeFamilyImpl[G] with ForPermOps[G] {
   this: ForPerm[G] =>
   override def t: TBool[G] = TBool()
 
@@ -27,4 +29,9 @@ trait ForPermImpl[G] extends ForPermOps[G] {
       case Ctx.Silver => layoutSilver
       case _ => layoutSpec
     }
+
+  override def check(context: CheckContext[G]): Seq[CheckError] =
+    super.check(context) ++
+      (if (context.inPolarExpression) { Seq(MustBeInPolarityDependent(this)) }
+       else { Nil })
 }

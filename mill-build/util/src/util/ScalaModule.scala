@@ -25,3 +25,4 @@ trait ScalaModule extends BaseScalaModule with JavaModule {
     }
   }
 }
+

@@ -6,12 +6,12 @@ declare DEF_RESULT(int);
 
 /*@
 requires arr != NULL && n > 2;
-requires ptr_block_length(arr) == n && ptr_block_offset(arr) == 0;
-requires sep(Perm(arr+0, fracOf(1, 1)),
-             Perm(arr+1, fracOf(1, 1)));
-ensures ptr_block_length(arr) == n && ptr_block_offset(arr) == 0;
-ensures sep(Perm(arr+0, fracOf(1, 1)),
-            Perm(arr+1, fracOf(1, 1)));
+requires _ptr_block_length(arr) == n && _ptr_block_offset(arr) == 0;
+requires _sep(_Perm(arr+0, _write),
+              _Perm(arr+1, _write));
+ensures _ptr_block_length(arr) == n && _ptr_block_offset(arr) == 0;
+ensures _sep(_Perm(arr+0, _write),
+             _Perm(arr+1, _write));
 ensures arr[0] == 0 && arr[1] == 0;
 @*/
 void bar(int* arr, int n) {
@@ -22,14 +22,14 @@ void bar(int* arr, int n) {
 
 /*@
 requires arr != NULL && n > 2;
-requires ptr_length(arr) == n;
-requires forallS(_and(0 <= BV(int)("i"),
-                           BV(int)("i") < n), Perm(&arr[BV(int)("i")], fracOf(1, 1)));
-ensures ptr_length(arr) == n;
-ensures forallS(_and(0 <= BV(int)("i"),
-                          BV(int)("i") < n), Perm(&arr[BV(int)("i")], fracOf(1, 1)));
-ensures exists(_and(0 <= BV(int)("i"),
-                         BV(int)("i") < n), arr[BV(int)("i")] == 0);
+requires _ptr_length(arr) == n;
+requires _forallS(_and(0 <= _bv(int, i),
+                            _bv(int, i) < n), _Perm(&arr[_bv(int, i)], _write));
+ensures _ptr_length(arr) == n;
+ensures _forallS(_and(0 <= _bv(int, i),
+                           _bv(int, i) < n), _Perm(&arr[_bv(int, i)], _write));
+ensures _exists(_and(0 <= _bv(int, i),
+                          _bv(int, i) < n), arr[_bv(int, i)] == 0);
 @*/
 void foo(int* arr, int n) {
     arr[0] = 0;

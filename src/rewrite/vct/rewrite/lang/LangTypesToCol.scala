@@ -1,5 +1,6 @@
 package vct.rewrite.lang
 
+import com.typesafe.scalalogging.LazyLogging
 import vct.col.ast._
 import vct.col.origin.Origin
 import vct.col.ref.{Ref, UnresolvedRef}
@@ -10,6 +11,7 @@ import vct.col.typerules.PlatformContext
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case object LangTypesToCol extends RewriterBuilderArg[PlatformContext] {
@@ -51,9 +53,12 @@ case object LangTypesToCol extends RewriterBuilderArg[PlatformContext] {
 }
 
 case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
-    extends Rewriter[Pre] {
+    extends Rewriter[Pre] with LazyLogging {
   import LangTypesToCol._
 
+  val structDeclMap
+      : SuccessionMap[LLVMStructDeclaration[Pre], LLVMStructDeclaration[Post]] =
+    SuccessionMap()
   val cStructFieldsSuccessor: SuccessionMap[(CStructMemberDeclarator[
     Pre
   ]), CStructMemberDeclarator[Post]] = SuccessionMap()
@@ -90,6 +95,147 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
       case RefProverType(typ) => TProverType[Post](succ(typ))
       case RefVariable(decl) => TVar[Post](succ(decl))
     }
+
+  private def assumedEquivalent(
+      d1: LLVMStructDeclaration[Pre],
+      d2: LLVMStructDeclaration[Pre],
+      assumptions: Seq[Set[LLVMStructDeclaration[Pre]]],
+  ): Boolean = {
+    assumptions.filter(s => s.contains(d1) && s.contains(d2)).size > 0
+  }
+
+  // Add Set {d1, d2} to the equivalences and merges sets that contain d1 or d2
+  private def addAssumedEquivalence(
+      d1: LLVMStructDeclaration[Pre],
+      d2: LLVMStructDeclaration[Pre],
+      assumptions: Seq[Set[LLVMStructDeclaration[Pre]]],
+  ): Seq[Set[LLVMStructDeclaration[Pre]]] = {
+    val containsD1 = assumptions.find(s => s.contains(d1)).getOrElse(Set())
+    val containsD2 = assumptions.find(s => s.contains(d2)).getOrElse(Set())
+    val containNeither = assumptions
+      .filter(s => (!s.contains(d1)) && (!s.contains(d2)))
+    containNeither :+ (containsD1 union containsD2 union Set(d1, d2))
+  }
+
+  private def structEq(
+      s: LLVMStructDeclaration[Pre],
+      o: LLVMStructDeclaration[Pre],
+      assumptions: Seq[Set[LLVMStructDeclaration[Pre]]] = Seq(),
+  ): Boolean = {
+    // TODO: Might have to get rid of packed since we don't have that in the DIType
+    s.isLiteral ==
+      o.isLiteral && /*(s.name.isEmpty || s.name.intersect(o.name).nonEmpty) &&*/
+      s.elements.size == o.elements.size && s.sizeInBits == o.sizeInBits &&
+      s.elements.zip(o.elements).forall { case (a, b) =>
+        a.offset == b.offset && a.size == b.size &&
+        (a.t == b.t ||
+          ((a.t, b.t) match {
+            case (LLVMTPointer(None), LLVMTPointer(Some(_))) |
+                (LLVMTPointer(Some(_)), LLVMTPointer(None)) =>
+              true
+            case (
+                  LLVMTPointer(Some(LLVMTStruct(Ref(sa)))),
+                  LLVMTPointer(Some(LLVMTStruct(Ref(sb)))),
+                ) =>
+              assumedEquivalent(sa, sb, assumptions) ||
+              structEq(sa, sb, addAssumedEquivalence(sa, sb, assumptions))
+            case (LLVMTStruct(Ref(sa)), LLVMTStruct(Ref(sb))) =>
+              assumedEquivalent(sa, sb, assumptions) ||
+              structEq(sa, sb, addAssumedEquivalence(sa, sb, assumptions))
+            case (LLVMTInt(_), TBool()) | (TBool(), LLVMTInt(_)) => true
+            case _ => false
+          }))
+      }
+  }
+
+  // This requires, structEq(s, 0) == true !!!
+  private def structUnion(
+      s: LLVMStructDeclaration[Pre],
+      o: LLVMStructDeclaration[Pre],
+  ): LLVMStructDeclaration[Pre] = {
+    // TODO: Merge origins
+    new LLVMStructDeclaration(
+      s.name.toSet.union(o.name.toSet).toSeq,
+      s.packed,
+      s.isLiteral,
+      s.elements.zip(o.elements).map {
+        case (
+              // This only works if ´l´ & ´r´ point to the same declaration after rewriting!
+              lf @ LLVMFieldDefinition(offset, size, l: LLVMTStruct[Pre]),
+              rf @ LLVMFieldDefinition(_, _, r: LLVMTStruct[Pre]),
+            ) =>
+          LLVMFieldDefinition(offset, size, l)(
+            if (
+              rf.o.getPreferredNameOrElse(Seq("t_struct")).snake == "t_struct"
+            ) { lf.o }
+            else { rf.o }
+          )
+        case (
+              LLVMFieldDefinition(offset, size, LLVMTInt(_)),
+              rf @ LLVMFieldDefinition(_, _, b @ TBool()),
+            ) =>
+          LLVMFieldDefinition(offset, size, b)(rf.o)
+        case (
+              lf @ LLVMFieldDefinition(offset, size, b @ TBool()),
+              LLVMFieldDefinition(_, _, LLVMTInt(_)),
+            ) =>
+          LLVMFieldDefinition(offset, size, b)(lf.o)
+        case (l, r) =>
+          LLVMFieldDefinition(l.offset, l.size, l.t)(
+            if (
+              r.o.getPreferredNameOrElse(Seq("t_unknown")).snake
+                .startsWith("t_")
+            ) { l.o }
+            else { r.o }
+          )
+      },
+      s.sizeInBits,
+    )(if (o.o.getPreferredNameOrElse(Seq("t_struct")).snake == "t_struct") {
+      s.o
+    } else { o.o })
+  }
+
+  override def dispatch(program: Program[Pre]): Program[Post] = {
+    val queue = mutable.ArrayDeque[LLVMStructDeclaration[Pre]]()
+    val map: mutable.LinkedHashMap[LLVMStructDeclaration[
+      Pre
+    ], LLVMStructDeclaration[Pre]] = mutable.LinkedHashMap()
+
+    program.foreach {
+      case s: LLVMStructDeclaration[Pre] =>
+        map(s) = s
+        queue += s
+      case _ =>
+    }
+
+    while (queue.nonEmpty) {
+      val s = queue.removeHead()
+      var toBeMerged =
+        map.filter { case (_, v) => structEq(s, v) }.flatMap { case (k, v) =>
+          Seq(k, v)
+        }.toSet
+      if (toBeMerged.nonEmpty) {
+        toBeMerged = toBeMerged + s
+        val newType = toBeMerged.reduce(structUnion)
+        toBeMerged.foreach { t => map(t) = newType }
+        map(newType) = newType
+        queue.removeAll(toBeMerged.contains)
+      }
+    }
+
+    lazy val newDecls =
+      globalDeclarations.collect {
+        map.foreach { case (k, v) =>
+          logger.debug(f"`$k`: `$v`")
+          structDeclMap(k) = structDeclMap
+            .getOrElseUpdate(v, globalDeclarations.declare(v.rewriteDefault()))
+        }
+      }._1
+
+    program.rewrite(declarations =
+      newDecls ++ globalDeclarations.dispatch(program.declarations)
+    )
+  }
 
   override def dispatch(t: Type[Pre]): Type[Post] = {
     implicit val o: Origin = t.o
@@ -148,12 +294,12 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
         val cint = TCInt[Post]()
         cint.storedBits = t.storedBits
         cint.signed = t.signed
+        cint.rank = t.rank
         cint
-      case other => {
+      case other =>
         val newOther = super.dispatch(other)
         newOther.storedBits = other.storedBits
         newOther
-      }
     }
   }
 
@@ -366,6 +512,8 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
         globalDeclarations
           .declare(declaration.rewrite(specs = specs, declarator = decl))
       case cls: JavaClass[Pre] => super.dispatch(cls)
+      case sDecl: LLVMStructDeclaration[Pre] =>
+        globalDeclarations.succeedOnly(sDecl, structDeclMap(sDecl))
       case other => super.dispatch(other)
     }
 

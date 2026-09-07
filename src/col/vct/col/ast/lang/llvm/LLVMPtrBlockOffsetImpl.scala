@@ -10,5 +10,5 @@ trait LLVMPtrBlockOffsetImpl[G] extends LLVMPtrBlockOffsetOps[G] {
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =
-    Text("\\pointer_block_offset(") <> ptr.decl.show <> ")"
+    Text("\\pointer_block_offset(") <> ptr.show <> ")"
 }

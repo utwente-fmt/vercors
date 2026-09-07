@@ -10,5 +10,5 @@ trait LLVMPtrBlockLengthImpl[G] extends LLVMPtrBlockLengthOps[G] {
 
   override def precedence: Int = Precedence.ATOMIC
   override def layout(implicit ctx: Ctx): Doc =
-    Text("\\pointer_block_length(") <> ptr.decl.show <> ")"
+    Text("\\pointer_block_length(") <> ptr.show <> ")"
 }

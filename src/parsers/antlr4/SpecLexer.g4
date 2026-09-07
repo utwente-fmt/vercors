@@ -96,6 +96,7 @@ VAL_INHALE: 'inhale';
 VAL_EXHALE: 'exhale';
 VAL_LABEL: 'label';
 VAL_EXTRACT: 'extract';
+VAL_EXTRACT_BODY: 'extract_body';
 VAL_FRAME: 'frame';
 VAL_OUTLINE: 'outline';
 VAL_REFUTE: 'refute';
@@ -203,6 +204,7 @@ EMPTY_SEQ_OPEN: '[t:';
 EMPTY_SET_OPEN: '{t:';
 EMPTY_BAG_OPEN: 'b{t:';
 ARROW_LEFT: '<-';
+SUCH_THAT: ':|';
 
 VAL_EXPECT_ERROR_OPEN: '/*'? '[/expect ' [a-zA-Z:]+ ']' '*/'? -> channel(EXPECTED_ERROR_CHANNEL);
 VAL_EXPECT_ERROR_CLOSE: '/*'? '[/end]' '*/'? -> channel(EXPECTED_ERROR_CHANNEL);
