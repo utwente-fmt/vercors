@@ -20,10 +20,13 @@ import vct.col.ast.ops.DerefOps
 
 trait DerefImpl[G] extends ExprImpl[G] with DerefOps[G] {
   this: Deref[G] =>
-  override def t: Type[G] = obj.t match {
-      case tc@TClassUnique(inner, uniqueMap) =>
-        uniqueMap.collectFirst {case (fieldRef, unique) if ref.decl == fieldRef.decl => addUniquePointer(inner, unique) }
-          .getOrElse(getT(tc))
+  override def t: Type[G] =
+    obj.t match {
+      case tc @ TClassUnique(inner, uniqueMap) =>
+        uniqueMap.collectFirst {
+          case (fieldRef, unique) if ref.decl == fieldRef.decl =>
+            addUniquePointer(inner, unique)
+        }.getOrElse(getT(tc))
       case t => getT(t)
     }
 

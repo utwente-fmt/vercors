@@ -4,6 +4,7 @@ import vct.col.ast.{CoerceToUniquePointer, Type}
 import vct.col.ast.ops.CoerceToUniquePointerOps
 import vct.col.print._
 
-trait CoerceToUniquePointerImpl[G] extends CoerceToUniquePointerOps[G] { this: CoerceToUniquePointer[G] =>
+trait CoerceToUniquePointerImpl[G] extends CoerceToUniquePointerOps[G] {
+  this: CoerceToUniquePointer[G] =>
 
 }

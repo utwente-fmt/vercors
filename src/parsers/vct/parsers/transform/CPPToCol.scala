@@ -665,44 +665,67 @@ case class CPPToCol[G](
           case _ => ??(expr)
         }
       case PostfixExpression2(_, _, _, _) => ??(expr)
-      case PostfixExpression3(target, _, args, _, given, yields) =>
+      case PostfixExpression3(target, _, args, _, given, yields, subgroup_invariant) =>
         CPPInvocation(
           convert(target),
           args.map(convert(_)) getOrElse Nil,
           convertEmbedGiven(given),
           convertEmbedYields(yields),
+          subgroup_invariant.map(convert(_)),
+          false
         )(blame(expr))
-      case PostfixExpression4(classVar, _, None, idExpr) =>
+      case PostfixExpression4(maybeReveal, target, _, args, _, given, yields, subgroup_invariant) =>
+        CPPInvocation(
+          convert(target),
+          args.map(convert(_)) getOrElse Nil,
+          convertEmbedGiven(given),
+          convertEmbedYields(yields),
+          subgroup_invariant.map(convert(_)),
+          convert(maybeReveal)
+        )(blame(expr))
+
+      case PostfixExpression5(classVar, _, None, idExpr) =>
         convert(idExpr) match {
           case CPPTypedefName(name, Seq()) =>
-            CPPClassMethodOrFieldAccess(convert(classVar), name)(blame(expr))
-          case _ => ??(expr)
+            CPPClassMethodOrFieldAccess(convert(classVar), name, Seq())(blame(
+              expr
+            ))
+          case CPPTypedefName(name, typeArgs) =>
+            CPPClassMethodOrFieldAccess(convert(classVar), name, typeArgs)(
+              blame(expr)
+            )
         }
-      case PostfixExpression4(_, _, _, _) => ??(expr)
-      case PostfixExpression5(_, _, _) => ??(expr)
-      case PostfixExpression6(_, _, _, _) => ??(expr)
-      case PostfixExpression7(_, _, _) => ??(expr)
-      case PostfixExpression8(targetNode, _) =>
+      case PostfixExpression5(classVar, _, _, idExpr) => ??(expr)
+      case PostfixExpression6(_, _, _) => ??(expr)
+      case PostfixExpression7(_, _, _, _) => ??(expr)
+      case PostfixExpression8(_, _, _) => ??(expr)
+      case PostfixExpression9(targetNode, _) =>
         val target = convert(targetNode)
         PostAssignExpression(
           target,
           col.AmbiguousPlus(target, c_const(1))(blame(expr)),
         )(blame(expr))
-      case PostfixExpression9(targetNode, _) =>
+      case PostfixExpression10(targetNode, _) =>
         val target = convert(targetNode)
         PostAssignExpression(
           target,
           col.AmbiguousMinus(target, c_const(1))(blame(expr)),
         )(blame(expr))
-      case PostfixExpression10(e, SpecPostfix0(postfix)) =>
+      case PostfixExpression11(e, SpecPostfix0(postfix)) =>
         convert(expr, postfix, convert(e))
-      case PostfixExpression11(_, _, _, _, _, _) => ??(expr)
-      case PostfixExpression12(_, _) => ??(expr)
-      case PostfixExpression13(_, _, _, _, _, _) => ??(expr)
-      case PostfixExpression14(_, _) => ??(expr)
-      case PostfixExpression15(_, _, _, _, _, _, _) => ??(expr)
-      case _: PostfixExpression16Context => ??(expr)
+      case PostfixExpression12(_, _, _, _, _, _) => ??(expr)
+      case PostfixExpression13(_, _) => ??(expr)
+      case PostfixExpression14(_, _, _, _, _, _) => ??(expr)
+      case PostfixExpression15(_, _) => ??(expr)
+      case PostfixExpression16(_, _, _, _, _, _, _) => ??(expr)
+      case _: PostfixExpression17Context => ??(expr)
     }
+
+  def convert(implicit reveal: ValEmbedRevealContext): Boolean = reveal match {
+    case ValEmbedReveal0(_, r, _) => r.isDefined
+    case ValEmbedReveal1(_) => true
+  }
+
 
   def convert(implicit exprList: ExpressionListContext): Seq[Expr[G]] =
     exprList match { case ExpressionList0(initList) => convert(initList) }
@@ -859,6 +882,8 @@ case class CPPToCol[G](
               Seq(new CPPPure[G]())
             else if (m.consume(m.inline))
               Seq(new CPPInline[G]())
+            else if (m.consume(m.opaque))
+              Seq(new CPPOpaque[G]())
             else
               fail(
                 m.nodes.head,
@@ -917,11 +942,11 @@ case class CPPToCol[G](
       // Bool
       case SimpleTypeSpecifier6(_) => Seq(new CPPBool[G]())
       // Short
-      case SimpleTypeSpecifier7(_) => ??(typeSpec)
+      case SimpleTypeSpecifier7(_) => Seq(new CPPInt[G]())
       // Int
       case SimpleTypeSpecifier8(_) => Seq(new CPPInt[G]())
       // Long
-      case SimpleTypeSpecifier9(_) => ??(typeSpec)
+      case SimpleTypeSpecifier9(_) => Seq(new CPPInt[G]())
       // Signed
       case SimpleTypeSpecifier10(_) => Seq(new CPPSigned[G]())
       // Signed
@@ -1226,6 +1251,10 @@ case class CPPToCol[G](
   ): CPPLambdaDefinition[G] =
     lambda match {
       case LambdaExpression0(
+            _,
+            _,
+            maybeDecreases,
+            _,
             maybeContract,
             _,
             Some(lambdaDecl),
@@ -1238,9 +1267,28 @@ case class CPPToCol[G](
               contract.consumeApplicableContract(blame(lambda)),
               convert(lambdaDecl),
               convert(compoundStmnt),
+              extract=true,
+              decreases=maybeDecreases.map(convert(_))
             )(blame(lambda)),
         )
-      case LambdaExpression0(_, _, _, _) => ??(lambda)
+      case LambdaExpression0(_,_,_,_,_, _, _, _) => ??(lambda)
+      case LambdaExpression1(
+        maybeContract,
+        _,
+        Some(lambdaDecl),
+        compoundStmnt,
+      ) =>
+        withContract(
+          maybeContract,
+          contract =>
+            CPPLambdaDefinition(
+              contract.consumeApplicableContract(blame(lambda)),
+              convert(lambdaDecl),
+              convert(compoundStmnt),
+            )(blame(lambda)),
+        )
+      case LambdaExpression1(_, _, _, _) => ??(lambda)
+
     }
 
   // Do not support Mutable, exceptionSpecification, attributeSpecifierSeq, and trailingReturnType
@@ -1249,21 +1297,78 @@ case class CPPToCol[G](
     decl match {
       case LambdaDeclarator0(
             _,
-            Some(parameterClause),
+            maybeParameterClause,
             _,
             None,
             None,
+            maybeAttrSpecSeq,
             None,
-            None,
-          ) =>
-        convert(parameterClause) match {
-          case (x, false) => CPPLambdaDeclarator(x)
-          case _ => ??(decl)
-        }
-      case LambdaDeclarator0(_, None, _, None, None, None, None) =>
-        CPPLambdaDeclarator(Seq())
+          ) => {
+        val pcs =
+          maybeParameterClause.map(convert(_)) match {
+            case None => Seq()
+            case Some((x, false)) => x
+            case _ => ??(decl)
+          }
+
+        val attrs = maybeAttrSpecSeq.map(convert(_)).getOrElse(Seq())
+
+        CPPLambdaDeclarator(pcs, attrs)
+      }
       case LambdaDeclarator0(_, _, _, _, _, _, _) => ??(decl)
     }
+
+  def convert(implicit attrSpecSeq: AttributeSpecifierSeqContext): Seq[CPPAttribute[G]] =
+    attrSpecSeq match {
+      case AttributeSpecifierSeq0(attrSpec) => convert(attrSpec)
+      case AttributeSpecifierSeq1(attrSpecSeq, attrSpec) =>
+        convert(attrSpecSeq) ++ convert(attrSpec)
+    }
+
+  def convert(implicit attrSpec: AttributeSpecifierContext): Seq[CPPAttribute[G]] =
+    attrSpec match {
+      case AttributeSpecifier0(_, _, Some(attrList), _, _) => convert(attrList)
+      case _ => ??(attrSpec)
+    }
+
+  def convert(implicit attrList: AttributeListContext): Seq[CPPAttribute[G]] =
+    attrList match {
+      case AttributeList0(attr) => Seq(convert(attr))
+      case AttributeList2(attr, _, attrL) =>
+        Seq(convert(attr)) ++ convert(attrL)
+      case _ => ??(attrList)
+    }
+
+  def convert(implicit attr: AttributeContext): CPPAttribute[G] =
+    attr match {
+      case Attribute0(cppId, None) => new CPPAttribute(convert(cppId), Seq())
+      case Attribute1(attrNS, _, cppId, Some(attrArg)) =>
+        new CPPAttribute(convert(attrNS)+"::"+convert(cppId), convert(attrArg))
+      case _ => ??(attr)
+    }
+
+  def convert(implicit attrArg: AttributeArgumentClauseContext): Seq[Expr[G]] =
+    attrArg match {
+      case AttributeArgumentClause0(_, Some(balancedTokenSeq), _) => convert(balancedTokenSeq)
+      case AttributeArgumentClause0(_, None, _) => Seq()
+    }
+
+  def convert(implicit balancedtokenSeq: BalancedTokenSeqContext): Seq[Expr[G]] =
+    balancedtokenSeq match {
+      case BalancedTokenSeq0(balancedToken) => convert(balancedToken)
+      case BalancedTokenSeq1(balancedToken, balancedTokenSeq) => convert(balancedToken) ++ convert(balancedTokenSeq)
+  }
+
+  def convert(implicit balancedToken: BalancedtokenContext): Seq[Expr[G]] =
+    balancedToken match {
+      case Balancedtoken0(_, bts, _) => convert(bts)
+      case Balancedtoken3(pExpression) => Seq(convert(pExpression))
+      case Balancedtoken4(pExpression, _, bts) => Seq(convert(pExpression)) ++ convert(bts)
+      case _ => ??(balancedToken)
+    }
+
+  def convert(implicit attrNS: AttributeNamespaceContext): String =
+    attrNS match { case AttributeNamespace0(cppId) => convert(cppId) }
 
   def convert(expr: LangExprContext): Expr[G] =
     expr match { case LangExpr0(expr) => convert(expr) }
@@ -1455,6 +1560,7 @@ case class CPPToCol[G](
           case "pure" => collector.pure += mod
           case "inline" => collector.inline += mod
           case "thread_local" => collector.threadLocal += mod
+          case "opaque" => collector.opaque += mod
           case "bip_annotation" =>
             fail(mod, "This modifier is not allowed here.")
         }
@@ -1564,6 +1670,20 @@ case class CPPToCol[G](
     given match {
       case None => Nil
       case Some(ValYields0(_, _, mappings, _)) => convert(mappings)
+    }
+
+  def convert(
+      implicit inv: ValEmbedSubGroupInvContext): Expr[G] =
+    inv match {
+
+      case ValEmbedSubGroupInv0(_, Some(expr), _) => convert(expr)
+      case ValEmbedSubGroupInv1(expr) => convert(expr)
+      case _ => ??(inv)
+    }
+
+  def convert(implicit inv: ValSubGroupInvContext): Expr[G] =
+    inv match {
+      case ValSubGroupInv0(_, _, expr, _) => convert(expr)
     }
 
   def convert(
@@ -1870,6 +1990,7 @@ case class CPPToCol[G](
                   convert(definition),
                   c.consumeApplicableContract(blame(decl)),
                   m.consume(m.inline),
+                  opaque=m.consume(m.opaque)
                 )(blame(decl))(namedOrigin)
               },
             ),
@@ -2292,6 +2413,8 @@ case class CPPToCol[G](
       case ValPrimaryContext1("\\current_thread") => CurrentThreadId()
       case ValPrimaryContext2("\\ltid") => LocalThreadId()
       case ValPrimaryContext3("\\gtid") => GlobalThreadId()
+      case ValPrimaryContext4("\\sg_val") => SubGroupFuncValue()
+      case ValPrimaryContext5("\\sgtid") => SubGroupLaneId()
     }
 
   def convert(implicit e: ValPrimaryContext): Expr[G] =

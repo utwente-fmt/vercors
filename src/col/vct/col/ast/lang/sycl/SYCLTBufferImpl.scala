@@ -117,6 +117,7 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
       new Variable[G](TPointer(this.typ, None))(o.where(name = "hostData"))
     val sizeVar = new Variable[G](TCInt())(o.where(name = "size"))
     val indexVar = new Variable[G](TCInt())(o.where(name = "i"))
+    val indexVar2 = new Variable[G](TCInt())(o.where(name = "i"))
     val copyHostdataToBufferBlame = PanicBlame(
       "The generated method 'copy_hostData_to_buffer' should not throw any errors."
     )
@@ -149,6 +150,29 @@ trait SYCLTBufferImpl[G] extends SYCLTBufferOps[G] {
                 Local[G](sizeVar.ref),
                 WritePerm(),
                 copyHostdataToBufferBlame,
+              ),
+              Forall(
+                bindings = Seq(indexVar2),
+                triggers = Seq(
+                  Seq(ArraySubscript(result, Local[G](indexVar2.ref))(
+                    copyHostdataToBufferBlame
+                  ))
+                ),
+                body =
+                  (Local[G](indexVar2.ref) >= c_const(0) &&
+                    Local[G](indexVar2.ref) < Local[G](sizeVar.ref)) ==> Eq(
+                    PointerSubscript(
+                      Local[G](hostDataVar.ref),
+                      Local[G](indexVar2.ref),
+                    )(copyHostdataToBufferBlame),
+                    Old[G](
+                      PointerSubscript(
+                        Local[G](hostDataVar.ref),
+                        Local[G](indexVar2.ref),
+                      )(copyHostdataToBufferBlame),
+                      None,
+                    )(copyHostdataToBufferBlame),
+                  ),
               ),
               Forall(
                 bindings = Seq(indexVar),

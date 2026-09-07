@@ -5,9 +5,9 @@ declare using namespace pallasSpec;
 @*/
 
 class ClassyClass {
-    public:
-        int i = 1;
-        int j = 2;
+  public:
+    int i = 1;
+    int j = 2;
 
     // Contract for the generated constructor
     /*@
@@ -28,5 +28,3 @@ int foo() {
     int res = c.i + c.j;
     return res;
 }
-
-
