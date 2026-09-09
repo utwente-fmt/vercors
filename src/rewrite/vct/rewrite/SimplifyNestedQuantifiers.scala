@@ -439,15 +439,15 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     topLevel = true
     infoGetter.setupInfo()
     val contextEverywhere = dispatch(contract.contextEverywhere)
-    val oldInfo = infoGetter
+    val oldInfo = infoGetter.clone()
 
     // Reuse information from context everywhere
     val requires = dispatch(contract.requires)
     requiresInfo = Some(infoGetter.clone())
     equalityChecker = ExpressionEqualityCheck()
 
-    // Again reuse information from context everywhere
-    infoGetter = oldInfo
+    // Again reuse information from context everywhere, but clone so we can reuse in kernel invariant
+    infoGetter = oldInfo.clone()
     val ensures = dispatch(contract.ensures)
     equalityChecker = ExpressionEqualityCheck()
     topLevel = false
