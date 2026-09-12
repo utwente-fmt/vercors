@@ -338,57 +338,56 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       p.collect { case a: LLVMFunctionArgument[Pre] if a.isByVal => a.v }.toSet
   }
 
+  // TODO: We also need to do something where we only keep structurally distinct types
+  // Returns if self is more specific than other
+  def moreSpecific(self: Type[Pre], other: Type[Pre]): Boolean = {
+    (self, other) match {
+      case (a, b) if a == b => false
+      // While the int is "more specific" we want keep the TBool since it is semantically more what we want
+      case (TBool(), LLVMTInt(_)) => true
+      case (LLVMTPointer(None), _) => false
+      case (LLVMTPointer(Some(TVoid())), _) => false
+      case (TPointer(TVoid(), _), _) => false
+      case (_, LLVMTPointer(None)) => true
+      case (_, LLVMTPointer(Some(TVoid()))) => true
+      case (_, TPointer(TVoid(), _)) => true
+      case (LLVMTPointer(Some(a)), LLVMTPointer(Some(b))) => moreSpecific(a, b)
+      case (LLVMTPointer(Some(a)), TPointer(b, _)) => moreSpecific(a, b)
+      case (TPointer(a, _), LLVMTPointer(Some(b))) => moreSpecific(a, b)
+      case (TPointer(a, _), TPointer(b, _)) => moreSpecific(a, b)
+      // Define a named struct to be more specific than a structurally equivalent literal struct.
+      case (LLVMTStruct(Ref(s1)), LLVMTStruct(Ref(s2)))
+          if moreSpecificLitStruct(s1, s2) =>
+        true
+      case (LLVMTStruct(Ref(s1)), LLVMTStruct(Ref(s2)))
+          if moreSpecificLitStruct(s2, s1) =>
+        false
+      case (a: LLVMTStruct[Pre], b: LLVMTStruct[Pre]) =>
+        a.ref.decl.elements.headOption.exists(ta =>
+          b.ref.decl.elements.exists(tb => moreSpecific(ta.t, tb.t))
+        )
+      case (LLVMTStruct(_), _) => true
+      case (LLVMTArray(_, a), LLVMTArray(_, b)) => moreSpecific(a, b)
+      case (LLVMTArray(_, _), _) => true
+      case _ => false
+    }
+  }
+
+  // Returns true if other is a literal struct type and self if a structurally
+  // equivalent non-literal struct.
+  def moreSpecificLitStruct(
+      self: LLVMStructDeclaration[Pre],
+      other: LLVMStructDeclaration[Pre],
+  ): Boolean = {
+    !self.isLiteral && other.isLiteral && self.packed == other.packed &&
+    self.elements == other.elements && self.sizeInBits == other.sizeInBits
+  }
+
   def gatherTypeHints(program: Program[Pre]): Unit = {
 
     // Touch all references to struct declarations within LLVMTStruct-types.
     // Otherwise, the type-equality does not work because the LazyRef might not have been resolved.
     program.collect { case sType: LLVMTStruct[Pre] => sType.ref.decl }
-
-    // TODO: We also need to do something where we only keep structurally distinct types
-    // Returns if self is more specific than other
-    def moreSpecific(self: Type[Pre], other: Type[Pre]): Boolean = {
-      (self, other) match {
-        case (a, b) if a == b => false
-        // While the int is "more specific" we want keep the TBool since it is semantically more what we want
-        case (TBool(), LLVMTInt(_)) => true
-        case (LLVMTPointer(None), _) => false
-        case (LLVMTPointer(Some(TVoid())), _) => false
-        case (TPointer(TVoid(), _), _) => false
-        case (_, LLVMTPointer(None)) => true
-        case (_, LLVMTPointer(Some(TVoid()))) => true
-        case (_, TPointer(TVoid(), _)) => true
-        case (LLVMTPointer(Some(a)), LLVMTPointer(Some(b))) =>
-          moreSpecific(a, b)
-        case (LLVMTPointer(Some(a)), TPointer(b, _)) => moreSpecific(a, b)
-        case (TPointer(a, _), LLVMTPointer(Some(b))) => moreSpecific(a, b)
-        case (TPointer(a, _), TPointer(b, _)) => moreSpecific(a, b)
-        // Define a named struct to be more specific than a structurally equivalent literal struct.
-        case (LLVMTStruct(Ref(s1)), LLVMTStruct(Ref(s2)))
-            if moreSpecificLitStruct(s1, s2) =>
-          true
-        case (LLVMTStruct(Ref(s1)), LLVMTStruct(Ref(s2)))
-            if moreSpecificLitStruct(s2, s1) =>
-          false
-        case (a: LLVMTStruct[Pre], b: LLVMTStruct[Pre]) =>
-          a.ref.decl.elements.headOption.exists(ta =>
-            b.ref.decl.elements.exists(tb => moreSpecific(ta.t, tb.t))
-          )
-        case (LLVMTStruct(_), _) => true
-        case (LLVMTArray(_, a), LLVMTArray(_, b)) => moreSpecific(a, b)
-        case (LLVMTArray(_, _), _) => true
-        case _ => false
-      }
-    }
-
-    // Returns true if other is a literal struct type and self if a structurally
-    // equivalent non-literal struct.
-    def moreSpecificLitStruct(
-        self: LLVMStructDeclaration[Pre],
-        other: LLVMStructDeclaration[Pre],
-    ): Boolean = {
-      !self.isLiteral && other.isLiteral && self.packed == other.packed &&
-      self.elements == other.elements && self.sizeInBits == other.sizeInBits
-    }
 
     // TODO: This sorting is non-stable which might cause nondeterministic bugs if there's something wrong with moreSpecific
     def findMostSpecific(
@@ -1444,8 +1443,14 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = pointer.o
     currentType match {
       case _ if currentType == untilType => Some((AddrOf(pointer), currentType))
+      // TODO: Also allow more specific struct types?
+      case _ if moreSpecific(currentType, untilType) =>
+        Some((AddrOf(pointer), currentType))
       case LLVMTPointer(None) => None
       case LLVMTPointer(Some(inner)) if inner == untilType =>
+        Some((pointer, currentType))
+      // TODO: Also allow more specific struct types?
+      case LLVMTPointer(Some(inner)) if moreSpecific(inner, untilType) =>
         Some((pointer, currentType))
       case LLVMTPointer(Some(TBool()))
           if untilType.isInstanceOf[LLVMTInt[Pre]] =>
@@ -1542,50 +1547,50 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case struct: LLVMTStruct[Pre] =>
         // TODO: We don't support variables in GEP yet and this just assumes all the indices are integer constants
         // Acquire the actual struct through a PointerAdd
-        gep.pointer.t match {
-          case LLVMTPointer(None) =>
-            val structPointer = DerefPointer(offsetPointer)(gep.blame)
-            AddrOf(rewritePointerChain(
-              structPointer,
-              struct,
-              gep.indices.tail,
-              PointerSubscriptToInsufficientPermissionBlame(gep.blame),
-            ))
-          case LLVMTPointer(Some(inner)) if inner == t =>
-            val structPointer = DerefPointer(offsetPointer)(gep.blame)
-            AddrOf(rewritePointerChain(
-              structPointer,
-              struct,
-              gep.indices.tail,
-              PointerSubscriptToInsufficientPermissionBlame(gep.blame),
-            ))
-          case LLVMTPointer(Some(_)) =>
-            val pointerInferredType = getInferredType(gep.pointer)
-            val (pointer, inferredType) = derefUntil(
-              rw.dispatch(gep.pointer),
-              pointerInferredType,
-              t,
-            ).getOrElse((
-              PointerCast(
-                rw.dispatch(gep.pointer),
-                rw.dispatch(t),
-                rw.c.sizeOf(gep.pointer.t.asPointer.get.element, gep.o),
-                rw.c.sizeOf(t, gep.o),
-              ),
-              t,
-            ))
-            val structPointer =
-              DerefPointer(PointerAdd(pointer, rw.dispatch(gep.indices.head))(
-                PointerSubscriptToAddBlame(gep.blame)
-              ))(gep.blame)
-            val ret = AddrOf(rewritePointerChain(
-              structPointer,
-              struct,
-              gep.indices.tail,
-              PointerSubscriptToInsufficientPermissionBlame(gep.blame),
-            ))
-            ret
-        }
+//        gep.pointer.t match {
+//          case LLVMTPointer(None) =>
+//            val structPointer = DerefPointer(offsetPointer)(gep.blame)
+//            AddrOf(rewritePointerChain(
+//              structPointer,
+//              struct,
+//              gep.indices.tail,
+//              PointerSubscriptToInsufficientPermissionBlame(gep.blame),
+//            ))
+//          case LLVMTPointer(Some(inner)) if inner == t =>
+//            val structPointer = DerefPointer(offsetPointer)(gep.blame)
+//            AddrOf(rewritePointerChain(
+//              structPointer,
+//              struct,
+//              gep.indices.tail,
+//              PointerSubscriptToInsufficientPermissionBlame(gep.blame),
+//            ))
+//          case LLVMTPointer(Some(_)) =>
+        val pointerInferredType = getInferredType(gep.pointer)
+        val (pointer, inferredType) = derefUntil(
+          rw.dispatch(gep.pointer),
+          pointerInferredType,
+          t,
+        ).getOrElse((
+          PointerCast(
+            rw.dispatch(gep.pointer),
+            TPointer(rw.dispatch(t), None),
+            rw.c.sizeOf(gep.pointer.t.asPointer.get.element, gep.o),
+            rw.c.sizeOf(t, gep.o),
+          ),
+          t,
+        ))
+        val structPointer =
+          DerefPointer(PointerAdd(pointer, rw.dispatch(gep.indices.head))(
+            PointerSubscriptToAddBlame(gep.blame)
+          ))(gep.blame)
+        val ret = AddrOf(rewritePointerChain(
+          structPointer,
+          inferredType.asPointer.get.element,
+          gep.indices.tail,
+          PointerSubscriptToInsufficientPermissionBlame(gep.blame),
+        ))
+        ret
+//        }
       case array: LLVMTArray[Pre] =>
         // TODO (AS): Instead of doing this here we can just extend rewritePointerChain (which should enable multi-dimensional arrays too)
         val arrayPointer = DerefPointer(offsetPointer)(gep.blame)
@@ -2175,6 +2180,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     if (srcType != dstType)
       throw UnsupportedMemcpy(memcpy)
 
+    // TODO: This should also check the size of the memory that is copied
+
     // TODO: Array case should be done with some memcpy function (such that we can return a different heap, assume would just lead to inconsistencies)
     srcType match {
       case s: LLVMTStruct[Pre] =>
@@ -2184,6 +2191,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           rw.dispatch(memcpy.dst),
           s,
         )
+      case seq: TSeq[Pre] =>
+        // This case can occur because sequences are encoded as special
+        // structs on the LLVM-side.
+        Assign[Post](
+          DerefPointer(rw.dispatch(memcpy.dst))(memcpy.blame),
+          DerefPointer(rw.dispatch(memcpy.src))(memcpy.blame),
+        )(memcpy.blame);
       case _ => throw UnsupportedMemcpy(memcpy)
     }
   }

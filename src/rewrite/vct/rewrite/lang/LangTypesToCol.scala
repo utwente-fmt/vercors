@@ -130,9 +130,9 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
         a.offset == b.offset && a.size == b.size &&
         (a.t == b.t ||
           ((a.t, b.t) match {
-            case (LLVMTPointer(None), LLVMTPointer(Some(_))) |
-                (LLVMTPointer(Some(_)), LLVMTPointer(None)) =>
-              true
+            // case (LLVMTPointer(None), LLVMTPointer(Some(_))) |
+            //     (LLVMTPointer(Some(_)), LLVMTPointer(None)) =>
+            //   true
             case (
                   LLVMTPointer(Some(LLVMTStruct(Ref(sa)))),
                   LLVMTPointer(Some(LLVMTStruct(Ref(sb)))),
