@@ -2189,6 +2189,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     if (srcType != dstType)
       throw UnsupportedMemcpy(memcpy)
 
+    // TODO: This should also check the size of the memory that is copied
+
     // TODO: Array case should be done with some memcpy function (such that we can return a different heap, assume would just lead to inconsistencies)
     srcType match {
       case s: LLVMTStruct[Pre] =>
@@ -2198,6 +2200,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
           rw.dispatch(memcpy.dst),
           s,
         )
+      case _: TSeq[Pre] =>
+        // This case can occur because sequences are encoded as special
+        // structs on the LLVM-side.
+        Assign[Post](
+          DerefPointer(rw.dispatch(memcpy.dst))(memcpy.blame),
+          DerefPointer(rw.dispatch(memcpy.src))(memcpy.blame),
+        )(memcpy.blame);
       case _ => throw UnsupportedMemcpy(memcpy)
     }
   }
