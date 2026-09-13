@@ -354,6 +354,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         case (LLVMTPointer(None), _) => false
         case (LLVMTPointer(Some(TVoid())), _) => false
         case (TPointer(TVoid(), _), _) => false
+        case (TNull(), _) => false
+        case (_, TNull()) => true
         case (_, LLVMTPointer(None)) => true
         case (_, LLVMTPointer(Some(TVoid()))) => true
         case (_, TPointer(TVoid(), _)) => true
@@ -441,6 +443,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     def findSuperType(a: Type[Pre], b: Type[Pre]): Option[Type[Pre]] = {
       (a, b) match {
         case (a, b) if a == b => Some(a)
+        case (_, TNull()) => Some(a)
+        case (TNull(), _) => Some(b)
         case (LLVMTPointer(None), _) => Some(a)
         case (LLVMTPointer(Some(TVoid())), _) => Some(a)
         case (TPointer(TVoid(), _), _) => Some(a)
@@ -1957,7 +1961,17 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteStore(store: LLVMStore[Pre]): Statement[Post] = {
     implicit val o: Origin = store.o
     val pointerInferredType = getInferredType(store.pointer)
-    val valueInferredType = getInferredType(store.value)
+    // When we are storing a Null-value, we assume it to be the correct type.
+    val valueInferredType =
+      store.value match {
+        case Null() =>
+          pointerInferredType match {
+            case LLVMTPointer(Some(innerT @ LLVMTPointer(_))) => innerT
+            case _ => getInferredType(store.value)
+          }
+        case v => getInferredType(v)
+      }
+
     val (pointer, pointerType) = derefUntil(
       rw.dispatch(store.pointer),
       pointerInferredType,
