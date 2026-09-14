@@ -719,48 +719,67 @@ bool StructConsolidatorPass::gatherWrites(
                        InnerV, Store};
             Writes.push_back(W);
         } else if (auto *Call = dyn_cast<CallInst>(I)) {
-            // Check for memcpy
             Function *IF = Call->getCalledFunction();
-            // If we are calling a spec lib function then it will not have
-            // side-effects
-            if (irspec::isPallasSpecLib(*IF) != std::nullopt)
-                continue;
 
-            // Check if we are indeed writing to our value (otherwise we are the
-            // destination, skip)
-            if (U.getOperandNo() != 0)
-                continue;
-
-            // We only support memcpys of the whole struct
-            if (IF->getIntrinsicID() != Intrinsic::memcpy || !Offset.isZero()) {
-                LaterWrites.push_back(Store);
+            // Reject consolidation if indirect calls are detected
+            if (IF == nullptr) {
                 return false;
             }
 
-            Value *Src = Call->getArgOperand(1);
-            // Expecting src is an alloca of a struct with the same size as our
-            // struct
-            if (!isa<AllocaInst>(Src))
-                return false;
-            AllocaInst *SrcI = cast<AllocaInst>(Src);
-            auto SrcSize = SrcI->getAllocationSize(L);
-            if (!SrcSize.has_value() || *SrcSize < Size)
-                return false;
+            // Spec-lib functions are free of side effects --> Treat as read
+            if (irspec::isPallasSpecLib(*IF) != std::nullopt)
+                continue;
+            // Predicates are free of side-effects --> Treat as read
+            if (irspec::isPallasPredDef(*IF)) {
+                continue;
+            }
 
-            Value *Length = Call->getArgOperand(2);
-            // Expecting len is an integer equal to the size of our struct
-            if (!isa<ConstantInt>(Length))
-                return false;
-            if (!cast<ConstantInt>(Length)->equalsInt(Size))
-                return false;
+            // Allow lifetime intrinsics
+            auto IntrID = IF->getIntrinsicID();
+            if (IntrID == Intrinsic::lifetime_start ||
+                IntrID == Intrinsic::lifetime_end) {
+                continue;
+            }
 
-            Write W = {Offset.getLimitedValue(), Size, SrcI, Call};
-            Writes.push_back(W);
+            // Allow a memcpy of the whole struct as an initializing write
+            if (IntrID == Intrinsic::memcpy && Offset.isZero() &&
+                U.getOperandNo() == 0) {
+                Value *Src = Call->getArgOperand(1);
+                // Expecting src is an alloca of a struct with the same size as
+                // our struct
+                if (!isa<AllocaInst>(Src))
+                    return false;
+                AllocaInst *SrcI = cast<AllocaInst>(Src);
+                auto SrcSize = SrcI->getAllocationSize(L);
+                if (!SrcSize.has_value() || *SrcSize < Size)
+                    return false;
+
+                Value *Length = Call->getArgOperand(2);
+                // Expecting len is an integer equal to the size of our struct
+                if (!isa<ConstantInt>(Length))
+                    return false;
+                if (!cast<ConstantInt>(Length)->equalsInt(Size))
+                    return false;
+
+                Write W = {Offset.getLimitedValue(), Size, SrcI, Call};
+                Writes.push_back(W);
+                continue;
+            }
+
+            // Unknown call --> Treat as write
+            // TODO: We could check the attributes here for read-only behavior
+            LaterWrites.push_back(Call);
+            continue;
+
         } else if (isa<LoadInst>(I)) {
             // Don't traverse further when we find a load
         } else if (!(F.hasMetadata(constants::PALLAS_WRAPPER_FUNC) ||
                      F.hasMetadata(constants::PALLAS_GHOST_WRAPPER_FUNC))) {
-            LaterWrites.push_back(Store);
+            if (auto *UInst = dyn_cast<Instruction>(I)) {
+                LaterWrites.push_back(UInst);
+            } else {
+                return false;
+            }
         }
     }
 
