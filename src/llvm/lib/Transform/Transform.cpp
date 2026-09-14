@@ -115,10 +115,16 @@ bool llvm2col::transformAndSetBasicTypeWithDebugInfo(
                                   basicType.getName().str());
             return false;
         }
-        col::LlvmtInt *colInt = colType.mutable_llvmt_int();
-        colInt->set_bit_width(basicType.getSizeInBits());
-        colInt->set_allocated_origin(generateDITypeOrigin(basicType));
-        return true;
+        if (basicType.getSizeInBits() > 0) {
+            auto *colInt = colType.mutable_llvmt_int();
+            colInt->set_bit_width(basicType.getSizeInBits());
+            colInt->set_allocated_origin(generateDITypeOrigin(basicType));
+            return true;
+        } else {
+            auto colVoid = colType.mutable_t_void();
+            colVoid->set_allocated_origin(generateDITypeOrigin(basicType));
+            return true;
+        }
     }
 
     // Floats:

@@ -52,14 +52,27 @@ void llvm2col::transformBinaryOp(llvm::Instruction &llvmInstruction,
     // TODO: All of these are currently bitwise operators, verify that works
     // correctly when operating on booleans in VerCors
     case llvm::Instruction::And: {
-        col::BitAnd &expr = *assignment.mutable_value()->mutable_bit_and();
-        transformBinExpr(llvmInstruction, expr, funcCursor);
-        expr.set_allocated_blame(new col::Blame());
+        if (llvmInstruction.getType()->isIntegerTy(1)) {
+            // Bool
+            auto &expr = *assignment.mutable_value()->mutable_and_();
+            transformBinExpr(llvmInstruction, expr, funcCursor);
+        } else {
+            // int
+            col::BitAnd &expr = *assignment.mutable_value()->mutable_bit_and();
+            transformBitwiseBinExpr(llvmInstruction, expr, funcCursor);
+        }
         break;
     }
     case llvm::Instruction::Or: {
-        col::BitOr &expr = *assignment.mutable_value()->mutable_bit_or();
-        transformBitwiseBinExpr(llvmInstruction, expr, funcCursor);
+        if (llvmInstruction.getType()->isIntegerTy(1)) {
+            // Bool
+            auto &expr = *assignment.mutable_value()->mutable_or_();
+            transformBinExpr(llvmInstruction, expr, funcCursor);
+        } else {
+            // int
+            col::BitOr &expr = *assignment.mutable_value()->mutable_bit_or();
+            transformBitwiseBinExpr(llvmInstruction, expr, funcCursor);
+        }
         break;
     }
     case llvm::Instruction::Xor: {

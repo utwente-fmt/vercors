@@ -4,14 +4,8 @@ import vct.col.ast._
 
 import scala.collection.mutable.ArrayBuffer
 import RewriteHelpers._
-import vct.col.ref.Ref
-import vct.col.rewrite.FilterSpecIgnore.{
-  DanglingIgnoreStart,
-  DeclarationInUse,
-  ExtraIgnoreEnd,
-}
+import vct.col.rewrite.FilterSpecIgnore.{DanglingIgnoreStart, ExtraIgnoreEnd}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.result.Message
 import vct.result.VerificationError.UserError
 
 case object FilterSpecIgnore extends RewriterBuilder {
@@ -31,21 +25,13 @@ case object FilterSpecIgnore extends RewriterBuilder {
       end.o.messageInContext("This spec_ignore was not opened")
   }
 
-  case class DeclarationInUse(usage: Node[_], decl: Node[_]) extends UserError {
-    override def code: String = "declarationInUse"
-    override def text: String =
-      Message.messagesInContext(
-        (decl.o, "This node cannot be filtered..."),
-        (usage.o, "...because of the usage here"),
-      )
-  }
 }
 
 case class FilterSpecIgnore[Pre <: Generation]() extends Rewriter[Pre] {
   var program: Program[Pre] = null
 
-  lazy val keepApplicables: Map[ContractApplicable[Pre], Node[Pre]] =
-    program.collect { case invocation: ProcedureInvocation[Pre] =>
+  lazy val keepApplicables: Map[Applicable[Pre], Node[Pre]] =
+    program.collect { case invocation: Invocation[Pre] =>
       (invocation.ref.decl, invocation)
     }.toMap
 
@@ -86,10 +72,11 @@ case class FilterSpecIgnore[Pre <: Generation]() extends Rewriter[Pre] {
           case UnitAccountedPredicate(BooleanValue(false)) =>
             keepApplicables.get(app) match {
               case None => app.drop()
-              case Some(usage) => throw DeclarationInUse(usage, app)
+              case Some(_) => super.dispatch(app)
             }
-          case _ => rewriteDefault(decl)
+          case _ => super.dispatch(decl)
         }
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
+
 }
