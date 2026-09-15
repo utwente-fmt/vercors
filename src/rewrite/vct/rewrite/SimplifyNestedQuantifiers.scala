@@ -323,30 +323,13 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     }
   }
 
-  def useInfoFromContract(
-      contract: ApplicableContract[Pre],
-      body: Option[Statement[Pre]],
-  ): (ApplicableContract[Post], Option[Statement[Post]]) = {
-    val resContract = dispatch(contract)
-    val resBody =
-      if (body.isDefined && requiresInfo.isDefined) {
-        val assigns = gatherAssigns(body.get)
-        requiresInfo.foreach(_.filterInfo(assigns))
-        extraInfo.having(requiresInfo) { body.map(dispatch) }
-      } else { body.map(dispatch) }
-    (resContract, resBody)
-  }
-
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case proc: Procedure[Pre] =>
         globalDeclarations.succeed(
           proc, {
             labelDecls.scope {
-              val (contract, body) = useInfoFromContract(
-                proc.contract,
-                proc.body,
-              )
+              val (contract, body) = dispatchContract(proc.contract, proc.body)
               proc.rewrite(contract = contract, body = body)
             }
           },
@@ -433,38 +416,54 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     loopInvariant.rewrite(invariant = invariant)
   }
 
-  override def dispatch(
-      contract: ApplicableContract[Pre]
-  ): ApplicableContract[Post] = {
+  def dispatchContract(
+      contract: ApplicableContract[Pre],
+      body: Option[Statement[Pre]],
+  ): (ApplicableContract[Post], Option[Statement[Post]]) = {
     topLevel = true
     infoGetter.setupInfo()
     val contextEverywhere = dispatch(contract.contextEverywhere)
-    val oldInfo = infoGetter
+    val oldInfo = infoGetter.clone()
 
     // Reuse information from context everywhere
+    topLevel = true
     val requires = dispatch(contract.requires)
-    requiresInfo = Some(infoGetter.clone())
-    equalityChecker = ExpressionEqualityCheck()
 
-    // Again reuse information from context everywhere
-    infoGetter = oldInfo
-    val ensures = dispatch(contract.ensures)
     equalityChecker = ExpressionEqualityCheck()
-    topLevel = false
+    val extra = body.map(b => {
+      val assigns = gatherAssigns(b)
+      infoGetter.filterInfo(assigns)
+      infoGetter.clone()
+    })
+    extraInfo.having(extra)({
 
-    // One more time reusing info from context everywhere
-    infoGetter = oldInfo
-    val kernelInvariant = dispatch(contract.kernelInvariant)
-    equalityChecker = ExpressionEqualityCheck()
-    topLevel = false
+      // Again reuse information from context everywhere, brequiresInfout clone so we can reuse in kernel invariant
+      infoGetter = oldInfo.clone()
+      topLevel = true
+      val ensures = dispatch(contract.ensures)
+      equalityChecker = ExpressionEqualityCheck()
 
-    contract.rewrite(
-      requires = requires,
-      ensures = ensures,
-      contextEverywhere = contextEverywhere,
-      kernelInvariant = kernelInvariant,
-    )
+      // One more time reusing info from context everywhere
+      infoGetter = oldInfo
+      topLevel = true
+      val kernelInvariant = dispatch(contract.kernelInvariant)
+      equalityChecker = ExpressionEqualityCheck()
+      topLevel = false
+
+      val newContract = contract.rewrite(
+        requires = requires,
+        ensures = ensures,
+        contextEverywhere = contextEverywhere,
+        kernelInvariant = kernelInvariant,
+      )
+      val newBody = body.map(dispatch)
+      (newContract, newBody)
+    })
   }
+
+  override def dispatch(
+      contract: ApplicableContract[Pre]
+  ): ApplicableContract[Post] = { dispatchContract(contract, None)._1 }
 
   def indepOfV[G](v: Variable[G], e: Expr[G]): Boolean =
     e.collectFirst { case Local(ref) if v == ref.decl => () }.isEmpty
