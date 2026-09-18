@@ -1,6 +1,14 @@
 package vct.col.ast.node
 
-import vct.col.ast.{Applicable, Choreography, Declaration, Endpoint, Node}
+import vct.col.ast.{
+  Applicable,
+  Choreography,
+  Communicate,
+  Declaration,
+  Endpoint,
+  EndpointExpr,
+  Node,
+}
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.util.CurrentCheckNodeContext
 import vct.result.VerificationError
@@ -47,12 +55,18 @@ trait NodeCheckOps[G] {
       enterCheckContextRoScopes(context),
       enterCheckContextRoScopeReason(context),
       enterCheckContextCurrentApplicable(context),
+      enterCheckContextInGPUKernel(context),
       enterCheckContextInPreCondition(context),
       enterCheckContextInPostCondition(context),
+      enterCheckContextInPolarExpression(context),
       enterCheckContextCurrentChoreography(context),
       enterCheckContextCurrentReceiverEndpoint(context),
       enterCheckContextCurrentParticipatingEndpoints(context),
+      enterCheckContextInChor(context),
+      enterCheckContextInEndpointExpr(context),
+      enterCheckContextInCommunicateInvariant(context),
       enterCheckContextDeclarationStack(context),
+      enterCheckContextInResolution(context),
     )
 
   def enterCheckContextScopes(
@@ -69,10 +83,14 @@ trait NodeCheckOps[G] {
   def enterCheckContextCurrentApplicable(
       context: CheckContext[G]
   ): Option[Applicable[G]] = context.currentApplicable
+  def enterCheckContextInGPUKernel(context: CheckContext[G]): Boolean =
+    context.inGPUKernel
   def enterCheckContextInPreCondition(context: CheckContext[G]): Boolean =
     context.inPreCondition
   def enterCheckContextInPostCondition(context: CheckContext[G]): Boolean =
     context.inPostCondition
+  def enterCheckContextInPolarExpression(context: CheckContext[G]): Boolean =
+    context.inPolarExpression
   def enterCheckContextCurrentChoreography(
       context: CheckContext[G]
   ): Option[Choreography[G]] = context.currentChoreography
@@ -82,7 +100,17 @@ trait NodeCheckOps[G] {
   def enterCheckContextCurrentParticipatingEndpoints(
       context: CheckContext[G]
   ): Option[Set[Endpoint[G]]] = context.currentParticipatingEndpoints
+  def enterCheckContextInChor(context: CheckContext[G]): Boolean =
+    context.inChor
+  def enterCheckContextInEndpointExpr(
+      context: CheckContext[G]
+  ): Option[EndpointExpr[G]] = context.inEndpointExpr
+  def enterCheckContextInCommunicateInvariant(
+      context: CheckContext[G]
+  ): Option[Communicate[G]] = context.inCommunicateInvariant
   def enterCheckContextDeclarationStack(
       context: CheckContext[G]
   ): Seq[Declaration[G]] = context.declarationStack
+  def enterCheckContextInResolution(context: CheckContext[G]): Boolean =
+    context.inResolution
 }

@@ -3,6 +3,252 @@ package vct.test.integration.examples.veymont
 import vct.test.integration.helper.VeyMontSpec
 
 class TechnicalVeyMontSpec extends VeyMontSpec {
+  choreography(
+    desc = "Endpoint expressions can be nested",
+    pvl = """
+      class C { }
+      choreography Chor() {
+        endpoint alice = C();
+        requires (\endpoint alice; (\endpoint alice; true));
+        run { }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "Endpoint expressions should be nested consistently",
+    error = "choreography:resolutionError:inconsistentEndpointExprNesting",
+    pvl = """
+      class C { }
+      choreography Chor() {
+        endpoint alice = C();
+        endpoint bob = C();
+        requires (\endpoint alice; (\endpoint bob; true));
+        run { }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "Endpoint annotations can be inferred for predicates",
+    pvl = """
+      class C {
+        resource inv() = true;
+        ensures inv();
+        constructor();
+      }
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires alice.inv();
+        run {
+          assert (\[alice] alice.inv());
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "Endpoint annotations are actually added for predicates",
+    fail = "assertFailed:perm",
+    pvl = """
+      class C {
+        resource inv() = true;
+
+        ensures inv();
+        constructor();
+      }
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires alice.inv();
+        run {
+          assert (\[bob] alice.inv());
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc =
+      "Endpoint annotations cannot be inferred for predicates with multiple endpoints",
+    error = "choreography:multipleImplicitEndpoints",
+    pvl = """
+      class C {
+        resource inv(C other) = true;
+      }
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires alice.inv(bob);
+        run { }
+      }
+    """,
+  )
+
+  choreography(
+    desc =
+      "Endpoint annotations cannot be inferred if no endpoints are involved",
+    error = "choreography:noImplicitEndpoint",
+    pvl = """
+      class C { }
+
+      ensures \result != null;
+      pure C globalC();
+
+      inline resource globalInv(C c1, C c2) = true;
+
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+
+        requires globalInv(globalC(), globalC());
+        run { }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "`\\sender` also not allowed as message",
+    error = "choreography:resolutionError:onlyInChannelInvariant",
+    pvl = """
+      class C { C x; }
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+        run {
+          communicate alice: \sender -> bob.x;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "`\\receiver` also not allowed as message",
+    error = "choreography:resolutionError:onlyInChannelInvariant",
+    pvl = """
+      class C { C x; }
+      choreography MyChoreography() {
+        endpoint alice = C();
+        endpoint bob = C();
+        run {
+          communicate alice: \receiver -> bob.x;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "`\\msg` only allowed in channel invariant",
+    error = "choreography:onlyInChannelInvariant",
+    pvl = """
+      requires \msg;
+      void m() { }
+    """,
+  )
+
+  choreography(
+    desc = "`\\receiver` only allowed in channel invariant",
+    error = "choreography:onlyInChannelInvariant",
+    pvl = """
+      requires \receiver;
+      void m() { }
+    """,
+  )
+
+  choreography(
+    desc = "`\\sender` only allowed in channel invariant",
+    error = "choreography:onlyInChannelInvariant",
+    pvl = """
+      requires \sender;
+      void m() { }
+    """,
+  )
+
+  choreography(
+    desc = "Permission stratification can be turned off",
+    flag = "--veymont-ps=none",
+    pvl = """
+      class S { int x; }
+      choreography MyChoreography() {
+        endpoint a = S();
+        endpoint b = S();
+        requires Perm[b](a.x, 1);
+        run {
+          a.x := 3;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc = "Permission stratification can be used in inline mode",
+    flag = "--veymont-ps=inline",
+    pvl = """
+      class S {
+        int x;
+        ensures Perm(x, 1) ** x == 3;
+        constructor() { x = 3; }
+      }
+      choreography MyChoreography() {
+        endpoint a = S();
+        endpoint b = S();
+        requires Perm[a](a.x, 1\2);
+        requires Perm[b](a.x, 1\2) ** (\endpoint b; a.x == 3);
+        run {
+          assert a.x == 3;
+        }
+      }
+    """,
+  )
+
+  choreography(
+    desc =
+      "When proving branch unanimity, it is not enough that one of the parties can prove branch unanimity",
+    fail = "loopUnanimityNotMaintained",
+    input = example(
+      "technical/veymont/branchUnanimityStratificationProblem.pvl"
+    ),
+  )
+
+  choreography(
+    desc =
+      "Plain assignment is allowed, and works when using --veymont-sp-inline, but considered unsound",
+    flag = "--veymont-ps=inline",
+    pvl = """
+      class C { int x; }
+      choreography Chor() {
+        endpoint a = C();
+        requires Perm(a.x, 1);
+        run {
+          a.x = 3;
+          assert a.x == 3;
+        }
+      }
+        """,
+  )
+
+  choreography(
+    desc = "\\chor not allowed in \\endpoint",
+    error = "choreography:resolutionError:chorInEndpointExpr",
+    pvl = """
+      class C {}
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; (\chor true));
+        run {
+
+        }
+      }
+        """,
+  )
+
   implementation(
     desc = "Run contract can depend on choreography contract",
     pvl = """
@@ -68,7 +314,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
 
   choreography(
     desc = "example using communicate",
-    flag = "--generate-permissions",
+    flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     pvl = """
        class Storage {
           int x;
@@ -178,42 +424,6 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
       }
     }
     """,
-  )
-
-  choreography(
-    error = "choreography:resolutionError:seqProgInstanceMethodArgs",
-    desc = "instance method in choreography cannot have arguments",
-    pvl = """
-  choreography Example() {
-    void m(int x) { }
-
-    run { }
-  }
-  """,
-  )
-
-  choreography(
-    error = "choreography:resolutionError:seqProgInstanceMethodBody",
-    desc = "instance method in choreography must have a body",
-    pvl = """
-  choreography Example() {
-    void m();
-
-    run { }
-  }
-  """,
-  )
-
-  choreography(
-    error = "choreography:resolutionError:seqProgInstanceMethodNonVoid",
-    desc = "instance method in choreography must have void return type",
-    pvl = """
-  choreography Example() {
-    int m() { }
-
-    run { }
-  }
-  """,
   )
 
   choreography(
@@ -931,23 +1141,6 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   )
 
   choreography(
-    error = "choreography:resolutionError:chorStatement",
-    desc = "Assignment should not be allowed in choreographies",
-    pvl = """
-    class Storage {
-      int x;
-    }
-
-    choreography Example() {
-      endpoint alice = Storage();
-      run {
-        alice.x = 0;
-      }
-    }
-    """,
-  )
-
-  choreography(
     fail = "participantsNotDistinct",
     flag = "--generate-permissions",
     desc = "Endpoints participating in a communicate should be distinct",
@@ -1041,12 +1234,12 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   val wd = "technical/veymont"
 
   choreography(
-    flag = "--generate-permissions",
+    flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     input = example(s"$wd/checkLTS/ltstest.pvl"),
   )
 
   choreography(
-    flag = "--generate-permissions",
+    flags = Seq("--generate-permissions", "--veymont-ps=inline"),
     input = example(s"$wd/checkLTS/simpleifelse.pvl"),
   )
 
@@ -1099,7 +1292,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
 
   choreography(
     error = "choreography:resolutionError:seqProgEndpointAssign",
-    flags = Seq("--generate-permissions", "--dev-veymont-allow-assign"),
+    flags = Seq("--generate-permissions"),
     input = example(
       s"$wd/checkMainSyntaxAndWellFormedness/RoleFieldAssignment.pvl"
     ),
@@ -1134,4 +1327,99 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
   )
 
   choreography(fail = "perm", input = example(s"$wd/subFieldAssignError.pvl"))
+
+  // The next three tests highlight a shortcoming of the stratified permissions encoding w.r.t predicates.
+  // See the EncodePermissionStratification pass for more info.
+  choreography(
+    desc =
+      "Because of the partial encoding of stratified predicates, functions expecting exact permission amounts that look correct will fail to verify",
+    fail = "preFailed:perm",
+    pvl = """
+      resource P(C c) = Perm(c.x, 1) ** c.x == 0;
+
+      requires P(c);
+      ensures unfolding P(c) in c.x == 0;
+      pure boolean foo(C c) = (unfolding P(c) in c.x == 0);
+
+      class C {
+        int x;
+
+        ensures P(this);
+        constructor() {
+          x = 0;
+          fold P(this);
+        }
+      }
+
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; P(a));
+        run {
+          assert (\chor foo(a));
+        }
+      }
+      """,
+  )
+
+  choreography(
+    desc =
+      "Functions that expect only wildcard permissions will succesfully verify, despite the partial encoding of stratified predicates",
+    flag = "--veymont-ps=inline",
+    pvl = """
+      resource P(C c) = Perm(c.x, 1) ** c.x == 0;
+
+      requires Value(P(c));
+      ensures (unfolding Value(P(c)) in c.x == 0);
+      pure boolean foo(C c) = (unfolding Value(P(c)) in c.x == 0);
+
+      class C {
+        int x;
+
+        ensures P(this);
+        constructor() {
+          x = 0;
+          fold P(this);
+        }
+      }
+
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; P(a));
+        run {
+          assert (\chor foo(a));
+        }
+      }
+      """,
+  )
+
+  choreography(
+    desc =
+      "If you precisely half all permissions in a function, you can have exact permission amounts for predicates in a function contract, despite the partial encoding of stratified predicates.",
+    flag = "--veymont-ps=inline",
+    pvl = """
+      resource P(C c) = Perm(c.x, 1) ** c.x == 0;
+
+      requires Perm(P(c), 1\4);
+      ensures (unfolding Perm(P(c), 1\4) in c.x == 0);
+      pure boolean foo(C c) = (unfolding Perm(P(c), 1\4) in c.x == 0);
+
+      class C {
+        int x;
+
+        ensures P(this);
+        constructor() {
+          x = 0;
+          fold P(this);
+        }
+      }
+
+      choreography Chor() {
+        endpoint a = C();
+        requires (\endpoint a; P(a));
+        run {
+          assert (\chor foo(a));
+        }
+      }
+      """,
+  )
 }

@@ -1,0 +1,11 @@
+//:: cases InlineFunctions
+//:: tools silicon
+//:: verdict Pass
+
+class C {
+    inline pure int f(int x) = x + 1;
+
+    void m() {
+        assert f(f(f(0))) == 3;
+    }
+}

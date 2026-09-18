@@ -1,9 +1,10 @@
 package vct.col.ast.expr.apply
 
+import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.{Applicable, Apply, Expr, Type}
 import vct.col.ref.Ref
 
-trait ApplyImpl[G] {
+trait ApplyImpl[G] extends NodeFamilyImpl[G] {
   this: Apply[G] =>
   def ref: Ref[G, _ <: Applicable[G]]
   def args: Seq[Expr[G]]

@@ -38,18 +38,18 @@ choreography leaderElectRing() {
 		loop_invariant 0 <= c.n && c.n <= 3;
 		loop_invariant (\chor a.n == c.n && b.n == c.n && d.n == c.n);
 		loop_invariant (\chor (c.n == 0 ==> a.maxVal == a.rank && b.maxVal == b.rank &&  c.maxVal == c.rank &&  d.maxVal == d.rank)
-		  ** (c.n == 1 ==> (d.rank > a.rank ? a.maxVal == d.rank : a.maxVal == a.rank))
-		  ** (c.n == 1 ==> (a.rank > b.rank ? b.maxVal == a.rank : b.maxVal == b.rank))
-		  ** (c.n == 1 ==> (b.rank > c.rank ? c.maxVal == b.rank : c.maxVal == c.rank))
-		  ** (c.n == 1 ==> (c.rank > d.rank ? d.maxVal == c.rank : d.maxVal == d.rank))
-		  ** (c.n == 2 ==> a.maxVal == a.maxVal(a.rank, c.rank, d.rank))
-		  ** (c.n == 2 ==> b.maxVal == b.maxVal(a.rank, b.rank, d.rank))
-		  ** (c.n == 2 ==> c.maxVal == c.maxVal(c.rank, b.rank, a.rank))
-		  ** (c.n == 2 ==> d.maxVal == d.maxVal(b.rank, c.rank, d.rank))
-		  ** (c.n == 3 ==> a.maxVal == a.maxVal(a.rank, b.rank, c.rank, d.rank))
-		  ** (c.n == 3 ==> b.maxVal == b.maxVal(a.rank, b.rank, c.rank, d.rank))
-		  ** (c.n == 3 ==> c.maxVal == c.maxVal(a.rank, b.rank, c.rank, d.rank))
-		  ** (c.n == 3 ==> d.maxVal == d.maxVal(a.rank, b.rank, c.rank, d.rank)));
+		  && (c.n == 1 ==> (d.rank > a.rank ? a.maxVal == d.rank : a.maxVal == a.rank))
+		  && (c.n == 1 ==> (a.rank > b.rank ? b.maxVal == a.rank : b.maxVal == b.rank))
+		  && (c.n == 1 ==> (b.rank > c.rank ? c.maxVal == b.rank : c.maxVal == c.rank))
+		  && (c.n == 1 ==> (c.rank > d.rank ? d.maxVal == c.rank : d.maxVal == d.rank))
+		  && (c.n == 2 ==> a.maxVal == a.maxVal(a.rank, c.rank, d.rank))
+		  && (c.n == 2 ==> b.maxVal == b.maxVal(a.rank, b.rank, d.rank))
+		  && (c.n == 2 ==> c.maxVal == c.maxVal(c.rank, b.rank, a.rank))
+		  && (c.n == 2 ==> d.maxVal == d.maxVal(b.rank, c.rank, d.rank))
+		  && (c.n == 3 ==> a.maxVal == a.maxVal(a.rank, b.rank, c.rank, d.rank))
+		  && (c.n == 3 ==> b.maxVal == b.maxVal(a.rank, b.rank, c.rank, d.rank))
+		  && (c.n == 3 ==> c.maxVal == c.maxVal(a.rank, b.rank, c.rank, d.rank))
+		  && (c.n == 3 ==> d.maxVal == d.maxVal(a.rank, b.rank, c.rank, d.rank)));
 		while (a.n < 3 && b.n < 3 && c.n < 3 && d.n < 3) {
 			communicate a.left <- d.maxVal;
 			communicate b.left <- a.maxVal;

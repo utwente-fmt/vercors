@@ -50,7 +50,7 @@ class Process {
   }
 }
 
-inline resource consistency(Process p1, Process p2, Process p3, Process p4, Process p5) =
+pure boolean consistency(Process p1, Process p2, Process p3, Process p4, Process p5) =
     p1.id1 == p2.id1 && p2.id1 == p3.id1 && p3.id1 == p4.id1 && p4.id1 == p5.id1 && p5.id1 == p1.id1 &&
     p1.id2 == p2.id2 && p2.id2 == p3.id2 && p3.id2 == p4.id2 && p4.id2 == p5.id2 && p5.id2 == p1.id2 &&
     p1.id3 == p2.id3 && p2.id3 == p3.id3 && p3.id3 == p4.id3 && p4.id3 == p5.id3 && p5.id3 == p1.id3 &&

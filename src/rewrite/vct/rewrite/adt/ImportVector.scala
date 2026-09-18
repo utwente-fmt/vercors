@@ -413,13 +413,16 @@ case class ImportVector[Pre <: Generation](importer: ImportADTImporter)
                 ),
               )
             case div: VectorFloatDiv[Pre] =>
-              val o: Origin = Origin(Seq(LabelContext("vector div method")))
+              implicit val o: Origin = Origin(
+                Seq(LabelContext("vector div method"))
+              )
               vectorOpsMethods.getOrElseUpdate(
                 (size, "floatDiv", elementT),
                 makeVectorOp(
                   size,
                   elementT,
-                  isDivOp = divOp,
+                  // We do not want to check for non zeroness for floats
+                  isDivOp = false,
                   isCompareOp = false,
                   (l, r) => FloatDiv[Post](l, r)(div.blame)(o),
                   "div",

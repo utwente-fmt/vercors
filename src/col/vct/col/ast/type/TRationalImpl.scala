@@ -6,5 +6,10 @@ import vct.col.ast.ops.TRationalOps
 
 trait TRationalImpl[G] extends TRationalOps[G] {
   this: TRational[G] =>
-  override def layout(implicit ctx: Ctx): Doc = Text("rational")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Text("rat")
+      case _ => Text("rational")
+    }
+  }
 }

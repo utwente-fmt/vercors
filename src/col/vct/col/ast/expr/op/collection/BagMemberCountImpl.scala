@@ -1,7 +1,7 @@
 package vct.col.ast.expr.op.collection
 
 import vct.col.ast.{BagMemberCount, TInt, Type}
-import vct.col.print.{Ctx, Doc, Group, Precedence}
+import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.BagMemberCountOps
 
 trait BagMemberCountImpl[G] extends BagMemberCountOps[G] {
@@ -10,5 +10,8 @@ trait BagMemberCountImpl[G] extends BagMemberCountOps[G] {
 
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(xs) <> ".count(" <> Doc.arg(x) <> ")")
+    ctx.syntax match {
+      case Ctx.Isar => Group(Text("count") <+> assoc(xs) <+> Doc.arg(x))
+      case _ => Group(assoc(xs) <> ".count(" <> Doc.arg(x) <> ")")
+    }
 }

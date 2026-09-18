@@ -1,5 +1,7 @@
-choreography Main() {
+class A {}
+
+choreography Main(A a) {
 	run {
-		wait null; // Not allowed
+		wait a; // Not allowed
 	}
 }

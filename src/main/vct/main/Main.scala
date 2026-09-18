@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory
 import scopt.OParser
 import vct.col.ast.Node
 import vct.debug.CrashReport
+import vct.main.modes.{CFG, Compile, Isar, Patcher, VeSUV, Verify, VeyMont, LSP}
 import vct.main.modes.{Alpinist, CFG, Compile, Patcher, VeSUV, Verify, VeyMont}
 import vct.main.stages.Transformation
 import vct.options.Options
@@ -24,6 +25,7 @@ case object Main extends LazyLogging {
   val EXIT_CODE_SUCCESS = 0
   val EXIT_CODE_VERIFICATION_FAILURE = 1
   val EXIT_CODE_ERROR = 2
+  val EXIT_CODE_TIMEOUT = 3
 
   case class TemporarilyUnsupported(feature: String, examples: Seq[Node[_]])
       extends UserError {
@@ -63,7 +65,7 @@ case object Main extends LazyLogging {
     } catch {
       case t: Throwable =>
         logger.error(s"Unrecoverable error: ${t.getMessage}", t)
-        throw t
+        System.exit(EXIT_CODE_ERROR)
     }
 
   /** Decide what to do from the parsed options.
@@ -84,6 +86,12 @@ case object Main extends LazyLogging {
     if (options.help) {
       println(OParser.usage(Options.parser(hide = !options.showHidden)))
       return 0
+    }
+
+    options.mode match {
+      case Mode.LSP =>
+        System.setProperty("logback.configurationFile", "logback-lsp.xml")
+      case _ =>
     }
 
     Middleware.using(
@@ -121,6 +129,8 @@ case object Main extends LazyLogging {
         logger.info("Starting control flow graph transformation")
         CFG.runOptions(options)
       case Mode.Compile => Compile.runOptions(options)
+      case Mode.Isar    => Isar.runOptions(options)
       case Mode.Patcher => Patcher.runOptions(options)
+      case Mode.LSP => LSP.runOptions(options)
     }
 }

@@ -58,6 +58,7 @@ object Utils {
             typeArgs,
             givenMap,
             yields,
+            _,
           ) =>
         Seq(
           InvokeProcedure(ref, args, outArgs, typeArgs, givenMap, yields)(
@@ -115,7 +116,11 @@ object Utils {
     }
 
   private def get_out_variable[G](cls: Ref[G, Class[G]], o: Origin): Local[G] =
-    Local(new DirectRef[G, Variable[G]](new Variable(TClass(cls, Seq()))(o)))(o)
+    Local(
+      new DirectRef[G, Variable[G]](new Variable(TByReferenceClass(cls, Seq()))(
+        o
+      ))
+    )(o)
 
   def find_all_cases[G](
       body: Statement[G],
@@ -124,7 +129,7 @@ object Utils {
     body match {
       case Switch(_, _) => Seq()
       // Recursion on statements that can contain case statements
-      case Label(_, stat) => find_all_cases(stat, index.enter_scope(body))
+      case Label(_, stat, _) => find_all_cases(stat, index.enter_scope(body))
       case Block(statements) =>
         statements.zipWithIndex
           .flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2)))
@@ -138,7 +143,7 @@ object Utils {
           .flatMap(t => find_all_cases(t._1, index.enter_scope(body, t._2)))
       case FramedProof(_, bod, _) =>
         find_all_cases(bod, index.enter_scope(body))
-      case Extract(contractedStatement) =>
+      case Extract(contractedStatement, decreases) =>
         find_all_cases(contractedStatement, index.enter_scope(body))
       case Branch(branches) =>
         branches.zipWithIndex.flatMap(t =>

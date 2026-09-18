@@ -95,7 +95,7 @@ case class Silicon(
       totalTimeOut.toString,
       "--z3Exe",
       z3Path.toString,
-      "--z3ConfigArgs",
+      "--proverConfigArgs",
       z3Config,
     )
     if (optimizeUnsafe)
@@ -123,6 +123,8 @@ case class Silicon(
     siliconConfig ++= options
 
     siliconConfig :+= "-"
+
+    logger.debug("Silicon command line: " + siliconConfig)
 
     silicon.parseCommandLine(siliconConfig)
     if (!optimizeUnsafe)

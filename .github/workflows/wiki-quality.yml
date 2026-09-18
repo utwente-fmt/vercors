@@ -1,0 +1,214 @@
+name: Wiki Quality Checks
+
+on:
+  gollum:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  
+jobs:
+  wiki-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main repository
+        uses: actions/checkout@v7
+
+      - name: Clone wiki repository
+        run: |
+          git clone "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.wiki.git" wiki
+          echo "Cloned wiki commit: $(git -C wiki rev-parse --short HEAD)"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install markdown and spelling tools
+        run: npm install --global markdownlint-cli2 cspell
+
+      - name: Install grammar tool
+        run: python -m pip install --upgrade pip proselint
+
+      - name: Auto-fix markdownlint issues and commit wiki changes
+        id: autofix
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/wiki-quality-logs"
+          autofix_log="$RUNNER_TEMP/wiki-quality-logs/markdownlint-fix.log"
+
+          set +e
+          markdownlint-cli2 --config .github/wiki-quality/.markdownlint-cli2.cjs "wiki/**/*.md" --fix 2>&1 | tee "$autofix_log"
+          fix_status=${PIPESTATUS[0]}
+          set -e
+
+          if [[ "$fix_status" -ne 0 ]]; then
+            echo "::warning title=Markdown auto-fix reported issues::markdownlint-cli2 --fix exited with status $fix_status; continuing with remaining checks."
+            echo "markdownlint-cli2 exited with status $fix_status. Continuing to report remaining issues."
+          fi
+
+          if git -C wiki diff --quiet; then
+            echo "No markdown auto-fixes were needed."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git -C wiki config user.name "github-actions[bot]"
+            git -C wiki config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git -C wiki add -A
+            git -C wiki commit -m "chore(wiki): auto-fix markdownlint issues"
+            wiki_branch="$(git -C wiki rev-parse --abbrev-ref HEAD)"
+            git -C wiki push origin "HEAD:${wiki_branch}"
+            echo "Auto-fix commit pushed to wiki branch ${wiki_branch}."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "fix_status=$fix_status" >> "$GITHUB_OUTPUT"
+
+      - name: Markdown lint (remaining issues after auto-fix)
+        id: markdownlint
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/wiki-quality-logs"
+          markdown_log="$RUNNER_TEMP/wiki-quality-logs/markdownlint.log"
+          echo "::add-matcher::.github/wiki-quality/markdownlint-matcher.json"
+          set +e
+          markdownlint-cli2 --config .github/wiki-quality/.markdownlint-cli2.cjs "wiki/**/*.md" 2>&1 | tee "$markdown_log"
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "::remove-matcher owner=wiki-markdownlint::"
+          if [[ "$status" -ne 0 ]]; then
+            echo "::warning title=Markdown lint failed::See markdownlint output and step summary log details."
+          else
+            echo "::notice title=Markdown lint passed::No remaining markdownlint issues after auto-fix."
+          fi
+          exit "$status"
+
+      - name: Spelling check
+        id: spelling
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/wiki-quality-logs"
+          spelling_log="$RUNNER_TEMP/wiki-quality-logs/cspell.log"
+          echo "::add-matcher::.github/wiki-quality/cspell-matcher.json"
+          set +e
+          cspell lint --config .github/wiki-quality/cspell.json "wiki/**/*.md" 2>&1 | tee "$spelling_log"
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "::remove-matcher owner=wiki-cspell::"
+          if [[ "$status" -ne 0 ]]; then
+            echo "::warning title=Spelling check failed::See cspell output and step summary log details."
+          else
+            echo "::notice title=Spelling check passed::No spelling issues found by cspell."
+          fi
+          exit "$status"
+
+      - name: Grammar/style check
+        id: grammar
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/wiki-quality-logs"
+          grammar_log="$RUNNER_TEMP/wiki-quality-logs/proselint.log"
+          echo "::add-matcher::.github/wiki-quality/proselint-matcher.json"
+          set +e
+          python3 .github/wiki-quality/run_proselint_on_markdown.py \
+            --input-dir wiki \
+            --proselint-config .github/wiki-quality/proselint.json \
+            --path-prefix /wiki 2>&1 | tee "$grammar_log"
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "::remove-matcher owner=wiki-proselint::"
+          if [[ "$status" -ne 0 ]]; then
+            echo "::warning title=Grammar/style check failed::See proselint output and step summary log details."
+          else
+            echo "::notice title=Grammar/style check passed::No grammar/style issues found by proselint."
+          fi
+          exit "$status"
+
+      - name: Build result summary
+        if: always()
+        id: status
+        env:
+          AUTOFIX_CHANGED: ${{ steps.autofix.outputs.changed }}
+          AUTOFIX_STATUS: ${{ steps.autofix.outputs.fix_status }}
+          MARKDOWN_OUTCOME: ${{ steps.markdownlint.outcome }}
+          SPELLING_OUTCOME: ${{ steps.spelling.outcome }}
+          GRAMMAR_OUTCOME: ${{ steps.grammar.outcome }}
+          LOG_DIR: ${{ runner.temp }}/wiki-quality-logs
+        run: |
+          set -euo pipefail
+          overall="success"
+          if [[ "$MARKDOWN_OUTCOME" != "success" || "$SPELLING_OUTCOME" != "success" || "$GRAMMAR_OUTCOME" != "success" ]]; then
+            overall="failure"
+          fi
+
+          {
+            echo "# Wiki quality checks"
+            echo ""
+            echo "- Markdown auto-fix commit pushed: ${AUTOFIX_CHANGED:-false}"
+            echo "- Markdown auto-fix exit status: ${AUTOFIX_STATUS:-0}"
+            echo "- Markdown lint: $MARKDOWN_OUTCOME"
+            echo "- Spelling: $SPELLING_OUTCOME"
+            echo "- Grammar/style: $GRAMMAR_OUTCOME"
+            echo ""
+            echo "Tip: you can often auto-fix markdown issues locally with markdownlint-cli2-fix."
+            echo "Install: npm install --global markdownlint-cli2"
+            echo "Run: markdownlint-cli2-fix --config .github/wiki-quality/.markdownlint-cli2.cjs \"**/*.md\""
+            echo ""
+            echo "If a markdown check must be disabled for the next line, prepend: <!-- markdownlint-disable-next-line MDXXX -->"
+            echo "If a grammar check must be disabled for a line, add: <!-- proselint-ignore --> on the line before it."
+            echo "If a word should be treated as valid spelling, add it to .github/wiki-quality/cspell.json"
+            echo ""
+            echo "Triggered by: @${{ github.event.sender.login }}"
+            echo "Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          append_log_details() {
+            title="$1"
+            outcome="$2"
+            file="$3"
+
+            {
+              echo ""
+              echo "<details>"
+              echo "<summary>${title} (outcome: ${outcome})</summary>"
+              echo ""
+              echo '```text'
+              if [[ -f "$file" ]]; then
+                cat "$file"
+              else
+                echo "(no log output captured)"
+              fi
+              echo '```'
+              echo ""
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          if [[ "$MARKDOWN_OUTCOME" != "success" ]]; then
+            append_log_details "Markdown lint logs" "$MARKDOWN_OUTCOME" "$LOG_DIR/markdownlint.log"
+          fi
+
+          if [[ "$SPELLING_OUTCOME" != "success" ]]; then
+            append_log_details "Spelling check logs" "$SPELLING_OUTCOME" "$LOG_DIR/cspell.log"
+          fi
+
+          if [[ "$GRAMMAR_OUTCOME" != "success" ]]; then
+            append_log_details "Grammar/style logs" "$GRAMMAR_OUTCOME" "$LOG_DIR/proselint.log"
+          fi
+
+          echo "overall=$overall" >> "$GITHUB_OUTPUT"
+
+
+      - name: Fail workflow when any check failed
+        if: always() && steps.status.outputs.overall != 'success'
+        run: |
+          echo "One or more wiki quality checks failed."
+          exit 1

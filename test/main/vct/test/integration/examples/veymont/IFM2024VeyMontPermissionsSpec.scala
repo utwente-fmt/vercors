@@ -20,7 +20,8 @@ class IFM2024VeyMontPermissionsSpec extends VeyMontSpec {
 
   {
     val caseWd = wd.resolve("0-TTT")
-    veymontTest(
+    // Skip implementation verification. This version of 0-TTT does not support that (time constraints).
+    choreography(
       desc = "TTT case study (choreographic verification)",
       inputs = examplePaths(
         caseWd.resolve("Move.pvl"),
@@ -29,8 +30,7 @@ class IFM2024VeyMontPermissionsSpec extends VeyMontSpec {
       ),
       flags = Seq(
         "--generate-permissions",
-        // Skip implementation verification. This version of 0-TTT does not support that (time constraints).
-        "--veymont-skip-implementation-verification",
+        "--veymont-ps=inline", // Inline such that \chor annotations actually work
       ),
     )
   }
@@ -48,6 +48,7 @@ class IFM2024VeyMontPermissionsSpec extends VeyMontSpec {
       flags = Seq(
         "--dev-unsafe-optimization",
         "--veymont-skip-implementation-verification",
+        "--veymont-no-branch-unanimity",
       ),
     )
 
@@ -94,6 +95,11 @@ class IFM2024VeyMontPermissionsSpec extends VeyMontSpec {
       flags = Seq(
         "--dev-unsafe-optimization",
         "--veymont-skip-implementation-verification",
+        "--backend-option",
+        "--exhaleMode",
+        "--backend-option",
+        "2",
+        "--veymont-no-branch-unanimity",
       ),
     )
 

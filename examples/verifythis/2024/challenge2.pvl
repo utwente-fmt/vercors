@@ -12,17 +12,17 @@ ensures (\forall int i=0..n(); |{:\result[i]:}| == 2);
 // Everything is NO_TASK or a valid task (thus: a graph)
 ensures (\forall int i=0..n(), int j=0..2; {:\result[i][j]:} == NO_TASK() || (0 <= \result[i][j] && \result[i][j] < n()));
 // The graph contains no cycles:
-ensures (\forall int i=0..n(); height(\result, i, set<int>{}) != -1);
+ensures (\forall int i=0..n(); {:height(\result, i, set<int>{}):} != -1);
 // The children of every node are unique:
 ensures (\forall int i=0..n(); {:\result[i]:}[0] == NO_TASK() || \result[i][0] != \result[i][1]);
 // The graph is a tree (not just a DAG):
-ensures (\forall int i=0..n(); i == ROOT_TASK() ? parentGraph(\result, i) == -1 : parentGraph(\result, i) != -1);
+ensures (\forall int i=0..n(); i == ROOT_TASK() ? {:parentGraph(\result, i):} == -1 : parentGraph(\result, i) != -1);
 // Every node is the parent of its children (this one should be possible to infer from the above, but was quite hard to prove)
 ensures (\forall int i=0..n(), int j=0..2; {:\result[i][j]:} == NO_TASK() || parentGraph(\result, \result[i][j]) == i);
 decreases;
 pure seq<seq<int>> subtask();
 
-requires (\forall int i; i \in xs; 0 <= i && i < n);
+requires (\forall int i; {:i \in xs:}; 0 <= i && i < n);
 requires n >= 0;
 ensures |xs| <= n;
 ensures \result == xs;
@@ -36,7 +36,7 @@ pure set<int> pigeon(set<int> xs, int n) =
 
 // -1 when a cycle occurs, in [0, n) otherwise
 requires |graph| == n() && (\forall int i=0..n(); |{:graph[i]:}| == 2);
-requires (\forall int i; i \in seen; 0 <= i && i < n());
+requires (\forall int i; {:i \in seen:}; 0 <= i && i < n());
 decreases n() - |seen|;
 pure int height(seq<seq<int>> graph, int pos, set<int> seen) =
     pos \in seen
@@ -187,14 +187,14 @@ class Main {
         |q| == p() **
         // Each worker has a unique queue
         (\forall int i=0..p(), int j=0..p(); {:q[i]:} == {:q[j]:} ==> i == j) **
-        (\forall* int i=0..p(); {:q[i]:} != null ** Perm({:q[i].tasks:}, 1\2)) **
+        (\forall* int i=0..p(); {:q[i]:} != null ** Perm({:1:q[i].tasks:}, 1\2)) **
         (\forall* int i=0..n(); Perm({:executed[i]:}, 1\2)) **
         // Every task in a queue is in subtask()
-        (\forall int i=0..p(), int j=0..|q[i].tasks|; 0 <= {:q[i].tasks[j]:} && {:q[i].tasks[j]:} < n()) **
+        (\forall int i=0..p(), int j=0..|q[i].tasks|; 0 <= {:q[i].tasks[j]:} && q[i].tasks[j] < n()) **
         task_owner != null ** task_owner.length == n() **
         (\forall* int i=0..n(); Perm({:task_owner[i]:}, write)) **
         // Every task owned by a worker is in subtask()
-        (\forall int i=0..n(); task_owner[i] != -1; 0 <= {:task_owner[i]:} && {:task_owner[i]:} < p()) **
+        (\forall int i=0..n(); task_owner[i] != -1; 0 <= {:task_owner[i]:} && task_owner[i] < p()) **
         // Every task in a queue has not been executed yet
         (\forall int i=0..p(), int j=0..|q[i].tasks|; !executed[{:q[i].tasks[j]:}]) **
         // Every task owned by a worker has not been executed yet
@@ -217,7 +217,7 @@ class Main {
         // If a worker is waiting no other worker may set that worker's communication cell to NOT_WAITING
         (\forall int i=0..p(); is_waiting[i] ==> {:communication_cells[i]:} != NOT_WAITING()) **
         // Every task in a communication cell: is a valid task in subtask()
-        (\forall int i=0..p(); communication_cells[i] != NOT_WAITING() && communication_cells[i] != WAITING(); 0 <= {:communication_cells[i]:} && {:communication_cells[i]:} < n()) **
+        (\forall int i=0..p(); communication_cells[i] != NOT_WAITING() && communication_cells[i] != WAITING(); 0 <= {:communication_cells[i]:} && communication_cells[i] < n()) **
         // Every task in a communication cell: has not been executed
         (\forall int i=0..p(); communication_cells[i] != NOT_WAITING() && communication_cells[i] != WAITING(); !executed[{:communication_cells[i]:}]) **
         // Every task in a communication cell: is not in a queue

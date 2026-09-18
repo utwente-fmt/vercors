@@ -1,10 +1,10 @@
 package vct.col.rewrite.exc
 
-import vct.col.ast.RewriteHelpers._
 import vct.col.ast._
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
+import vct.col.util.AstBuildHelpers.tt
 
 import scala.collection.mutable
 
@@ -26,7 +26,7 @@ case class ContinueToBreak[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
     stat match {
-      case Label(labelDecl, loop: Loop[Pre]) =>
+      case Label(labelDecl, loop: Loop[Pre], contract) =>
         val rewrittenBody = dispatch(loop.body)
 
         // If the loop label appears in the mapping, it means it contains some continue that wants to break
@@ -35,13 +35,18 @@ case class ContinueToBreak[Pre <: Generation]() extends Rewriter[Pre] {
           loopLabelToInnerLabel.get(labelDecl) match {
             case Some(innerLabelDecl) =>
               implicit val o: Origin = innerLabelDecl.o
-              Label(innerLabelDecl, rewrittenBody)
+              Label(
+                innerLabelDecl,
+                rewrittenBody,
+                LoopInvariant(tt, None)(TrueSatisfiable),
+              )
             case None => rewrittenBody
           }
 
         Label(
           labelDecls.dispatch(labelDecl),
           loop.rewrite(body = possiblyWrappedBody),
+          dispatch(contract),
         )(stat.o)
 
       case c @ Continue(Some(Ref(labelDecl))) =>
@@ -52,6 +57,6 @@ case class ContinueToBreak[Pre <: Generation]() extends Rewriter[Pre] {
         )
         Break(Some(innerLabelDecl.ref))(c.o)
 
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 }

@@ -1,13 +1,15 @@
 package vct.col.ast.expr.ambiguous
 
 import vct.col.ast._
+import vct.col.ast.expr.binder.PossibleTriggerImpl
 import vct.col.print.{Ctx, Doc, Precedence}
 import vct.col.ref.Ref
 import vct.col.typerules.{CoercionUtils, Types}
 import vct.result.VerificationError.Unreachable
 import vct.col.ast.ops.AmbiguousPlusOps
 
-trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] {
+trait AmbiguousPlusImpl[G]
+    extends AmbiguousPlusOps[G] with PossibleTriggerImpl[G] {
   this: AmbiguousPlus[G] =>
 
   def getValidOperatorsOf(
@@ -20,7 +22,7 @@ trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] {
         right
     val decls =
       subject.t match {
-        case TClass(Ref(cls), _) => cls.decls
+        case t: TClass[G] => t.cls.decl.decls
         case JavaTClass(Ref(cls), _) => cls.decls
         case _ => return None
       }
@@ -66,4 +68,7 @@ trait AmbiguousPlusImpl[G] extends AmbiguousPlusOps[G] {
 
   override def precedence: Int = Precedence.ADDITIVE
   override def layout(implicit ctx: Ctx): Doc = lassoc(left, "+", right)
+
+  override def isPossibleTrigger: Boolean =
+    isSeqOp || isBagOp || isSetOp || getCustomPlusOpType().isDefined
 }

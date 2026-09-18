@@ -1,7 +1,7 @@
 package vct.col.ast.expr.literal.build
 
 import vct.col.ast.{Range, TInt, TSeq, Type}
-import vct.col.print.{Ctx, Doc, Precedence, Text}
+import vct.col.print.{Ctx, Doc, Group, Precedence, Text}
 import vct.col.ast.ops.RangeOps
 
 trait RangeImpl[G] extends RangeOps[G] {
@@ -9,6 +9,10 @@ trait RangeImpl[G] extends RangeOps[G] {
   override def t: Type[G] = TSeq(TInt())
 
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc =
-    Text("[") <> from <+> ".." <+> to <> "]"
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Group(Text("[") <+> from <+> "..<" <+> to <+> Text("]"))
+      case _ => Text("[") <> from <+> ".." <+> to <> "]"
+    }
+  }
 }

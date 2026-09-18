@@ -65,6 +65,8 @@ object Constants {
   val SuccessorsProvider: Type = t"_root_.vct.col.ast.SuccessorsProvider"
   val SerializeBlame: Term = q"_root_.vct.col.serialize.SerializeBlame"
   val SerializeOrigin: Term = q"_root_.vct.col.serialize.SerializeOrigin"
+  val UnreachableError: Term =
+    q"_root_.vct.result.VerificationError.Unreachable"
 
   val CompareResult = t"_root_.vct.col.compare.CompareResult"
   val MatchingDeclaration = t"_root_.vct.col.compare.MatchingDeclaration"

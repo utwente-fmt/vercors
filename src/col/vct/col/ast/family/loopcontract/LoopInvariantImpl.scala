@@ -3,6 +3,7 @@ package vct.col.ast.family.loopcontract
 import vct.col.ast.LoopInvariant
 import vct.col.print._
 import vct.col.ast.ops.LoopInvariantOps
+import vct.col.check.CheckContext
 
 trait LoopInvariantImpl[G] extends LoopInvariantOps[G] {
   this: LoopInvariant[G] =>
@@ -18,4 +19,8 @@ trait LoopInvariantImpl[G] extends LoopInvariantOps[G] {
       ),
     )))
   }
+
+  override def enterCheckContextInPolarExpression(
+      context: CheckContext[G]
+  ): Boolean = true
 }

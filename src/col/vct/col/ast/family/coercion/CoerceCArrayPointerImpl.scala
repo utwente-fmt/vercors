@@ -5,5 +5,5 @@ import vct.col.ast.ops.CoerceCArrayPointerOps
 
 trait CoerceCArrayPointerImpl[G] extends CoerceCArrayPointerOps[G] {
   this: CoerceCArrayPointer[G] =>
-  override def target: TPointer[G] = TPointer(elementType)
+  override def target: TPointer[G] = TPointer(elementType, None)
 }

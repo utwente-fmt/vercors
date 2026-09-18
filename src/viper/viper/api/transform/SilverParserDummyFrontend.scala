@@ -51,7 +51,10 @@ case class SilverParserDummyFrontend()
     parse(RWFile(path).readToCompletion(), path)
 
   def parse(readable: Readable): Either[Seq[AbstractError], Program] =
-    parse(readable.readToCompletion(), Paths.get(readable.fileName))
+    parse(
+      readable.readToCompletion(),
+      readable.underlyingPath.getOrElse(Paths.get(readable.fileName)),
+    )
 
   override def createVerifier(fullCmd: String): Verifier = noVerifier
 

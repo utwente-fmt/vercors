@@ -200,8 +200,10 @@ abstract class VercorsSpec extends AnyFlatSpec {
       coveredExamples ++= paths
       val inputs = paths.map(PathOrStd.Path)
 
+      val flagsString = if (_flags.isEmpty) { "" } else {s" with flags ${_flags.mkString(" ")}"}
+
       for(backend <- backends) {
-        registerTest(verdict, s"Examples ${paths.mkString(", ")}", Seq(new Tag("exampleCase")), backend, inputs, _flags)
+        registerTest(verdict, s"Examples ${paths.mkString(", ")}$flagsString", Seq(new Tag("exampleCase")), backend, inputs, _flags)
       }
     }
 
@@ -212,26 +214,18 @@ abstract class VercorsSpec extends AnyFlatSpec {
   }
 
   class DescPhrase(val verdict: Verdict, val backends: Seq[Backend], val desc: String, val flags: Seq[String]) {
-    def pvl(data: String)(implicit pos: source.Position): Unit = {
-      val inputs = Seq(LiteralReadable("test.pvl", data))
+    private def literal(suffix: String, data: String)(implicit pos: source.Position): Unit = {
+      val inputs = Seq(LiteralReadable(s"test.$suffix", data))
       for(backend <- backends) {
         registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
       }
     }
 
-    def java(data: String)(implicit pos: source.Position): Unit = {
-      val inputs = Seq(LiteralReadable("test.java", data))
-      for(backend <- backends) {
-        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
-      }
-    }
-
-    def c(data: String)(implicit pos: source.Position): Unit = {
-      val inputs = Seq(LiteralReadable("test.c", data))
-      for(backend <- backends) {
-        registerTest(verdict, desc, Seq(new Tag("literalCase")), backend, inputs, flags)
-      }
-    }
+    def pvl(data: String)(implicit pos: source.Position): Unit = literal("pvl", data)
+    def java(data: String)(implicit pos: source.Position): Unit = literal("java", data)
+    def c(data: String)(implicit pos: source.Position): Unit = literal("c", data)
+    def cpp(data: String)(implicit pos: source.Position): Unit = literal("cpp", data)
+    def llvm(data: String)(implicit pos: source.Position): Unit = literal("ll", data)
   }
 
   val vercors: VercorsWord = new VercorsWord

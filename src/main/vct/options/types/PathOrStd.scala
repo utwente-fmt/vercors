@@ -15,7 +15,7 @@ sealed trait PathOrStd extends InMemoryCachedReadable with Writeable {
 
   override def fileName: String =
     this match {
-      case PathOrStd.Path(path) => path.toString
+      case PathOrStd.Path(path) => path.getFileName.toString
       case PathOrStd.StdInOrOut => "<stdio>"
     }
 

@@ -4,13 +4,17 @@ import vct.col.ast._
 import vct.col.check.{CheckContext, CheckError}
 import vct.col.ref.Ref
 import vct.col.rewrite.NonLatchingRewriter
-import vct.col.typerules.CoercionUtils
+import vct.col.typerules.{CoercionUtils, TypeSize}
 import vct.col.print._
 import vct.col.ast.ops.TypeFamilyOps
 import vct.col.util.IdentitySuccessorsProvider
 
 trait TypeImpl[G] extends TypeFamilyOps[G] {
   this: Type[G] =>
+  var storedBits: TypeSize = TypeSize.Unknown()
+
+  def bits: TypeSize = storedBits
+
   def superTypeOf(other: Type[G]): Boolean =
     CoercionUtils.getCoercion(other, this).isDefined
 
@@ -21,7 +25,7 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
   def asVector: Option[TVector[G]] =
     CoercionUtils.getAnyVectorCoercion(this).map(_._2)
   def asBag: Option[TBag[G]] = CoercionUtils.getAnyBagCoercion(this).map(_._2)
-  def asPointer: Option[TPointer[G]] =
+  def asPointer: Option[PointerType[G]] =
     CoercionUtils.getAnyPointerCoercion(this).map(_._2)
   def asArray: Option[TArray[G]] =
     CoercionUtils.getAnyArrayCoercion(this).map(_._2)
@@ -29,6 +33,11 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
     CoercionUtils.getAnyCArrayCoercion(this).map(_._2)
   def asCPPArray: Option[CPPTArray[G]] =
     CoercionUtils.getAnyCPPArrayCoercion(this).map(_._2)
+  def asPointerArray: Option[PointerArrayType[G]] =
+    this match {
+      case p: PointerArrayType[G] => Some(p)
+      case _ => None
+    }
   def asOption: Option[TOption[G]] =
     CoercionUtils.getAnyOptionCoercion(this).map(_._2)
   def asMap: Option[TMap[G]] = CoercionUtils.getAnyMapCoercion(this).map(_._2)
@@ -50,6 +59,17 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
     CoercionUtils.getAnySmtlibArrayCoercion(this).map(_._2)
   def asSmtlibSeq: Option[TSmtlibSeq[G]] =
     CoercionUtils.getAnySmtlibSeqCoercion(this).map(_._2)
+  def asByReferenceClass: Option[TByReferenceClass[G]] =
+    this match {
+      // TODO: Check uses should this be a coercion to also catch null and the like?
+      case cls: TByReferenceClass[G] => Some(cls)
+      case _ => None
+    }
+  def asByValueClass: Option[TByValueClass[G]] =
+    this match {
+      case cls: TByValueClass[G] => Some(cls)
+      case _ => None
+    }
   /*def asVector: Option[TVector] = optMatch(this) { case vec: TVector => vec }*/
 
   def particularize(substitutions: Map[Variable[G], Type[G]]): Type[G] = {
@@ -60,7 +80,13 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
       override def dispatch(t: Type[G]): Type[G] =
         t match {
           case TVar(Ref(v)) => substitutions(v)
-          case other => rewriteDefault(other)
+          case old @ TCInt() =>
+            val cint = TCInt[G]()
+            cint.storedBits = old.storedBits
+            cint.signed = old.signed
+            cint.rank = old.rank
+            cint
+          case other => super.dispatch(other)
         }
     }
     Particularize.dispatch(this)
@@ -71,16 +97,19 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
 
   protected def open(implicit ctx: Ctx): Doc =
     Text(
-      if (ctx.syntax == Ctx.Silver)
-        "["
-      else
-        "<"
+      ctx.syntax match {
+        case Ctx.Silver => "["
+        case Ctx.Isar => "("
+        case _ => "<"
+      }
     )
+
   protected def close(implicit ctx: Ctx): Doc =
     Text(
-      if (ctx.syntax == Ctx.Silver)
-        "]"
-      else
-        ">"
+      ctx.syntax match {
+        case Ctx.Silver => "]"
+        case Ctx.Isar => ")"
+        case _ => ">"
+      }
     )
 }

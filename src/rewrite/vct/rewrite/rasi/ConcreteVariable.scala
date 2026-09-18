@@ -244,7 +244,7 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int)
           ),
           IntegerValue(i)(field.o),
         )(field.o)(field.o)
-      case TPointer(_) =>
+      case TPointer(_, _) =>
         PointerSubscript(
           Deref[G](obj.getOrElse(AmbiguousThis()(field.o)), field.ref)(field.o)(
             field.o
@@ -259,7 +259,7 @@ case class IndexedVariable[G](field: InstanceField[G], i: Int)
     field.t match {
       case TSeq(element) => element
       case TArray(element) => element
-      case TPointer(element) => element
+      case TPointer(element, _) => element
     }
 
   override def compare(other: ConcreteVariable[G]): Boolean =

@@ -12,6 +12,7 @@ import vct.col.util.DeclarationBox
 import vct.result.VerificationError.{SystemError, UserError}
 import vct.rewrite.EncodeResourceValues.{
   GenericsNotSupported,
+  ResourceValueReturnType,
   UnknownResourceValue,
   UnsupportedResourceValue,
   WrongResourcePattern,
@@ -45,13 +46,21 @@ case object EncodeResourceValues extends RewriterBuilder {
     override def text: String =
       node.o.messageInContext("Wrong resource pattern encoding")
   }
+
+  case class ResourceValueReturnType(m: AbstractMethod[_]) extends UserError {
+    override def text: String =
+      m.o.messageInContext(
+        "Resource values as method return types currently not supported because of https://github.com/utwente-fmt/vercors/issues/1267"
+      )
+    override def code: String = "resourceValueReturnType"
+  }
 }
 
 case class EncodeResourceValues[Pre <: Generation]()
     extends Rewriter[Pre] with LazyLogging {
   sealed trait ResourcePattern
 
-  object ResourcePattern {
+  private object ResourcePattern {
     import vct.col.{ast => col}
     object Bool extends ResourcePattern
     case class Perm(loc: ResourcePatternLoc) extends ResourcePattern
@@ -80,7 +89,7 @@ case class EncodeResourceValues[Pre <: Generation]()
     final case class InstancePredicateLocation(ref: col.InstancePredicate[Pre])
         extends ResourcePatternLoc
 
-    def scan(loc: col.Location[Pre]): ResourcePatternLoc =
+    private def scan(loc: col.Location[Pre]): ResourcePatternLoc =
       loc match {
         case col.HeapVariableLocation(ref) => HeapVariableLocation(ref.decl)
         case col.FieldLocation(_, field) => FieldLocation(field.decl)
@@ -128,26 +137,32 @@ case class EncodeResourceValues[Pre <: Generation]()
       fromValue: Expr[Post] => Expr[Post],
   )
 
-  val patternBuilders: ScopedStack[Map[ResourcePattern, PatternBuilder]] =
+  private val patternBuilders
+      : ScopedStack[Map[ResourcePattern, PatternBuilder]] = ScopedStack()
+  private val valAdt: ScopedStack[AxiomaticDataType[Post]] = ScopedStack()
+  private val kindFunc: ScopedStack[ADTFunction[Post]] = ScopedStack()
+  private val arbitraryResourceValue: ScopedStack[Predicate[Post]] =
     ScopedStack()
-  val valAdt: ScopedStack[AxiomaticDataType[Post]] = ScopedStack()
-  val kindFunc: ScopedStack[ADTFunction[Post]] = ScopedStack()
-  val arbitraryResourceValue: ScopedStack[Predicate[Post]] = ScopedStack()
 
-  def isGeneric(cls: Class[Pre]): Boolean = cls.typeArgs.isEmpty
-  def nonGeneric(cls: Class[Pre]): Unit =
+  private def isGeneric(cls: Class[Pre]): Boolean = cls.typeArgs.nonEmpty
+  private def nonGeneric(cls: Class[Pre]): Unit =
     if (isGeneric(cls))
       throw GenericsNotSupported(cls)
 
   override def dispatch(program: Program[Pre]): Program[Post] = {
     implicit val o: Origin = program.o
 
+    val shouldCreateAdt =
+      program.collectFirst {
+        case _: ResourceValue[Pre] | _: ResourceOfResourceValue[Pre] |
+            _: TResourceVal[Pre] =>
+      }.isDefined
     val patterns =
       program.collect { case ResourceValue(res) => ResourcePattern.scan(res) }
         .toIndexedSeq
 
-    if (patterns.isEmpty) {
-      return patternBuilders.having(Map.empty) { rewriteDefault(program) }
+    if (!shouldCreateAdt) {
+      return patternBuilders.having(Map.empty) { super.dispatch(program) }
     }
 
     val fieldOwner =
@@ -184,20 +199,20 @@ case class EncodeResourceValues[Pre <: Generation]()
             case ResourcePattern.HeapVariableLocation(_) => Nil
             case ResourcePattern.FieldLocation(f) =>
               nonGeneric(fieldOwner(f))
-              Seq(TClass(succ(fieldOwner(f)), Seq()))
+              Seq(dispatch(fieldOwner(f).classType(Nil)))
             case ResourcePattern.ModelLocation(f) =>
               Seq(TModel(succ(modelFieldOwner(f))))
             case ResourcePattern.SilverFieldLocation(_) => Seq(TRef())
             case ResourcePattern.ArrayLocation(t) =>
               Seq(TArray(dispatch(t)), TInt())
             case ResourcePattern.PointerLocation(t) =>
-              Seq(TPointer(dispatch(t)))
+              Seq(TPointer(dispatch(t), None))
             case ResourcePattern.PredicateLocation(ref) =>
               ref.args.map(_.t).map(dispatch)
             case ResourcePattern.InstancePredicateLocation(ref) =>
               nonGeneric(predicateOwner(ref))
-              TClass[Post](succ(predicateOwner(ref)), Seq()) +:
-                ref.args.map(_.t).map(dispatch)
+              dispatch(predicateOwner(ref).classType(Nil)) +: ref.args.map(_.t)
+                .map(dispatch)
           }
 
         def freeTypes(pattern: ResourcePattern): Seq[Type[Post]] =
@@ -450,12 +465,19 @@ case class EncodeResourceValues[Pre <: Generation]()
 
         Let(binding, dispatch(resourceValue), select)
 
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 
   override def dispatch(t: Type[Pre]): Type[Post] =
     t match {
       case TResourceVal() => TAxiomatic(valAdt.top.ref, Nil)
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
+    }
+
+  override def dispatch(decl: Declaration[Pre]): Unit =
+    decl match {
+      case m: AbstractMethod[Pre] if m.returnType == TResourceVal[Pre]() =>
+        throw ResourceValueReturnType(m)
+      case _ => super.dispatch(decl)
     }
 }

@@ -1,0 +1,234 @@
+enum TYPE {
+    LEAF, COMPOUND
+}
+
+pure boolean nn(Node node) {
+    return node != null &&
+        ((node.t == TYPE.COMPOUND) ?
+            (node != null && nn(node.low) && nn(node.high))
+            :
+            (node.t == TYPE.LEAF))
+            ;
+}
+
+
+class Node {
+    final int ID;
+    final TYPE t;
+
+    final boolean val;
+
+    final int var;
+    final Node low;
+    final Node high;
+
+    ensures t == TYPE.LEAF;
+    ensures this.val == val;
+    constructor(boolean val);
+
+    requires nn(low) && nn(high);
+    ensures t == TYPE.COMPOUND;
+    ensures this.var == var;
+    ensures this.low == low;
+    ensures this.high == high;
+    constructor(int var, Node low, Node high);
+
+    pure boolean isTrue() {
+        return t == TYPE.LEAF && this.val;
+    }
+
+    pure boolean isFalse() {
+        return t == TYPE.LEAF && !this.val;
+    }
+}
+
+
+class BDD {
+    ensures nn(\result) && \result.val == b;
+    // (\forall set<int> s; b == eval(s, \result));
+    ensures \result.t == TYPE.LEAF;
+    Node node(boolean b) {
+        return new Node(b);
+    }
+
+    requires nn(low) && nn(high);
+    ensures nn(\result);
+    ensures \result.t == TYPE.COMPOUND && 
+        \result.low == low &&
+        \result.high == high &&
+        \result.var == var;
+    Node node(int var, Node low, Node high) {
+        return new Node(var, low, high);
+    }
+
+    requires nn(n);
+    pure boolean eval(Node n, set<int> s) {
+        if (n.t == TYPE.COMPOUND) {
+            if (n.var in s) {
+                assert nn(n.high);
+                return eval(n.high, s);
+            } else {
+                assert nn(n.low);
+                return eval(n.low, s);
+            }
+        } else {
+            return n.val;
+        }
+    }
+
+    requires nn(n);
+    pure boolean ordered(Node n) {
+        if (n.t == TYPE.COMPOUND) {
+            return ordered(n.low) && ordered(n.high) &&
+                (n.low.t == TYPE.COMPOUND ==> n.var < n.low.var) &&
+                (n.high.t == TYPE.COMPOUND ==> n.var < n.high.var);
+        } else {
+            return true;
+        }
+    }
+    
+    requires nn(node) && ordered(node);
+    ensures nn(\result);
+    ensures (\forall set<int> s; eval(node, s) == !eval(\result, s));
+    // TODO
+    // ensures ordered(\result);
+    Node not(Node node) {
+        if (node.isTrue()) {
+            return node(false);
+        }
+
+        if (node.isFalse()) {
+            return node(true);
+        }
+
+        return node(node.var, not(node.low), not(node.high));
+    }
+
+
+    /*
+        requires \result == node(true) ==> node1 == node(true) && node2 == node(true);
+        requires \result == node(false) ==> !(node1 == node(true) && node2 == node(true));
+    */
+    // public Node and(Node node1, Node node2) {
+    //     if (node1.isTrue())
+    //     return node2;
+    //     if (node2.isTrue())
+    //     return node1;
+    //     if (node1.isFalse() || node2.isFalse())
+    //     return node(false);
+    //     CompoundNode u = (CompoundNode)node1, v = (CompoundNode)node2;
+    //     if (u.var < v.var)
+    //     return node(u.var, and(u.low, v), and(u.high, v));
+    //     else if (u.var == v.var)
+    //     return node(u.var, and(u.low, v.low), and(u.high, v.high));
+    //     else
+    //     return node(v.var, and(u, v.low), and(u, v.high));
+    // }
+
+    // public static void main(String[] args) {
+    //     BDD b = new BDD();
+    //     Node f = b.node(false);
+    //     Node t = b.node(true);
+    //     Node x = b.node(1, f, t);
+    //     assert b.and(x, b.not(x)) == f;
+    // }
+}
+
+/*
+
+class LeafNode {
+    boolean val;
+    public LeafNode(boolean val) {
+    this.val = val;
+    }
+    public String toString() {
+        return "Node["+id+";"+val+"]";
+    }
+    public boolean equals(Object obj) {
+        return obj instanceof LeafNode && val == ((LeafNode)obj).val;
+    }
+    public int hashCode() {
+        return val ? 1 : 0;
+    }
+}
+
+class CompoundNode extends Node {
+    int var;
+    Node low; // where to go if var is false
+    Node high; // where to go if var is true
+    CompoundNode(int var, Node low, Node high) {
+        this.var = var;
+        this.low = low;
+        this.high = high;
+    }
+    public String toString() {
+        return "Node["+id+";"+var+","+low.id+","+high.id+"]";
+    }
+    public boolean equals(Object obj) {
+        if (obj instanceof CompoundNode) {
+            CompoundNode that = (CompoundNode)obj;
+            return var==that.var && low==that.low && high==that.high;
+        }
+        return false;
+    }
+    public int hashCode() {
+        return (1<<24) + 37*var + (1<<10)*23*low.hashCode() + 19*high.hashCode();
+    }
+}
+
+public class BDD {
+final static PrintStream out = System.out;
+HashMap<Node, Node> table = new LinkedHashMap<>();
+Node getNode(Node node) {
+if (node instanceof CompoundNode) {
+CompoundNode that = (CompoundNode)node;
+if (that.low == that.high) return that.low;
+}
+Node result = table.get(node);
+if (result == null) {
+node.id = table.size();
+table.put(node, node);
+return node;
+}
+return result;
+}
+public void print() {
+for (Node node : table.keySet())
+out.println(node);
+}
+public Node node(boolean val) {
+return getNode(new LeafNode(val));
+}
+public Node node(int var, Node low, Node high) {
+return getNode(new CompoundNode(var, low, high));
+}
+public Node not(Node node) {
+if (node.isTrue())
+return node(false);
+if (node.isFalse())
+return node(true);
+CompoundNode u = (CompoundNode)node;
+return node(u.var, not(u.low), not(u.high));
+}
+public Node and(Node node1, Node node2) {
+if (node1.isTrue())
+return node2;
+if (node2.isTrue())
+return node1;
+if (node1.isFalse() || node2.isFalse())
+return node(false);
+CompoundNode u = (CompoundNode)node1, v = (CompoundNode)node2;
+if (u.var < v.var)
+return node(u.var, and(u.low, v), and(u.high, v));
+else if (u.var == v.var)
+return node(u.var, and(u.low, v.low), and(u.high, v.high));
+else
+return node(v.var, and(u, v.low), and(u, v.high));
+}
+public static void main(String[] args) {
+BDD b = new BDD();
+Node f = b.node(false), t = b.node(true), x = b.node(1, f, t);
+assert b.and(x, b.not(x)) == f;
+}
+}
+*/

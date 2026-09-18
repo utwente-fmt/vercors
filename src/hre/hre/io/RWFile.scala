@@ -7,7 +7,7 @@ import java.nio.file.{Files, Path}
 case class RWFile(file: Path, doWatch: Boolean = true)
     extends InMemoryCachedReadable with Writeable {
   override def underlyingPath: Option[Path] = Some(file)
-  override def fileName: String = file.toString
+  override def fileName: String = file.getFileName.toString
   override def isRereadable: Boolean = true
 
   override protected def getWriter: Writer = {

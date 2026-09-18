@@ -1,7 +1,13 @@
 parser grammar CParser;
-options {tokenVocab = LangCLexer;}
+options {
+    superClass = CParserBase;
+    tokenVocab = LangCLexer;
+}
 import LangCParser, SpecParser;
 
+@header {
+    import vct.parsers.parser.CParserBase;
+}
 @parser::members {
     public int specLevel = 0;
 }
@@ -20,4 +26,6 @@ specFalse: 'false';
 startSpec: LineStartSpec {specLevel++;} | BlockStartSpec {specLevel++;} | BlockStartSpecImmediate {specLevel++;};
 endSpec: EndSpec {specLevel--;};
 
-typeSpecifierWithPointerOrArray : typeSpecifier | typeSpecifier '[' ']' | typeSpecifier '*';
+typeSpecifierWithPointerOrArray : specifierQualifierList
+    | specifierQualifierList '[' ']'
+    | specifierQualifierList '*';

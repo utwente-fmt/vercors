@@ -38,7 +38,10 @@ case class ImportVoid[Pre <: Generation](importer: ImportADTImporter)
 
   override def postCoerce(stat: Statement[Pre]): Statement[Post] =
     stat match {
-      case ret @ Return(v @ Void()) => ret.rewrite(result = Void()(v.o))
+      case ret @ Return(v @ Void()) =>
+        ret.rewrite(result = Void()(v.o))
+      case ret @ Return(ApplyCoercion(v @ Void(), CoerceIdentity(_))) =>
+        ret.rewrite(result = Void()(v.o))
       case other => rewriteDefault(other)
     }
 }

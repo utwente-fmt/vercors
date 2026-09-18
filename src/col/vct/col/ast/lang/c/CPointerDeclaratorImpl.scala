@@ -7,5 +7,5 @@ import vct.col.print.{Ctx, Doc}
 trait CPointerDeclaratorImpl[G] extends CPointerDeclaratorOps[G] {
   this: CPointerDeclarator[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    inner.show <> Doc.fold(pointers)(_ <> _)
+    Doc.fold(pointers)(_ <> _) <> inner.show
 }

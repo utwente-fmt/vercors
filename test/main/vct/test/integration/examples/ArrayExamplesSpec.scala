@@ -10,7 +10,6 @@ class ArrayExamplesSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/arrays/fibSearch.java"
 
   // https://github.com/utwente-fmt/vercors/issues/791
-  // vercors should verify using silicon example "concepts/arrays/Transpose.pvl"
   // vercors should verify using silicon example "concepts/arrays/access-sub-matrix-fail.c"
   // vercors should verify using silicon example "concepts/arrays/access-sub-matrix-pass.c"
 //   vercors should verify using silicon example "concepts/arrays/zero-sub-matrix.c"
@@ -24,4 +23,7 @@ class ArrayExamplesSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/arrays/array-problem.pvl"
 
   vercors should verify using silicon example "concepts/arrays/ArrayList.java"
+
+  vercors should verify using silicon flags("--prover-config:smt.arith.solver=6") example "concepts/arrays/MatrixTranspose.pvl"
+
 }

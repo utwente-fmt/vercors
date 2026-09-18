@@ -4,9 +4,12 @@ import vct.col.ast.{
   CoerceResourceResourceVal,
   CoerceResourceValResource,
   Coercion,
+  Eval,
   Expr,
   ResourceOfResourceValue,
   ResourceValue,
+  Statement,
+  TResource,
 }
 import vct.col.origin.Origin
 import vct.col.rewrite.{Generation, RewriterBuilder}
@@ -27,5 +30,15 @@ case class ExplicitResourceValues[Pre <: Generation]()
       case CoerceResourceResourceVal() => ResourceValue(e)
       case CoerceResourceValResource() => ResourceOfResourceValue(e)
       case other => super.applyCoercion(e, other)
+    }
+
+  override def preCoerce(e: Statement[Pre]): Statement[Pre] =
+    e match {
+      case Eval(inner) =>
+        inner.t match {
+          case _: TResource[Pre] => Eval(ResourceValue(inner)(inner.o))(e.o)
+          case _ => e
+        }
+      case _ => super.preCoerce(e)
     }
 }

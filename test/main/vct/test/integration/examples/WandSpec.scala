@@ -7,8 +7,8 @@ class WandSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/wand/ListAppendASyncDef.java"
   vercors should verify using silicon example "concepts/wand/ListAppendASyncDefInline.java"
   vercors should verify using silicon example "concepts/wand/TreeRecursiveSilver.java"
-  vercors should verify using silicon example "concepts/wand/TreeWandSilver-e1.java"
-  vercors should verify using silicon example "concepts/wand/TreeWandSilver-e2.java"
-  vercors should verify using silicon example "concepts/wand/TreeWandSilver.java"
+  vercors should verify using silicon flags("--backend-option", "--moreJoins=2") example "concepts/wand/TreeWandSilver-e1.java"
+  vercors should verify using silicon flags("--backend-option", "--moreJoins=2") example "concepts/wand/TreeWandSilver-e2.java"
+  vercors should verify using silicon flags("--backend-option", "--moreJoins=2") example "concepts/wand/TreeWandSilver.java"
   vercors should verify using silicon example "concepts/wand/WandDemoSilver.java"
 }

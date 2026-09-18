@@ -56,7 +56,7 @@ object Types {
       case (TType(left), TType(right)) =>
         TType(leastCommonSuperType(left, right))
 
-      case (left @ TClass(_, _), right @ TClass(_, _)) =>
+      case (left: TClass[G], right: TClass[G]) =>
         val leftArrows = left.transSupportArrows
         val rightArrows = right.transSupportArrows
         // Shared support are classes where there is an incoming left-arrow and right-arrow
@@ -79,10 +79,19 @@ object Types {
           case other => TUnion(other)
         }
 
-      case (TClass(_, _), TAnyClass()) | (TAnyClass(), TClass(_, _)) =>
+      case (_: TClass[G], TAnyClass()) | (TAnyClass(), _: TClass[G]) =>
         TAnyClass()
 
       // TODO similar stuff for JavaClass
+
+      case (_: TNull[G], pt: PointerType[G]) => pt.asNullable
+      case (pt: PointerType[G], _: TNull[G]) => pt.asNullable
+      case (_: TNull[G], p: PointerArrayType[G]) => p.asNullable
+      case (p: PointerArrayType[G], _: TNull[G]) => p.asNullable
+      case (_: TNull[G], p: TConstPointerArray[G]) => TConstPointer(p.element)
+      case (p: TConstPointerArray[G], _: TNull[G]) => TConstPointer(p.element)
+      case (_: TNull[G], p: CTArray[G]) => p.asPointer.get.asNullable
+      case (p: CTArray[G], _: TNull[G]) => p.asPointer.get.asNullable
 
       case (TUnion(left), TUnion(right)) => TUnion((left ++ right).distinct)
       case (TUnion(left), right) => TUnion((left :+ right).distinct)
@@ -90,6 +99,9 @@ object Types {
 
       case (TBoundedInt(leftGte, leftLt), TBoundedInt(rightGte, rightLt)) =>
         TBoundedInt(leftGte.min(rightGte), leftLt.max(rightLt))
+
+      case (LLVMTInt(leftWidth), LLVMTInt(rightWidth)) =>
+        LLVMTInt(leftWidth.max(rightWidth))
 
       // Unrelated types below rational are simply a rational
       case (left, right)

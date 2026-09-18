@@ -2,11 +2,9 @@ package vct.col.rewrite
 
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{DiagnosticOrigin, LabelContext, Origin, PreferredName}
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
-import vct.col.ast.RewriteHelpers._
+import vct.col.origin.{DiagnosticOrigin, LabelContext, Origin}
 import vct.col.ref.Ref
-import vct.col.util.AstBuildHelpers._
+import vct.col.util.StatementToExpression
 import vct.result.VerificationError.UserError
 
 case object PureMethodsToFunctions extends RewriterBuilder {
@@ -32,86 +30,6 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
 
   val currentAbstractMethod: ScopedStack[AbstractMethod[Pre]] = ScopedStack()
 
-  def countAssignments(v: Variable[Pre], s: Statement[Pre]): Option[Int] =
-    s match {
-      case Return(_) => Some(0)
-      case Block(stats) =>
-        val x =
-          stats.map(countAssignments(v, _)).fold(Some(0)) {
-            case (Some(a), Some(b)) => Some(a + b)
-            case _ => None
-          }
-        x
-      case Branch(conds) =>
-        val assignmentCounts = conds.map(_._2).map(countAssignments(v, _))
-          .collect {
-            case Some(n) => n
-            case None => return None
-          }
-        if (assignmentCounts.forall(_ <= 1)) {
-          assignmentCounts.maxOption.orElse(Some(0))
-        } else { None }
-      case Assign(Local(ref), _) =>
-        Some(
-          if (ref.decl == v)
-            1
-          else
-            0
-        )
-      case Assign(_, _) => None
-      case _ => None
-    }
-
-  def toExpression(
-      stat: Statement[Pre],
-      alt: => Option[Expr[Post]],
-  ): Option[Expr[Post]] = {
-    implicit val o: Origin = DiagnosticOrigin
-    stat match {
-      case Return(e) =>
-        alt match {
-          case Some(_) =>
-            throw MethodCannotIntoFunction(
-              currentAbstractMethod.top,
-              "Dead code after return is not allowed in pure methods",
-            )
-          case None => Some(dispatch(e))
-        }
-      case Block(Nil) => alt
-      case Block(stat +: tail) =>
-        toExpression(stat, toExpression(Block(tail), alt))
-      case Branch(Nil) => alt
-      case Branch((BooleanValue(true), impl) +: _) => toExpression(impl, alt)
-      case Branch((cond, impl) +: branches) =>
-        Some(Select(
-          dispatch(cond),
-          toExpression(impl, alt).getOrElse(return None),
-          toExpression(Branch(branches), alt).getOrElse(return None),
-        ))
-      case Scope(locals, impl) =>
-        if (!locals.forall(countAssignments(_, impl).exists(_ <= 1))) {
-          return None
-        }
-        toExpression(impl, alt)
-      case Assign(Local(ref), e) =>
-        alt match {
-          case Some(exprAlt) =>
-            Some(Let[Post](
-              variables.collect { dispatch(ref.decl) }._1.head,
-              dispatch(e),
-              exprAlt,
-            ))
-          case None =>
-            throw MethodCannotIntoFunction(
-              currentAbstractMethod.top,
-              "Pure method cannot end with assign statement",
-            )
-        }
-
-      case _ => None
-    }
-  }
-
   override def dispatch(decl: Declaration[Pre]): Unit = {
     implicit val o: Origin = decl.o
     decl match {
@@ -132,7 +50,10 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
             body =
               currentAbstractMethod.having(proc) {
                 proc.body.map(
-                  toExpression(_, None).getOrElse(
+                  StatementToExpression(
+                    this,
+                    (s: String) => MethodCannotIntoFunction(proc, s),
+                  ).toExpression(_, None).getOrElse(
                     throw MethodCannotIntoFunction(
                       proc,
                       "the method implementation cannot be restructured into a pure expression",
@@ -142,6 +63,7 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
               },
             contract = dispatch(proc.contract),
             inline = proc.inline,
+            opaque = proc.opaque,
           )(proc.blame)(proc.o),
         )
       case method: InstanceMethod[Pre] if method.pure =>
@@ -164,7 +86,10 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
             body =
               currentAbstractMethod.having(method) {
                 method.body.map(
-                  toExpression(_, None).getOrElse(
+                  StatementToExpression(
+                    this,
+                    (s: String) => MethodCannotIntoFunction(method, s),
+                  ).toExpression(_, None).getOrElse(
                     throw MethodCannotIntoFunction(
                       method,
                       "the method implementation cannot be restructured into a pure expression",
@@ -189,6 +114,7 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
             typeArgs,
             givenMap,
             yields,
+            reveal,
           ) =>
         if (proc.pure)
           FunctionInvocation[Post](
@@ -197,6 +123,7 @@ case class PureMethodsToFunctions[Pre <: Generation]() extends Rewriter[Pre] {
             typeArgs.map(dispatch),
             givenMap.map { case (Ref(v), e) => (succ(v), dispatch(e)) },
             yields.map { case (e, Ref(v)) => (dispatch(e), succ(v)) },
+            reveal,
           )(inv.blame)(e.o)
         else
           rewriteDefault(inv)

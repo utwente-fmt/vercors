@@ -7,5 +7,11 @@ import vct.col.ast.ops.LessEqOps
 trait LessEqImpl[G] extends LessEqOps[G] {
   this: LessEq[G] =>
   override def precedence: Int = Precedence.RELATIONAL
-  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "<=", right)
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => lassoc(left, "≤" , right)
+      case _ => lassoc(left, "<=", right)
+    }
+
+  }
 }

@@ -93,7 +93,7 @@ class Process {
   void setValueOrFail();
 }
 
-inline resource consistency(Process p1, Process p2, Process p3) =
+pure boolean consistency(Process p1, Process p2, Process p3) =
     p1.n == p2.n && p2.n == p3.n && p3.n == p1.n &&
     p1.f == p2.f && p2.f == p3.f && p3.f == p1.f;
 

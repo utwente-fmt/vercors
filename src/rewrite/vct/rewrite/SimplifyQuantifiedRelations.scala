@@ -163,34 +163,34 @@ case class SimplifyQuantifiedRelations[Pre <: Generation]()
             right match {
               case Local(Ref(v)) if bindings.contains(v) =>
                 if (!comp.less)
-                  inclusiveLowerBound(v) +=
-                    (if (comp.eq)
-                       left
-                     else
-                       left + one)
-                if (!comp.greater)
                   exclusiveUpperBound(v) +=
                     (if (comp.eq)
                        left + one
                      else
                        left)
+                if (!comp.greater)
+                  inclusiveLowerBound(v) +=
+                    (if (comp.eq)
+                       left
+                     else
+                       left + one)
               case _ => return None
             }
           } else if (indepOf(bindings, right)) {
             left match {
               case Local(Ref(v)) if bindings.contains(v) =>
                 if (!comp.less)
-                  exclusiveUpperBound(v) +=
-                    (if (comp.eq)
-                       right + one
-                     else
-                       right)
-                if (!comp.greater)
                   inclusiveLowerBound(v) +=
                     (if (comp.eq)
                        right
                      else
                        right + one)
+                if (!comp.greater)
+                  exclusiveUpperBound(v) +=
+                    (if (comp.eq)
+                       right + one
+                     else
+                       right)
               case _ => return None
             }
           } else

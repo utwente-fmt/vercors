@@ -1,7 +1,7 @@
 package vct.col.ast.expr.ambiguous
 
-import vct.col.ast.{AmbiguousSubscript, Type}
-import vct.col.print.{Ctx, Doc, Precedence, Group}
+import vct.col.ast.{AmbiguousSubscript, TPointerArray, Type}
+import vct.col.print.{Ctx, Doc, Group, Precedence}
 import vct.col.typerules.CoercionUtils
 import vct.result.VerificationError.Unreachable
 import vct.col.ast.ops.AmbiguousSubscriptOps
@@ -17,6 +17,7 @@ trait AmbiguousSubscriptImpl[G] extends AmbiguousSubscriptOps[G] {
     CoercionUtils.getAnyCArrayCoercion(collection.t).isDefined
   def isCPPArrayOp: Boolean =
     CoercionUtils.getAnyCPPArrayCoercion(collection.t).isDefined
+  def isPointerArrayOp: Boolean = collection.t.asPointerArray.isDefined
   def isPointerOp: Boolean =
     CoercionUtils.getAnyPointerCoercion(collection.t).isDefined
   def isMapOp: Boolean = CoercionUtils.getAnyMapCoercion(collection.t).isDefined
@@ -30,7 +31,13 @@ trait AmbiguousSubscriptImpl[G] extends AmbiguousSubscriptOps[G] {
       collection.t.asArray.get.element
     else if (isCArrayOp)
       collection.t.asCArray.get.innerType
-    else if (isCPPArrayOp)
+    else if (isPointerArrayOp) {
+      val arr = collection.t.asPointerArray.get
+      if (arr.dimensions.length == 1)
+        arr.element
+      else
+        arr.descend
+    } else if (isCPPArrayOp)
       collection.t.asCPPArray.get.innerType
     else if (isPointerOp)
       collection.t.asPointer.get.element

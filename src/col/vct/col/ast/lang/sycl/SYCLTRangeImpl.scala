@@ -18,7 +18,7 @@ trait SYCLTRangeImpl[G] extends SYCLTRangeOps[G] {
       args: Seq[Expr[G]],
   ): Option[CPPInvocationTarget[G]] =
     genericArgs match {
-      case Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim)), None))
+      case Seq(CPPExprOrTypeSpecifier(Some(CIntegerValue(dim, _)), None))
           if dim > 0 && dim <= 3 && Util.compatTypes(
             args,
             Seq.range(0, dim.toInt).map(_ => TCInt[G]()),

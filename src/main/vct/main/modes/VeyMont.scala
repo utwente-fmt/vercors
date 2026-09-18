@@ -48,10 +48,14 @@ object VeyMont extends LazyLogging {
   ) extends UserError {
     override def code: String = s"$codePrefix:${error.code}"
     override def text: String = s"$textPrefix\n${error.text}"
+
+    initCause(error)
   }
   case class WrapSystemError(textPrefix: String, error: SystemError)
       extends SystemError {
     override def text: String = s"$textPrefix\n${error.text}"
+
+    initCause(error)
   }
 
   def choreographyWithOptions(
@@ -120,6 +124,7 @@ object VeyMont extends LazyLogging {
         else
           Ctx.PVL,
         false,
+        false, // options.isarTriggers
       ))
     val wrap: VerificationError => VerificationError =
       WrapVerificationError.wrap(
@@ -188,7 +193,7 @@ object VeyMont extends LazyLogging {
       options: Options,
       inputs: Seq[Readable],
   ): Either[VerificationError, StageResult] = {
-    Progress.stages(Seq(("VeyMont", 1))) { _ =>
+    Progress.hiddenStage("VeyMont") {
       Progress.stages(
         Seq(("Choreography", 10), ("Generate", 2), ("Implementation", 9))
       ) { next =>

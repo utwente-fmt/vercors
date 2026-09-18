@@ -48,6 +48,17 @@ case object Progress extends MiddlewareObject[Progress] {
     } else
       f(() => {})
 
+  /** Helper to insert a name into the hierarchy of breadcrumbs. Has a
+    * progressWeight of zero. If you want this call to increment the progress
+    * bar when it finishes, you have to restructure your code to use one of the
+    * other helpers (e.g. `Progress.stages`)
+    */
+  def hiddenStage[T](name: String)(f: => T): T =
+    if (TaskRegistry.enabled) {
+      val superTask = TaskRegistry.currentTaskInThread
+      SimpleNamedTask(superTask, name, Some(0)).frame { f }
+    } else { f }
+
   def dynamicMessages[T](count: Int)(f: (String => Unit) => T): T =
     if (TaskRegistry.enabled)
       UpdateableTask(TaskRegistry.currentTaskInThread, Some(count)).scope(f)
@@ -62,6 +73,8 @@ case class Progress() extends Middleware {
   private var newLayoutAfterTimeout = false
 
   private def delayNextUpdate(longDelay: Boolean): Unit = {
+    if (blockLayoutUpdateTimer.isEmpty)
+      return
     blockLayoutUpdate = true
     blockLayoutUpdateTask.foreach(_.cancel())
     blockLayoutUpdateTimer.get.purge()

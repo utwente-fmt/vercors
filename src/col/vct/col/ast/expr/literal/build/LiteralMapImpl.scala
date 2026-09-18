@@ -9,8 +9,26 @@ trait LiteralMapImpl[G] extends LiteralMapOps[G] {
   override def t: Type[G] = TMap(k, v)
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
+
+  def layoutIsar(implicit ctx: Ctx): Doc = {
+    if (values.isEmpty) { Group(Text("fmempty")) }
+    else {
+      Group(Text("fmap_of_list [") <+> Doc.args(values.map { case (k, v) =>
+        Text("(") <> k.show <+> "," <+> v <> Text(")")
+      }) <+> Text("]"))
+    }
+  }
+
+  def layoutPvl(implicit ctx: Ctx): Doc =
     Group(Text("map<") <> k <> "," <+> v <> ">{" <> Doc.args(values.map {
       case (k, v) => k.show <+> "->" <+> v
     }) <> "}")
+
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => layoutIsar
+      case _ => layoutPvl
+    }
+
+  }
 }

@@ -39,8 +39,8 @@ case class CheckProcessAlgebra[Pre <: Generation]()
   }
 
   case class InsufficientPermissionForModelField(modelDeref: ModelDeref[_])
-      extends Blame[InsufficientPermission] {
-    override def blame(error: InsufficientPermission): Unit =
+      extends Blame[ClassDerefError] {
+    override def blame(error: ClassDerefError): Unit =
       modelDeref.blame.blame(ModelInsufficientPermission(modelDeref))
   }
 
@@ -95,7 +95,7 @@ case class CheckProcessAlgebra[Pre <: Generation]()
 
         val newClass =
           currentModel.having(model) {
-            new Class(
+            new ByReferenceClass(
               Seq(),
               classDeclarations.collect {
                 model.declarations.foreach(dispatch(_))
@@ -139,6 +139,7 @@ case class CheckProcessAlgebra[Pre <: Generation]()
               UnitAccountedPredicate(
                 Star(fieldPerms, rewriteDefault(process.ensures))
               ),
+              tt,
               tt,
               Seq(),
               Seq(),

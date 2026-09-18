@@ -26,7 +26,7 @@ case object CParser {
       extends UserError {
     override def code: String = "preprocessorError"
     override def text: String =
-      s"Preprocesing file $fileName failed with exit code $errorCode:\n$error"
+      s"Preprocessing file $fileName failed with exit code $errorCode:\n$error"
   }
 }
 
@@ -37,12 +37,15 @@ case class ColCParser(
     systemInclude: Path,
     otherIncludes: Seq[Path],
     defines: Map[String, String],
+    targetString: Option[String],
 ) extends Parser with LazyLogging {
   def interpret(input: String, output: String): Process = {
-    var command = Seq(cc.toString, "-C", "-E")
+    var command = Seq(cc.toString, "-CC", "-E")
 
     command ++= Seq("-nostdinc", "-nocudainc", "-nocudalib", "--cuda-host-only")
     command ++= Seq("-isystem", systemInclude.toAbsolutePath.toString)
+
+    if (targetString.isDefined) { command ++= Seq("-target", targetString.get) }
 
     command ++= otherIncludes.map("-I" + _.toAbsolutePath.toString)
     command ++= defines.map { case (k, v) => s"-D$k=$v" }
@@ -94,6 +97,6 @@ case class ColCParser(
       val result = ColIParser(debugOptions, blameProvider, Some(baseOrigin))
         .parse[G](ireadable)
       result
-    } finally { Files.delete(interpreted) }
+    } finally { Files.deleteIfExists(interpreted) }
   }
 }

@@ -13,9 +13,6 @@ choreography Swap(int x, int y) {
     endpoint alex = Storage(x);
     endpoint bobby = Storage(y);
 
-    // Using \old doesn't work because of the heavyweight permission stratification.
-    // When the lightweight method is implemented, these post-conditions (and below
-    // channel invariants) can be changed to just use \old.
     context Perm(alex.v, 1) ** Perm(alex.temp, 1) ** Perm(bobby.v, 1) ** Perm(bobby.temp, 1);
     context Perm(alex.oldV, read) ** Perm[bobby](alex.oldV, read) ** Perm(bobby.oldV, read) ** Perm[alex](bobby.oldV, read);
     requires (\[alex] alex.oldV == alex.v) ** (\[bobby] bobby.oldV == bobby.v);

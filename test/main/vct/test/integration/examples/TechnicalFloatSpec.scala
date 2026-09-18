@@ -117,6 +117,14 @@ class TechnicalFloatSpec extends VercorsSpec {
       }
   """
 
+  vercors should verify using silicon in "division of float" c """
+      #include <math.h>
+
+      void m() {
+        //@ assert(1.0/0.0 == INFINITY);
+      }
+  """
+
   vercors should verify using silicon in "inequality of floats c" c """
       #include "stdbool.h"
       bool m() {

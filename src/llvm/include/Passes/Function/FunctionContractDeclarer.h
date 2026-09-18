@@ -1,68 +1,94 @@
-#ifndef VCLLVM_FUNCTIONCONTRACTDECLARER_H
-#define VCLLVM_FUNCTIONCONTRACTDECLARER_H
+#ifndef PALLAS_FUNCTIONCONTRACTDECLARER_H
+#define PALLAS_FUNCTIONCONTRACTDECLARER_H
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Woverflow"
+#endif // __GNUC__
 #include "vct/col/ast/col.pb.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif // __GNUC__
+#include <llvm/IR/Metadata.h>
 #include <llvm/IR/PassManager.h>
 
+#include "IRSpec/PallasIRSpec.h"
+
 /**
- * Pass that adds an LLVMFunctionContract to its corresponding LLVMFunctionDefinition in the presence
- * of a contract metadata node. The resulting FDCResult class can be used by a FunctionAnalysisManager to access the
- * created contract and add named references to the contract (e.g. map functions arguments string representations to COL
- * variables representing these same arguments).
+ * Pass that adds an LlvmfunctionContract to its corresponding
+ * LlvmfunctionDefinition in the presence of a contract metadata node. The
+ * resulting FDCResult class can be used by a FunctionAnalysisManager to access
+ * the created contract and add named references to the contract (e.g. map
+ * functions arguments string representations to COL variables representing
+ * these same arguments).
  *
- * The pass is twofold: it has an analysis pass (FunctionContractDeclarer) that merely creates objects in the buffer and
- * adds them to the associated result object. This way, the result object of this pass can be queried by other passes in
- * order to retrieve the relevant COL nodes associated to this LLVM function.
+ * The pass is twofold: it has an analysis pass (FunctionContractDeclarer) that
+ * merely creates objects in the buffer and adds them to the associated result
+ * object. This way, the result object of this pass can be queried by other
+ * passes in order to retrieve the relevant COL nodes associated to this LLVM
+ * function.
  *
- * The second pass is a regular function pass (FunctionContractDeclarerPass) that finishes the transformation started by
- * the FunctionContractDeclarer analysis pass.
+ * The second pass is a regular function pass (FunctionContractDeclarerPass)
+ * that finishes the transformation started by the FunctionContractDeclarer
+ * analysis pass.
  */
-namespace vcllvm {
-    using namespace llvm;
-    namespace col = vct::col::ast;
+namespace pallas {
+using namespace llvm;
+namespace col = vct::col::ast;
 
-    class FDCResult {
-    private:
-        col::LlvmFunctionContract &associatedColFuncContract;
-    public:
-        explicit FDCResult(col::LlvmFunctionContract &colFuncContract);
+class FDCResult {
+  private:
+    col::LlvmFunctionContract &associatedColFuncContract;
 
-        col::LlvmFunctionContract &getAssociatedColFuncContract();
-    };
+    std::optional<irspec::FunctionContract> associatedIRContract = std::nullopt;
 
-    class FunctionContractDeclarer : public AnalysisInfoMixin<FunctionContractDeclarer> {
-        friend AnalysisInfoMixin<FunctionContractDeclarer>;
-        static AnalysisKey Key;
-    private:
-        std::shared_ptr<col::Program> pProgram;
-    public:
-        using Result = FDCResult;
+    std::unordered_map<const llvm::MDNode *, const col::Variable *> ghostArgMap;
 
-        explicit FunctionContractDeclarer(std::shared_ptr<col::Program> pProgram);
+  public:
+    explicit FDCResult(col::LlvmFunctionContract &colFuncContract);
 
-        /**
-         * Merely creates a COL LlvmFunctionDefinition object in the buffer and sets it in a FDCResult object.
-         * @param F
-         * @param FAM
-         * @return
-         */
-        Result run(Function &F, FunctionAnalysisManager &FAM);
-    };
+    void setIRContract(irspec::FunctionContract irContract);
 
-    class FunctionContractDeclarerPass : public AnalysisInfoMixin<FunctionContractDeclarerPass> {
-    private:
-        std::shared_ptr<col::Program> pProgram;
-    public:
-        explicit FunctionContractDeclarerPass(std::shared_ptr<col::Program> pProgram);
+    const irspec::FunctionContract *getIRContract();
 
-        /**
-         * Retrieves the LlvmFunctionDefinition object in the buffer from the FDCResult object and sets the origin and
-         * string value of the contract.
-         * @param F
-         * @param FAM
-         * @return
-         */
-        PreservedAnalyses run(Function &F, FunctionAnalysisManager &FAM);
-    };
-}
-#endif //VCLLVM_FUNCTIONCONTRACTDECLARER_H
+    void addGhostArgMapEntry(const llvm::MDNode &arg,
+                             const col::Variable &colVar);
+
+    const col::Variable *getGhostArgMapEntry(const llvm::MDNode &arg);
+
+    col::LlvmFunctionContract &getAssociatedColFuncContract();
+};
+
+class FunctionContractDeclarer
+    : public AnalysisInfoMixin<FunctionContractDeclarer> {
+    friend AnalysisInfoMixin<FunctionContractDeclarer>;
+    static AnalysisKey Key;
+
+  public:
+    using Result = FDCResult;
+
+    /**
+     * Merely creates a COL LlvmfunctionDefinition object in the buffer and sets
+     * it in a FDCResult object.
+     * @param F
+     * @param FAM
+     * @return
+     */
+    Result run(Function &F, FunctionAnalysisManager &FAM);
+};
+
+class FunctionContractDeclarerPass
+    : public AnalysisInfoMixin<FunctionContractDeclarerPass> {
+  public:
+    /**
+     * Retrieves the LlvmfunctionDefinition object in the buffer from the
+     * FDCResult object and sets the origin and string value of the contract.
+     * @param F
+     * @param FAM
+     * @return
+     */
+    PreservedAnalyses run(Function &F, FunctionAnalysisManager &FAM);
+};
+} // namespace pallas
+#endif // PALLAS_FUNCTIONCONTRACTDECLARER_H

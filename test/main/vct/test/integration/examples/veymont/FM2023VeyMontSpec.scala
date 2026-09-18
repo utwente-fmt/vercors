@@ -6,7 +6,7 @@ class FM2023VeyMontSpec extends VeyMontSpec {
   val wd = "publications/2023/FM2023VeyMont"
   val applicability = s"$wd/applicability"
   val paperExamples = s"$wd/paper-examples"
-  val fs = Seq("--generate-permissions")
+  val fs = Seq("--generate-permissions", "--veymont-ps=inline")
 
   // Verify with generated permissions
   choreography(inputs = examples(s"$applicability/2pc-3.pvl"), flags = fs)

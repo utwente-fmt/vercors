@@ -1,9 +1,9 @@
-inline resource ticTacToeAnnotations(Player p1, Player p2) =
-    p1.myToken == 0 ** p2.myToken == 1
-    ** p1.turn != p2.turn
-    ** p1.equalGrid(p2)
-    ** p1.move != null
-    ** p2.move != null;
+pure boolean ticTacToeAnnotations(Player p1, Player p2) =
+    p1.myToken == 0 && p2.myToken == 1
+    && p1.turn != p2.turn
+    && p1.equalGrid(p2)
+    && p1.move != null
+    && p2.move != null;
 
 choreography TTT() {
 	endpoint p1 = Player(0, true);

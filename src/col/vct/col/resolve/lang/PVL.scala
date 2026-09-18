@@ -13,8 +13,8 @@ case object PVL {
       args: Seq[Expr[G]],
   ): Option[PVLConstructorTarget[G]] = {
     t match {
-      case t @ TClass(Ref(cls), _) =>
-        val resolvedCons = cls.decls.collectFirst {
+      case t: TClass[G] =>
+        val resolvedCons = t.cls.decl.decls.collectFirst {
           case cons: PVLConstructor[G]
               if Util
                 .compat(t.typeEnv, args, typeArgs, cons.args, cons.typeArgs) =>
@@ -23,7 +23,7 @@ case object PVL {
 
         args match {
           case Nil =>
-            resolvedCons.orElse(Some(ImplicitDefaultPVLConstructor(cls)))
+            resolvedCons.orElse(Some(ImplicitDefaultPVLConstructor(t.cls.decl)))
           case _ => resolvedCons
         }
       case TModel(Ref(model)) if args.isEmpty => Some(RefModel(model))
@@ -64,13 +64,13 @@ case object PVL {
           case ref: RefEnumConstant[G @unchecked] if ref.name == name =>
             ref.copy(enum = Some(enum))
         }
-      case _: TNotAValue[G] => Spec.builtinField(obj, name, blame)
+      case _: TNotAValue[G] => Spec.builtinField(obj.t, name, blame, obj.o)
       case TModel(ref) =>
         ref.decl.declarations.flatMap(Referrable.from).collectFirst {
           case ref: RefModelField[G] if ref.name == name => ref
         }
-      case TClass(ref, _) => findDerefOfClass(ref.decl, name)
-      case _ => Spec.builtinField(obj, name, blame)
+      case t: TClass[G] => findDerefOfClass(t.cls.decl, name)
+      case _ => Spec.builtinField(obj.t, name, blame, obj.o)
     }
 
   def findInstanceMethod[G](
@@ -94,8 +94,8 @@ case object PVL {
           case ref: RefModelAction[G] if ref.name == method => ref
           case ref: RefModelProcess[G] if ref.name == method => ref
         }.orElse(Spec.builtinInstanceMethod(obj, method, blame))
-      case t @ TClass(ref, _) =>
-        ref.decl.declarations.flatMap(Referrable.from).collectFirst {
+      case t: TClass[G] =>
+        t.cls.decl.declarations.flatMap(Referrable.from).collectFirst {
           case ref: RefInstanceFunction[G]
               if ref.name == method &&
                 Util.compat(t.typeEnv, args, typeArgs, ref.decl) =>

@@ -8,7 +8,7 @@ trait ConstructorImpl[G] extends ConstructorOps[G] {
   this: Constructor[G] =>
   override def pure: Boolean = false
   override def returnType: TClass[G] =
-    TClass(cls, cls.decl.typeArgs.map((v: Variable[G]) => TVar(v.ref)))
+    cls.decl.classType(cls.decl.typeArgs.map((v: Variable[G]) => TVar(v.ref)))
 
   def layoutJava(implicit ctx: Ctx): Doc =
     Doc.stack(Seq(

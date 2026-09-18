@@ -11,26 +11,17 @@ import vct.col.origin.{
   Origin,
   PanicBlame,
   PreferredName,
-  UnfoldFailed,
+  TrueSatisfiable,
   UnfoldInlineFailed,
 }
 import vct.col.ref.Ref
 import vct.col.rewrite.error.ExcludedByPassOrder
-import vct.col.rewrite.{
-  Generation,
-  NonLatchingRewriter,
-  Rewriter,
-  RewriterBuilder,
-  Rewritten,
-}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.Substitute
 import vct.result.Message
-import vct.result.VerificationError.{Unreachable, UserError}
+import vct.result.VerificationError.UserError
 
-import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.reflect.ClassTag
 
 case object InlineApplicables extends RewriterBuilder {
   override def key: String = "inline"
@@ -90,7 +81,7 @@ case object InlineApplicables extends RewriterBuilder {
     override def dispatch(stat: Statement[G]): Statement[G] =
       stat match {
         case Return(e) => newStatement(dispatch(e))
-        case other => rewriteDefault(other)
+        case other => super.dispatch(other)
       }
   }
 
@@ -143,7 +134,11 @@ case object InlineApplicables extends RewriterBuilder {
     def captureReturn(t: Type[Pre], body: Statement[Pre])(
         implicit o: Origin
     ): Expr[Pre] = {
-      val done = Label[Pre](new LabelDecl(), Block(Nil))
+      val done = Label[Pre](
+        new LabelDecl(),
+        Block(Nil),
+        LoopInvariant(tt, None)(TrueSatisfiable),
+      )
       val result = new Variable[Pre](t)
       val sub = ReplaceReturn((e: Expr[Pre]) =>
         Block(Seq(assignLocal(result.get, e), Goto[Pre](done.decl.ref)))
@@ -305,64 +300,66 @@ case class InlineApplicables[Pre <: Generation]()
       case apply: ApplyInlineable[Pre] if apply.ref.decl.inline =>
         implicit val o: Origin = apply.o
 
-        checkCycle(apply, apply.ref.decl) {
-          lazy val obj = {
-            val instanceApply = apply.asInstanceOf[InstanceApply[Pre]]
-            val cls = classOwner(instanceApply.ref.decl)
-            Replacement(ThisObject[Pre](cls.ref), instanceApply.obj)(
-              InlineLetThisOrigin
-            )
-          }
-
-          lazy val args = Replacements(
-            for ((arg, v) <- apply.args.zip(apply.ref.decl.args))
-              yield Replacement(v.get, arg)(v.o)
+        lazy val obj = {
+          val instanceApply = apply.asInstanceOf[InstanceApply[Pre]]
+          val cls = classOwner(instanceApply.ref.decl)
+          Replacement(ThisObject[Pre](cls.ref), instanceApply.obj)(
+            InlineLetThisOrigin
           )
+        }
 
-          lazy val givenArgs = Replacements(
-            for (
-              (Ref(v), arg) <- apply.asInstanceOf[InvokingNode[Pre]].givenMap
-            )
-              yield Replacement(v.get, arg)(v.o)
-          )
+        lazy val args = Replacements(
+          for ((arg, v) <- apply.args.zip(apply.ref.decl.args))
+            yield Replacement(v.get, arg)(v.o)
+        )
 
-          lazy val outArgs = {
-            val inv = apply.asInstanceOf[AnyMethodInvocation[Pre]]
-            Replacements(
-              for ((out, v) <- inv.outArgs.zip(inv.ref.decl.outArgs))
-                yield Replacement(v.get, out)(v.o)
-            )
-          }
+        lazy val givenArgs = Replacements(
+          for ((Ref(v), arg) <- apply.asInstanceOf[InvokingNode[Pre]].givenMap)
+            yield Replacement(v.get, arg)(v.o)
+        )
 
-          lazy val yields = Replacements(
-            for ((out, Ref(v)) <- apply.asInstanceOf[InvokingNode[Pre]].yields)
+        lazy val outArgs = {
+          val inv = apply.asInstanceOf[AnyMethodInvocation[Pre]]
+          Replacements(
+            for ((out, v) <- inv.outArgs.zip(inv.ref.decl.outArgs))
               yield Replacement(v.get, out)(v.o)
           )
+        }
 
-          // TODO: consider type arguments
-          apply match {
-            case ProcedureInvocation(Ref(proc), _, _, typeArgs, _, _) =>
-              dispatch((args + givenArgs).stat(
-                apply.t,
-                proc.body.getOrElse(throw AbstractInlineable(apply, proc)),
-                outArgs + yields,
-              ))
-            case FunctionInvocation(Ref(func), _, typeArgs, _, _) =>
-              dispatch((args + givenArgs).expr(
+        lazy val yields = Replacements(
+          for ((out, Ref(v)) <- apply.asInstanceOf[InvokingNode[Pre]].yields)
+            yield Replacement(v.get, out)(v.o)
+        )
+
+        // TODO: consider type arguments
+        apply match {
+          case ProcedureInvocation(Ref(proc), _, _, typeArgs, _, _, _) =>
+            dispatch((args + givenArgs).stat(
+              apply.t,
+              checkCycle(apply, apply.ref.decl) {
+                proc.body.getOrElse(throw AbstractInlineable(apply, proc))
+              },
+              outArgs + yields,
+            ))
+          case FunctionInvocation(Ref(func), _, typeArgs, _, _, _) =>
+            dispatch((args + givenArgs).expr(checkCycle(apply, apply.ref.decl) {
+              func.body.getOrElse(throw AbstractInlineable(apply, func))
+            }))
+
+          case MethodInvocation(_, Ref(method), _, _, typeArgs, _, _) =>
+            dispatch((obj + args + givenArgs).stat(
+              apply.t,
+              checkCycle(apply, apply.ref.decl) {
+                method.body.getOrElse(throw AbstractInlineable(apply, method))
+              },
+              outArgs + yields,
+            ))
+          case InstanceFunctionInvocation(_, Ref(func), _, typeArgs, _, _) =>
+            dispatch(
+              (obj + args + givenArgs).expr(checkCycle(apply, apply.ref.decl) {
                 func.body.getOrElse(throw AbstractInlineable(apply, func))
-              ))
-
-            case MethodInvocation(_, Ref(method), _, _, typeArgs, _, _) =>
-              dispatch((obj + args + givenArgs).stat(
-                apply.t,
-                method.body.getOrElse(throw AbstractInlineable(apply, method)),
-                outArgs + yields,
-              ))
-            case InstanceFunctionInvocation(_, Ref(func), _, typeArgs, _, _) =>
-              dispatch((obj + args + givenArgs).expr(func.body.getOrElse(
-                throw AbstractInlineable(apply, func)
-              )))
-          }
+              })
+            )
         }
 
       case Unfolding(

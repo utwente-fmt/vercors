@@ -1,0 +1,106 @@
+/*
+This file shows how to specify the permission flow of
+an efficient prefix sum implementation for GP-GPU.
+
+(C) Thijs Wiefferink
+ */
+class Ref {
+
+	////////// KERNEL
+	context_everywhere N==16 && H==6; // H = log(N)/log(2) + 2, N should be a power of 2
+	context_everywhere \matrix(tree,H,N*2);
+	context_everywhere \array(input,N*2);
+	context_everywhere \array(output,N*2);
+	requires (∀* int i; 0<=i && i<N*2; Perm(input[i], read));
+	requires (∀* int i; 0<=i && i<N*2; Perm(output[i], write));
+	requires (∀* int i; 0<=i && i<N*2; 
+		(∀* int j; 0<=j && j<H; Perm(tree[j][i], write))
+	);
+	void runKernel(int N, int H, int[N*2] input, int[N*2] output, int[H][N*2] tree) {
+
+		////////// THREADS
+		par runThreads (int t=0..N)
+			requires Perm(input[t], read);
+			requires Perm(input[t+N], read);
+
+			requires Perm(output[t], write);
+			requires Perm(output[t+N], write);
+
+			requires (∀* int i; 0<=i && i<H; Perm({:1:tree[i][t]:}, write));
+			requires (∀* int i; 0<=i && i<H; Perm({:2:tree[i][N+t]:}, write));
+			{
+			////////// INPUT COPY
+			tree[0][t] = input[t];
+			tree[0][t+N] = input[t+N];
+
+			////////// UPSWEEP
+			int level=0;
+			loop_invariant level>=0 && level<H;
+			loop_invariant t>=0 && t<N;
+			// Old permisison layout going away, top row excluded: (t1 | t2 | t3 | t4 | ...)
+			loop_invariant (∀* int i; level<=i && i<H; Perm({:tree[i][t]:}, write));
+			loop_invariant (∀* int i; level<=i && i<H; Perm({:tree[i][N+t]:}, write));
+			// New permission layout appearing, lowest row already has it: (t1 | t1 | t2 | t2 | ...)
+			loop_invariant (∀* int i; 0<=i && i<level; Perm({:tree[i][t*2]:}, write));
+			loop_invariant (∀* int i; 0<=i && i<level; Perm({:tree[i][t*2+1]:}, write));
+
+			//loop_invariant tree[level][t] == tree[level-1][t*2] + tree[level-1][t*2+1];
+			// we dont keep the old permissions in later loops, so this will not work?
+			//loop_invariant (∀ int i; 1<=i && i<=level; tree[i][t] == tree[i-1][t*2] + tree[i-1][t*2+1]);
+			while((level+1)<H) {
+				level = level+1;
+				barrier(runThreads) 
+					context t>=0 && t<N;
+					context level>=1 && level<H;
+
+					requires Perm({:tree[level-1][t]:}, write);
+					requires Perm({:tree[level-1][t+N]:}, write);
+
+					ensures Perm({:tree[level-1][t*2]:}, write);
+					ensures Perm({:tree[level-1][t*2+1]:}, write);
+				{
+					
+				}
+				tree[level][t] = tree[level-1][t*2] + tree[level-1][t*2+1];
+			}
+
+			////////// DOWNSWEEP
+			tree[H-1][t] = 0; // Set the root of the tree to zero
+
+			loop_invariant level>=0 && level<H;
+			loop_invariant t>=0 && t<N;
+			// Old permission layout coming back, top row already has it: (t1 | t2 | t3 | t4 | ...)
+			loop_invariant (∀* int i; level<=i && i<H; Perm({:tree[i][t]:}, write));
+			loop_invariant (∀* int i; level<=i && i<H; Perm({:tree[i][N+t]:}, write));
+			// New permission layout going away, bottom row excluded: (t1 | t1 | t2 | t2 | ...)
+			loop_invariant (∀* int i; 0<=i && i<level; Perm({:tree[i][t*2]:}, write));
+			loop_invariant (∀* int i; 0<=i && i<level; Perm({:tree[i][t*2+1]:}, write));
+
+			//loop_invariant tree[level-1][t*2+1] == \old(tree[level-1][t*2]) + tree[level][t]; // after the loop body tree[level-1][t*2] has changed
+			//loop_invariant tree[level-1][t*2] == tree[level][t];
+			while(level>0) {
+				// Do next down-sweep step
+				tree[level-1][t*2+1] = tree[level-1][t*2] + tree[level][t];     // Right child
+				tree[level-1][t*2] = tree[level][t];                            // Left child
+
+				level = level-1;
+
+				barrier(runThreads) {
+					context t>=0 && t<N;
+					context level>=0 && level<H;
+
+					requires Perm({:tree[level][t*2]:}, write);
+					requires Perm({:tree[level][t*2+1]:}, write);
+
+					ensures Perm({:tree[level][t]:}, write);
+					ensures Perm({:tree[level][t+N]:}, write);
+				}
+			}
+
+			////////// OUTPUT COPY
+			output[t] = tree[0][t];
+			output[t+N] = tree[0][t+N];
+		}
+	}
+}
+

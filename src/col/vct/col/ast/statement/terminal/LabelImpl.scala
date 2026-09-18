@@ -1,7 +1,7 @@
 package vct.col.ast.statement.terminal
 
 import vct.col.ast.Label
-import vct.col.print.{Ctx, Doc, NodeDoc, Show, Text}
+import vct.col.print.{Ctx, Doc, Group, NodeDoc, Show, Text}
 import vct.col.ast.ops.LabelOps
 
 trait LabelImpl[G] extends LabelOps[G] {
@@ -19,11 +19,16 @@ trait LabelImpl[G] extends LabelOps[G] {
     NodeDoc(
       this,
       ctx.syntax match {
-        case Ctx.PVL => Text("label") <+> ctx.name(decl) <> ";"
-        case Ctx.Silver => Text("label") <+> ctx.name(decl)
-        case Ctx.Java => Text(ctx.name(decl)) <> ":"
+        case Ctx.PVL =>
+          Doc.stack(
+            Seq(contract, Group(Text("label") <+> ctx.name(decl) <> ";"))
+          )
+        case Ctx.Silver =>
+          Doc.stack(Seq(Group(Text("label") <+> ctx.name(decl)), contract))
+        case Ctx.Java =>
+          Doc.stack(Seq(contract, Group(Text(ctx.name(decl)) <> ":")))
         case Ctx.C | Ctx.Cuda | Ctx.OpenCL | Ctx.CPP =>
-          Text(ctx.name(decl)) <> ":"
+          Doc.stack(Seq(contract, Group(Text(ctx.name(decl)) <> ":")))
       },
     )
 

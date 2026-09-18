@@ -7,6 +7,8 @@ A list of verified examples and case studies is maintained online and can be fou
 
 ### The tutorial can be found on the [VerCors Wiki](https://github.com/utwente-fmt/vercors/wiki)!
 
+### If you're planning on _contributing_, please have a look at our [Developing for VerCors](https://github.com/utwente-fmt/vercors/wiki/Developing-for-VerCors) page.
+
 # Installation
 You can install VerCors by either using a release (recommended for beginners), or by building VerCors from its source code.
 

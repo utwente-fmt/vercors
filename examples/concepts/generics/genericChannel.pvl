@@ -46,7 +46,12 @@ class Chan<T> {
   context committed(this);
   T noop(T t) {
     writeValue(t);
-    return readValue();
+    /* Bug: removing this on the next line causes a crash. This is because the resolution system only resolves the
+            method that is referred to here, and not the implicit but omitted `this.` prefix. To fix this, this `this.`
+            should also be computed at resolution time, such that the return type of the expression `readValue()` can
+            be computed. See also: https://github.com/utwente-fmt/vercors/issues/1247
+     */
+    return this.readValue();
   }
 }
 

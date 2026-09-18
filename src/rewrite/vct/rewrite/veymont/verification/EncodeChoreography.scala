@@ -6,7 +6,6 @@ import vct.col.ast.{
   Assign,
   Block,
   ChorExpr,
-  ChorPerm,
   ChorRun,
   ChorStatement,
   Choreography,
@@ -30,7 +29,7 @@ import vct.col.ast.{
   Scope,
   Sender,
   Statement,
-  TClass,
+  TByReferenceClass,
   TVoid,
   ThisChoreography,
   Value,
@@ -197,9 +196,9 @@ case class EncodeChoreography[Pre <: Generation]()
         currentInstanceMethod.having(method) {
           for (endpoint <- prog.endpoints) {
             endpointSucc((mode, endpoint)) =
-              new Variable(TClass(succ[Class[Post]](endpoint.cls.decl), Seq()))(
-                endpoint.o
-              )
+              new Variable(
+                TByReferenceClass(succ[Class[Post]](endpoint.cls.decl), Seq())
+              )(endpoint.o)
           }
 
           prog.params.foreach(_.drop())
@@ -306,9 +305,9 @@ case class EncodeChoreography[Pre <: Generation]()
       case (_, Message(Ref(comm))) =>
         implicit val o = expr.o
         msgSucc(comm).get
-      case (_, _: ChorPerm[_] | _: ChorExpr[_] | _: EndpointExpr[_]) =>
+      case (_, _: ChorExpr[_] | _: EndpointExpr[_]) =>
         throw Unreachable(
-          "Encoding of ChorPerm, ChorExpr, EndpointExpr should happen in EncodePermissionStratification"
+          "Encoding of ChorExpr and EndpointExpr should happen in EncodePermissionStratification"
         )
       case (_, Perm(loc, ReadPerm())) =>
         // For now we manually translate the readperms away because we accidentally introduce them as well

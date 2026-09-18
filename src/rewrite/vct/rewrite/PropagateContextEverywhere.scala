@@ -24,6 +24,12 @@ case object PropagateContextEverywhere extends RewriterBuilder {
     override def blame(error: PostconditionFailed): Unit =
       app.blame.blame(ContextEverywhereFailedInPost(error.failure, app))
   }
+
+  case class ContextEverywhereRunPostconditionFailed(app: RunMethod[_])
+    extends Blame[PostconditionFailed] {
+    override def blame(error: PostconditionFailed): Unit =
+      app.blame.blame(ContextEverywhereFailedInRunPost(error.failure, app))
+  }
 }
 
 case class PropagateContextEverywhere[Pre <: Generation]()
@@ -33,16 +39,6 @@ case class PropagateContextEverywhere[Pre <: Generation]()
   val invariants: ScopedStack[Seq[Expr[Pre]]] = ScopedStack()
   invariants.push(Nil)
 
-  def withInvariant[T](inv: Expr[Pre])(f: => T): T = {
-    val old = invariants.top
-    invariants.pop()
-    invariants.push(old ++ unfoldStar(inv))
-    val result = f
-    invariants.pop()
-    invariants.push(old)
-    result
-  }
-
   def freshInvariants()(implicit o: Origin): Expr[Post] =
     foldStar(invariants.top.map(dispatch))
 
@@ -51,7 +47,9 @@ case class PropagateContextEverywhere[Pre <: Generation]()
       case app: ContractApplicable[Pre] =>
         allScopes.anyDeclare(allScopes.anySucceedOnly(
           app,
-          withInvariant(app.contract.contextEverywhere) {
+          invariants.having(
+            invariants.top ++ unfoldStar(app.contract.contextEverywhere)
+          ) {
             app match {
               case func: AbstractFunction[Pre] =>
                 func.rewrite(blame =
@@ -68,6 +66,19 @@ case class PropagateContextEverywhere[Pre <: Generation]()
             }
           },
         ))
+      case runMethod: RunMethod[Pre] =>
+        allScopes.anyDeclare(allScopes.anySucceedOnly(
+          runMethod,
+          invariants.having(
+            invariants.top ++ unfoldStar(runMethod.contract.contextEverywhere)
+          ) {
+                runMethod.rewrite(blame =
+                  PostBlameSplit
+                    .left(ContextEverywhereRunPostconditionFailed(runMethod), runMethod.blame)
+                )
+          },
+        ))
+
       case other => rewriteDefault(other)
     }
 

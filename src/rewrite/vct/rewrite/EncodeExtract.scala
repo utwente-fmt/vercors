@@ -9,9 +9,10 @@ import vct.col.rewrite.EncodeExtract.{
   FramedProofPostconditionFailed,
   FramedProofPreconditionFailed,
   LoopInvariantPreconditionFailed,
+  WrongExtractLoop,
   WrongExtractNode,
 }
-import vct.col.util.AstBuildHelpers.contract
+import vct.col.util.AstBuildHelpers.{ExprBuildHelpers, contract}
 import vct.col.util.Substitute
 import vct.result.Message
 import vct.result.VerificationError.UserError
@@ -28,14 +29,28 @@ case object EncodeExtract extends RewriterBuilder {
       )
   }
 
-  case class ExtractedOnlyPost(blame: Blame[PostconditionFailed])
-      extends Blame[CallableFailure] {
+  case class WrongExtractLoop(loop: Statement[_]) extends UserError {
+    override def code: String = "wrongExtractLoop"
+    override def text: String =
+      loop.o.messageInContext(
+        "This for loop can only be extracted when having format 'for(T i = target; ...; ...){"
+      )
+  }
+
+  case class ExtractedOnlyPost(
+      blame: Blame[PostconditionFailed],
+      extract: Extract[_],
+  ) extends Blame[CallableFailure] {
     override def blame(error: CallableFailure): Unit =
       error match {
         case error: PostconditionFailed => blame.blame(error)
         case error: TerminationMeasureFailed =>
-          PanicBlame("Extracted method cannot recurse by construction")
-            .blame(error)
+          if (extract.decreases.isDefined)
+            extract.blame
+              .blame(ExtractTerminationMeasureFailedClause(extract, error))
+          else
+            extract.blame
+              .blame(ExtractTerminationMeasureFailedNoClause(extract))
         case error: ContextEverywhereFailedInPost =>
           PanicBlame("Extracted method has no context contract").blame(error)
         case error: SignalsFailed =>
@@ -97,6 +112,7 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
       body: Statement[Pre],
       ensures: Expr[Pre],
       postBlame: Blame[PostconditionFailed],
+      decreases: Option[DecreasesClause[Pre]],
   )(implicit o: Origin): InvokeProcedure[Post] = {
 
     body.collectFirst { case ret: Return[Pre] => ret }
@@ -108,7 +124,7 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
       case s @ Break(Some(Ref(label))) => label -> s
     }
 
-    val targets = body.collect { case Label(decl, _) => decl }.toSet
+    val targets = body.collect { case Label(decl, _, _) => decl }.toSet
 
     for ((label, s) <- jumps) {
       if (!targets.contains(label)) {
@@ -120,13 +136,16 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
     val newRequires = extract.extract(requires)
     val newEnsures = extract.extract(ensures)
     val newBody = extract.extract(body)
+    val newDecreases = decreases.map(d => extract.extract(d))
 
     val extract.Data(typeMap, inMap, inForOutMap, outMap, inForOutAssign) =
       extract.finish()
 
-    val fixedRequires = Substitute[Pre](inForOutMap.keys.map { case (in, out) =>
+    val fixMap = Substitute[Pre](inForOutMap.keys.map { case (in, out) =>
       Local[Pre](out.ref) -> Local[Pre](in.ref)
-    }.toMap).dispatch(newRequires)
+    }.toMap)
+    val fixedRequires = fixMap.dispatch(newRequires)
+    val fixedDecreases = newDecreases.map(fixMap.dispatch)
 
     val proc = globalDeclarations.declare(
       new Procedure[Post](
@@ -142,10 +161,9 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
           ),
           requires = UnitAccountedPredicate(dispatch(fixedRequires)),
           ensures = UnitAccountedPredicate(dispatch(newEnsures)),
-          decreases =
-            None, // PB: sadly decreases + extract is therefore not working.
+          decreases = fixedDecreases.map(dispatch),
         ),
-      )(ExtractedOnlyPost(postBlame))
+      )(ExtractedOnlyPost(postBlame, region))
     )
 
     InvokeProcedure[Post](
@@ -160,23 +178,62 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(stat: Statement[Pre]): Statement[Rewritten[Pre]] =
     stat match {
-      case Extract(Label(decl, body)) =>
-        Label(labelDecls.dispatch(decl), dispatch(Extract(body)(stat.o)))(
-          stat.o
-        )
+      case e @ Extract(Label(decl, body, contract), decreases) =>
+        Label(
+          labelDecls.dispatch(decl),
+          dispatch(Extract(body, decreases)(e.blame)(stat.o)),
+          dispatch(contract),
+        )(stat.o)
 
-      case extract @ Extract(body) =>
+      case extract @ Extract(body, decreases) =>
         body match {
-          case Loop(_, _, _, blame @ LoopInvariant(invariant, _), _) =>
-            extracted(
-              extract,
-              LoopInvariantPreconditionFailed(blame),
-              invariant,
-              body,
-              invariant,
-              PanicBlame("Loop contract implies postcondition immediately"),
-            )(extract.o)
-
+          // Move scope outside (expecting no additional statements between the start of the scope and the loop/frame)
+          case scope @ Scope(_, Block(Seq(body))) =>
+            dispatch(
+              scope.copy(body =
+                Extract(body, decreases)(extract.blame)(extract.o)
+              )(scope.o)
+            )
+          case scope: Scope[Pre] =>
+            dispatch(
+              scope.copy(body =
+                Extract(scope.body, decreases)(extract.blame)(extract.o)
+              )(scope.o)
+            )
+          case Loop(init, cond, _, blame @ LoopInvariant(invariant, _), _) =>
+            val targetValuePair =
+              init match {
+                // TODO: value must be a pure expression, we need to check this. It will now just error if this happens
+                //  since the value is in a contract
+                case Eval(PreAssignExpression(target, value)) =>
+                  Some((target, value))
+                case Block(Assign(target, value) +: Nil) =>
+                  Some((target, value))
+                case Block(Seq()) => None
+                case _ => throw WrongExtractLoop(body)
+              }
+            val pre: Expr[Pre] =
+              if (targetValuePair.isDefined)
+                Star(
+                  Eq(targetValuePair.get._1, targetValuePair.get._2)(init.o),
+                  invariant,
+                )(init.o)
+              else
+                invariant
+            val result =
+              extracted(
+                extract,
+                LoopInvariantPreconditionFailed(blame),
+                pre,
+                body,
+                Star(invariant, Not(cond)(cond.o))(cond.o),
+                PanicBlame("Loop contract implies postcondition immediately"),
+                decreases,
+              )(extract.o)
+            if (targetValuePair.isDefined)
+              Block[Post](Seq(dispatch(init), result))(init.o)
+            else
+              result
           case proof @ FramedProof(pre, body, post) =>
             extracted(
               extract,
@@ -185,6 +242,7 @@ case class EncodeExtract[Pre <: Generation]() extends Rewriter[Pre] {
               body,
               post,
               FramedProofPostconditionFailed(proof),
+              decreases,
             )(extract.o)
 
           case other => throw WrongExtractNode(other)

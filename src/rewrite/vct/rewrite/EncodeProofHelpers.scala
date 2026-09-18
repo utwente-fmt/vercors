@@ -2,7 +2,6 @@ package vct.col.rewrite
 
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.ref.Ref
 import vct.col.util.AstBuildHelpers._
 
 case object EncodeProofHelpers extends RewriterBuilderArg[Boolean] {
@@ -78,7 +77,17 @@ case class EncodeProofHelpers[Pre <: Generation](
           body = dispatch(body),
         )
 
-        Scope(Seq(once), Block(Seq(Label(beforeLabel, Block(Nil)), loop)))
+        Scope(
+          Seq(once),
+          Block(Seq(
+            Label(
+              beforeLabel,
+              Block(Nil),
+              LoopInvariant(tt, None)(TrueSatisfiable),
+            ),
+            loop,
+          )),
+        )
 
       case IndetBranch(branches) =>
         // PB: note that if branches == Nil, this is the same as `inhale false`. This is intended.
@@ -99,6 +108,6 @@ case class EncodeProofHelpers[Pre <: Generation](
           )),
         )
 
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 }

@@ -2,8 +2,6 @@ package vct.col.rewrite.adt
 
 import vct.col.ast._
 import ImportADT.typeText
-import vct.col.ast.RewriteHelpers._
-import hre.util.ScopedStack
 import vct.col.origin._
 import vct.col.ref.Ref
 import vct.col.rewrite.Generation
@@ -14,12 +12,12 @@ case object ImportArray extends ImportADTBuilder("array") {
   private def ArrayField(t: Type[_]): Origin =
     Origin(Seq(PreferredName(Seq(typeText(t))), LabelContext("array field")))
 
-  case class ArrayNullOptNone(inner: Blame[ArrayNull], expr: Expr[_])
+  private case class ArrayNullOptNone(inner: Blame[ArrayNull], expr: Expr[_])
       extends Blame[OptionNone] {
     override def blame(error: OptionNone): Unit = inner.blame(ArrayNull(expr))
   }
 
-  case class ArrayBoundsPreconditionFailed(
+  private case class ArrayBoundsPreconditionFailed(
       inner: Blame[ArrayBounds],
       subscript: Node[_],
   ) extends Blame[PreconditionFailed] {
@@ -27,7 +25,7 @@ case object ImportArray extends ImportADTBuilder("array") {
       inner.blame(ArrayBounds(subscript))
   }
 
-  case class ArrayFieldInsufficientPermission(
+  private case class ArrayFieldInsufficientPermission(
       inner: Blame[ArrayInsufficientPermission],
       expr: Expr[_],
   ) extends Blame[InsufficientPermission] {
@@ -70,7 +68,7 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter)
   override def postCoerce(t: Type[Pre]): Type[Post] =
     t match {
       case TArray(_) => TOption(TAxiomatic(arrayAdt.ref, Nil))
-      case other => rewriteDefault(other)
+      case other => super.postCoerce(other)
     }
 
   override def postCoerce(location: Location[Pre]): Location[Post] =
@@ -90,10 +88,12 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter)
             )(NoContext(ArrayBoundsPreconditionFailed(loc.blame, loc)))(loc.o),
           field = getArrayField(arr),
         )(loc.o)
-      case other => rewriteDefault(other)
+      case other => super.postCoerce(other)
     }
 
-  def rewriteTopLevelArraySubscriptsInTrigger(e: Expr[Pre]): Expr[Post] =
+  private def rewriteTopLevelArraySubscriptsInTrigger(
+      e: Expr[Pre]
+  ): Expr[Post] =
     e match {
       case sub @ ArraySubscript(arr, index) =>
         implicit val o: Origin = e.o
@@ -107,7 +107,7 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter)
           Nil,
           Nil,
         )(NoContext(ArrayBoundsPreconditionFailed(sub.blame, sub)))
-      case other => rewriteDefault(other)
+      case other => dispatch(other)
     }
 
   override def postCoerce(e: Expr[Pre]): Expr[Post] = {
@@ -145,7 +145,7 @@ case class ImportArray[Pre <: Generation](importer: ImportADTImporter)
           arrayLen.ref,
           Seq(OptGet(dispatch(arr))(ArrayNullOptNone(length.blame, arr))(arr.o)),
         )
-      case other => rewriteDefault(other)
+      case other => super.postCoerce(other)
     }
   }
 }

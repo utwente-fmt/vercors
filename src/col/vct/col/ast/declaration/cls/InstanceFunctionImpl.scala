@@ -22,9 +22,8 @@ trait InstanceFunctionImpl[G] extends InstanceFunctionOps[G] {
              Text("<") <> Doc.args(typeArgs.map(ctx.name).map(Text)) <> ">"
            else
              Empty) <> "(" <> Doc.args(args) <> ")" <> body.map(body =>
-            Text(" ") <> "{" <>>
-              // TODO (RR, PB): Why must the "return body" part be parenthesized here?
-              (Text("return") <+> Nest(body.show)) <> ";" <+/> "}"
+            Text(" ") <> "{" <>> (Text("return") <+> Nest(body.show)) <>
+              ";" <+/> "}"
           ).getOrElse(Text(";"))
       ),
     ))

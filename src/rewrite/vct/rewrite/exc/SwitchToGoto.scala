@@ -2,10 +2,9 @@ package vct.col.rewrite.exc
 
 import vct.col.ast._
 import vct.col.util.AstBuildHelpers._
-import RewriteHelpers._
 import hre.util.ScopedStack
 import vct.col.rewrite.exc.SwitchToGoto.CaseOutsideSwitch
-import vct.col.origin.Origin
+import vct.col.origin.{Origin, TrueSatisfiable}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilder}
 import vct.result.VerificationError.UserError
 
@@ -50,7 +49,17 @@ case class SwitchToGoto[Pre <: Generation]() extends Rewriter[Pre] {
           case (c: DefaultCase[Pre], label) => (rewrittenBody, label)
         }.getOrElse {
           val pastSwitch = new LabelDecl[Post]()
-          (Block(Seq(rewrittenBody, Label(pastSwitch, Block(Nil)))), pastSwitch)
+          (
+            Block(Seq(
+              rewrittenBody,
+              Label(
+                pastSwitch,
+                Block(Nil),
+                LoopInvariant(tt, None)(TrueSatisfiable),
+              ),
+            )),
+            pastSwitch,
+          )
         }
 
         Scope(
@@ -70,9 +79,13 @@ case class SwitchToGoto[Pre <: Generation]() extends Rewriter[Pre] {
             implicit val o: Origin = c.o
             val replacementLabel = new LabelDecl[Post]()
             buf += ((c, replacementLabel))
-            Label(replacementLabel, Block(Nil))
+            Label(
+              replacementLabel,
+              Block(Nil),
+              LoopInvariant(tt, None)(TrueSatisfiable),
+            )
         }
 
-      case other => rewriteDefault(other)
+      case other => super.dispatch(other)
     }
 }

@@ -68,7 +68,7 @@ class Server {
   }
 }
 
-inline resource consistency(Client c, Server s1, Server s2) =
+pure boolean consistency(Client c, Server s1, Server s2) =
     (!c.flag ==> s1.isUncommitted()) &&
     (!c.flag ==> s2.isUncommitted());
 

@@ -8,5 +8,10 @@ trait ModImpl[G] extends ModOps[G] {
   this: Mod[G] =>
   override def t: Type[G] = TInt()
   override def precedence: Int = Precedence.MULTIPLICATIVE
-  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "%", right)
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => lassoc(left, "mod", right)
+      case _ => lassoc(left, "%", right)
+    }
+  }
 }

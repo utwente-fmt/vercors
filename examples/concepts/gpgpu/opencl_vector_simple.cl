@@ -21,10 +21,11 @@
 }
 
 /*@
-  context get_local_size(0) > 0 && get_local_size(1) == 1 && get_local_size(2) == 1;
-  context get_num_groups(0) > 0 && get_num_groups(1) == 1 && get_num_groups(2) == 1;
+  context get_work_dim() == 1;
+  context get_local_size(0) == 32;
+  context get_num_groups(0) > 0;
   context a != NULL && \pointer_length(a) >= 1;
-  context (\gtid < 1 ==> Perm(&a[\gtid], write));
+  context (\gtid < 1 ==> Perm({:a[\gtid]:}, write));
 @*/
 __kernel void test_vectors(__global bool* a) {
   int2 v_iA = (int2)(7, -3);
@@ -54,7 +55,7 @@ __kernel void test_vectors(__global bool* a) {
   v_iB.s12 = v_iB.s21 % (int2)(-3, -3);
   bool res15 = check4(v_iB == (int4)(-2, -2, 1, 7));
   // bool res16 = check4((float4)(0.0f, 0.0f, 0.0f, 0.0f) == (float4)(0.0f, 0.0f, 0.0f, 1.0f));
-  bool total = res01 && res02 && res03 && res04 && res05 && res06 && res07 
+  bool total = res01 && res02 && res03 && res04 && res05 && res06 && res07
     && res08 && res09 && res10 && res11 && res12 && res13 && res14 && res15;
   //@ assert total;
   if(get_global_id(0) < 1){

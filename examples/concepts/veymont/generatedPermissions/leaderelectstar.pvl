@@ -50,16 +50,16 @@ choreography leaderElectStar() {
 		loop_invariant (\chor a.n == c.n && b.n == c.n && d.n == c.n);
 		loop_invariant (\chor
 		  (c.n == 0 ==> (a.maxVal == a.rank && b.maxVal == b.rank &&  c.maxVal == c.rank &&  d.maxVal == d.rank))
-		  ** (c.n == 1 ==> (c.rank > a.rank ? a.maxVal == c.rank : a.maxVal == a.rank))
-		  ** (c.n == 1 ==> (c.rank > b.rank ? b.maxVal == c.rank : b.maxVal == b.rank))
-		  ** (c.n == 1 ==> (c.rank > d.rank ? d.maxVal == c.rank : d.maxVal == d.rank))
-		  ** (c.n >= 1 ==> c.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
-		  ** (c.n == 2 ==> a.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
-		  ** (c.n == 2 ==> b.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
-		  ** (c.n == 2 ==> d.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
-		  ** ((a.n < 2) == (b.n < 2))
-		  ** ((b.n < 2) == (d.n < 2))
-		  ** ((d.n < 2) == (c.n < 2)));
+		  && (c.n == 1 ==> (c.rank > a.rank ? a.maxVal == c.rank : a.maxVal == a.rank))
+		  && (c.n == 1 ==> (c.rank > b.rank ? b.maxVal == c.rank : b.maxVal == b.rank))
+		  && (c.n == 1 ==> (c.rank > d.rank ? d.maxVal == c.rank : d.maxVal == d.rank))
+		  && (c.n >= 1 ==> c.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
+		  && (c.n == 2 ==> a.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
+		  && (c.n == 2 ==> b.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
+		  && (c.n == 2 ==> d.maxVal == c.maxVal(a.rank,b.rank,d.rank,c.rank))
+		  && ((a.n < 2) == (b.n < 2))
+		  && ((b.n < 2) == (d.n < 2))
+		  && ((d.n < 2) == (c.n < 2)));
 		while(a.n < 2 && b.n < 2 && c.n < 2 && d.n < 2) {
 			communicate a.c <- c.maxVal;
 			communicate b.c <- c.maxVal;

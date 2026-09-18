@@ -70,21 +70,27 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
     )
   }
 
-  def getExpr(e: Expr[Pre], f: String, args: Expr[Pre]*)(
+  def getExprWithName(e: Expr[Pre], f: String, name: String, args: Expr[Pre]*)(
       implicit o: Origin
   ): Expr[Post] =
     ProverFunctionInvocation(
       declaredFunc.getOrElseUpdate(
         (f, args.map(_.t)), {
-          globalDeclarations.declare(new ProverFunction[Post](
-            Seq(SmtLib[Post]() -> f),
-            args.map(arg => new Variable(dispatch(arg.t))),
-            dispatch(e.t),
-          ))
+          globalDeclarations.declare(
+            new ProverFunction[Post](
+              Seq(SmtLib[Post]() -> f),
+              args.map(arg => new Variable(dispatch(arg.t))),
+              dispatch(e.t),
+            )(o.where(name = name))
+          )
         },
       ).ref,
       args.map(dispatch),
     )
+
+  def getExpr(e: Expr[Pre], f: String, args: Expr[Pre]*)(
+      implicit o: Origin
+  ): Expr[Post] = getExprWithName(e, f, f, args: _*)
 
   override def dispatch(t: Type[Pre]): Type[Post] =
     t match {
@@ -121,8 +127,10 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
           case SmtlibBvUDiv(left, right) => getExpr(e, "bvudiv", left, right)
           case SmtlibBvURem(left, right) => getExpr(e, "bvurem", left, right)
           case SmtlibBvShl(left, right) => getExpr(e, "bvshl", left, right)
-          case SmtlibBvShr(left, right) => getExpr(e, "bvshr", left, right)
+          case SmtlibBvShr(left, right) => getExpr(e, "bvlshr", left, right)
           case SmtlibBvULt(left, right) => getExpr(e, "bvult", left, right)
+          case SmtlibBv2Nat(expr) => getExpr(e, "bv2nat", expr)
+          case SmtlibInt2Bv(expr, size) => getExpr(e, s"(_ int2bv $size)", expr)
           case SmtlibRNE() => getExpr(e, "RNE")
           case SmtlibRNA() => getExpr(e, "RNA")
           case SmtlibRTP() => getExpr(e, "RTP")
@@ -176,7 +184,8 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
           case SmtlibFpToUInt(arg, bits) =>
             getExpr(e, s"(_ fp.to_ubv $bits)", arg)
           case SmtlibIsInt(arg) => getExpr(e, "is_int", arg)
-          case SmtlibPow(left, right) => getExpr(e, "^", left, right)
+          case SmtlibPow(left, right) =>
+            getExprWithName(e, "^", "pow", left, right)
           case SmtlibToInt(arg) => getExpr(e, "to_int", arg)
           case SmtlibToReal(arg) => getExpr(e, "to_real", arg)
           case SmtlibLiteralString(data) =>
@@ -240,6 +249,8 @@ case class SmtlibToProverTypes[Pre <: Generation]() extends Rewriter[Pre] {
           case Z3BvNand(left, right) => getExpr(e, "bvnand", left, right)
           case Z3BvNor(left, right) => getExpr(e, "bvnor", left, right)
           case Z3BvXnor(left, right) => getExpr(e, "bvxnor", left, right)
+          case Z3BvXor(left, right) => getExpr(e, "bvxor", left, right)
+          case Z3BvSLt(left, right) => getExpr(e, "bvslt", left, right)
           case Z3ArrayConst(domain, codomain, value) =>
             getExpr(
               e,

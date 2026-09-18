@@ -1,0 +1,13 @@
+class A {
+    int f;
+}
+
+requires AutoValue(a.f);
+requires Perm(a.f, write);
+void foo(A a) {
+}
+
+void bar() {
+    A a = new A();
+    foo(a);
+}

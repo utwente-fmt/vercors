@@ -42,6 +42,9 @@ axiom mod_self { (∀int i; i % i == (0 then 1 % i;)) }
 axiom mod_one { (∀int i; i % 1 == 0) }
 axiom zero_mod { (∀int i; 0 % i == (0 then 1 % i;)) }
 
+axiom mod_mul_right_mod { (∀int a, int b, int c; a % (b * c) % b == (a % b then 1/c;)) }
+axiom mod_mul_left_mod { (∀int a, int b, int c; a % (c * b) % b == (a % b then 1/c;)) }
+
 axiom mod_def { (∀int num, int denom; (num/denom)*denom + (num%denom) == (num then 1/denom;)) }
 
 axiom mod_factor { (∀int num, int denom, int factor; (num+factor*denom) % denom == num%denom) }
@@ -185,7 +188,8 @@ axiom starall_bool {
   (∀type<any> T, boolean body;
     (∀* T t; (body!t)) == (∀ T t; (body!t)))
 }
-
+/* LvdH: I Think it is actually quite bad to split quantifiers here, when a user specified a trigger. Since it removes
+   control over the triggering of the quantifier. I think we should not allow this.
 axiom forall_and {
   (∀type<any> T, boolean b1, boolean b2;
     (∀T t; (b1!t) && (b2!t)) ==
@@ -197,7 +201,7 @@ axiom starall_star {
     (∀* T t; (r1!t) ** (r2!t)) ==
     ((∀* T t; (r1!t)) ** (∀* T t; (r2!t))))
 }
-
+*/
 axiom starall_select {
   (∀type<any> X, boolean cond, resource t, resource f;
     (∀* X x; (cond!x) ? (t!x) : (f!x)) ==

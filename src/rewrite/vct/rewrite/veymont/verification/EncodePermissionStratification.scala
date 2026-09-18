@@ -9,21 +9,35 @@ import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
 import vct.col.util.SuccessionMap
 import vct.result.VerificationError.UserError
-import vct.rewrite.veymont.{InferEndpointContexts, VeymontContext}
+import vct.rewrite.veymont.VeymontContext
 import vct.rewrite.veymont.verification.EncodePermissionStratification.{
+  ForwardAssertFailedToDeref,
   ForwardExhaleFailedToChorRun,
   ForwardInvocationFailureToDeref,
   ForwardUnfoldFailedToDeref,
   NoEndpointContext,
+  Mode,
 }
 
-import scala.collection.immutable.HashSet
 import scala.collection.{mutable => mut}
 
-object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
+// I would like to put this type in the companion object below, but then you get a problematic cyclic reference
+// Since this is contained in package veymont.verification anyway, I guess it's not too big of a problem to just
+// Put it at the top level
+
+sealed trait PermissionStratificationMode
+
+object EncodePermissionStratification
+    extends RewriterBuilderArg[PermissionStratificationMode] {
   override def key: String = "encodePermissionStratification"
   override def desc: String =
     "Encodes stratification of permissions by wrapping each permission in an opaque predicate, guarding the permission using an endpoint reference."
+
+  object Mode {
+    case object Inline extends PermissionStratificationMode
+    case object Wrap extends PermissionStratificationMode
+    case object None extends PermissionStratificationMode
+  }
 
   case class ForwardExhaleFailedToChorRun(run: ChorRun[_])
       extends Blame[ExhaleFailed] {
@@ -34,6 +48,12 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
   case class ForwardInvocationFailureToDeref(deref: Deref[_])
       extends Blame[InvocationFailure] {
     override def blame(error: InvocationFailure): Unit =
+      deref.blame.blame(InsufficientPermission(deref))
+  }
+
+  case class ForwardAssertFailedToDeref(deref: Deref[_])
+      extends Blame[AssertFailed] {
+    override def blame(error: AssertFailed): Unit =
       deref.blame.blame(InsufficientPermission(deref))
   }
 
@@ -50,30 +70,21 @@ object EncodePermissionStratification extends RewriterBuilderArg[Boolean] {
   }
 }
 
-/* At the time of writing, under the heavy-weight stratified permissions model, supporting \chor is an enormous hack.
-   It currently consists of 3 parts:
-   - Making \chor work when generating permissions in plain asserts, loop invariants, contracts
-     This is done using the simplifying assumption that, when generating permissions, each field is completely and transitively
-     owned by the anchor (either a local or a method argument). Then chor just transitively unfolds all fields of all anchors
-     in scope. Inside this unfolded expression, plain functions (meaning, with non-specialized contracts), are used.
-   - Making \chor work when not generating permissions in plain asserts, ...
-     Here, we rely on the user to add (\endpoint e; ...) annotations inside \chor.
-   - Making \chor work in channel invariants
-     This is also quite annoying. Because the heavyweight approach does not allow easy peeking into wrapped permissions,
-     we implement an incomplete approach in EncodeChannels.scala.
- */
+// Use booleans here because using the type of the inner enum in combination with the RewriterBuilder is annoying and
+// results in cycles
 case class EncodePermissionStratification[Pre <: Generation](
-    generatePermissions: Boolean
+    mode: PermissionStratificationMode
 ) extends Rewriter[Pre] with VeymontContext[Pre] with LazyLogging {
 
   val inChor = ScopedStack[Boolean]()
+  var warnedAboutChor = false
 
-  lazy val specializedApplicables
-      : mut.LinkedHashMap[ContractApplicable[Pre], Seq[Endpoint[Pre]]] =
+  lazy val specializedApplicables: Seq[Applicable[Pre]] =
     findInContext {
       case inv: AnyFunctionInvocation[Pre] => inv.ref.decl
       case inv: MethodInvocation[Pre] => inv.ref.decl
-    }
+      case app: ApplyAnyPredicate[Pre] => app.ref.decl
+    }.toSeq
 
   // Given a function f that finds Nodes inside nodes, findInContext keeps applying f
   // to nodes that f itself finds, until no more new nodes are found. The search is started
@@ -82,118 +93,162 @@ case class EncodePermissionStratification[Pre <: Generation](
   // node found later.
   def findInContext[T <: Node[Pre]](
       f: PartialFunction[Node[Pre], T]
-  ): mut.LinkedHashMap[T, Seq[Endpoint[Pre]]] = {
-    val specializations: mut.LinkedHashSet[(Endpoint[Pre], T)] = mut
-      .LinkedHashSet.from(
-        mappings
-          // For each endpoint expr
-          .program.collect {
-            // Get all T's from endpoint contexts
-            case expr: EndpointExpr[Pre] =>
-              expr.collect(f).map { t => (expr.endpoint.decl, t) }
-            case stmt: EndpointStatement[Pre] =>
-              stmt.collect(f).map { t => (stmt.endpoint.get.decl, t) }
-          }.flatten
-      )
+  ): mut.LinkedHashSet[T] = {
+    val specializations: mut.LinkedHashSet[T] = mut.LinkedHashSet.from(
+      mappings
+        // For each endpoint expr
+        .program.collect {
+          // Get all T's from endpoint contexts
+          case expr: EndpointExpr[Pre] => expr.collect(f)
+          case stmt: EndpointStatement[Pre] => stmt.collect(f)
+        }.flatten
+    )
 
-    // Do a transitive closure given the selector function f
+    // Do a fixpoint computation, expanding the set of Ts using the selector function f on the Ts we already have
     var changes = true
     while (changes) {
       changes = false
-      val oldSize = specializations.size
-      specializations.flatMap { case (endpoint, t) =>
-        t.collect(f).map { newT => (endpoint, newT) }
-      }.foreach(specializations.add)
-      changes = oldSize != specializations.size
-    }
-
-    val map = mut.LinkedHashMap[T, Seq[Endpoint[Pre]]]()
-    specializations.foreach { case (endpoint, t) =>
-      map.updateWith(t) {
-        case None => Some(Seq(endpoint))
-        case Some(endpoints) => Some(endpoint +: endpoints)
+      specializations.flatMap { t => t.collect(f) }.foreach { newT =>
+        // If newT is genuinely new, add will return true
+        changes = changes || specializations.add(newT)
       }
     }
-    map
+
+    specializations
   }
 
   val specializedApplicableSucc =
-    SuccessionMap[(Endpoint[Pre], ContractApplicable[Pre]), ContractApplicable[
-      Post
-    ]]()
+    SuccessionMap[Applicable[Pre], Applicable[Post]]()
 
   // Keeps track of the current anchoring/endpoint context identity expression for the current endpoint context.
   // E.g. within a choreograph, it is EndpointName(succ(endpoint)), within a specialized function it is a local
   // to the endpoint context argument.
+  // This is especially important for specializeApplicable: there we specialize each function to be executed in the
+  // context of some endpoin. This endpoint reference comes indirectly through one of the arguments of the function,
+  // not a literal endpointname expression.
   val specializing = ScopedStack[Expr[Post]]()
 
-  type WrapperPredicateKey = (TClass[Pre], Type[Pre], InstanceField[Pre])
-  val wrapperPredicates = mut
-    .LinkedHashMap[WrapperPredicateKey, Predicate[Post]]()
+  // Even though type could be inferred from instancefield (since an instancefield belongs to exactly one class),
+  // we keep the type key there in case we want to support generics
+  case class MarkerPredicateKey(obj: TClass[Pre], f: InstanceField[Pre])
+  val markerPredicates = mut
+    .LinkedHashMap[MarkerPredicateKey, Predicate[Post]]()
 
-  def wrapperPredicate(
-      endpoint: Endpoint[Pre],
-      objT: Type[Pre],
-      field: InstanceField[Pre],
-  )(implicit o: Origin): Ref[Post, Predicate[Post]] = {
-    val k = (endpoint.t, objT, field)
-    wrapperPredicates.getOrElseUpdate(
-      k, {
-        logger.debug(s"Declaring wrapper predicate for $k")
-        val endpointArg =
-          new Variable(dispatch(endpoint.t))(o.where(name = "endpoint"))
-        val objectArg = new Variable(dispatch(objT))(o.where(name = "obj"))
-        val body = Perm[Post](
-          FieldLocation(objectArg.get, succ(field)),
-          WritePerm(),
-        )
-        new Predicate(Seq(endpointArg, objectArg), Some(body))(
-          o.where(indirect =
-            Name.names(Name("wrap"), field.o.getPreferredNameOrElse())
-          )
-        ).declare()
+  // marker predicate to allow marking field permissions with an endpoint owner
+  def markerPredicate(objT: TClass[Pre], field: InstanceField[Pre])(
+      implicit o: Origin
+  ): Ref[Post, Predicate[Post]] = {
+    val k = MarkerPredicateKey(objT, field)
+    markerPredicates.getOrElseUpdate(
+      k,
+      mode match {
+        case Mode.Inline => inlinePredicate(k)
+        case Mode.Wrap => wrapPredicate(k)
       },
     ).ref
   }
 
-  val readFunctions = mut.LinkedHashMap[WrapperPredicateKey, Function[Post]]()
-  def readFunction(
-      endpoint: Endpoint[Pre],
-      obj: Expr[Pre],
-      field: InstanceField[Pre],
-  )(implicit o: Origin): Ref[Post, Function[Post]] = {
-    val k = (endpoint.t, obj.t, field)
-    val pred = wrapperPredicate(endpoint, obj.t, field)
+  def inlinePredicate(
+      k: MarkerPredicateKey
+  )(implicit o: Origin): Predicate[Post] = {
+    logger.debug(s"Making inline predicate for $k")
+    val endpointArg =
+      new Variable[Post](TAnyValue())(o.where(name = "endpoint"))
+    val objectArg = new Variable(dispatch(k.obj))(o.where(name = "obj"))
+    new Predicate(Seq(endpointArg, objectArg), None)(o.where(indirect =
+      Name.names(Name("ep"), Name("owner"), k.f.o.getPreferredNameOrElse())
+    )).declare()
+  }
+
+  def wrapPredicate(
+      k: MarkerPredicateKey
+  )(implicit o: Origin): Predicate[Post] = {
+    logger.debug(s"Makign wrap predicate for $k")
+    val endpointArg =
+      new Variable[Post](TAnyValue())(o.where(name = "endpoint"))
+    val objectArg = new Variable(dispatch(k.obj))(o.where(name = "obj"))
+    new Predicate(
+      Seq(endpointArg, objectArg),
+      body = Some(
+        Perm(FieldLocation[Post](objectArg.get, succ(k.f)), WritePerm())
+      ),
+    )(o.where(indirect =
+      Name.names(Name("ep"), Name("owner"), k.f.o.getPreferredNameOrElse())
+    )).declare()
+  }
+
+  val readFunctions = mut.LinkedHashMap[MarkerPredicateKey, Function[Post]]()
+  def readFunction(obj: TClass[Pre], field: InstanceField[Pre])(
+      implicit o: Origin
+  ): Ref[Post, Function[Post]] = {
+    val k = MarkerPredicateKey(obj, field)
     readFunctions.getOrElseUpdate(
-      k, {
-        logger.debug(s"Declaring read function for $k")
-        val endpointArg =
-          new Variable(dispatch(endpoint.t))(o.where(name = "endpoint"))
-        val objArg = new Variable(dispatch(obj.t))(o.where(name = "obj"))
-        function(
-          requires =
-            Value(PredicateLocation(
-              PredicateApply(pred, Seq(endpointArg.get, objArg.get))
-            )).accounted,
-          args = Seq(endpointArg, objArg),
-          returnType = dispatch(field.t),
-          body = Some(
-            Unfolding(
-              ValuePredicateApply(
-                PredicateApply(pred, Seq(endpointArg.get, objArg.get))
-              ),
-              Deref[Post](objArg.get, succ(field))(PanicBlame(
-                "Permission is guaranteed by the predicate"
-              )),
-            )(PanicBlame("Predicate is guaranteed to be in the precondition"))
-          ),
-          blame = PanicBlame("Contract is guaranteed to hold"),
-          contractBlame = PanicBlame("Contract is guaranteed to be satisfiable"),
-        )(o.where(indirect =
-          Name.names(Name("read"), field.o.getPreferredNameOrElse())
-        )).declare()
+      k,
+      mode match {
+        case Mode.Inline => inlineReadFunction(k)
+        case Mode.Wrap => wrapReadFunction(k)
       },
     ).ref
+  }
+
+  def inlineReadFunction(
+      k: MarkerPredicateKey
+  )(implicit o: Origin): Function[Post] = {
+    logger.debug(s"Declaring inline read function for $k")
+    val field = k.f
+    val pred = markerPredicate(k.obj, field)
+    val endpointArg =
+      new Variable[Post](TAnyValue())(o.where(name = "endpoint"))
+    val objArg = new Variable(dispatch(k.obj))(o.where(name = "obj"))
+    function(
+      requires =
+        (Value[Post](FieldLocation(objArg.get, succ(field))) &*
+          Value(PredicateLocation(
+            PredicateApply(pred, Seq(endpointArg.get, objArg.get))
+          ))).accounted,
+      args = Seq(endpointArg, objArg),
+      returnType = dispatch(k.obj.instantiate(field.t)),
+      body = Some(Deref[Post](objArg.get, succ(field))(PanicBlame(
+        "Permission is guaranteed by the predicate"
+      ))),
+      blame = PanicBlame("Contract is guaranteed to hold"),
+      contractBlame = PanicBlame("Contract is guaranteed to be satisfiable"),
+    )(o.where(indirect =
+      Name.names(Name("read"), field.o.getPreferredNameOrElse())
+    )).declare()
+  }
+
+  def wrapReadFunction(
+      k: MarkerPredicateKey
+  )(implicit o: Origin): Function[Post] = {
+    logger.debug(s"Declaring wrap read function for $k")
+    val field = k.f
+    val pred = markerPredicate(k.obj, field)
+    val endpointArg =
+      new Variable[Post](TAnyValue())(o.where(name = "endpoint"))
+    val objArg = new Variable(dispatch(k.obj))(o.where(name = "obj"))
+    function(
+      requires =
+        Value(PredicateLocation(
+          PredicateApply(pred, Seq(endpointArg.get, objArg.get))
+        )).accounted,
+      args = Seq(endpointArg, objArg),
+      returnType = dispatch(k.obj.instantiate(field.t)),
+      body = Some(
+        Unfolding(
+          ValuePredicateApply(
+            PredicateApply(pred, Seq(endpointArg.get, objArg.get))
+          ),
+          Deref[Post](objArg.get, succ(field))(PanicBlame(
+            "Permission is guaranteed by the predicate"
+          )),
+        )(PanicBlame("Predicate guaranteed to be present by postcondition"))
+      ),
+      blame = PanicBlame("Contract is guaranteed to hold"),
+      contractBlame = PanicBlame("Contract is guaranteed to be satisfiable"),
+    )(o.where(indirect =
+      Name.names(Name("read"), field.o.getPreferredNameOrElse())
+    )).declare()
   }
 
   case class StripPermissionStratification() extends Rewriter[Pre] {
@@ -202,18 +257,19 @@ case class EncodePermissionStratification[Pre <: Generation](
 
     override def dispatch(expr: Expr[Pre]): Expr[Post] =
       expr match {
-        case ChorPerm(_, loc, perm) =>
-          Perm(dispatch(loc), dispatch(perm))(expr.o)
         case ChorExpr(inner) => dispatch(inner)
         case EndpointExpr(_, inner) => dispatch(inner)
         case _ => expr.rewriteDefault()
       }
   }
 
-  override def dispatch(p: Program[Pre]): Program[Post] = {
-    mappings.program = p
-    super.dispatch(p)
-  }
+  override def dispatch(p: Program[Pre]): Program[Post] =
+    mode match {
+      case Mode.None => DropPermissionStratification().dispatch(p)
+      case _ =>
+        mappings.program = p
+        super.dispatch(p)
+    }
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
@@ -242,74 +298,82 @@ case class EncodePermissionStratification[Pre <: Generation](
       case m: InstanceMethod[Pre] if specializedApplicables.contains(m) =>
         m.rewriteDefault().succeed(m)
         specializeApplicable(m)
+      case p: Predicate[Pre] if specializedApplicables.contains(p) =>
+        p.rewriteDefault().succeed(p)
+        specializeApplicable(p)
+      case p: InstancePredicate[Pre] if specializedApplicables.contains(p) =>
+        p.rewriteDefault().succeed(p)
+        specializeApplicable(p)
       case _ => super.dispatch(decl)
     }
 
-  def specializeApplicable(app: ContractApplicable[Pre]): Unit = {
+  def specializeApplicable(app: Applicable[Pre]): Unit = {
     assert(app match {
-      case _: InstanceMethod[Pre] |
-          _: InstanceFunction[Pre] | _: Function[Pre] =>
+      case _: InstanceMethod[Pre] | _: InstanceFunction[Pre] |
+          _: Function[Pre] | _: Predicate[Pre] | _: InstancePredicate[Pre] =>
         true
       case _ => false
     })
 
-    def nameOrigin(
-        endpoint: Endpoint[Pre],
-        f: ContractApplicable[Pre],
-    ): Origin = {
+    def nameOrigin(f: Applicable[Pre]): Origin =
       f.o.where(indirect =
-        Name.names(
-          f.o.getPreferredNameOrElse(),
-          endpoint.o.getPreferredNameOrElse(),
-        )
+        Name.names(f.o.getPreferredNameOrElse(), Name("Strat"))
       )
-    }
 
-    specializedApplicables(app).foreach { endpoint =>
-      // Make sure the unnapply methods InChor/InEndpoint pick this rewrite up
-      currentChoreography.having(choreographyOf(endpoint)) {
-        currentEndpoint.having(endpoint) {
-          variables.scope {
-            val endpointCtxVar =
-              new Variable(dispatch(endpoint.t))(
-                currentChoreography.top.o
-                  .where(indirect = Name.strings("endpoint", "ctx"))
+    def predicateNameOrigin(f: AbstractPredicate[Pre]): Origin =
+      f.o.where(indirect =
+        Name.names(Name("ep"), Name("owner"), f.o.getPreferredNameOrElse())
+      )
+
+    variables.scope {
+      val endpointCtxVar =
+        new Variable[Post](dispatch(TAnyValue()))(
+          app.o.where(indirect = Name.strings("endpoint", "ctx"))
+        )
+
+      // Make sure plain perms are rewritten into wrapped perms
+      specializing.having(endpointCtxVar.get(app.o)) {
+        val newF: Applicable[Post] =
+          app match {
+            case f: InstanceFunction[Pre] =>
+              val newF = f.rewrite(
+                args = endpointCtxVar +: variables.dispatch(f.args),
+                o = nameOrigin(f),
               )
-
-            // Make sure plain perms are rewritten into wrapped perms
-            specializing.having(endpointCtxVar.get(app.o)) {
-              val newF: ContractApplicable[Post] =
-                app match {
-                  case f: InstanceFunction[Pre] =>
-                    val newF = f.rewrite(
-                      args = endpointCtxVar +: variables.dispatch(f.args),
-                      o = nameOrigin(endpoint, f),
-                    )
-                    newF.declare()
-                  case f: Function[Pre] =>
-                    val newF = f.rewrite(
-                      args = endpointCtxVar +: variables.dispatch(f.args),
-                      o = nameOrigin(endpoint, f),
-                    )
-                    newF.declare()
-                  case m: InstanceMethod[Pre] if m.pure =>
-                    val newM = m.rewrite(
-                      args = endpointCtxVar +: variables.dispatch(m.args),
-                      o = nameOrigin(endpoint, m),
-                    )
-                    newM.declare()
-                  case m: InstanceMethod[Pre] if !m.pure =>
-                    val newM = m.rewrite(
-                      args = endpointCtxVar +: variables.dispatch(m.args),
-                      body = None,
-                      o = nameOrigin(endpoint, m),
-                    )
-                    newM.declare()
-                }
-              specializedApplicableSucc((endpoint, app)) = newF
-            }
+              newF.declare()
+            case f: Function[Pre] =>
+              val newF = f.rewrite(
+                args = endpointCtxVar +: variables.dispatch(f.args),
+                o = nameOrigin(f),
+              )
+              newF.declare()
+            case m: InstanceMethod[Pre] if m.pure =>
+              val newM = m.rewrite(
+                args = endpointCtxVar +: variables.dispatch(m.args),
+                o = nameOrigin(m),
+              )
+              newM.declare()
+            case m: InstanceMethod[Pre] if !m.pure =>
+              val newM = m.rewrite(
+                args = endpointCtxVar +: variables.dispatch(m.args),
+                body = None,
+                o = nameOrigin(m),
+              )
+              newM.declare()
+            case p: InstancePredicate[Pre] =>
+              val newP = p.rewrite(
+                args = endpointCtxVar +: variables.dispatch(p.args),
+                o = predicateNameOrigin(p),
+              )
+              newP.declare()
+            case p: Predicate[Pre] =>
+              val newP = p.rewrite(
+                args = endpointCtxVar +: variables.dispatch(p.args),
+                o = predicateNameOrigin(p),
+              )
+              newP.declare()
           }
-        }
+        specializedApplicableSucc(app) = newF
       }
     }
   }
@@ -321,164 +385,222 @@ case class EncodePermissionStratification[Pre <: Generation](
   // this possibly generic type you need a type environment that is lost at this point. As rewriting is nested (e.g.
   // endpoint x calls function a, that calls function b, that calls function c, which we are now specializing
   // for endpoint x), it is difficult to maintain the proper type environment.
-  def makeWrappedPerm(
-      endpoint: Endpoint[Pre],
+  def markedPerm(
+      endpointExpr: Expr[Post],
       loc: FieldLocation[Pre],
       perm: Expr[Pre],
-      endpointExpr: Expr[Post] = null,
-  )(implicit o: Origin): Expr[Post] = {
-    // TODO: This branch + parameter use is ugly and unclear
-    val expr =
-      if (endpointExpr == null)
-        EndpointName[Post](succ(endpoint))
-      else
-        endpointExpr
+  )(implicit o: Origin): Expr[Post] =
+    mode match {
+      case Mode.Inline => inlineMarkedPerm(endpointExpr, loc, perm)
+      case Mode.Wrap => wrapMarkedPerm(endpointExpr, loc, perm)
+    }
 
-    if (perm == ReadPerm[Pre]()) {
-      Value(PredicateLocation(PredicateApply(
-        wrapperPredicate(endpoint, loc.obj.t, loc.field.decl),
-        Seq(expr, dispatch(loc.obj)),
-      )))
-    } else {
-      Perm(
-        PredicateLocation(PredicateApply(
-          wrapperPredicate(endpoint, loc.obj.t, loc.field.decl),
-          Seq(expr, dispatch(loc.obj)),
-        )),
-        dispatch(perm),
-      )
+  def inlineMarkedPerm(
+      endpointExpr: Expr[Post],
+      fieldLocation: FieldLocation[Pre],
+      perm: Expr[Pre],
+  )(implicit o: Origin): Expr[Post] = {
+    val loc = PredicateLocation(PredicateApply(
+      markerPredicate(
+        fieldLocation.obj.t.asClass.get,
+        fieldLocation.field.decl,
+      ),
+      Seq(endpointExpr, dispatch(fieldLocation.obj)),
+    ))
+    perm match {
+      case ReadPerm() => Value(dispatch(fieldLocation)) &* Value(loc)
+      case perm =>
+        Perm(dispatch(fieldLocation), dispatch(perm)) &*
+          Perm(loc, dispatch(perm))
     }
   }
 
+  def wrapMarkedPerm(
+      endpointExpr: Expr[Post],
+      fieldLocation: FieldLocation[Pre],
+      perm: Expr[Pre],
+  )(implicit o: Origin): Expr[Post] = {
+    val predicate = markerPredicate(
+      fieldLocation.obj.t.asClass.get,
+      fieldLocation.field.decl,
+    )
+    val loc = PredicateLocation(
+      PredicateApply(predicate, Seq(endpointExpr, dispatch(fieldLocation.obj)))
+    )
+    perm match {
+      case ReadPerm() => Value(loc)
+      case perm => Perm(loc, dispatch(perm))
+    }
+  }
+
+  def specializePredicateApply(
+      inv: ApplyAnyPredicate[Pre]
+  ): ApplyAnyPredicate[Post] =
+    inv match {
+      case inv: PredicateApply[Pre] =>
+        inv.rewrite(
+          ref = specializedApplicableSucc.ref(inv.ref.decl),
+          args = specializing.top +: inv.args.map(dispatch),
+        )
+      case inv: InstancePredicateApply[Pre] =>
+        inv.rewrite(
+          ref = specializedApplicableSucc.ref(inv.ref.decl),
+          args = specializing.top +: inv.args.map(dispatch),
+        )
+      case inv: CoalesceInstancePredicateApply[Pre] =>
+        inv.rewrite(
+          ref = specializedApplicableSucc.ref(inv.ref.decl),
+          args = specializing.top +: inv.args.map(dispatch),
+        )
+    }
+
+  // Note that the encoding for stratified predicates is incomplete w.r.t. \chor. For example,
+  // "assert (\chor perm(P()) == 1)" can never succeed, as the transparent part of the predicate can never
+  // be bigger than 1/2. By putting half of the predicate inside the marker/specialized predicate,
+  // and leaving half of the predicate untouched, we gain the ability to call functions with predicates in their
+  // preconditions within \chor. If the predicates were instead fully wrapped, giving a sound encoding,
+  // calling functions that require predicates within \chor would not be possible.
+  //
+  // This makes for easier prototyping. The downside is that if exact permission amounts
+  // are important, the user has to fiddle with dividing amounts by two here and there. We could accomodate for that
+  // in the transformation, but as this is a rare edge case, I chose to leave it kind of unsound, for the sake of
+  // keeping this transformation a bit simpler.
+  def specializeFoldTarget(target: FoldTarget[Pre]): FoldTarget[Post] =
+    target match {
+      case app: ScaledPredicateApply[Pre] =>
+        mode match {
+          case Mode.Inline =>
+            app.rewrite(
+              apply = specializePredicateApply(app.apply),
+              perm =
+                RatDiv(dispatch(app.perm), const(2)(app.o))(NoZeroDiv)(app.o),
+            )
+          case Mode.Wrap =>
+            app.rewrite(
+              apply = specializePredicateApply(app.apply),
+              perm = dispatch(app.perm),
+            )
+        }
+      case app: ValuePredicateApply[Pre] =>
+        app.rewrite(apply = specializePredicateApply(app.apply))
+      case AmbiguousFoldTarget(_) => ??? // Shouldn't occur at this stage
+    }
+
+  def markedPredicate(loc: PredicateLocation[Pre], perm: Expr[Pre])(
+      implicit o: Origin
+  ): Expr[Post] =
+    mode match {
+      case Mode.Inline => markedInlinePredicate(loc, perm)
+      case Mode.Wrap => markedWrapPredicate(loc, perm)
+    }
+
+  // Incomplete encoding; see specializePredicateLocation
+  def markedInlinePredicate(loc: PredicateLocation[Pre], perm: Expr[Pre])(
+      implicit o: Origin
+  ): Expr[Post] = {
+    Perm[Post](dispatch(loc), RatDiv(dispatch(perm), const(2))(NoZeroDiv)) &*
+      Perm(
+        PredicateLocation(specializePredicateApply(loc.inv)),
+        RatDiv(dispatch(perm), const(2))(NoZeroDiv),
+      )
+  }
+
+  def markedWrapPredicate(loc: PredicateLocation[Pre], perm: Expr[Pre])(
+      implicit o: Origin
+  ): Expr[Post] =
+    Perm(PredicateLocation(specializePredicateApply(loc.inv)), dispatch(perm))
+
   override def dispatch(expr: Expr[Pre]): Expr[Post] =
     expr match {
-      case InChor(_, cp: ChorPerm[Pre]) =>
-        assert(currentEndpoint.isEmpty)
-        currentEndpoint.having(cp.endpoint.decl) {
-          specializing
-            .having(EndpointName[Post](succ(cp.endpoint.decl))(cp.o)) {
-              dispatch(cp)
-            }
+      case Perm(loc: FieldLocation[Pre], perm) if specializing.nonEmpty =>
+        markedPerm(specializing.top, loc, perm)(expr.o)
+
+      case Perm(loc: PredicateLocation[Pre], perm) if specializing.nonEmpty =>
+        markedPredicate(loc, perm)(expr.o)
+
+      case Value(loc: FieldLocation[Pre]) if specializing.nonEmpty =>
+        markedPerm(specializing.top, loc, ReadPerm()(expr.o))(expr.o)
+
+      case Value(loc: PredicateLocation[Pre]) if specializing.nonEmpty =>
+        markedPredicate(loc, ReadPerm()(expr.o))(expr.o)
+
+      case unfolding @ Unfolding(res: FoldTarget[Pre], inner)
+          if specializing.nonEmpty =>
+        implicit val o = unfolding.o
+
+        mode match {
+          case Mode.Inline =>
+            val halfRes =
+              res match {
+                case app: ScaledPredicateApply[Pre] =>
+                  // Incomplete encoding; see specializePredicateLocation
+                  app.rewrite(perm =
+                    RatDiv(dispatch(app.perm), const(2))(NoZeroDiv)
+                  )
+                case app => app.rewriteDefault()
+              }
+
+            unfolding.rewrite(
+              res = halfRes,
+              body =
+                Unfolding[Post](
+                  res = specializeFoldTarget(res),
+                  body = dispatch(inner),
+                )(unfolding.blame)(unfolding.o),
+            )
+
+          case Mode.Wrap =>
+            unfolding
+              .rewrite(res = specializeFoldTarget(res), body = dispatch(inner))
         }
-
-      case InEndpoint(
-            _,
-            _,
-            ChorPerm(Ref(endpoint), loc: FieldLocation[Pre], perm),
-          ) =>
-        makeWrappedPerm(endpoint, loc, perm)(expr.o)
-
-      case InEndpoint(_, endpoint, Perm(loc: FieldLocation[Pre], perm)) =>
-        makeWrappedPerm(endpoint, loc, perm, specializing.top)(expr.o)
-
-      case InEndpoint(_, endpoint, Value(loc: FieldLocation[Pre])) =>
-        makeWrappedPerm(endpoint, loc, ReadPerm()(expr.o), specializing.top)(
-          expr.o
-        )
 
       case EndpointExpr(Ref(endpoint), inner) =>
-        assert(currentEndpoint.isEmpty)
-        currentEndpoint.having(endpoint) {
-          specializing.having(EndpointName[Post](succ(endpoint))(expr.o)) {
-            dispatch(inner)
-          }
+        specializing.having(EndpointName[Post](succ(endpoint))(expr.o)) {
+          dispatch(inner)
         }
 
-      case InEndpoint(_, endpoint, deref @ Deref(obj, Ref(field))) =>
+      case deref @ Deref(obj, Ref(field)) if specializing.nonEmpty =>
         implicit val o = expr.o
         functionInvocation(
-          ref = readFunction(endpoint, obj, field)(expr.o),
+          ref = readFunction(obj.t.asClass.get, field)(expr.o),
           args = Seq(specializing.top, dispatch(obj)),
           blame = ForwardInvocationFailureToDeref(deref),
         )
 
-      case ChorExpr(inner) if generatePermissions =>
-        implicit val o = expr.o
-
-        def predicates(
-            seenClasses: Set[TClass[Pre]],
-            endpoint: Endpoint[Pre],
-            baseT: TClass[Pre],
-            base: Expr[Post],
-        ): Seq[FoldTarget[Post]] = {
-          val cls = baseT.cls.decl
-          // Permission generation makes sure no cycles exist at this point by crashing, but lets make sure anyway
-          assert(!seenClasses.contains(baseT))
-          val newSeenClasses = seenClasses.incl(baseT)
-          val predicatesForClass = cls.fields.map { field =>
-            ScaledPredicateApply(
-              PredicateApply[Post](
-                wrapperPredicate(endpoint, baseT, field),
-                Seq(EndpointName(succ(endpoint)), base),
-              ),
-              WritePerm(),
+      case ChorExpr(inner) =>
+        inChor.having(true) {
+          if (mode == Mode.Wrap && !warnedAboutChor) {
+            logger.warn(
+              "\\chor not supported in stratified permissions wrapping mode. Use inline stratified permissions instead"
             )
+            warnedAboutChor = true
           }
-          predicatesForClass ++
-            (cls.fields.filter { _.t.asClass.nonEmpty }.flatMap { field =>
-              val newBase =
-                Deref[Post](base, succ(field))(PanicBlame(
-                  "Permissions were unfolded earlier"
-                ))
-              predicates(
-                newSeenClasses,
-                endpoint,
-                baseT.instantiate(field.t).asClass.get,
-                newBase,
-              )
-            })
+          dispatch(inner)
         }
-
-        val newInner = inChor.having(true) { dispatch(inner) }
-
-        InferEndpointContexts.getEndpoints(inner).flatMap { endpoint =>
-          predicates(
-            HashSet(),
-            endpoint,
-            endpoint.t,
-            EndpointName[Post](succ(endpoint)),
-          )
-        }.foldRight[Expr[Post]](newInner) { case (app, inner) =>
-          Unfolding[Post](app, inner)(PanicBlame(
-            "Generating permissions guarantee permissions are in scope"
-          ))
-        }
-
-      case ChorExpr(inner) if !generatePermissions =>
-        // If not generating permissions, we rely on endpoint expressions to indicate the owner
-        // of relevant permissions
-        inChor.having(true) { dispatch(inner) }
 
       // Generate an invocation to the unspecialized function version if we're inside a \chor
-      // This is safe because \chor unfold all predicates of all endpoints that occur within the expression...
-      // ... in the case of permission generation. Otherwise it just does nothing...?
       // The natural successor of the function will be the unspecialized one
-      case inv: FunctionInvocation[Pre]
-          if inChor.topOption.contains(true) && generatePermissions =>
+      case inv: FunctionInvocation[Pre] if inChor.topOption.contains(true) =>
         inv.rewriteDefault()
       case inv: InstanceFunctionInvocation[Pre]
-          if inChor.topOption.contains(true) && generatePermissions =>
+          if inChor.topOption.contains(true) =>
         inv.rewriteDefault()
 
-      case InEndpoint(_, endpoint, inv: FunctionInvocation[Pre]) =>
-        val k = (endpoint, inv.ref.decl)
+      case inv: FunctionInvocation[Pre] if specializing.nonEmpty =>
         inv.rewrite(
-          ref = specializedApplicableSucc.ref(k),
+          ref = specializedApplicableSucc.ref(inv.ref.decl),
           args = specializing.top +: inv.args.map(dispatch),
         )
-      case InEndpoint(_, endpoint, inv: InstanceFunctionInvocation[Pre]) =>
-        val k = (endpoint, inv.ref.decl)
+      case inv: InstanceFunctionInvocation[Pre] if specializing.nonEmpty =>
         inv.rewrite(
-          ref = specializedApplicableSucc.ref(k),
+          ref = specializedApplicableSucc.ref(inv.ref.decl),
           args = specializing.top +: inv.args.map(dispatch),
         )
-      case InEndpoint(_, endpoint, inv: MethodInvocation[Pre]) =>
-        val k = (endpoint, inv.ref.decl)
+      case inv: MethodInvocation[Pre] if specializing.nonEmpty =>
         inv.rewrite(
-          ref = specializedApplicableSucc.ref(k),
+          ref = specializedApplicableSucc.ref(inv.ref.decl),
           args = specializing.top +: inv.args.map(dispatch),
         )
-
       case _ => expr.rewriteDefault()
     }
 
@@ -488,62 +610,80 @@ case class EncodePermissionStratification[Pre <: Generation](
         throw NoEndpointContext(statement)
       case EndpointStatement(
             Some(Ref(endpoint)),
-            assign @ Assign(deref @ Deref(obj, Ref(field)), _),
+            assign @ Assign(Deref(_, Ref(_)), _),
           ) =>
-        implicit val o = statement.o
-        val apply = {
-          val newEndpoint: Ref[Post, Endpoint[Post]] = succ(endpoint)
-          val ref = wrapperPredicate(endpoint, obj.t, field)
-          ScaledPredicateApply[Post](
-            PredicateApply(
-              ref,
-              Seq(
-                EndpointName(newEndpoint),
-                currentEndpoint.having(endpoint) {
-                  specializing.having(EndpointName[Post](succ(endpoint))) {
-                    dispatch(obj)
-                  }
-                },
-              ),
-            ),
-            WritePerm(),
-          )
-        }
-        val intermediate =
-          new Variable(dispatch(assign.value.t))(
-            assign.o.where(name = "intermediate")
-          )
-        currentEndpoint.having(endpoint) {
-          specializing.having(EndpointName[Post](succ(endpoint))) {
-            Scope(
-              Seq(intermediate),
-              Block(Seq(
-                assignLocal(intermediate.get, dispatch(assign.value)),
-                Unfold(apply)(ForwardUnfoldFailedToDeref(deref)),
-                assign.rewrite(
-                  target =
-                    Deref[Post](dispatch(obj), succ(field))(PanicBlame(
-                      "Unfold succeeded, so assignment is safe"
-                    )),
-                  value = intermediate.get,
-                ),
-                Fold(apply)(PanicBlame("Unfold succeeded, so fold is safe")),
-              )),
-            )
-          }
-        }
+        rewriteAssign(endpoint, assign)
       case EndpointStatement(Some(Ref(endpoint)), assert: Assert[Pre]) =>
-        currentEndpoint.having(endpoint) {
-          specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
-            assert.rewriteDefault()
-          }
+        specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
+          assert.rewriteDefault()
         }
       case EndpointStatement(Some(Ref(endpoint)), eval: Eval[Pre]) =>
-        currentEndpoint.having(endpoint) {
-          specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
-            eval.rewriteDefault()
-          }
+        specializing.having(EndpointName[Post](succ(endpoint))(statement.o)) {
+          eval.rewriteDefault()
         }
       case _ => statement.rewriteDefault()
     }
+
+  def rewriteAssign(
+      endpoint: Endpoint[Pre],
+      assign: Assign[Pre],
+  ): Statement[Post] = {
+    val Assign(deref @ Deref(obj, Ref(field)), _) = assign
+    implicit val o = assign.o
+    val apply = {
+      val newEndpoint: Ref[Post, Endpoint[Post]] = succ(endpoint)
+      val ref = markerPredicate(obj.t.asClass.get, field)
+      PredicateApply(
+        ref,
+        Seq(
+          EndpointName(newEndpoint),
+          specializing.having(EndpointName[Post](succ(endpoint))) {
+            dispatch(obj)
+          },
+        ),
+      )
+    }
+    val intermediate =
+      new Variable(dispatch(assign.value.t))(
+        assign.o.where(name = "intermediate")
+      )
+    specializing.having(EndpointName[Post](succ(endpoint))) {
+      val evalStatement = assignLocal(intermediate.get, dispatch(assign.value))
+      val actualAssign = assign.rewrite(
+        // Use rewriteDefault to prevent triggering rewriting into a read function. We just want the
+        // raw field access here.
+        target = deref.rewriteDefault(),
+        value = intermediate.get,
+      )
+      mode match {
+        case Mode.Inline =>
+          // In the inline mode, only include an assert to make sure the proper marker is present
+          Scope(
+            Seq(intermediate),
+            Block(Seq(
+              evalStatement,
+              Assert(Perm(PredicateLocation(apply), WritePerm()))(
+                ForwardAssertFailedToDeref(deref)
+              ),
+              actualAssign,
+            )),
+          )
+        case Mode.Wrap =>
+          // In the wrap mode, unfold and fold the wrap predicate around the assignment
+          Scope(
+            Seq(intermediate),
+            Block(Seq(
+              evalStatement,
+              Unfold(ScaledPredicateApply(apply, WritePerm()))(
+                ForwardUnfoldFailedToDeref(deref)
+              ),
+              actualAssign,
+              Fold(ScaledPredicateApply(apply, WritePerm()))(PanicBlame(
+                "Permission is guaranteed to be present because of earlier unfold"
+              )),
+            )),
+          )
+      }
+    }
+  }
 }

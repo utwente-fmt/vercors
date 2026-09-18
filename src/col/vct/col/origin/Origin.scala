@@ -89,7 +89,9 @@ case class IndirectName(name: Name) extends NameStrategy {
 object SourceName {
   def stringToName(name: String): Name =
     Name.Preferred(
-      if (name.forall(c => !c.isLetter || c.isUpper))
+      if (name.matches("[_]+"))
+        Seq(name)
+      else if (name.forall(c => !c.isLetter || c.isUpper))
         name.split("[_]+").toIndexedSeq
       else
         name.split("[_]+").toIndexedSeq.flatMap(splitNameRec)
@@ -108,6 +110,9 @@ case class SourceName(name: String) extends NameStrategy {
   override def name(tail: Origin): Option[Name] =
     Some(SourceName.stringToName(name))
 }
+
+// Used to disambiguate whether to show a ByValueClass as a class or a struct
+case class TypeName(name: String) extends OriginContent
 
 /** Content that provides a bit of context here. By default, this assembles
   * further context from the remaining origin. contextHere and inlineContextHere

@@ -5,8 +5,10 @@ import scopt.OParser
 import scopt.Read._
 import vct.main.BuildInfo
 import vct.main.stages.Parsing.Language
+import vct.rewrite.veymont.verification.PermissionStratificationMode
 import vct.options.types._
 import vct.resources.Resources
+import vct.rewrite.veymont.verification.EncodePermissionStratification
 
 import java.nio.file.{Path, Paths}
 import scala.collection.mutable
@@ -43,6 +45,9 @@ case object Options {
 
     import vct.options.types.Backend.read
     implicit val readLanguage: scopt.Read[Language] = ReadLanguage.read
+    implicit val readPermissionStratificationMode
+        : scopt.Read[PermissionStratificationMode] =
+      ReadPermissionStratificationMode.read
     import ReadEnum.readVerbosity
 
     implicit val readPathOrStd: scopt.Read[PathOrStd] = scopt.Read.reads {
@@ -130,6 +135,10 @@ case object Options {
       opt[String]("backend-option").unbounded().keyName("<option>,...")
         .action((opt, c) => c.copy(backendFlags = c.backendFlags :+ opt))
         .text("Provide custom flags to Viper"),
+      opt[(String, String)]("prover-config").unbounded()
+        .keyValueName("<option>", "<value>").action((opt, c) =>
+          c.copy(proverConfigArgs = c.proverConfigArgs + (opt._1 -> opt._2))
+        ).text("Provide custom options to the SMT solver"),
       opt[Unit]("skip-backend").action((_, c) => c.copy(skipBackend = true))
         .text(
           "Stop VerCors successfully before the backend is used to verify the program"
@@ -245,10 +254,14 @@ case object Options {
         "Indicate, in seconds, the timeout value for the backend verification. If the verification gets stuck " +
           "for longer than this timeout, the verification will timeout."
       ),
-      opt[Unit]("dev-unsafe-optimization").maybeHidden()
-        .action((_, c) => c.copy(devUnsafeOptimization = true)).text(
-          "Optimizes runtime at the cost of progress logging and readability of error messages"
-        ),
+      opt[Unit]("dev-unsafe-optimization").maybeHidden().action((_, c) =>
+        c.copy(devUnsafeOptimization = true, devCheckSat = false)
+      ).text(
+        "Optimizes runtime at the cost of progress logging and readability of error messages. Implies --dev-no-sat."
+      ),
+      opt[Unit]("dev-time-backend").maybeHidden()
+        .action((_, c) => c.copy(devTimeBackend = true))
+        .text("Will display the time spend during the back end verification."),
       opt[Path]("dev-silicon-z3-log-file").maybeHidden()
         .action((p, c) => c.copy(devSiliconZ3LogFile = Some(p)))
         .text("Path for z3 to write smt2 log file to"),
@@ -304,6 +317,26 @@ case object Options {
         .action((_, c) => c.copy(generatePermissions = true)).text(
           "Generates permissions for the entire program using a syntax-driven single-owner policy"
         ),
+      opt[PathOrStd]("contract-import-file").valueName("<path>")
+        .action((path, c) => c.copy(contractImportFile = Some(path)))
+        .text("Load function contracts from the specified file"),
+      opt[String]("target").valueName("<target string>|unset")
+        .action((target, c) =>
+          if (target.trim().equalsIgnoreCase("unset"))
+            c.copy(targetString = None)
+          else { c.copy(targetString = Some(target)) }
+        ).text(
+          "Set the target string used for determining type sizes, or 'unset' to make no assumptions about sizes"
+        ),
+      opt[Unit]("opaque-bitwise-operators").action((_, c) =>
+        c.copy(opaqueBitwiseOperators = true)
+      ).text(
+        "Replace bitwise operations (&, |, ^, <<, >>, ~) with opaque functions"
+      ),
+      opt[Unit]("check-integer-bounds")
+        .action((_, c) => c.copy(checkIntegerBounds = true)).text(
+          "Check for integer bounds, currently only C is supported. Make sure to set the target so that sizes are known"
+        ),
       note(""),
       note("VeyMont Mode"),
       opt[Unit]("veymont").action((_, c) => c.copy(mode = Mode.VeyMont)).text(
@@ -337,14 +370,16 @@ case object Options {
         opt[Unit]("veymont-skip-implementation-verification").action((_, c) =>
           c.copy(veymontSkipImplementationVerification = true)
         ).text("Do not verify generated implementation"),
-      ),
-      opt[Unit]("dev-veymont-no-branch-unanimity").maybeHidden()
-        .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
-          "Disables generation of the branch unanimity check encoded by VeyMont, which verifies that choreographies do not deadlock during choreographic verification"
+        opt[PermissionStratificationMode]("veymont-ps").action((mode, c) =>
+          c.copy(veymontPermissionStratificationMode = mode)
+        ).text(
+          "Specifies the implementation of stratified permissions to use. Possible options: wrap (default), inline and none."
         ),
-      opt[Unit]("dev-veymont-allow-assign").maybeHidden()
-        .action((p, c) => c.copy(devVeymontAllowAssign = true))
-        .text("Do not error when plain assignment is used in choreographies"),
+      ),
+      opt[Unit]("veymont-no-branch-unanimity").maybeHidden()
+        .action((_, c) => c.copy(veymontBranchUnanimity = false)).text(
+          "Disables generation of the branch unanimity check encoded by VeyMont, which ensures that endpoints cannot disagree about which branch to take. This check cannot always be computed, but if it can, it saves the user from having to prove this informally."
+        ),
       note(""),
       note("VeSUV Mode"),
       opt[Unit]("vesuv").action((_, c) => c.copy(mode = Mode.VeSUV)).text(
@@ -374,6 +409,12 @@ case object Options {
           ),
       ),
       note(""),
+      note("Pallas options"),
+      opt[Unit]("pallas-sroa").action((_, c) => c.copy(pallasRunSroa = true))
+        .text(
+          "Apply the SROA-pass of LLVM to the loaded IR before processing it."
+        ),
+      note(""),
       note("Alpinist Mode"),
       opt[Unit]("alpinist").action((_, c) => c.copy(mode = Mode.Alpinist))
         .text("Enable Alpinist mode: apply GPU optimizations").children(
@@ -400,6 +441,16 @@ case object Options {
           .action((path, c) => c.copy(compileOutput = Some(path)))
           .text("Output Java file")
       ),
+      note("Isar mode"),
+      opt[Unit]("isar").action((_, c) => c.copy(mode = Mode.Isar))
+        .text("Translates ADTs to Isar.").children(
+          opt[Path]("isar-output").valueName("<path>")
+            .action((path, c) => c.copy(isarOutput = Some(path)))
+            .text("Output Isar file"),
+          opt[Unit]("isar-triggers")
+            .action((_, c) => c.copy(isarTriggers = true))
+            .text("Include trigger syntax in Isar output."),
+        ),
       note(""),
       note("Patcher mode"),
       opt[Unit]("patcher").action((_, c) => c.copy(mode = Mode.Patcher)).text(
@@ -416,6 +467,11 @@ case object Options {
             "If the patcher is given multiple inputs, this is interpreted as a directory path."
         ),
       ),
+      note(""),
+      note("LSP Mode"),
+      opt[Unit]("lsp")
+        .action((_, c) => c.copy(mode = Mode.LSP))
+        .text("Run the LSP server"),
       note(""),
       note(""),
       arg[PathOrStd]("<path>...").unbounded().optional()
@@ -460,6 +516,7 @@ case class Options(
     outputBeforePass: Map[String, PathOrStd] = Map.empty,
     outputIntermediatePrograms: Option[Path] = None,
     backendFlags: Seq[String] = Nil,
+    proverConfigArgs: Map[String, String] = Map.empty,
     skipBackend: Boolean = false,
     skipTranslation: Boolean = false,
     skipTranslationAfter: Option[String] = None,
@@ -485,6 +542,9 @@ case class Options(
     bipReportFile: Option[PathOrStd] = None,
     inferHeapContextIntoFrame: Boolean = true,
     generatePermissions: Boolean = false,
+    targetString: Option[String] = None,
+    opaqueBitwiseOperators: Boolean = false,
+    checkIntegerBounds: Boolean = false,
 
     // Verify options - hidden
     devParserReportAmbiguities: Boolean = false,
@@ -509,14 +569,20 @@ case class Options(
     devCarbonBoogieLogFile: Option[Path] = None,
     devViperProverLogFile: Option[Path] = None,
     devUnsafeOptimization: Boolean = false,
+    devTimeBackend: Boolean = false,
 
     // VeyMont options
     veymontOutput: Option[Path] = None,
     veymontResourcePath: Path = Resources.getVeymontPath,
     veymontBranchUnanimity: Boolean = true,
+    // Stratified permission settings
+    veymontPermissionStratificationMode: PermissionStratificationMode =
+      EncodePermissionStratification.Mode.Wrap,
     veymontSkipChoreographyVerification: Boolean = false,
     veymontSkipImplementationVerification: Boolean = false,
-    devVeymontAllowAssign: Boolean = false,
+
+    // Pallas options
+    pallasRunSroa: Boolean = false,
 
     // VeSUV options
     vesuvOutput: Path = null,
@@ -534,9 +600,16 @@ case class Options(
     // Compile options
     compileOutput: Option[Path] = None,
 
+    // Compile options
+    isarOutput: Option[Path] = None,
+    isarTriggers: Boolean = false,
+
     // Patch options
     patchFile: Path = null,
     patchOutput: Path = null,
+
+    // Pallas options
+    contractImportFile: Option[PathOrStd] = None,
 ) {
   def getParserDebugOptions: vct.parsers.debug.DebugOptions =
     vct.parsers.debug.DebugOptions(

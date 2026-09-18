@@ -1,0 +1,20 @@
+package vct.col.ast.expr.`type`
+
+import vct.col.ast.expr.binder.PossibleTriggerImpl
+import vct.col.ast.ops.IntegerPointerCastOps
+import vct.col.ast.{IntegerPointerCast, TType, Type}
+import vct.col.check.UnreachableAfterTypeCheck
+import vct.col.print.{Ctx, Doc, Precedence, Text}
+
+trait IntegerPointerCastImpl[G]
+    extends IntegerPointerCastOps[G] with PossibleTriggerImpl[G] {
+  this: IntegerPointerCast[G] =>
+
+  override def precedence: Int = Precedence.PREFIX
+  override def layout(implicit ctx: Ctx): Doc =
+    Text("(") <> t <> ")" <> assoc(value)
+
+  // Only casts with non-null pointers can be cleanly turned into functions
+  override def isPossibleTrigger: Boolean =
+    t.asPointer.exists(_.isNonNull) || value.t.asPointer.exists(_.isNonNull)
+}

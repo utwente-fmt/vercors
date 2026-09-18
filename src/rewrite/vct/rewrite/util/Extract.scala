@@ -84,7 +84,9 @@ case class Extract[G]() {
         t -> Local(
           getOrElseUpdate(
             free,
-            new Variable(extract(TClass(t.cls, Seq())))(ExtractOrigin("this")),
+            new Variable(extract(t.cls.decl.classType(Seq())))(ExtractOrigin(
+              "this"
+            )),
           ).ref[Variable[G]]
         )(ExtractOrigin(""))
       case free @ FreeThisModel(t) =>
@@ -116,6 +118,11 @@ case class Extract[G]() {
   def extract(stat: Statement[G]): Statement[G] = {
     val sub = Substitute(updateExprs(stat), updateTypes(stat))
     sub.labelDecls.scope { sub.dispatch(stat) }
+  }
+
+  def extract(decr: DecreasesClause[G]): DecreasesClause[G] = {
+    val sub = Substitute(updateExprs(decr), updateTypes(decr))
+    sub.labelDecls.scope { sub.dispatch(decr) }
   }
 
   case class Data(

@@ -20,7 +20,7 @@ struct linked_list{
 };
 
 /*@
-    context p != NULL ** Perm(p, write);
+    context p != NULL;
     context Perm(p->x, write);
     context Perm(p->y, write);
     ensures p->x == 0;
@@ -33,7 +33,20 @@ void alter_struct(struct point *p){
 }
 
 /*@
-    context p != NULL ** Perm(p, write) ** Perm(*p, write);
+    context p != NULL;
+    context Perm(p->x, write);
+    context Perm(p->y, write);
+    ensures p->x == 0;
+    ensures p->y == 0;
+    ensures \old(*p) == *p;
+@*/
+void alter_struct2(struct point p[]){
+    p->x = 0;
+    p->y = 0;
+}
+
+/*@
+    context p != NULL ** Perm(*p, write);
     ensures p->x == \old(p->x + 1);
     ensures p->y == \old(p->y + 1);
     ensures \old(*p) == *p;
@@ -52,6 +65,7 @@ void alter_copy_struct(struct point p){
     p.y = 0;
 }
 
+// TODO: Should be auto-generated
 /*@
   context Perm(p, 1\1);
 @*/
@@ -61,7 +75,7 @@ void alter_copy_struct_2(struct point p){
 }
 
 /*@
-  context r != NULL ** Perm(r, 1\2) ** Perm(*r, 1\2);
+  context r != NULL ** Perm(*r, 1\2);
   ensures \result == (r->p1.x + r->p2.x + r->p3.x)/3;
 @*/
 int avr_x(struct triangle *r){
@@ -73,7 +87,6 @@ int avr_x(struct triangle *r){
  //decreases n;
  requires n >= 0;
  requires inp != NULL && \pointer_length(inp) >= n;
- requires (\forall* int i; 0 <= i && i < n; Perm(&inp[i], 1\10));
  requires (\forall int i, int j; 0<=i && i<n && 0<=j && j<n; i != j ==> {:inp[i]:} != {:inp[j]:});
  requires (\forall* int i; 0 <= i && i < n; Perm(inp[i].x, 1\10));
  ensures |\result| == n;
@@ -90,9 +103,8 @@ pure int sum_seq(seq<int> xs) = |xs| == 0 ? 0 : sum_seq(xs[.. (|xs|-1)]) + xs[ |
 
 /*@
   requires len > 0;
-  context p != NULL ** Perm(p, 1\2) ** Perm(*p, 1\2);
+  context p != NULL ** Perm(*p, 1\2);
   context p->ps != NULL && \pointer_length(p->ps) >= len;
-  context (\forall* int i; 0<=i && i<len; Perm(&p->ps[i], 1\2));
   context (\forall int i, int j; 0<=i && i<len && 0<=j && j<len; i != j ==> {:p->ps[i]:} != {:p->ps[j]:});
   context (\forall* int i; 0<=i && i<len; Perm(p->ps[i], 1\2));
   // This hangs for bigger numbers than 3, and is incredibly slow for 3, so we leave it out for now
@@ -104,9 +116,8 @@ int avr_x_pol(struct polygon *p, int len){
     // ghost seq<int> xs = inp_to_seq(p->ps, len);
     /*@
       loop_invariant 0<=i && i<=len;
-      loop_invariant p != NULL ** Perm(p, 1\2) ** Perm(*p, 1\2);
+      loop_invariant p != NULL ** Perm(*p, 1\2);
       loop_invariant p->ps != NULL && \pointer_length(p->ps) >= len;
-      loop_invariant (\forall* int i; 0<=i && i<len; Perm(&p->ps[i], 1\2));
       loop_invariant (\forall int i, int j; 0<=i && i<len && 0<=j && j<len; i != j ==> {:p->ps[i]:} != {:p->ps[j]:});
       loop_invariant (\forall* int i; 0<=i && i<len; Perm(p->ps[i], 1\2));
       //loop_invariant (\forall int i; 0<=i && i<len; p->ps[i].x == xs[i]);
@@ -132,7 +143,7 @@ int main(){
     struct point *pp;
     pp = &p;
 
-    //@ assert (pp[0] != NULL );
+    /* //@ assert (pp[0] != NULL ); */
     assert (pp != NULL );
 
     p.x = 1;

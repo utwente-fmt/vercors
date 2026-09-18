@@ -1,6 +1,6 @@
 package vct.col.ast.statement.terminal
 
-import vct.col.ast.{Assert, Expr}
+import vct.col.ast.{Assert, Expr, Node}
 import vct.col.print.{Ctx, Doc, Nest, Show, Text}
 import vct.col.ast.ops.AssertOps
 

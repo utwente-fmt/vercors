@@ -12,27 +12,33 @@ authors:
     family-names: Marieke
 preferred-citation:
   authors:
-    - family-names: Blom
-      given-names: Stefan
-    - family-names: Darabi
-      given-names: Saeed
+    - family-names: Armborst
+      given-names: Lukas
+    - family-names: Bos
+      given-names: Pieter
+    - family-names: van den Haak
+      given-names: Lars B.
     - family-names: Huisman
       given-names: Marieke
-    - family-names: Oortwijn
-      given-names: Wytse
-  title: "The VerCors Tool Set: Verification of Parallel and Concurrent Software"
+    - family-names: Rubbens
+      given-names: Robert
+    - family-names: Şakar
+      given-names: Ömer
+    - family-names: Tasche
+      given-names: Philip
+  title: "The VerCors Verifier: A Progress Report"
   type: "conference-paper"
-  doi: "10.1007/978-3-319-66845-1_7"
-  year: 2017
+  doi: "10.1007/978-3-031-65630-9_1"
+  year: 2024
   conference:
-    name: "Integrated Formal Methods 2017"
+    name: " Computer Aided Verification 2024"
   editors:
-    - family-names: Polikarpova
-      given-names: Nadia
-    - family-names: Schneider
-      given-names: Steve
+    - family-names: Gurfinkel
+      given-names: Arie
+    - family-names: Ganesh
+      given-names: Vijay
   publisher:
     name: "Springer International Publishing"
     address: "Cham"
-  isbn: "978-3-319-66845-1"
-  pages: "102--110"
+  isbn: "978-3-031-65629-3"
+  pages: "3--18"

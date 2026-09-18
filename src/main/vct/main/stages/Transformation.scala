@@ -3,6 +3,7 @@ package vct.main.stages
 import com.typesafe.scalalogging.LazyLogging
 import hre.debug.TimeTravel
 import hre.debug.TimeTravel.CauseWithBadEffect
+import hre.io.Readable
 import hre.progress.Progress
 import hre.stages.Stage
 import vct.col.ast.{Program, SimplificationRule, Verification}
@@ -23,29 +24,54 @@ import vct.main.stages.Transformation.{
 }
 import vct.options.Options
 import vct.options.types.{Backend, PathOrStd}
+import vct.parsers.debug.DebugOptions
 import vct.resources.Resources
 import vct.result.VerificationError.SystemError
-import vct.rewrite.adt.ImportSetCompat
+import vct.rewrite.adt.{EncodeBitVectors, ImportSetCompat}
 import vct.rewrite.{
+  CTypeConversions,
+  ColToIsar,
+  CollectLocalDeclarations,
+  DisambiguateLocation,
   DisambiguatePredicateExpression,
+  EncodeAssuming,
   EncodeAutoValue,
+  EncodeBoundsChecks,
+  EncodeByValueClassUsage,
+  EncodeIntegerPointerCast,
+  EncodePointerArrays,
+  EncodePointerComparison,
   EncodeRange,
   EncodeResourceValues,
   ExplicitResourceValues,
+  GenerateSingleOwnerPermissions,
   HeapVariableToRef,
   InlineTrivialLets,
+  LowerHeapVariables,
+  MakeUniqueMethodCopies,
   MonomorphizeClass,
+  PrettifyBlocks,
   SmtlibToProverTypes,
-  GenerateSingleOwnerPermissions,
+  TypeQualifierCoercion,
+  VariableToPointer,
 }
 import vct.rewrite.lang.ReplaceSYCLTypes
+import vct.rewrite.pallas.{
+  InlinePallasPermLets,
+  InlinePallasWrappers,
+  ResolvePallasPredicates,
+  ResolvePallasQuantifiers,
+  SimplifyPallasWrappers,
+}
 import vct.rewrite.veymont._
 import vct.rewrite.veymont.generation._
 import vct.rewrite.veymont.verification._
+import vct.rewrite.veymont.verification.EncodePermissionStratification.{
+  Mode => PermissionStratificationMode
+}
 
 import java.nio.file.Path
 import java.nio.file.Files
-import java.nio.file.Paths
 
 object Transformation extends LazyLogging {
   case class TransformationCheckError(
@@ -94,9 +120,28 @@ object Transformation extends LazyLogging {
     }
   }
 
+  def loadPVLLibraryFileStage[G](
+      readable: Readable,
+      debugOptions: DebugOptions,
+  ): Program[G] = {
+    /* This is currently a hacky way to make time spent in the pvl simplification rule parser visible in the
+    CLI interface. Instead, we should follow the advice in the docs of `Progress.hiddenStage`:
+    A better design would be that the pvl library files are parsed when the appropriate
+    simplification pass is encountered. Then the transformation pass could, for user friendliness, check if the
+    simplification files exists before doing all the other transformations. This moves the time spent for loading
+    the files to the same place where the file is actually used, which sounds right.
+
+    Of course, this all while still retaining the functionality of making it possible to pass more simplification rules
+    using command line flags.
+     */
+    Progress.hiddenStage(s"Loading PVL library file ${readable.fileName}") {
+      Util.loadPVLLibraryFile(readable, debugOptions)
+    }
+  }
+
   def simplifierFor(path: PathOrStd, options: Options): RewriterBuilder =
     ApplyTermRewriter.BuilderFor(
-      ruleNodes = Util.loadPVLLibraryFile[InitialGeneration](
+      ruleNodes = loadPVLLibraryFileStage[InitialGeneration](
         path,
         options.getParserDebugOptions,
       ).declarations.collect {
@@ -141,6 +186,11 @@ object Transformation extends LazyLogging {
           optimizeUnsafe = options.devUnsafeOptimization,
           generatePermissions = options.generatePermissions,
           veymontBranchUnanimity = options.veymontBranchUnanimity,
+          veymontPermissionStratificationMode =
+            options.veymontPermissionStratificationMode,
+          opaqueBitwiseOperators = options.opaqueBitwiseOperators,
+          checkIntegerBounds = options.checkIntegerBounds,
+          unsetTarget = options.targetString.isEmpty,
         )
     }
 
@@ -164,6 +214,14 @@ object Transformation extends LazyLogging {
     PvlJavaCompat(onPassEvent =
       options.outputIntermediatePrograms
         .map(p => reportIntermediateProgram(p, "pvlJavaCompat")).toSeq ++
+        writeOutFunctions(before, options.outputBeforePass) ++
+        writeOutFunctions(after, options.outputAfterPass)
+    )
+
+  def isarOfOptions(options: Options): Transformation =
+    Isar(onPassEvent =
+      options.outputIntermediatePrograms
+        .map(p => reportIntermediateProgram(p, "isarGen")).toSeq ++
         writeOutFunctions(before, options.outputBeforePass) ++
         writeOutFunctions(after, options.outputAfterPass)
     )
@@ -232,6 +290,8 @@ class Transformation(
           action(passes, Transformation.before, passIndex, result)
         }
 
+        logger.debug(s"Running transformation ${pass.key}")
+
         result =
           try { pass().dispatch(result) }
           catch {
@@ -239,6 +299,8 @@ class Transformation(
               logger.error(s"An error occurred in pass ${pass.key}")
               throw c
           }
+
+        logger.debug(s"Finished transformation ${pass.key}")
 
         onPassEvent.foreach { action =>
           action(passes, Transformation.after, passIndex, result)
@@ -312,12 +374,27 @@ case class SilverTransformation(
     override val optimizeUnsafe: Boolean = false,
     generatePermissions: Boolean = false,
     veymontBranchUnanimity: Boolean = true,
+    veymontPermissionStratificationMode: PermissionStratificationMode =
+      PermissionStratificationMode.Wrap,
+    opaqueBitwiseOperators: Boolean = false,
+    checkIntegerBounds: Boolean = false,
+    unsetTarget: Boolean = true,
 ) extends Transformation(
       onPassEvent,
       Seq(
+        CTypeConversions.withArg(checkIntegerBounds, unsetTarget),
+        EncodeBoundsChecks,
         // Replace leftover SYCL types
         ReplaceSYCLTypes,
-        CFloatIntCoercion,
+        TypeQualifierCoercion,
+        MakeUniqueMethodCopies,
+        SimplifyPallasWrappers,
+        // Inline pallas-specifications
+        InlinePallasWrappers,
+        ResolvePallasPredicates,
+        InlinePallasPermLets,
+        ResolvePallasQuantifiers,
+        // BIP transformations
         ComputeBipGlue,
         InstantiateBipSynchronizations,
         EncodeBipPermissions,
@@ -329,15 +406,33 @@ case class SilverTransformation(
         // Delete stuff that may be declared unsupported at a later stage
         FilterSpecIgnore,
 
-        // Normalize AST
+        // Disambiguate AST
         // Make sure Disambiguate comes after CFloatIntCoercion, so CInts are gone
         Disambiguate, // Resolve overloaded operators (+, subscript, etc.)
         DisambiguateLocation, // Resolve location type
         DisambiguatePredicateExpression,
+
+        // VeyMont choreography encoding
+        BranchToIfElse,
+        GenerateSingleOwnerPermissions.withArg(generatePermissions),
+        InferEndpointContexts,
+        StratifyExpressions,
+        StratifyUnpointedExpressions,
+        DeduplicateChorGuards,
+        EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
+        EncodeEndpointInequalities,
+        EncodeChannels,
+        EncodePermissionStratification
+          .withArg(veymontPermissionStratificationMode),
+        EncodeChoreography,
+        // All VeyMont nodes should now be gone
+
+        // Desugar high-level COL constructs
         EncodeRangedFor,
         EncodeString, // Encode spec string as seq<int>
         EncodeChar,
         CollectLocalDeclarations, // all decls in Scope
+        VariableToPointer, // should happen before ParBlockEncoder so it can distinguish between variables which can and can't altered in a parallel block
         DesugarPermissionOperators, // no PointsTo, \pointer, etc.
         ReadToValue, // resolve wildcard into fractional permission
         TrivialAddrOf,
@@ -347,37 +442,22 @@ case class SilverTransformation(
         IterationContractToParBlock,
         PropagateContextEverywhere, // inline context_everywhere into loop invariants
         EncodeArrayValues, // maybe don't target shift lemmas on generated function for \values
+        EncodePointerArrays,
         GivenYieldsToArgs,
         CheckProcessAlgebra,
         EncodeCurrentThread,
         EncodeIntrinsicLock,
         EncodeForkJoin,
+        EncodeSuchThatAssign,
+        // PureMethodsToFunctions should be before InlineApplicables since InlineApplicables treats functions and methods differently
+        PureMethodsToFunctions,
         InlineApplicables,
         InlineTrivialLets,
-
-        // VeyMont choreography encoding
-        // Explicitly after InlineApplicables such that VeyMont doesn't care about inline predicates
-        // (Even though this makes inferring endpoint ownership annotations less complete)
-        // Also, VeyMont requires branches to be nested, instead of flat, because the false branch
-        // may refine the set of participating endpoints
-        BranchToIfElse,
-        GenerateSingleOwnerPermissions.withArg(generatePermissions),
-        InferEndpointContexts,
-        PushInChor.withArg(generatePermissions),
-        StratifyExpressions,
-        StratifyUnpointedExpressions,
-        DeduplicateChorGuards,
-        EncodeChorBranchUnanimity.withArg(veymontBranchUnanimity),
-        EncodeEndpointInequalities,
-        EncodeChannels,
-        EncodePermissionStratification.withArg(generatePermissions),
-        EncodeChoreography,
-        // All VeyMont nodes should now be gone
-
-        PureMethodsToFunctions,
         RefuteToInvertedAssert,
         ExplicitResourceValues,
         EncodeResourceValues,
+        EncodeAssuming,
+        EncodePointerComparison, // Assumes no context_everywhere
 
         // Encode parallel blocks
         EncodeSendRecv,
@@ -393,11 +473,15 @@ case class SilverTransformation(
         EncodeBreakReturn,
       ) ++ simplifyBeforeRelations ++ Seq(
         SimplifyQuantifiedRelations,
+        // We extract quantifier patterns before simplifying nested ones
+        ExtractInlineQuantifierPatterns,
         SimplifyNestedQuantifiers,
         TupledQuantifiers,
       ) ++ simplifyAfterRelations ++ Seq(
         UntupledQuantifiers,
 
+        // Resolve scale before encoding proof helpers, for easier access to annotation info.
+        ResolveScale,
         // Encode proof helpers
         EncodeProofHelpers.withArg(inferHeapContextIntoFrame),
         ImportSetCompat.withArg(adtImporter),
@@ -406,12 +490,12 @@ case class SilverTransformation(
         // flatten out functions in the rhs of assignments, making it harder to detect final field assignments where the
         // value is pure and therefore be put in the contract of the constant function.
         ConstantifyFinalFields,
-
+        EncodeByValueClassUsage,
+        LowerHeapVariables,
         // Resolve side effects including method invocations, for encodetrythrowsignals.
         ResolveExpressionSideChecks,
         ResolveExpressionSideEffects,
         EncodeTryThrowSignals,
-        ResolveScale,
         MonomorphizeClass,
         // No more classes
         ClassToRef,
@@ -419,14 +503,17 @@ case class SilverTransformation(
         CheckContractSatisfiability.withArg(checkSat),
         DesugarCollectionOperators,
         EncodeNdIndex,
-        ExtractInlineQuantifierPatterns,
+        EncodeBitVectors.withArg(opaqueBitwiseOperators),
         // Translate internal types to domains
+        ImportVector.withArg(adtImporter),
+        // After ImportVector, but before SmtlibToProverTypes
         FloatToRat,
         SmtlibToProverTypes,
         EnumToDomain,
         ImportArray.withArg(adtImporter),
+        ImportConstPointer.withArg(adtImporter),
+        EncodeIntegerPointerCast,
         ImportPointer.withArg(adtImporter),
-        ImportVector.withArg(adtImporter),
         ImportMapCompat.withArg(adtImporter),
         ImportEither.withArg(adtImporter),
         ImportTuple.withArg(adtImporter),
@@ -494,3 +581,6 @@ case class PvlJavaCompat(override val onPassEvent: Seq[PassEventHandler] = Nil)
       onPassEvent,
       Seq(ImplicationToTernary, EncodeGlobalApplicables),
     )
+
+case class Isar(override val onPassEvent: Seq[PassEventHandler] = Nil)
+    extends Transformation(onPassEvent, Seq(Disambiguate, ColToIsar))
