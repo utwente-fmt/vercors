@@ -800,18 +800,16 @@ ScopedStack()
   val syclLocalAccessorVarToDimensions
       : mutable.Map[Variable[Post], Seq[Expr[Post]]] = mutable.Map.empty
 
-  var syclBufferRangeRelations: Seq[Eq[Post]] = Nil
+  var syclBufferRangeRelations: ScopedStack[mutable.Buffer[Eq[Post]]] = ScopedStack()
 
-  val currentlyRunningKernels: mutable.Map[Local[
-    Post
-  ], (UnitAccountedPredicate[Post], Seq[SYCLAccessor[Post]], Exhale[Post])] =
-    mutable.Map.empty
+  val currentlyRunningKernels: ScopedStack[mutable.Map[Local[Post], (UnitAccountedPredicate[Post], Seq[SYCLAccessor[Post]], Exhale[Post])]] =
+    ScopedStack()
   val currentDimensionIterVars
       : mutable.Map[KernelScopeLevel, mutable.Buffer[IterVariable[Post]]] =
     mutable.Map.empty
   var currentKernelType: Option[KernelType] = None
   var gatherBlockStatements = false
-  var visitedKernelStatements: mutable.Seq[Node[Pre]] = mutable.Seq.empty
+  var visitedKernelStatements: ScopedStack[mutable.Buffer[Node[Pre]]] = ScopedStack()
   var currentThis: Option[Expr[Post]] = None
 
   sealed abstract class KernelScopeLevel(val idName: String)
@@ -987,7 +985,7 @@ ScopedStack()
     val (contract, subs: Map[CPPParam[Pre], CPPParam[Pre]]) =
       func.ref match {
         case Some(RefCPPGlobalDeclaration(decl, idx))
-            if decl.decl.contract.nonEmpty =>
+          if decl.decl.contract.nonEmpty =>
           if (func.contract.nonEmpty)
             throw CPPDoubleContracted(decl, func)
           val declParams =
@@ -1002,6 +1000,13 @@ ScopedStack()
         contract
       ) // First rewrite contract to register given and yields variables
 
+    val body = syclBufferRangeRelations.having(mutable.Buffer.empty) {
+        currentlyRunningKernels.having(mutable.Map.empty) {
+          rw.dispatch(func.body)
+        }
+      }
+
+
     val proc =
       cppCurrentDefinitionParamSubstitutions.having(subs) {
         rw.globalDeclarations.declare({
@@ -1013,7 +1018,7 @@ ScopedStack()
               args = rewrittenParams,
               outArgs = Nil,
               typeArgs = Nil,
-              body = Some(rw.dispatch(func.body)),
+              body = Some(body),
               contract = rewrittenContract,
             )(func.blame)(namedO)
           }
@@ -1126,13 +1131,14 @@ ScopedStack()
             inv,
             Some(varO),
           )
-          syclBufferRangeRelations ++= rangeRelations
+          syclBufferRangeRelations.top ++= rangeRelations
+
           v = syclBufferRef
           result = block
         case (SYCLTLocalAccessor(_, _), inv: CPPInvocation[Pre])
             if inv.ref.get.isInstanceOf[RefSYCLConstructorDefinition[Pre]] =>
           // Local accessor constructor
-          if (!t.superTypeOf(rw.dispatch(inv.t))) {
+          if (!t.superTypeOf(rw.dispatch(inv.t))) {visitedKernelStatements
             throw UnexpectedCPPTypeError(t, inv)
           }
           val newValue: NewArray[Post] =
@@ -1234,7 +1240,7 @@ ScopedStack()
           case localVar: Local[Post] =>
             val (kernelrunnerpost, accessors, runnningExhale)
                 : (UnitAccountedPredicate[Post], Seq[SYCLAccessor[Post]], Exhale[Post]) =
-              currentlyRunningKernels.getOrElse(
+              currentlyRunningKernels.top.getOrElse(
                 localVar,
                 throw Unreachable(inv.o.messageInContext(
                   "Could not find the event variable in the stored running kernels."
@@ -1246,7 +1252,8 @@ ScopedStack()
               "The object on which the wait() method was called is not a locally declared SYCL event."
             ))
         }
-      case "sycl::queue::submit" => rewriteSYCLQueueSubmit(inv)._1
+      case "sycl::queue::submit" =>
+        rewriteSYCLQueueSubmit(inv)._1
       case _
           if inv.ref.get.isInstanceOf[RefSYCLConstructorDefinition[Pre]] &&
             inv.t.isInstanceOf[SYCLTBuffer[Pre]] =>
@@ -1664,7 +1671,7 @@ ScopedStack()
     // These annotations are to be added as context_everywhere,
     // so the relation between variables and their values gets maintained over parblocks
     val extraContextEverywheres =
-      syclBufferRangeRelations ++
+      syclBufferRangeRelations.top.toSeq ++
       maybeWarpSize.map(_._2).toSeq ++
       Seq.range(0, rangeVars.size).map(i =>
         Eq(rangeVars(i).get(rangeVars(i).o),
@@ -1729,7 +1736,7 @@ ScopedStack()
     )(invocation.o)
 
 //     Store the class ref and read-write accessors to be used when the kernel is done running
-    currentlyRunningKernels.put(
+    currentlyRunningKernels.top.put(
       eventClassRef.get(commandGroup.o),
       (
         kernelRunnerPostCondition,
@@ -1789,7 +1796,6 @@ ScopedStack()
     currentDimensionIterVars.clear()
     syclAccessorSuccessor.clear()
     currentThis = None
-    syclBufferRangeRelations = Nil
     result
   }
 
@@ -1837,9 +1843,9 @@ ScopedStack()
     implicit val o: Origin = kernelDeclaration.o
 
     gatherBlockStatements = true
-    visitedKernelStatements = mutable.Seq.empty
-    val body = rw.dispatch(kernelDeclaration.body)
-    visitedKernelStatements = mutable.Seq.empty
+    val body = visitedKernelStatements.having(mutable.Buffer.empty) {
+      rw.dispatch(kernelDeclaration.body)
+    }
     gatherBlockStatements = false
     // Create the parblock representing the kernels
     val parBlock =
@@ -1946,9 +1952,10 @@ ScopedStack()
     implicit val o: Origin = kernelDeclaration.o
 
     gatherBlockStatements=true
-    visitedKernelStatements = mutable.Seq.empty
-    val body = rw.dispatch(kernelDeclaration.body)
-    visitedKernelStatements = mutable.Seq.empty
+    val body = visitedKernelStatements.having(mutable.Buffer.empty) {
+      rw.dispatch(kernelDeclaration.body)
+    }
+
     gatherBlockStatements=false
     // Create the parblock representing the work-items inside work-groups
     val workItemParBlock = ParStatement[Post](
@@ -2094,6 +2101,13 @@ ScopedStack()
                   case None =>
                     // No accessor for buffer exist in the command group, so make fields and permissions
                     val localBuff = buffer.generatedVar.get(accO)
+
+                    var checkIfLocal = buffer.range.dimensions.find(!_.isInstanceOf[Local[Post]])
+                    if (checkIfLocal.isDefined) {
+                      throw Unreachable(
+                        checkIfLocal.get.o.messageInContext("Can only contain Local's at this point.")
+                      )
+                    }
 
                     val rangeIndexLocal = buffer.range.dimensions.map { d =>
                       d.asInstanceOf[Local[Post]]
@@ -2622,12 +2636,14 @@ ScopedStack()
     implicit val o: Origin = buffer.o
 
     // Wait for SYCL kernels that access the buffer to finish executing
-    val kernelsToTerminate = currentlyRunningKernels.filter(tuple =>
-      tuple._2._2.exists(acc =>
-        acc.buffer.equals(buffer) &&
-          acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]]
-      )
-    )
+    val kernelsToTerminate = currentlyRunningKernels.top.filter
+    {
+      case (_, (_, accessors, _)) =>
+        accessors.exists(acc =>
+          acc.buffer.equals(buffer) &&
+            acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]]
+        )
+    }
     val kernelTerminations =
       kernelsToTerminate
         .map(tuple => syclKernelTermination(tuple._1, tuple._2._1, tuple._2._2, tuple._2._3))
@@ -2671,14 +2687,14 @@ ScopedStack()
     ], (UnitAccountedPredicate[Post], Seq[SYCLAccessor[Post]], Exhale[Post])] =
       mode match {
         case SYCLReadOnlyAccess() =>
-          currentlyRunningKernels.filter(tuple =>
+          currentlyRunningKernels.top.filter(tuple =>
             tuple._2._2.exists(acc =>
               acc.accessMode.isInstanceOf[SYCLReadWriteAccess[Post]] &&
                 acc.buffer.equals(buffer)
             )
           )
         case SYCLReadWriteAccess() =>
-          currentlyRunningKernels.filter(tuple =>
+          currentlyRunningKernels.top.filter(tuple =>
             tuple._2._2.exists(acc => acc.buffer.equals(buffer))
           )
       }
@@ -2835,11 +2851,11 @@ ScopedStack()
           removeKernelAccessorPermissions(right, accs),
         )
 
-      case ActionPerm(Local(obj), _)
-          if accs.exists(acc => acc.local.ref.decl.equals(obj.decl)) =>
+      case ActionPerm(Local(Ref(v)), _)
+          if accs.exists(acc => acc.local.ref.decl.equals(v)) =>
         tt
-      case ModelPerm(Local(obj), _)
-          if accs.exists(acc => acc.local.ref.decl.equals(obj.decl)) =>
+      case ModelPerm(Local(Ref(v)), _)
+          if accs.exists(acc => acc.local.ref.decl.equals(v)) =>
         tt
       case Perm(FieldLocation(obj, _), _) if obj.equals(this.currentThis.get) =>
         tt
@@ -2848,14 +2864,14 @@ ScopedStack()
         tt
       case Value(FieldLocation(obj, _)) if obj.equals(this.currentThis.get) =>
         tt
-      case Perm(AmbiguousLocation(ArraySubscript(Local(obj), _)), _)
-          if accs.exists(acc => acc.local.ref.decl == obj.decl) =>
+      case Perm(AmbiguousLocation(ArraySubscript(Local(Ref(v)), _)), _)
+          if accs.exists(acc => acc.local.ref.decl == v) =>
         tt
-      case PointsTo(AmbiguousLocation(ArraySubscript(Local(obj), _)), _, _)
-          if accs.exists(acc => acc.local.ref.decl.equals(obj.decl)) =>
+      case PointsTo(AmbiguousLocation(ArraySubscript(Local(Ref(v)), _)), _, _)
+          if accs.exists(acc => acc.local.ref.decl.equals(v)) =>
         tt
-      case Value(AmbiguousLocation(ArraySubscript(Local(obj), _)))
-          if accs.exists(acc => acc.local.ref.decl.equals(obj.decl)) =>
+      case Value(AmbiguousLocation(ArraySubscript(Local(Ref(v)), _)))
+          if accs.exists(acc => acc.local.ref.decl.equals(v)) =>
         tt
       case Implies(left, right) =>
         Implies(
@@ -2930,7 +2946,7 @@ ScopedStack()
       accessors: Seq[SYCLAccessor[Post]],
       runningPerm: Exhale[Post]
   )(implicit o: Origin): Statement[Post] = {
-    currentlyRunningKernels.remove(variable)
+    currentlyRunningKernels.top.remove(variable)
     Block(
       Seq(runningPerm) ++
       Seq(Inhale(kernelRunnerPostCondition.pred)(kernelRunnerPostCondition.o))
@@ -3148,7 +3164,7 @@ ScopedStack()
   }
 
   private def dependsIndirectlyOnSYCLIdFunctions(sgInv: Expr[Pre]) = {
-    val assignmentsInKernel = visitedKernelStatements.dropRight(1).flatMap {
+    val assignmentsInKernel = visitedKernelStatements.top.toSeq.dropRight(1).flatMap {
       case decl: CPPLocalDeclaration[Pre] => decl.decl.inits.map(d => (d.decl, d.init))
       case ass: PreAssignExpression[Pre] => Seq((ass.target, Some(ass.value)))
       case _ => Seq()

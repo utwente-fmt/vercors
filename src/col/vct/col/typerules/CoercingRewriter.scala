@@ -1314,7 +1314,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
         CPPLambdaDefinition(contract, declarator, body, extract, decreases)(defn.blame)
       case CPPLambdaRef() => e
       case inv @ CPPInvocation(applicable, args, givenArgs, yields, sginv, reveal) =>
-        CPPInvocation(applicable, args, givenArgs, yields, sginv,reveal)(inv.blame)
+        CPPInvocation(applicable, args, givenArgs, yields, sginv.map(bool(_)),reveal)(inv.blame)
       case CPPLiteralArray(exprs) => CPPLiteralArray(exprs)
       case CPPLocal(_, _) => e
       case SYCLReadWriteAccess() => e
