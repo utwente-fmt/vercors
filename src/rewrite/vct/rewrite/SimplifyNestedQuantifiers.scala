@@ -486,15 +486,15 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
         Implies(e1, And(e2, e4))
       case Star(Implies(e1, e2), Implies(e3, e4)) if e1 == e3 =>
         Implies(e1, Star(e2, e4))
-      case Star(e, Implies(e3, e4)) =>
-        toOneImplies(e) match {
+      case Star(l, Implies(e3, e4)) =>
+        toOneImplies(l) match {
           case Implies(e1, e2) if e1 == e3 => Implies(e1, Star(e2, e4))
-          case other => other
+          case _ => e
         }
-      case And(e, Implies(e3, e4)) =>
-        toOneImplies(e) match {
+      case And(l, Implies(e3, e4)) =>
+        toOneImplies(l) match {
           case Implies(e1, e2) if e1 == e3 => Implies(e1, And(e2, e4))
-          case other => other
+          case _ => e
         }
       case other => other
     }

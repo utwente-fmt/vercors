@@ -1,7 +1,7 @@
 #include <sycl/sycl.hpp>
 
 /*@
-  requires \pointer(a, 10, write);
+  context \pointer(a, 10, write);
 */
 void test(int* a) {
 	sycl::queue myQueue;
@@ -9,7 +9,7 @@ void test(int* a) {
   {
     sycl::buffer<int, 1> aBuffer = sycl::buffer(a, sycl::range<1>(10));
 
-    myQueue.submit(
+    sycl::event e = myQueue.submit(
       [&](sycl::handler& cgh) {
 
         sycl::accessor<int, 1> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_write);
@@ -26,8 +26,15 @@ void test(int* a) {
         );
       }
     );
+    e.wait();
   } // Leaving scope, which destroys aBuffer, which waits on the kernel to terminate as it uses aBuffer
 
-  //@ assert (\forall int i; i >= 0 && i < 10; a[i] == 10);
-
+  /*@ assert (\forall int l=0 .. 2, int g=0 .. 5; {:tr0(g,l):}; a[sycl::linearize2(g, l,5, 2)] == 10);
+      assert (\forall int l=0 .. 2, int g=0 .. 5; tr0(g,l); {:a[g*2+l]:} == 10);
+      assert (\forall int i=0 .. 10; a[i] == 10); */
 }
+
+/*@
+ensures \result;
+pure bool tr0(int g, int l);
+*/
