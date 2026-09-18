@@ -105,5 +105,6 @@ case object Stages extends LazyLogging {
         out = Some(options.alpinistOutput),
         syntax = Ctx.PVL,
         splitDecls = false,
+        isarTriggers = false,
       )).transform(_ => ())
 }
