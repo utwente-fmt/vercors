@@ -1,5 +1,6 @@
-// Test that external contracts that are defined in a separate file are loaded correctly.
-// Needs to be transformed with ´pallas_cpp_extContrImpl´ as a provided contract-file.
+// Test that external contracts that are defined in a separate file are loaded
+// correctly. Needs to be transformed with ´pallas_cpp_extContrImpl´ as a
+// provided contract-file.
 
 /*@
 declare using namespace pallasSpec;

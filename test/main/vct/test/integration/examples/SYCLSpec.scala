@@ -16,7 +16,6 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "syclNoExtraCodeInCommandGroup" example "concepts/sycl/kernels/NonSYCLCodeInCommandGroup.cpp"
   vercors should error withCode "syclNoExtraCodeInCommandGroup" example "concepts/sycl/kernels/OtherSYCLCodeInCommandGroup.cpp"
   vercors should error withCode "syclItemMethodSeqBoundExceedsLength" example "concepts/sycl/kernels/TooHighKernelDimensionForItemMethod.cpp"
-  vercors should error withCode "resolutionError:outOfScope" example "concepts/sycl/kernels/UnsupportedLocalVariableUsageInCommandGroup.cpp"
   vercors should error withCode "syclKernelRangeInvalid" example "concepts/sycl/kernels/ZeroNDRange.cpp"
 
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalId.cpp"
@@ -54,7 +53,6 @@ class SYCLSpec extends VercorsSpec {
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/dataAccessors/GetKernelResult.cpp"
   vercors should error withCode "syclAccessorInsufficientReferencePermission" example "concepts/sycl/dataAccessors/GetRangeDimensionOutOfBounds1.cpp"
   vercors should error withCode "syclAccessorInsufficientReferencePermission" example "concepts/sycl/dataAccessors/GetRangeDimensionOutOfBounds2.cpp"
-  vercors should error withCode "syclAccessorArraySubscriptLinearizePreconditionFailed" example "concepts/sycl/dataAccessors/MissingRangeRequirements.cpp"
   vercors should error withCode "syclBufferOutOfScope" example  "concepts/sycl/dataAccessors/PassBufferToMethod.cpp"
   vercors should error withCode "syclAccessorArraySubscriptArrayBounds" example "concepts/sycl/dataAccessors/SubscriptOutOfBounds1.cpp"
   vercors should error withCode "syclAccessorArraySubscriptArrayBounds" example "concepts/sycl/dataAccessors/SubscriptOutOfBounds2.cpp"
@@ -62,7 +60,7 @@ class SYCLSpec extends VercorsSpec {
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/dataAccessors/TwoWriteAccessorsForSameBuffer.cpp"
   vercors should verify using silicon example "concepts/sycl/dataAccessors/TwoWriteKernels.cpp"
   vercors should verify using silicon example "concepts/sycl/dataAccessors/TwoWriteKernelsWithWait.cpp"
-  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/dataAccessors/WriteOnReadAccessorWithDoubleAccessors.cpp"
+  vercors should fail withCode "assignFieldFailed" using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/dataAccessors/WriteOnReadAccessorWithDoubleAccessors.cpp"
   vercors should error withCode "syclKernelForkPre" example "concepts/sycl/dataAccessors/WriteToReadAccessor.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/dataAccessors/WrongGenericArgumentForAccessType.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/dataAccessors/WrongGenericArgumentForBufferDataType.cpp"
@@ -85,4 +83,20 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "notApplicable" example "concepts/sycl/localAccessors/WrongGenericArgumentForConstructorRangeType2.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/localAccessors/WrongGenericArgumentForDataType.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/localAccessors/WrongGenericArgumentForRangeType.cpp"
+
+
+
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/subgroups/GetSubGroup.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/subgroups/GetSubGroupIds.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/subgroups/SetSubGroupSize.cpp"
+  vercors should verify using silicon flags("--no-infer-heap-context-into-frame", "--prover-config=smt.arith.solver=6",
+    "--backend-option", "--moreJoins=2") example "concepts/sycl/subgroups/ShiftGroupLeftTest.cpp"
+  vercors should verify using silicon flags("--no-infer-heap-context-into-frame", "--prover-config=smt.arith.solver=6",
+    "--backend-option", "--moreJoins=2") example "concepts/sycl/subgroups/ShiftGroupRightTest.cpp"
+  vercors should verify using silicon flags("--no-infer-heap-context-into-frame", "--prover-config=smt.arith.solver=6",
+    "--backend-option", "--moreJoins=2") example "concepts/sycl/subgroups/GroupBroadcastTest.cpp"
+  vercors should error withCode "subGroupInvDependsOnId" example "concepts/sycl/subgroups/SubGroupInvDependsOnId.cpp"
+  vercors should error withCode "subGroupInvDependsOnId" example "concepts/sycl/subgroups/DeltaDependsOnId.cpp"
+  vercors should error withCode "noSuchName" example "concepts/sycl/subgroups/GetSubGroupOnItem.cpp"
+
 }

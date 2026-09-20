@@ -3,8 +3,8 @@
 /*@
   requires \pointer(a, 12, write);
   requires \pointer(b, 12, write);
-  requires \pointer(c, 12, write);
   requires \pointer(d, 12, write);
+  requires \pointer(c, 12, write);
 */
 void test(int* a, int* b, int* c, int* d) {
 	sycl::queue myQueue;
@@ -27,16 +27,7 @@ void test(int* a, int* b, int* c, int* d) {
 
       cgh.parallel_for(sycl::range<1>(1),
         /*@
-          context 1 < a_accessor.get_range().get(0);
-          context 1 < b_accessor.get_range().get(0);
-          context 2 < b_accessor.get_range().get(1);
-          context 1 < c_accessor.get_range().get(0);
-          context 2 < c_accessor.get_range().get(1);
-          context 1 < c_accessor.get_range().get(2);
-          context it.get_range(0) == 1;
-          context Perm(a_accessor[1], read);
           context Perm(b_accessor[1][2], write);
-          context Perm(c_accessor[1][2][1], read);
         */
         [=] (sycl::item<1> it) {
           b_accessor[1][2] = c_accessor[1][2][1] + a_accessor[1];

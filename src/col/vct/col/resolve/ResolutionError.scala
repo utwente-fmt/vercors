@@ -17,8 +17,7 @@ case class MultipleForwardDeclarationContractError(
     )
 }
 
-case class NotSupportedStructUniqueField(use: Node[_])
-  extends ResolutionError {
+case class NotSupportedStructUniqueField(use: Node[_]) extends ResolutionError {
   override def text: String =
     use.o.messageInContext(s"This use of unique_pointer_field is not supported")
   override def code: String = "notSupportedStructUniqueField"
