@@ -1000,11 +1000,6 @@ ScopedStack()
         contract
       ) // First rewrite contract to register given and yields variables
 
-    val body = syclBufferRangeRelations.having(mutable.Buffer.empty) {
-        currentlyRunningKernels.having(mutable.Map.empty) {
-          rw.dispatch(func.body)
-        }
-      }
 
 
     val proc =
@@ -1018,7 +1013,9 @@ ScopedStack()
               args = rewrittenParams,
               outArgs = Nil,
               typeArgs = Nil,
-              body = Some(body),
+              body = Some(currentlyRunningKernels.having(mutable.Map.empty) {
+                rw.dispatch(func.body)
+              }),
               contract = rewrittenContract,
             )(func.blame)(namedO)
           }
@@ -1114,6 +1111,7 @@ ScopedStack()
         case (SYCLTEvent(), inv: CPPInvocation[Pre])
             if inv.ref.get.name == "sycl::queue::submit" =>
           val (block, syclEventRef) = rewriteSYCLQueueSubmit(inv)
+
           v = syclEventRef
           result = block
         case (SYCLTEvent(), _) =>
@@ -1252,8 +1250,7 @@ ScopedStack()
               "The object on which the wait() method was called is not a locally declared SYCL event."
             ))
         }
-      case "sycl::queue::submit" =>
-        rewriteSYCLQueueSubmit(inv)._1
+      case "sycl::queue::submit" => rewriteSYCLQueueSubmit(inv)._1
       case _
           if inv.ref.get.isInstanceOf[RefSYCLConstructorDefinition[Pre]] &&
             inv.t.isInstanceOf[SYCLTBuffer[Pre]] =>
@@ -2794,7 +2791,11 @@ ScopedStack()
     val successorMap = mutable.Map.empty[Variable[Post], SYCLBuffer[Post]]
 
     val rewrittenBody =
-      syclBufferSuccessor.having(successorMap) { rw.dispatch(scope.body) }
+      syclBufferSuccessor.having(successorMap) {
+        syclBufferRangeRelations.having(mutable.Buffer.empty) {
+          rw.dispatch(scope.body)
+        }
+      }
 
     // Destroy all buffers and copy their data back to host
     val bufferDestructions: Seq[Statement[Post]] =
