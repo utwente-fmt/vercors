@@ -838,8 +838,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             localVariableInferredType(tVar)
         }
         // This might be too strict in some cases
-        val rType = findMostSpecific(infTypes.to(ArrayBuffer))
-        if (rType.isDefined) { inferredReturnType(f) = rType.get }
+        if (infTypes.nonEmpty) {
+          val rType = findMostSpecific(infTypes.to(ArrayBuffer))
+          if (rType.isDefined) { inferredReturnType(f) = rType.get }
+        }
       case _ =>
     }
   }
