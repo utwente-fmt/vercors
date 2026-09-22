@@ -33,12 +33,17 @@ case object Output {
       Some(options.vesuvOutput),
       Ctx.PVL,
       Files.isDirectory(options.vesuvOutput),
+      options.isarTriggers,
     )).thenRun(FunctionStage((_: Seq[LiteralReadable]) => ()))
   }
 }
 
-case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
-    extends Stage[Verification[_ <: Generation], Seq[LiteralReadable]]
+case class Output(
+    out: Option[Path],
+    syntax: Ctx.Syntax,
+    splitDecls: Boolean,
+    isarTriggers: Boolean,
+) extends Stage[Verification[_ <: Generation], Seq[LiteralReadable]]
     with LazyLogging {
   override def friendlyName: String = "Saving Output"
 
@@ -53,6 +58,7 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
       case Ctx.CPP => "cpp"
       case Ctx.Cuda => "cu"
       case Ctx.OpenCL => "cl"
+      case Ctx.Isar => "thy"
     }
 
   override def run(in: Verification[_ <: Generation]): Seq[LiteralReadable] = {
@@ -63,6 +69,9 @@ case class Output(out: Option[Path], syntax: Ctx.Syntax, splitDecls: Boolean)
     val ctx = Ctx(
       syntax = syntax,
       names = names.asInstanceOf[Map[Declaration[_], String]],
+      theoryName = out.map(_.getFileName.toString.split('.').init.mkString("."))
+        .getOrElse("NoOutput"),
+      translateTriggers = isarTriggers,
     )
 
     val txts: Seq[LiteralReadable] =

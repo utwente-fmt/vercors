@@ -9,6 +9,7 @@ trait RemoveAtImpl[G] extends RemoveAtOps[G] {
   override def t: Type[G] = xs.t
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
+  override def layout(implicit ctx: Ctx): Doc = {
     Group(assoc(xs) <> ".removeAt(" <> Doc.arg(i) <> ")")
+  }
 }

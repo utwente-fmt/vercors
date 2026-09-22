@@ -124,6 +124,7 @@ object VeyMont extends LazyLogging {
         else
           Ctx.PVL,
         false,
+        false, // options.isarTriggers
       ))
     val wrap: VerificationError => VerificationError =
       WrapVerificationError.wrap(

@@ -7,5 +7,9 @@ import vct.col.ast.ops.SubSetEqOps
 trait SubSetEqImpl[G] extends SubSetEqOps[G] {
   this: SubSetEq[G] =>
   override def precedence: Int = Precedence.RELATIONAL
-  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "<=", right)
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Isar => lassoc(left, "⊆", right)
+      case _ => lassoc(left, "<=", right)
+    }
 }

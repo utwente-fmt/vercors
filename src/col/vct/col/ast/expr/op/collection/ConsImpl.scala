@@ -14,5 +14,11 @@ trait ConsImpl[G] extends ConsOps[G] {
   )
 
   override def precedence: Int = Precedence.SEQUENCE
-  override def layout(implicit ctx: Ctx): Doc = rassoc(x, "::", xs)
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => rassoc(x, "#", xs)
+      case _ => rassoc(x, "::", xs)
+    }
+
+  }
 }

@@ -7,7 +7,7 @@ import java.time.format.DateTimeFormatter
 
 object Time extends LazyLogging {
   def formatDuration(duration: Duration): String =
-    f"${duration.toHoursPart}%02d:${duration.toMinutesPart}%02d:${duration.toSecondsPart}%02d"
+    f"${duration.toHours}%02d:${duration.toMinutesPart}%02d:${duration.toSecondsPart}%02d"
 
   def formatTime(): String = formatTime(java.time.Instant.now())
 

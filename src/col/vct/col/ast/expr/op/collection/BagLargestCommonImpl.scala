@@ -14,6 +14,10 @@ trait BagLargestCommonImpl[G] extends BagLargestCommonOps[G] {
   )
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(xs) <> ".intersect(" <> Doc.arg(ys) <> ")")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Group(assoc(xs) <+> Text("∩#") <+> ys)
+      case _ => Group(assoc(xs) <> ".intersect(" <> Doc.arg(ys) <> ")")
+    }
+  }
 }

@@ -1,0 +1,106 @@
+inline resource bound(int A) = A > 0;
+inline resource bounds(int M, int N, int O) = bound(M) ** bound(N) ** bound(O);
+
+context bounds(M, N, O);
+context matrix(A, M, N);
+context matrix(B, N, O);
+context matrixArr(C, M, O, write); 
+
+ensures (∀ int r=0..M; (∀ int c=0..O; 
+    {:C[r][c]:} == mul(row(A,r,M,N),col(B,c,N,O),N)
+));
+void matrixmul(seq<seq<int>> A, seq<seq<int>> B, int [][] C, int M, int N, int O) {
+    par(int r=0..M, int c=0..O)
+        context bounds(M, N, O);
+        context matrix(A, M, N) ** matrix(B, N, O);
+        context matrixpart(C, M, O);
+        context Perm({:C[r][c]:}, write);
+        ensures {:C[r][c]:} == mul(row(A,r,M,N),col(B,c,N,O),N);
+    {
+            int sum = 0;
+            int i = 0;
+
+            loop_invariant 0 <= i && i <= N;
+            loop_invariant bounds(M, N, O);
+            loop_invariant matrix(A, M, N) ** matrix(B, N, O);
+            loop_invariant matrixpart(C, M, O);
+            loop_invariant Perm(C[r][c], write);
+            loop_invariant 0 <= r && 0 <= c && r < M && c < O;
+            loop_invariant sum == mul(row(A,r,M,N),col(B,c,N,O),i);
+            while (i < N) {
+                sum = sum + A[r][i] * B[i][c];             
+                i = i + 1;
+            }
+
+            C[r][c] = sum;
+    }
+
+}
+
+
+/////////////////////////
+/// Auxiliary Methods ///
+/////////////////////////
+inline resource matrix(seq<seq<int>> mat, int M, int N) = |mat| == M ** (∀ int i=0..M; |{:mat[i]:}| == N);
+inline resource matrixArr(int[][] mat, int M, int N, frac p1) = matrixpart(mat, M, N) **
+                                                                    (∀* int i1=0..M, int j1=0..N; Perm({:mat[i1][j1]:},p1));
+inline resource matrixpart(int[][] mat, int M, int N) = mat != null **
+                                                        mat.length == M **
+                                                        bound(M) ** bound(N) **
+                                                        (∀* int i=0..M; Perm({:mat[i]:}, read)) **
+                                                        (∀ int i=0..M; {:mat[i]:} != null && mat[i].length == N) **
+                                                        (∀ int i=0..M, int j=0..M; i != j ==> {:mat[j]:} != {:mat[i]:});
+
+
+///////////////////////
+///     Get Row     ///
+///////////////////////
+context bound(M) ** bound(N);
+requires matrix(m, M, N);
+context 0 <= r ** r < M;
+context 0 <= i ** i <= N;
+ensures |\result| == N-i;
+ensures (∀ int l=i..N; {:m[r][l]:} == \result[l-i]);
+pure seq<int> rowhelper(seq<seq<int>> m, int r, int i, int M, int N) =
+    i < N ?
+    [m[r][i]] + rowhelper(m, r, i+1, M, N)
+    : [t:int];
+
+context bound(M) ** bound(N);
+requires matrix(m, M, N);
+context 0 <= r ** r < M;
+ensures |\result| == N;
+pure seq<int> row(seq<seq<int>> m, int r, int M, int N) = rowhelper(m, r, 0, M, N);
+    
+
+//////////////////////////
+///     Get Column     ///
+//////////////////////////
+context bound(M) ** bound(N);
+requires matrix(m, M, N);
+context 0 <= c ** c < N;
+context 0 <= i ** i <= M;
+ensures |\result| == M-i;
+ensures (∀ int l=i..M; {:m[l][c]:} == \result[l-i]);
+pure seq<int> columnhelper(seq<seq<int>> m, int c, int i, int M, int N) =
+    i < M ?
+    [m[i][c]] + columnhelper(m, c, i+1, M, N)
+    : [t:int];
+
+context bound(M) ** bound(N);
+requires matrix(m, M, N);
+context 0 <= c ** c < N;
+ensures |\result| == M;
+ensures (∀ int l=0..M; m[l][c] == \result[l]);
+pure seq<int> col(seq<seq<int>> m, int c, int M, int N) = columnhelper(m, c, 0, M, N);
+ 
+///////////////////////////
+///     Row/Col Mul     ///
+///////////////////////////
+requires |r| == |c|;
+requires 0 <= i && i <= |r|;
+pure int mul(seq<int> r, seq<int> c, int i) = 
+    i == 0 ?
+        0:
+        mul(r,c,i-1) + r[i-1]*c[i-1]
+    ;

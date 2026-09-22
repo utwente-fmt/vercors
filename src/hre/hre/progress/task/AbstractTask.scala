@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
 abstract class AbstractTask {
   val EPSILON = 0.001
 
-  private val subTasks = ArrayBuffer[AbstractTask]()
+  val subTasks = ArrayBuffer[AbstractTask]()
 
   protected var startUsage: Option[ResourceUsage] = None
   private var usageReported: ResourceUsage = ResourceUsage.zero

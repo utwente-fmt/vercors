@@ -9,5 +9,10 @@ trait EitherRightImpl[G] extends EitherRightOps[G] {
   override def t: Type[G] = TEither(TNothing(), e.t)
 
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc = Text("Right(") <> e <> ")"
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Text("Inr") <+> e
+      case _ => Text("Right(") <> e <> ")"
+    }
+  }
 }

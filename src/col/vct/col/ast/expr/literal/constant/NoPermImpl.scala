@@ -9,5 +9,9 @@ trait NoPermImpl[G] extends NoPermOps[G] {
   override def t: Type[G] = TBoundedInt(0, 1)
 
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc = Text("none")
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Isar => Text("0")
+      case _ => Text("none")
+    }
 }

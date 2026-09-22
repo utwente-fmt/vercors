@@ -7,6 +7,12 @@ import vct.col.ast.ops.NeqOps
 trait NeqImpl[G] extends NeqOps[G] {
   this: Neq[G] =>
   override def precedence: Int = Precedence.EQUALITY
-  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "!=", right)
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => lassoc(left, "≠", right)
+      case _ => lassoc(left, "!=", right)
+    }
+
+  }
 
 }

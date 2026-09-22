@@ -6,7 +6,14 @@ import vct.col.ast.ops.TTupleOps
 
 trait TTupleImpl[G] extends TTupleOps[G] {
   this: TTuple[G] =>
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("seq") <> open <> Doc.args(elements) <> close)
+  override def layout(implicit ctx: Ctx): Doc = {
+    Group(
+      ctx.syntax match {
+        case Ctx.Isar => Doc.fold(elements)(_ <+> "×" <+> _)
+        case _ => Text("seq") <> open <> Doc.args(elements) <> close
+      }
+    )
+  }
+
   val subtypes: Seq[Type[G]] = elements
 }
