@@ -37,6 +37,17 @@ case object CTypeConversions extends RewriterBuilderArg2[Boolean, Boolean] {
             .storedBits},signed=${tt.signed}) which has implementation defined behaviour."
       )
   }
+
+  case class SpecConversionImplementationDefined(v: Expr[_], tt: TCInt[_])
+      extends UserError {
+    override def code: String = "implementationDefinedConversion"
+
+    override def text: String =
+      v.o.messageInContext(
+        s"This value with a mathematical integer type is converted to type integer (bits=${tt
+            .storedBits},signed=${tt.signed}) which has implementation defined behaviour."
+      )
+  }
 }
 
 case class CTypeConversions[Pre <: Generation](
@@ -48,6 +59,15 @@ case class CTypeConversions[Pre <: Generation](
   private val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
   private val returnContext: ScopedStack[Type[Pre]] = ScopedStack()
   private val inPure: ScopedStack[Unit] = ScopedStack()
+
+  private def signedConstant(value: BigInt, size: BigInt)(
+      implicit o: Origin
+  ): Expr[Post] =
+    CheckedIntegerValue(
+      value,
+      -BigInt(2).pow(size.intValue - 1),
+      BigInt(2).pow(size.intValue - 1),
+    )(globalBlame.top)
 
   override def postCoerce(program: Program[Pre]): Program[Post] = {
     globalBlame.having(program.blame) {
@@ -549,7 +569,7 @@ case class CTypeConversions[Pre <: Generation](
           if !unsetTarget && et.storedBits == t.storedBits &&
             et.signed == t.signed =>
         dispatch(e)
-      case et: TCInt[Pre] if !unsetTarget && !t.signed =>
+      case _: TCInt[Pre] if !unsetTarget && !t.signed =>
         t.storedBits match {
           case TypeSize.Unknown() =>
             throw Unreachable("Unknown size should never appear")
@@ -557,15 +577,14 @@ case class CTypeConversions[Pre <: Generation](
           case TypeSize.Exact(size) =>
             val constant = getConstant(e)
             if (constant.isDefined) {
-              UncheckedMath(const(
-                constant.get.mod(BigInt(2).pow(t.storedBits.getExact.intValue))
-              ))
+              UncheckedMath(
+                const(constant.get.mod(BigInt(2).pow(size.intValue)))
+              )
             } else {
               UncheckedMath(
-                Mod(
-                  dispatch(e),
-                  const(BigInt(2).pow(t.storedBits.getExact.intValue)),
-                )(PanicBlame("t.storedBits.exact should not be 0"))
+                Mod(dispatch(e), const(BigInt(2).pow(size.intValue)))(
+                  PanicBlame("t.storedBits.exact should not be 0")
+                )
               )
             }
         }
@@ -573,30 +592,50 @@ case class CTypeConversions[Pre <: Generation](
         dispatch(e)
       // This can happen if this is a user-specified cast
       case et: TCInt[Pre] if !unsetTarget =>
-        val constant = isInSignedRangeConstant(e, t.storedBits);
+        val constant = isInSignedRangeConstant(e, t.storedBits)
         if (constant.isDefined) {
           val (size, value) = constant.get
-          CheckedIntegerValue(
-            value,
-            -BigInt(2).pow(size.intValue - 1),
-            BigInt(2).pow(size.intValue - 1),
-          )(globalBlame.top)
+          signedConstant(value, size)
         } else { throw ConversionImplementationDefined(e, et, t) }
       case _: TCInt[Pre] => dispatch(e)
       case TBool() => Select(dispatch(e), const(1), const(0))
-      // Assume that we've already added done something with this expression (for example add a Mod) which means it doesn't have to be rechecked
-      // This all a bit weird because I'm abusing the preCoerce step here
       case TInt() =>
         e match {
+          // Assume that we've already added done something with this expression (for example add a Mod) which means it doesn't have to be rechecked
+          // This all a bit weird because I'm abusing the preCoerce step here
           case UncheckedMath(m @ Mod(l, r)) =>
             // Skip pre-coercion for l since it was already done
             UncheckedMath(Mod(super.postCoerce(l), dispatch(r))(m.blame)(m.o))(
               e.o
             )
-          case _ =>
-            throw Unreachable(
-              s"Expected to only get here if we have a Cast(UncheckedMath(Mod(expression, MAX_INT))) structure but got `$e`"
-            )
+          case _ if !unsetTarget && !t.signed =>
+            // This happens if the user casts a "SpecInt" to an unsigned "CInt" which might happen in ghost code
+            t.storedBits match {
+              case TypeSize.Unknown() =>
+                throw Unreachable("Unknown size should never appear")
+              case TypeSize.Minimally(_) => throw MinimalSize()
+              case TypeSize.Exact(size) =>
+                val constant = getConstant(e)
+                if (constant.isDefined) {
+                  UncheckedMath(
+                    const(constant.get.mod(BigInt(2).pow(size.intValue)))
+                  )
+                } else {
+                  UncheckedMath(
+                    Mod(dispatch(e), const(BigInt(2).pow(size.intValue)))(
+                      PanicBlame("t.storedBits.exact should not be 0")
+                    )
+                  )
+                }
+            }
+          case _ if !unsetTarget =>
+            // This happens if the user casts a "SpecInt" to a "CInt" which might happen in ghost code
+            val constant = isInSignedRangeConstant(e, t.storedBits)
+            if (constant.isDefined) {
+              val (size, value) = constant.get
+              signedConstant(value, size)
+            } else { throw SpecConversionImplementationDefined(e, t) }
+          case _ => dispatch(e)
         }
     }
   }
@@ -611,9 +650,9 @@ case class CTypeConversions[Pre <: Generation](
         AmbiguousNeq(dispatch(a), dispatch(b), TInt(), size.map(dispatch))(e.o)
       case Cast(v, tv @ TypeValue(t @ TCInt())) =>
         Cast(applyCast(v, t), TypeValue(dispatch(t))(tv.o))(e.o)
-      case Cast(WithExactType(v, TCInt()), tv @ TypeValue(TBool())) =>
+      case Cast(WithExactType(v, TCInt()), TypeValue(TBool())) =>
         Neq(dispatch(v), const(0)(v.o))(v.o)
-      case Cast(v, tv @ TypeValue(TBool())) if v.t.asPointer.isDefined =>
+      case Cast(v, TypeValue(TBool())) if v.t.asPointer.isDefined =>
         if (v.t.asPointer.get.isNonNull) { ff }
         else { PointerNeq(dispatch(v), Null()(e.o), const(0)(e.o))(e.o) }
       case CIntegerValue(v, i @ TCInt())
@@ -622,18 +661,13 @@ case class CTypeConversions[Pre <: Generation](
           case TypeSize.Unknown() =>
             throw Unreachable("Unknown size should never appear")
           case TypeSize.Exact(size) =>
-            if (i.signed) {
-              CheckedIntegerValue(
-                v,
-                -BigInt(2).pow(size.intValue - 1),
-                BigInt(2).pow(size.intValue - 1),
-              )(globalBlame.top)(e.o)
-            } else {
+            if (i.signed) { signedConstant(v, size)(e.o) }
+            else {
               CheckedIntegerValue(v, BigInt(0), BigInt(2).pow(size.intValue))(
                 globalBlame.top
               )(e.o)
             }
-          case TypeSize.Minimally(size) => throw MinimalSize()
+          case TypeSize.Minimally(_) => throw MinimalSize()
         }
       case CIntegerValue(v, _) => IntegerValue(v)(e.o)
       case asserting @ Asserting(condition, _) =>
