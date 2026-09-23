@@ -187,7 +187,8 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
     // external-flag
     colPallasContract->set_external(isExternal);
     // Set assumed-flag
-    colPallasContract->set_assumed(irContract->assumed);
+    colPallasContract->set_assumed(irContract->assumed !=
+                                   irspec::ContractAssumeType::NO_ASSUME);
 
     // Given-args
     for (const auto g : irContract->givenArgs) {
