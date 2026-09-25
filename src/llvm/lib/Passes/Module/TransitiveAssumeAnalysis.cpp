@@ -26,7 +26,7 @@ TAAResult TransitiveAssumeAnalysis::run(llvm::Module &M,
 
     // Collect all functions that are annotated directly with 'transitively
     // assumed'
-    SmallSet<Function *, 8> Assumed;
+    SmallSet<Function *, 8> AssumedDirectly;
     for (auto &F : M.functions()) {
         auto *CMD = irspec::getContractMD(F);
         if (CMD == nullptr) {
@@ -37,11 +37,12 @@ TAAResult TransitiveAssumeAnalysis::run(llvm::Module &M,
             continue;
         }
         if (C->assumed == irspec::ContractAssumeType::TRANSITIVE_ASSUME) {
-            Assumed.insert(&F);
+            AssumedDirectly.insert(&F);
         }
     }
 
     // Make a list of all potential candidates. I.e. functions that are
+    // - not directly marked as assumed
     // - only called directly
     // - not an intrinsic
     // - do not already have a pallas-contract
@@ -49,7 +50,8 @@ TAAResult TransitiveAssumeAnalysis::run(llvm::Module &M,
     SmallVector<Function *> Candidates;
     DenseMap<Function *, SmallSet<Function *, 8>> CalledBy;
     for (auto &F : M.functions()) {
-        if (F.isIntrinsic() || irspec::hasPallasContract(F) ||
+        if (AssumedDirectly.contains(&F) || F.isIntrinsic() ||
+            irspec::hasPallasContract(F) ||
             irspec::hasExternalPallasContract(F)) {
             continue;
         }
@@ -73,19 +75,22 @@ TAAResult TransitiveAssumeAnalysis::run(llvm::Module &M,
     // Do a fixed-point iteration and add all functions to the set that are
     // only called from functions that are already in the Set.
     // TODO: This is simple, but ineficient. Perhaps we want to optimize this.
+    SmallSet<Function *, 8> AssumedIndirectly;
     bool Change = true;
     while (Change) {
-        // In each iteration-round, we first add to AddedF which is then merged
-        // with Assumed to make sure that the iteration-order is irrelevant.
+        // In each iteration-round, we first add to AddedF which is merged with
+        // Assumed after the round to make sure that the iteration-order is
+        // irrelevant.
         SmallSet<Function *, 8> AddedF;
         for (auto *F : Candidates) {
-            if (Assumed.contains(F)) {
+            if (AssumedIndirectly.contains(F) || AssumedDirectly.contains(F)) {
                 continue;
             }
             // Check if all callers are in the Assumed-set
             bool AllCallersAssumed = true;
             for (auto *Caller : CalledBy.at(F)) {
-                if (!Assumed.contains(Caller)) {
+                if (!(AssumedIndirectly.contains(Caller) ||
+                      AssumedDirectly.contains(Caller))) {
                     AllCallersAssumed = false;
                     break;
                 }
@@ -95,10 +100,10 @@ TAAResult TransitiveAssumeAnalysis::run(llvm::Module &M,
             }
         }
         Change = !AddedF.empty();
-        Assumed.insert(AddedF.begin(), AddedF.end());
+        AssumedIndirectly.insert(AddedF.begin(), AddedF.end());
     }
 
-    return TAAResult(Assumed);
+    return TAAResult(AssumedIndirectly);
 }
 
 } // namespace pallas

@@ -10,9 +10,12 @@
  * Analysis pass that analyses the module to find all functions that are
  * affected by Pallas-contracts with the 'transitively assumed'-flag.
  *
- * This pass collects all functions which are marked as 'transitively assumed'
- * or which are only called from functions that are themselves considered
- * transitively assumed.
+ * This pass collects all functions which are only called by functions marked as 
+ * 'transitively assumed' or which themselfes are only called from functions 
+ * that are considered transitively assumed.
+ * 
+ * The functions the are directly annotated with the 
+ * 'transitively assumed'-annotation are not included in the result.
  *
  * TODO: This currently does not extend into recursive cycles.
  */
