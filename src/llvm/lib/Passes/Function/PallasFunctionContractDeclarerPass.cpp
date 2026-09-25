@@ -5,6 +5,7 @@
 #include "Passes/Function/FunctionContractDeclarer.h"
 #include "Passes/Function/FunctionDeclarer.h"
 #include "Passes/Module/StructTDeclarer.h"
+#include "Passes/Module/TransitiveAssumeAnalysis.h"
 #include "Transform/Transform.h"
 #include "Transform/WrapperCallTransform.h"
 #include "Util/Constants.h"
@@ -42,7 +43,7 @@ PallasFunctionContractDeclarerPass::run(Module &m, ModuleAnalysisManager &mam) {
     auto &fam =
         mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
     for (auto &f : m.functions()) {
-        runOnFunction(f, fam);
+        runOnFunction(f, mam, fam);
     }
     return PreservedAnalyses::all();
 }
@@ -151,10 +152,23 @@ void PallasFunctionContractDeclarerPass::transformGhostArg(
 }
 
 void PallasFunctionContractDeclarerPass::runOnFunction(
-    Function &f, FunctionAnalysisManager &fam) {
+    Function &f, ModuleAnalysisManager &mam, FunctionAnalysisManager &fam) {
     // Check that f does not have a VCLLVM AND a Pallas contract
     if (hasConflictingContract(f))
         return;
+
+    // If the function has neither a VCLLVM nor a Pallas-contract and is
+    // indirectly assumed, add an empty, assumed contract.
+    if (!utils::hasVcllvmContract(f) && irspec::getContractMD(f) == nullptr) {
+        auto indirectlyAssumed =
+            mam.getResult<TransitiveAssumeAnalysis>(*f.getParent())
+                .isAssumed(f);
+        if (indirectlyAssumed) {
+            addTrivialAssumedContract(f, fam);
+            return;
+        }
+    }
+
     // Skip, if f has a non-empty vcllvm-contract, or no contract at all
     // If it does not have a contract, we need an empty VCLLVM contract instead
     // of an empty Pallas contract. Otherwise the mechanism for loading
@@ -222,6 +236,24 @@ void PallasFunctionContractDeclarerPass::runOnFunction(
 
     // Ensure, that the required fields of the contract are set.
     // I.e. add trivial clauses if they are currently empty.
+    addEmptyRequires(*colPallasContract, f);
+    addEmptyEnsures(*colPallasContract, f);
+}
+
+void PallasFunctionContractDeclarerPass::addTrivialAssumedContract(
+    Function &f, FunctionAnalysisManager &fam) {
+    FDCResult &cResult = fam.getResult<FunctionContractDeclarer>(f);
+
+    auto colPallasContract = cResult.getAssociatedColFuncContract()
+                                 .mutable_pallas_function_contract();
+
+    colPallasContract->set_allocated_blame(new col::Blame());
+    colPallasContract->set_allocated_origin(
+        llvm2col::generateIndirectlyAssumedContractOrigin(f));
+
+    colPallasContract->set_external(true);
+    colPallasContract->set_assumed(true);
+
     addEmptyRequires(*colPallasContract, f);
     addEmptyEnsures(*colPallasContract, f);
 }
