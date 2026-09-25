@@ -333,12 +333,19 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md) {
 
     // Assumed
     auto *assumedConst = asConstantInt(md->getOperand(2).get());
-    if (assumedConst == nullptr || (assumedConst->getBitWidth() != 1)) {
-        addError("Third operand operand of contract must be boolean constant.",
+    if (assumedConst == nullptr || (assumedConst->getBitWidth() != 8) ||
+        assumedConst->getZExtValue() > 2) {
+        addError("Third operand operand of contract must be an i8 constant "
+                 "that has either value '0', '1' or '2'.",
                  md);
         return std::nullopt;
     }
-    bool assumed = assumedConst->isOne();
+    ContractAssumeType assumed = NO_ASSUME;
+    if (assumedConst->getZExtValue() == 1) {
+        assumed = NORMAL_ASSUME;
+    } else if (assumedConst->getZExtValue() == 2) {
+        assumed = TRANSITIVE_ASSUME;
+    }
 
     FunctionContract contract(loc.value(), pure, assumed);
 
