@@ -364,8 +364,8 @@ void llvm2col::transformCallExpr(llvm::CallInst &callInstruction,
     col::Expr *functionCallExpr;
     // if void function add an eval expression
     if (callInstruction.getType()->isVoidTy()) {
-        col::Eval *eval =
-            pallas::bodyAsBlock(colBlock).add_statements()->mutable_eval();
+        auto *eval =
+            pallas::bodyAsBlock(colBlock).add_statements()->mutable_llvm_eval();
         eval->set_allocated_origin(
             llvm2col::generateSingleStatementOrigin(callInstruction));
         functionCallExpr = eval->mutable_expr();

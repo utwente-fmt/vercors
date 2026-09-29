@@ -213,9 +213,9 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
       var toBeMerged =
         map.filter { case (_, v) => structEq(s, v) }.flatMap { case (k, v) =>
           Seq(k, v)
-        }.toSet
+        }.toSeq.distinct
       if (toBeMerged.nonEmpty) {
-        toBeMerged = toBeMerged + s
+        toBeMerged = toBeMerged :+ s
         val newType = toBeMerged.reduce(structUnion)
         toBeMerged.foreach { t => map(t) = newType }
         map(newType) = newType

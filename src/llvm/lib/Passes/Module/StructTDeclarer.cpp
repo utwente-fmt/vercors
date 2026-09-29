@@ -136,6 +136,10 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
         std::vector<llvm::DIDerivedType *> elements;
         elements.reserve(compositeDiType.getElements().size());
         for (auto *element : compositeDiType.getElements()) {
+            if (llvm::isa<DISubprogram>(element)) {
+                // Skip class methods 
+                continue;
+            }
             assert(llvm::isa<llvm::DIDerivedType>(element));
             if (element->getTag() == llvm::dwarf::DW_TAG_member) {
                 elements.push_back(cast<llvm::DIDerivedType>(element));
@@ -184,6 +188,10 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
     }
 
     for (auto *element : compositeDiType.getElements()) {
+        if (llvm::isa<llvm::DISubprogram>(element)) {
+            // Ignore methods
+            continue;
+        }
         assert(llvm::isa<llvm::DIDerivedType>(element));
         if (element->getTag() == llvm::dwarf::DW_TAG_member) {
             auto *member = cast<llvm::DIDerivedType>(element);
