@@ -7,6 +7,8 @@
   context get_num_groups(0) > 0;
   context a != NULL && b != NULL && c != NULL;
   context \pointer_length(a) >= size && \pointer_length(b) >= size && \pointer_length(c) >= size;
+  // We need the trigger syntax here, since the annotations here are implicetly quantified.
+  // For more info see https://vercors.ewi.utwente.nl/wiki/GPGPU-Verification.html
   context \gtid<size ==> Perm({:a[\gtid]:}, 1\2) ** Perm({:1:b[\gtid]:}, 1\2) ** Perm({:2:c[\gtid]:}, write);
   ensures \gtid<size ==> {:c[\gtid]:} == a[\gtid] + b[\gtid];
 @*/

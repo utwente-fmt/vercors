@@ -81,11 +81,19 @@ pure void sumZero(seq<int> in, seq<int> contrib, int len, int i){
   }
 }
 
-  requires arr != NULL && \pointer_length(arr) >= len;
+  requires arr != NULL && \pointer_length(arr) >= len && len>=0;
   requires (\forall* int i; 0<=i && i < len ; Perm({:arr[i]:}, read));
   ensures |\result| == len;
   ensures (\forall int i; 0<=i && i < len; {:\result[i]:} == arr[i]);
-opaque pure seq<int> toSeq(int* arr, int len);
+opaque pure seq<int> toSeq(int* arr, int len) = toSeqH(arr, len, len);
+
+  requires j >= 0 && j <= len;
+  requires arr != NULL && \pointer_length(arr) >= len;
+  requires (\forall* int i; 0<=i && i < len ; Perm({:arr[i]:}, read));
+  ensures |\result| == j;
+  ensures (\forall int i; 0<=i && i < j; {:\result[i]:} == arr[i]);
+opaque pure seq<int> toSeqH(int* arr, int len, int j) = j == 0 ? 
+  [t: int] : toSeqH(arr, len, j-1) + [arr[j-1]];
 */
 
 /*@
@@ -101,6 +109,7 @@ opaque pure seq<int> toSeq(int* arr, int len);
     ensures \gtid < len ==> Perm({:contrib[\gtid]:}, read);
     requires \gtid < len ==> {:contrib[\gtid]:} == 0;
     ensures \gtid < len ==> {:contrib[\gtid]:} == 1;
+    requires len >= 0;
     requires in_seq == toSeq(in, len);
     kernel_invariant Perm(out[0], write) ** 
         |in_seq| == len **
@@ -122,8 +131,13 @@ __global__ void sum_kernel(int* in, int len, int* out) {
 }
 
 /*@ ensures \pointer(\result, N, write);
+    ensures \pointer_block_offset(\result) == 0;
     ensures \pointer_length(\result) == N; @*/
 int *vercorsCudaMallocInt(int N);
+
+/*@ requires addr != NULL && \pointer_block_offset(addr) == 0;
+    requires \pointer(addr, \pointer_length(addr), write); 
+    ensures addr != NULL; @*/
 void vercorsCudaFreeInt(int *addr);
 
 /*@ context \pointer(xs, size, write);
@@ -136,7 +150,8 @@ void setArray(int* xs, int size, int value);
     ensures (\forall int i; 0<=i && i<count; {:dst[i]:} == {:2:src[i]:});@*/
 void vercorsCudaMemcpy(int* dst, int* src, int count, int cudaMemcpyKind);
 
-  /*@ context \pointer(in, size, 1\2);
+  /*@ requires size >= 0;
+      context \pointer(in, size, 1\2);
       ensures \result == sum(toSeq(in, size)); @*/
 int sum(int *in, int size) {
   int* d_in = vercorsCudaMallocInt(size);

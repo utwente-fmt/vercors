@@ -351,7 +351,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     infoGetter.setupInfo()
     val result = stat.rewriteDefault()
     topLevel = false
-    equalityChecker = ExpressionEqualityCheck()
     result
   }
 
@@ -371,7 +370,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     topLevel = true
     infoGetter.setupInfo()
     val pre = dispatch(proof.pre)
-    equalityChecker = ExpressionEqualityCheck()
     topLevel = false
 
     val info = infoGetter.clone()
@@ -383,7 +381,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     infoGetter.setupInfo()
     val post = dispatch(proof.post)
     topLevel = false
-    equalityChecker = ExpressionEqualityCheck()
 
     proof.rewrite(pre = pre, body = body, post = post)
   }
@@ -412,7 +409,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     val invariant = dispatch(loopInvariant.invariant)
     requiresInfo = Some(infoGetter.clone())
     topLevel = false
-    equalityChecker = ExpressionEqualityCheck()
     loopInvariant.rewrite(invariant = invariant)
   }
 
@@ -429,7 +425,6 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     topLevel = true
     val requires = dispatch(contract.requires)
 
-    equalityChecker = ExpressionEqualityCheck()
     val extra = body.map(b => {
       val assigns = gatherAssigns(b)
       infoGetter.filterInfo(assigns)
@@ -437,17 +432,15 @@ case class SimplifyNestedQuantifiers[Pre <: Generation]()
     })
     extraInfo.having(extra)({
 
-      // Again reuse information from context everywhere, brequiresInfout clone so we can reuse in kernel invariant
+      // Again reuse information from context everywhere,  so we can reuse in kernel invariant
       infoGetter = oldInfo.clone()
       topLevel = true
       val ensures = dispatch(contract.ensures)
-      equalityChecker = ExpressionEqualityCheck()
 
       // One more time reusing info from context everywhere
       infoGetter = oldInfo
       topLevel = true
       val kernelInvariant = dispatch(contract.kernelInvariant)
-      equalityChecker = ExpressionEqualityCheck()
       topLevel = false
 
       val newContract = contract.rewrite(
