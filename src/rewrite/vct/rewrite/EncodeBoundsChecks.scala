@@ -107,7 +107,7 @@ case class EncodeBoundsChecks[Pre <: Generation]()
   import EncodeBoundsChecks._
 
   private val inPure: ScopedStack[Unit] = ScopedStack()
-  private val inLocation: ScopedStack[Unit] = ScopedStack()
+  private val inLValue: ScopedStack[Unit] = ScopedStack()
   private val currentVars: mutable.HashMap[Variable[Pre], (BigInt, BigInt)] =
     mutable.HashMap()
 
@@ -208,7 +208,7 @@ case class EncodeBoundsChecks[Pre <: Generation]()
           if CoercionUtils.getAnyCoercion(e.t, TInt()).isDefined =>
         dispatch(e)
       // TODO: Can we deduplicate here?
-      case Deref(obj, Ref(f)) if inLocation.isEmpty =>
+      case Deref(obj, Ref(f)) if inLValue.isEmpty =>
         f.t match {
           case TCheckedInt(gte, lt) =>
             let(
@@ -218,7 +218,7 @@ case class EncodeBoundsChecks[Pre <: Generation]()
             )
           case _ => super.dispatch(e)
         }
-      case DerefPointer(p) if inLocation.isEmpty =>
+      case DerefPointer(p) if inLValue.isEmpty =>
         e.t match {
           case TCheckedInt(gte, lt) =>
             let(
@@ -247,13 +247,13 @@ case class EncodeBoundsChecks[Pre <: Generation]()
             currentVars(v) = (gte, lt)
           case _ =>
         }
-        super.dispatch(a)
+        a.rewrite(target = inLValue.having(()) { dispatch(a.target) })
       case _ => super.dispatch(e)
     }
   }
 
   override def dispatch(l: Location[Pre]): Location[Post] = {
-    inLocation.having(()) { super.dispatch(l) }
+    inLValue.having(()) { super.dispatch(l) }
   }
 
   private def checkPost(op: BinExpr[Pre])(implicit o: Origin): Expr[Post] = {
@@ -311,31 +311,41 @@ case class EncodeBoundsChecks[Pre <: Generation]()
               c.contract.yieldsArgs.map(a => a.get(a.o))
 
           val res =
-            c match {
-              case function: AbstractFunction[_] =>
-                function.rewrite(
-                  contract =
-                    inPure.having(()) {
-                      c.contract.rewrite(
-                        requires = addChecks(checkedArgs, c.contract.requires),
-                        ensures = addChecks(checkedRets, c.contract.ensures),
-                      )
-                    },
-                  blame = addPostBlameSplit(c, checkedRets, function.blame),
-                )
-              case method: AbstractMethod[_] =>
-                method.rewrite(
-                  contract =
-                    inPure.having(()) {
-                      c.contract.rewrite(
-                        requires = addChecks(checkedArgs, c.contract.requires),
-                        ensures = addChecks(checkedRets, c.contract.ensures),
-                      )
-                    },
-                  blame = addPostBlameSplit(c, checkedRets, method.blame),
-                )
-            }
-          allScopes.anySucceed(c, res)
+            () =>
+              c match {
+                case function: AbstractFunction[_] =>
+                  function.rewrite(
+                    contract =
+                      inPure.having(()) {
+                        c.contract.rewrite(
+                          requires = addChecks(
+                            checkedArgs,
+                            c.contract.requires,
+                          ),
+                          ensures = addChecks(checkedRets, c.contract.ensures),
+                        )
+                      },
+                    blame = addPostBlameSplit(c, checkedRets, function.blame),
+                  )
+                case method: AbstractMethod[_] =>
+                  method.rewrite(
+                    contract =
+                      inPure.having(()) {
+                        c.contract.rewrite(
+                          requires = addChecks(
+                            checkedArgs,
+                            c.contract.requires,
+                          ),
+                          ensures = addChecks(checkedRets, c.contract.ensures),
+                        )
+                      },
+                    blame = addPostBlameSplit(c, checkedRets, method.blame),
+                  )
+              }
+          if (c.pure)
+            allScopes.anySucceed(c, inPure.having(()) { res() })
+          else
+            allScopes.anySucceed(c, res())
         }
 
       case p: Predicate[Pre] if p.body.isDefined =>
@@ -430,7 +440,7 @@ case class EncodeBoundsChecks[Pre <: Generation]()
             currentVars(v) = (gte, lt)
           case _ =>
         }
-        super.dispatch(a)
+        a.rewrite(target = inLValue.having(()) { dispatch(a.target) })
       case _ => super.dispatch(stat)
     }
 

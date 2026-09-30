@@ -594,6 +594,40 @@ object AstBuildHelpers {
       }
   }
 
+  implicit class AssignExpressionBuildHelpers[Pre, Post](
+      assign: AssignExpression[Pre]
+  )(implicit rewriter: AbstractRewriter[Pre, Post]) {
+    def rewrite(
+        target: => Expr[Post] = rewriter.dispatch(assign.target),
+        value: => Expr[Post] = rewriter.dispatch(assign.value),
+        blame: => Blame[AssignFailed] = assign.blame,
+        o: => Origin = assign.o,
+    ): AssignExpression[Post] =
+      assign match {
+        case a: PreAssignExpression[Pre] =>
+          a.rewrite(target = target, value = value, blame = blame, o = o)
+        case a: PostAssignExpression[Pre] =>
+          a.rewrite(target = target, value = value, blame = blame, o = o)
+      }
+  }
+
+  implicit class AssignStmtBuildHelpers[Pre, Post](assign: AssignStmt[Pre])(
+      implicit rewriter: AbstractRewriter[Pre, Post]
+  ) {
+    def rewrite(
+        target: => Expr[Post] = rewriter.dispatch(assign.target),
+        value: => Expr[Post] = rewriter.dispatch(assign.value),
+        blame: => Blame[AssignFailed] = assign.blame,
+        o: => Origin = assign.o,
+    ): AssignStmt[Post] =
+      assign match {
+        case a: Assign[Pre] =>
+          a.rewrite(target = target, value = value, blame = blame, o = o)
+        case a: AssignInitial[Pre] =>
+          a.rewrite(target = target, value = value, blame = blame, o = o)
+      }
+  }
+
   implicit class TriggeredQuantifierBuildHelpers[Pre, Post](
       quantifier: TriggeredQuantifier[Pre]
   )(implicit rewriter: AbstractRewriter[Pre, Post]) {

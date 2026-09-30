@@ -59,6 +59,7 @@ case class CTypeConversions[Pre <: Generation](
   private val globalBlame: ScopedStack[Blame[UnsafeCoercion]] = ScopedStack()
   private val returnContext: ScopedStack[Type[Pre]] = ScopedStack()
   private val inPure: ScopedStack[Unit] = ScopedStack()
+  private val inCastTypePure: ScopedStack[Unit] = ScopedStack()
 
   private def signedConstant(value: BigInt, size: BigInt)(
       implicit o: Origin
@@ -122,7 +123,8 @@ case class CTypeConversions[Pre <: Generation](
   override def postCoerce(t: Type[Pre]): Type[Post] =
     t match {
       case i @ TCInt()
-          if inPure.isEmpty && checkIntegerBounds && !unsetTarget =>
+          if (inPure.isEmpty || inCastTypePure.nonEmpty) &&
+            checkIntegerBounds && !unsetTarget =>
         i.storedBits match {
           case TypeSize.Unknown() =>
             throw Unreachable("Unknown size should never appear")
@@ -230,9 +232,11 @@ case class CTypeConversions[Pre <: Generation](
   ): T = {
     (v.t, target) match {
       case (vt: TCInt[Pre], tt: TCInt[Pre]) =>
-        if (inPure.nonEmpty || unsetTarget)
+        if (unsetTarget)
           return cons(v)
         lazy val cast = cons(Cast(v, TypeValue(tt)(v.o))(v.o))
+        if (inPure.nonEmpty)
+          cast
         // If target type is unsigned the cast is always safe since this
         if (!tt.signed) { cast }
         else if (checkIntegerBounds) {
@@ -253,6 +257,8 @@ case class CTypeConversions[Pre <: Generation](
           }
           cast
         }
+      case (_: TCInt[Pre], tt: TInt[Pre]) =>
+        cons(Cast(v, TypeValue(tt)(v.o))(v.o))
       case (TBool(), _: TCInt[Pre]) | (_: TCInt[Pre], TBool()) =>
         cons(Cast(v, TypeValue(target)(v.o))(v.o))
       case _ => cons(v)
@@ -453,7 +459,6 @@ case class CTypeConversions[Pre <: Generation](
       // TODO: We don't do given/yields and outArgs here, assuming that those don't do implicit conversions
       case inv: Invocation[Pre] =>
         implicit val o: Origin = inv.o
-        val applicable = inv.ref.decl
         val newArgs = inv.args.zip(inv.ref.decl.args).map { case (v, t) =>
           applyOneWayPromotions(preCoerce(v), t.t, it => it)
         }
@@ -649,7 +654,10 @@ case class CTypeConversions[Pre <: Generation](
       case AmbiguousNeq(a, b, TCInt(), size) =>
         AmbiguousNeq(dispatch(a), dispatch(b), TInt(), size.map(dispatch))(e.o)
       case Cast(v, tv @ TypeValue(t @ TCInt())) =>
-        Cast(applyCast(v, t), TypeValue(dispatch(t))(tv.o))(e.o)
+        Cast(
+          applyCast(v, t),
+          TypeValue(inCastTypePure.having(()) { dispatch(t) })(tv.o),
+        )(e.o)
       case Cast(WithExactType(v, TCInt()), TypeValue(TBool())) =>
         Neq(dispatch(v), const(0)(v.o))(v.o)
       case Cast(v, TypeValue(TBool())) if v.t.asPointer.isDefined =>
