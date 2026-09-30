@@ -45,7 +45,7 @@ struct List {
     requires link == nodes[index+1]->link;
     ensures (struct Node *)next == nodes[index];
     ensures \result;
-pure _Bool node_lemma_backward(seq<struct Node*> nodes, uintptr_t link, int index, int length, uintptr_t prev, uintptr_t next);*/
+pure _Bool node_lemma_backward(seq<struct Node*> nodes, uintptr_t link, size_t index, size_t length, uintptr_t prev, uintptr_t next);*/
 
 /*@ requires 0 <= index && index < length && |nodes| == length + 2;
     requires nodes[index+1] != NULL;
@@ -56,7 +56,7 @@ pure _Bool node_lemma_backward(seq<struct Node*> nodes, uintptr_t link, int inde
     requires link == nodes[index+1]->link;
     ensures (struct Node *)next == nodes[index+2];
     ensures \result;
-pure _Bool node_lemma_forward(seq<struct Node*> nodes, uintptr_t link, int index, int length, uintptr_t prev, uintptr_t next);*/
+pure _Bool node_lemma_forward(seq<struct Node*> nodes, uintptr_t link, size_t index, size_t length, uintptr_t prev, uintptr_t next);*/
 
 //@ given seq<struct Node*> nodes;
 //@ context_everywhere list != NULL ** Perm(*list, 1\2);
