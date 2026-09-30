@@ -48,32 +48,43 @@ case class CanonicalizeLoops[Pre <: Generation]() extends Rewriter[Pre] {
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
     stat match {
-      case Block(
-            Seq(
-              LocalDecl(v0),
-              init: Statement[Pre],
-              s @ Scope(_, l @ Loop(Block(Nil), cond, Block(Nil), _, body)),
-            )
-          ) =>
-        (getAssignTarget(init), getLastStat(body)) match {
-          case (Some(Local(Ref(v1))), (Some(update: Statement[Pre]), remainder))
-              if v1 == v0 =>
-            getAssignTarget(update) match {
-              case Some(Local(Ref(v2))) if v2 == v0 && cond.collectFirst {
-                    case Local(Ref(v3)) if v3 == v0 =>
-                  }.isDefined =>
-                s.rewrite(
-                  locals = variables.dispatch(s.locals :+ v0),
-                  body = l.rewrite(
-                    init = Block(Seq(dispatch(init)))(init.o),
-                    update = Block(Seq(dispatch(update)))(update.o),
-                    body = dispatch(remainder),
-                  ),
-                )
-              case _ => super.dispatch(stat)
+      case b @ Block(s) =>
+        var statements = s.map(dispatch)
+        s.zipWithIndex.sliding(3).foreach {
+          case mys @ Seq(
+                (LocalDecl(v0), start),
+                (init: Statement[Pre], _),
+                (
+                  s @ Scope(_, l @ Loop(Block(Nil), cond, Block(Nil), _, body)),
+                  _,
+                ),
+              ) =>
+            (getAssignTarget(init), getLastStat(body)) match {
+              case (
+                    Some(Local(Ref(v1))),
+                    (Some(update: Statement[Pre]), remainder),
+                  ) if v1 == v0 =>
+                getAssignTarget(update) match {
+                  case Some(Local(Ref(v2))) if v2 == v0 && cond.collectFirst {
+                        case Local(Ref(v3)) if v3 == v0 =>
+                      }.isDefined =>
+                    statements =
+                      (statements.take(start) :+ s.rewrite(
+                        locals = variables.dispatch(s.locals :+ v0),
+                        body = l.rewrite(
+                          init = Block(Seq(dispatch(init)))(init.o),
+                          update = Block(Seq(dispatch(update)))(update.o),
+                          body = dispatch(remainder),
+                        ),
+                      )) ++ statements.drop(start + 3)
+                  case _ =>
+                }
+              case _ =>
             }
-          case _ => super.dispatch(stat)
+          case _ =>
+
         }
+        b.rewrite(statements = statements)
       case _ => super.dispatch(stat)
     }
 
