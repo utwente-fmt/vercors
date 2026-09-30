@@ -1,5 +1,34 @@
 namespace sycl {
 
+  namespace h {
+    /*@
+      ensures (a>0 && b>0) ==> \result > 0;
+      pure int mul(int a, int b) = a*b;
+
+      ensures (a>0 && b>0) ==> \result > 0;
+      pure int add(int a, int b) = a+b;
+
+      requires 0 <= p;
+      requires n > 0;
+      ensures 0 < p  ==> \result == n * sycl::h::exp(n, p - 1);
+      ensures !(0<p) ==> \result == 1;
+      ensures \result > 0;
+      decreases p;
+      pure int exp(int n, int p) = 0 < p ? n * sycl::h::exp(n, p - 1) : 1;
+
+      ensures \result >= 0;
+      ensures sycl::h::exp(2,\result) == N;
+      pure int logTwo(int N);
+
+      ensures \result >= 3;
+      pure int wrpsz_pow();
+
+      ensures \result >= 8 && \result == sycl::h::exp(2,sycl::h::wrpsz_pow()) ;
+      pure int warp_sizes();
+
+    */
+  }
+
 	namespace event {
   	void wait();
   }
@@ -27,7 +56,7 @@ namespace sycl {
     requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1;
     requires r0 > 0 && r1 > 0;
     ensures \result == sycl::linearize2formula(id0, id1, r1);
-    ensures \result >= 0 && \result < r0 * r1;
+    ensures \result >= 0 && \result < sycl::h::mul(r0,r1) && \result < r0*r1;
     ensures (\forall int ida0, int ida1;
       ida0 >= 0 && ida0 < r0 &&
       ida1 >= 0 && ida1 < r1 &&
@@ -36,7 +65,8 @@ namespace sycl {
     );
     pure int linearize2(int id0, int id1, int r0, int r1);
 
-    pure int linearize2formula(int id0, int id1, int r1) = id1 + (id0 * r1);
+    ensures \result == id1+id0*r1;
+    pure int linearize2formula(int id0, int id1, int r1) = sycl::h::add(id1, sycl::h::mul(id0, r1));
 
     requires id0 >= 0 && id0 < r0 && id1 >= 0 && id1 < r1 && id2 >= 0 && id2 < r2;
     requires r0 > 0 && r1 > 0 && r2 > 0;
@@ -62,6 +92,16 @@ namespace sycl {
   	int get_linear_id();
   }
 
+  namespace sub_group {
+    //@ ghost seq<int> get_local_id();   // lane within subgroup
+
+    sycl::range<1> get_local_range();
+
+    //@ ghost seq<int> get_group_id();   // subgroup index within work-group
+
+    sycl::range<1> get_group_range();
+  }
+
   namespace nd_item {
 		int get_local_id(int dimension);
 
@@ -82,8 +122,10 @@ namespace sycl {
 		int get_global_range(int dimension);
 
 		int get_global_linear_id();
+
+        sycl::sub_group get_sub_group();
   }
-  
+
   namespace accessor {
     sycl::range<1> get_range();
   }
@@ -91,5 +133,11 @@ namespace sycl {
   namespace local_accessor {
     sycl::range<1> get_range();
   }
+
+  int shift_group_left(sycl::sub_group g, int valueToSend, int d);
+
+  int shift_group_right(sycl::sub_group g, int x, int d);
+
+  int group_broadcast(sycl::sub_group g, int x, int id);
 
 }

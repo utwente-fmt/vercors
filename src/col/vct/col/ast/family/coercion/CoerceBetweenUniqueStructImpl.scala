@@ -4,5 +4,6 @@ import vct.col.ast.CoerceBetweenUniqueStruct
 import vct.col.ast.ops.CoerceBetweenUniqueStructOps
 import vct.col.print._
 
-trait CoerceBetweenUniqueStructImpl[G] extends CoerceBetweenUniqueStructOps[G] { this: CoerceBetweenUniqueStruct[G] =>
+trait CoerceBetweenUniqueStructImpl[G] extends CoerceBetweenUniqueStructOps[G] {
+  this: CoerceBetweenUniqueStruct[G] =>
 }

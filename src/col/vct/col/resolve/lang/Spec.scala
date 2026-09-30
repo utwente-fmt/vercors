@@ -78,7 +78,7 @@ case object Spec {
       objT: Type[G],
       field: String,
       blame: Blame[BuiltinError],
-      origin: Origin
+      origin: Origin,
   ): Option[BuiltinField[G]] = {
     implicit val o: Origin = origin
     Some(BuiltinField((objT, field) match {
