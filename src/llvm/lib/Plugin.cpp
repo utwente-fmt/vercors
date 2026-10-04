@@ -60,6 +60,12 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
                     } else if (Name == "pallas-consolidate-structs") {
                         MPM.addPass(pallas::StructConsolidatorPass());
                         return true;
+                    } else if (Name == "pallas-run-taa") {
+                        // Run the TransitiveAssumeAnalysis for debugging
+                        MPM.addPass(
+                            RequireAnalysisPass<
+                                pallas::TransitiveAssumeAnalysis, Module>());
+                        return true;
                     }
                     return false;
                 });

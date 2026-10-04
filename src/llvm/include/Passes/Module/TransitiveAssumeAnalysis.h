@@ -41,6 +41,9 @@ class TransitiveAssumeAnalysis
   public:
     using Result = TAAResult;
 
+    inline static const std::string PASS_DBG_NAME =
+        "transisitve-assume-analysis";
+
     /**
      * Builds the set of functions that should be assumed to be correct based on
      * contracts with the 'transitively assumed' keyword.

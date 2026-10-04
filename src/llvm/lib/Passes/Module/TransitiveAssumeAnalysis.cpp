@@ -1,6 +1,7 @@
 #include "Passes/Module/TransitiveAssumeAnalysis.h"
 
 #include "IRSpec/PallasSpecDecoding.h"
+#include "llvm/Analysis/OptimizationRemarkEmitter.h"
 
 namespace pallas {
 const std::string SOURCE_LOC = "Passes::Module::TransitiveAssumeAnalysis";
@@ -38,6 +39,13 @@ TAAResult TransitiveAssumeAnalysis::run(llvm::Module &M,
         }
         if (C->assumed == irspec::ContractAssumeType::TRANSITIVE_ASSUME) {
             AssumedDirectly.insert(&F);
+            // Add analysis-remark:
+            OptimizationRemarkEmitter ORE(&F);
+            ORE.emit([&]() {
+                return OptimizationRemarkAnalysis(PASS_DBG_NAME.c_str(),
+                                                  "FunctionMarkedTAssumed", &F)
+                       << "Function " << ore::NV("Func", &F);
+            });
         }
     }
 
@@ -97,6 +105,13 @@ TAAResult TransitiveAssumeAnalysis::run(llvm::Module &M,
             }
             if (AllCallersAssumed) {
                 AddedF.insert(F);
+                // Add analysis-remark:
+                OptimizationRemarkEmitter ORE(F);
+                ORE.emit([&]() {
+                    return OptimizationRemarkAnalysis(
+                        PASS_DBG_NAME.c_str(), "FunctionTransitivelyAssumed",
+                        F);
+                });
             }
         }
         Change = !AddedF.empty();
