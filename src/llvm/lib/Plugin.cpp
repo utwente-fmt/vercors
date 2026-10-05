@@ -11,6 +11,7 @@
 #include "Passes/Module/RootContainer.h"
 #include "Passes/Module/StructConsolidator.h"
 #include "Passes/Module/StructTDeclarer.h"
+#include "Passes/Module/TransitiveAssumeAnalysis.h"
 
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -28,6 +29,8 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
             PB.registerAnalysisRegistrationCallback(
                 [](llvm::ModuleAnalysisManager &MAM) {
                     MAM.registerPass([&] { return pallas::StructTDeclarer(); });
+                    MAM.registerPass(
+                        [&] { return pallas::TransitiveAssumeAnalysis(); });
                 });
             PB.registerAnalysisRegistrationCallback(
                 [](llvm::FunctionAnalysisManager &FAM) {
@@ -56,6 +59,12 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
                         return true;
                     } else if (Name == "pallas-consolidate-structs") {
                         MPM.addPass(pallas::StructConsolidatorPass());
+                        return true;
+                    } else if (Name == "pallas-run-taa") {
+                        // Run the TransitiveAssumeAnalysis for debugging
+                        MPM.addPass(
+                            RequireAnalysisPass<
+                                pallas::TransitiveAssumeAnalysis, Module>());
                         return true;
                     }
                     return false;

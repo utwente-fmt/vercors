@@ -74,7 +74,8 @@ class PallasFunctionContractDeclarerPass
     /**
      * Run the transformation on the given function.
      */
-    void runOnFunction(Function &f, FunctionAnalysisManager &fam);
+    void runOnFunction(Function &f, ModuleAnalysisManager &mam,
+                       FunctionAnalysisManager &fam);
 
     /**
      * Initializes the given ApplicableContract so that it represents a
@@ -149,6 +150,12 @@ class PallasFunctionContractDeclarerPass
                            col::LlvmFunctionArgument *colArg,
                            GhostArgType &type, llvm::Function &parentFunc,
                            FunctionAnalysisManager &fam);
+
+    /**
+     * Adds a trivial and assumed contract for the given Function so that the
+     * functions implementation will get ignored.
+     */
+    void addTrivialAssumedContract(Function &f, FunctionAnalysisManager &fam);
 };
 } // namespace pallas
 #endif // PALLAS_PALLASFUNCTIONCONTRACTDECLARERPASS_H

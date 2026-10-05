@@ -2,7 +2,7 @@
 
 # Run from the root of the VerCors dir.
 # Put path to the spec2ir-repo here
-SPEC2IR_ROOT=/home/rme/repos/pallas_spec2ir
+SPEC2IR_ROOT=/home/rme/repos/spectral
 SPEC2IR="${SPEC2IR_ROOT}/build/bin/pallasSpec2ir"
 C_LIB_PATH=$SPEC2IR_ROOT/res/spec_libs/c
 CPP_LIB_PATH=$SPEC2IR_ROOT/res/spec_libs/cpp

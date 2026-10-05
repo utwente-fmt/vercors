@@ -413,7 +413,7 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !26 = !DIDerivedType(tag: DW_TAG_member, name: "next", scope: !23, file: !1, line: 10, baseType: !27, size: 64, offset: 64)
 !27 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !23, size: 64)
 !28 = !{}
-!29 = !{!30, i1 false, i1 false, !32, !28, !35, !67, !76}
+!29 = !{!30, i1 false, i8 0, !32, !28, !35, !67, !76}
 !30 = !{!"pallas.srcLoc", i64 33, i64 1, i64 38, i64 1, !31}
 !31 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_seq.c", directory: "", checksumkind: CSK_MD5, checksum: "9bd78d33fbffbfdd99d713bfcb8ce7db")
 !32 = !{!33}
@@ -541,7 +541,7 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !154 = !DILocation(line: 54, column: 9, scope: !104)
 !155 = !DILocation(line: 56, column: 1, scope: !17)
 !156 = distinct !DISubprogram(name: "get_head", scope: !1, file: !1, line: 66, type: !18, scopeLine: 66, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !28)
-!157 = !{!158, i1 false, i1 false, !159, !28, !162, !172, !181, !190}
+!157 = !{!158, i1 false, i8 0, !159, !28, !162, !172, !181, !190}
 !158 = !{!"pallas.srcLoc", i64 59, i64 1, i64 65, i64 1, !31}
 !159 = !{!160}
 !160 = !{!161, !"s"}
@@ -619,7 +619,7 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !232 = distinct !DISubprogram(name: "prepend", scope: !1, file: !1, line: 97, type: !233, scopeLine: 97, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !28)
 !233 = !DISubroutineType(types: !234)
 !234 = !{!21, !21, !20}
-!235 = !{!236, i1 false, i1 false, !237, !240, !243, !256, !272, !286, !300}
+!235 = !{!236, i1 false, i8 0, !237, !240, !243, !256, !272, !286, !300}
 !236 = !{!"pallas.srcLoc", i64 88, i64 1, i64 96, i64 1, !31}
 !237 = !{!238}
 !238 = !{!239, !"s"}
@@ -751,7 +751,7 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !364 = !{!316, !365}
 !365 = !DILocalVariable(name: "newHead", arg: 3, scope: !353, file: !1, line: 103, type: !44)
 !366 = !DILocation(line: 105, column: 5, scope: !232)
-!367 = !{!368, i1 false, i1 true, !28, !28, !369, !371, !373, !375}
+!367 = !{!368, i1 false, i8 1, !28, !28, !369, !371, !373, !375}
 !368 = !{!"pallas.srcLoc", i64 75, i64 1, i64 83, i64 1, !31}
 !369 = !{!"pallas.ensures", !370, ptr @PALLAS_SPEC_7, !28, !28, !28}
 !370 = !{!"pallas.srcLoc", i64 79, i64 1, i64 79, i64 33, !31}
