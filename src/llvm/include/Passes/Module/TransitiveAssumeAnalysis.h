@@ -10,14 +10,18 @@
  * Analysis pass that analyses the module to find all functions that are
  * affected by Pallas-contracts with the 'transitively assumed'-flag.
  *
- * This pass collects all functions which are only called by functions marked as 
- * 'transitively assumed' or which themselfes are only called from functions 
+ * This pass collects all functions which are only called by functions marked as
+ * 'transitively assumed' or which themselfes are only called from functions
  * that are considered transitively assumed.
- * 
- * The functions the are directly annotated with the 
+ *
+ * The functions the are directly annotated with the
  * 'transitively assumed'-annotation are not included in the result.
  *
  * TODO: This currently does not extend into recursive cycles.
+ *
+ * For debugging, add the 'pallas-run-taa'-pass to the opt-pipeline and
+ * enable the analysis-remarks with
+ * -pass-remarks-analysis='transisitve-assume-analysis'
  */
 namespace pallas {
 
@@ -42,7 +46,7 @@ class TransitiveAssumeAnalysis
     using Result = TAAResult;
 
     inline static const std::string PASS_DBG_NAME =
-        "transisitve-assume-analysis";
+        "transitive-assume-analysis";
 
     /**
      * Builds the set of functions that should be assumed to be correct based on
