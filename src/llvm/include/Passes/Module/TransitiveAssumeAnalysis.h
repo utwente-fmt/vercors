@@ -21,7 +21,7 @@
  *
  * For debugging, add the 'pallas-run-taa'-pass to the opt-pipeline and
  * enable the analysis-remarks with
- * -pass-remarks-analysis='transisitve-assume-analysis'
+ * -pass-remarks-analysis='transitive-assume-analysis'
  */
 namespace pallas {
 
