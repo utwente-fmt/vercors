@@ -53,6 +53,7 @@ sealed trait Referrable[G] {
           case _ => ???
         }
       case RefCEnum(_) => ???
+      case RefCEnumMember(_, decl) => decl.name
       case RefTypeDef(decl: CGlobalDeclaration[_]) =>
         C.nameFromDeclarator(decl.decl.inits.head.decl)
       case RefTypeDef(_) => ???
@@ -151,8 +152,8 @@ case object Referrable {
         decl.decl match {
           case CDeclaration(_, Seq(_: CStructDeclaration[G]), Seq()) =>
             RefCStruct(decl)
-          case CDeclaration(_, Seq(_: CEnumDeclaration[G]), Seq()) =>
-            RefCEnum(decl)
+          case CDeclaration(_, Seq(e: CEnumDeclaration[G]), Seq()) =>
+            return RefCEnum(decl) +: e.decl.map(RefCEnumMember(decl, _))
           case CDeclaration(_, CTypedef() +: _, _) => RefTypeDef(decl)
           case _ =>
             return decl.decl.inits.indices.map(RefCGlobalDeclaration(decl, _))
@@ -380,6 +381,10 @@ case class RefCStructField[G](decls: CStructMemberDeclarator[G], idx: Int)
     extends Referrable[G] with CNameTarget[G] with CDerefTarget[G]
 case class RefCEnum[G](decl: CGlobalDeclaration[G])
     extends Referrable[G] with CNameTarget[G]
+case class RefCEnumMember[G](
+    `enum`: CGlobalDeclaration[G],
+    member: CEnumMemberDeclarator[G],
+) extends Referrable[G] with CNameTarget[G]
 case class RefOpenCLVectorMembers[G](idx: Seq[BigInt])
     extends Referrable[G] with CDerefTarget[G]
 case class RefJavaClass[G](decl: JavaClassOrInterface[G])

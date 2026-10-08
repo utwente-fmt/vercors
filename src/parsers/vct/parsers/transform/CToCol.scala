@@ -251,14 +251,36 @@ case class CToCol[G](
       case StructOrUnionSpecifier1(union @ StructOrUnion1(_), _) => ??(union)
     }
 
-  def convert(implicit enum: EnumSpecifierContext): CTypeSpecifier[G] =
-    enum match {
-      case EnumSpecifier0(_, name, _, _, _) =>
-        CEnumDeclaration(name.map(convert))
-      case EnumSpecifier1(_, name, _, _, _, _) =>
-        CEnumDeclaration(name.map(convert))
+  def convert(implicit `enum`: EnumSpecifierContext): CTypeSpecifier[G] =
+    `enum` match {
+      case EnumSpecifier0(_, name, _, members, _) =>
+        CEnumDeclaration(name.map(convert), convert(members))
+      case EnumSpecifier1(_, name, _, members, _, _) =>
+        CEnumDeclaration(name.map(convert), convert(members))
       case EnumSpecifier2(_, name) => CEnumSpecifier(convert(name))
     }
+
+  def convert(
+      implicit specifiers: EnumeratorListContext
+  ): Seq[CEnumMemberDeclarator[G]] =
+    specifiers match {
+      case EnumeratorList0(decl) => Seq(convert(decl))
+      case EnumeratorList1(decls, _, decl) => convert(decls) :+ convert(decl)
+    }
+
+  def convert(implicit decl: EnumeratorContext): CEnumMemberDeclarator[G] =
+    decl match {
+      case Enumerator0(constant) =>
+        CEnumMemberDeclarator(convert(constant), None)
+      case Enumerator1(constant, _, expr) =>
+        CEnumMemberDeclarator(convert(constant), Some(convert(expr)))
+    }
+
+  def convert(implicit constant: EnumerationConstantContext): String =
+    constant match { case EnumerationConstant0(id) => convert(id) }
+
+  def convert(implicit constant: ConstantExpressionContext): Expr[G] =
+    constant match { case ConstantExpression0(e) => convert(e) }
 
   def convert(
       implicit specifiers: StructDeclarationListContext
@@ -1029,7 +1051,7 @@ case class CToCol[G](
         (s.substring(2), 16)
       else if (s.startsWith("0b"))
         (s.substring(2), 2)
-      else if (s.startsWith("0"))
+      else if (s.length > 1 && s.startsWith("0"))
         (s.substring(1), 8)
       else
         (s, 10)

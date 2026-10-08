@@ -329,7 +329,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   private val cStructSuccessor
       : SuccessionMap[CGlobalDeclaration[Pre], Class[Post]] = SuccessionMap()
   private val cEnumSuccessor
-      : SuccessionMap[CGlobalDeclaration[Pre], Class[Post]] = SuccessionMap()
+      : mutable.Map[CEnumMemberDeclarator[Pre], Expr[Post]] = mutable.Map()
   private val cStructFieldsSuccessor: SuccessionMap[
     (CGlobalDeclaration[Pre], CStructMemberDeclarator[Pre]),
     InstanceField[Post],
@@ -1707,20 +1707,29 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
   def rewriteEnum(decl: CGlobalDeclaration[Pre]): Unit = {
     val edecl =
       decl.decl match {
-        case CDeclaration(_, Seq(edecl @ CEnumDeclaration(_)), Seq()) => edecl
+        case CDeclaration(_, Seq(edecl @ CEnumDeclaration(_, _)), Seq()) =>
+          edecl
         case _ => throw WrongEnumType(decl)
       }
 
-    val newStruct =
-      new ByValueClass[Post](
-        Nil,
-        Nil,
-        false,
-        sizeOf(CTEnum(decl.ref), decl.o),
-        Nil,
-      )(CEnumOrigin(edecl))
-    rw.globalDeclarations.declare(newStruct)
-    cEnumSuccessor(decl) = newStruct
+    var constant: Expr[Post] =
+      c_const[Post](BigInt(0))(edecl.decl.headOption.map(_.o).getOrElse(decl.o))
+    edecl.decl.zipWithIndex.foreach { case (member, i) =>
+      if (member.value.isDefined)
+        constant = rw.dispatch(member.value.get)
+      cEnumSuccessor(member) = constant
+      implicit val o: Origin =
+        if (i + 1 < edecl.decl.length)
+          edecl.decl(i + 1).o
+        else
+          member.o
+      constant =
+        constant match {
+          case CIntegerValue(value, _) => c_const(value + 1)
+          case Plus(l, CIntegerValue(value, _)) => Plus(l, c_const(value + 1))
+          case other => Plus(other, c_const(1))
+        }
+    }
   }
 
   // TODO: This seems to make a heap variable for every typedef which should not be needed
@@ -2170,7 +2179,11 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             },
           ).ref,
         )
-      case ref: RefCStruct[Pre] => throw NotAValue(local)
+      case _: RefCStruct[Pre] => throw NotAValue(local)
+      case _: RefCEnum[Pre] => throw NotAValue(local)
+      case RefCEnumMember(_, decl) =>
+        // Should be safe since enum declarations should always appear before usages
+        cEnumSuccessor(decl)
       case ref @ RefCGlobalDeclaration(decl, initIdx) =>
         C.getDeclaratorInfo(decl.decl.inits(initIdx).decl).params match {
           case None =>
@@ -2804,6 +2817,19 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         None,
       )
     }
+  }
+
+  def enumType(t: CTEnum[Pre]): Type[Post] = {
+    val edecl =
+      t.ref.decl.decl match {
+        case CDeclaration(_, Seq(d @ CEnumDeclaration(_, _)), Seq()) => d
+        case _ => throw WrongEnumType(t.ref.decl)
+      }
+    val max = edecl.decl.map(cEnumSuccessor.apply).map(_.t.bits).max
+    val cint = TCInt[Post]()
+    cint.storedBits = max
+    cint.rank = 0;
+    cint
   }
 
   def structType(t: CType[Pre]): TClass[Post] =

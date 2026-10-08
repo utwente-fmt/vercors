@@ -405,6 +405,9 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
           case CDeclaration(_, Seq(_: CStructDeclaration[Pre]), Seq()) =>
             globalDeclarations
               .succeed(declaration, declaration.rewriteDefault())
+          case CDeclaration(_, Seq(_: CEnumDeclaration[Pre]), Seq()) =>
+            globalDeclarations
+              .succeed(declaration, declaration.rewriteDefault())
           case decl @ CDeclaration(
                 _,
                 Seq(td: CTypedef[Pre], struct: CStructDeclaration[Pre]),
@@ -422,6 +425,23 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
             structSpec.ref = Some(RefCStruct(structDecl))
 
             globalDeclarations.succeed(declaration, structDecl)
+          case decl @ CDeclaration(
+                _,
+                Seq(td: CTypedef[Pre], e: CEnumDeclaration[Pre]),
+                Seq(init),
+              ) =>
+            val enumDecl =
+              new CGlobalDeclaration[Post](
+                CDeclaration[Post](
+                  dispatch(decl.contract),
+                  Seq(dispatch(e)),
+                  Seq(),
+                )(decl.o)
+              )(decl.o)
+            val structSpec = CEnumSpecifier[Post](e.name.get)(decl.o)
+            structSpec.ref = Some(RefCEnum(enumDecl))
+
+            globalDeclarations.succeed(declaration, enumDecl)
           case decl =>
             val hasNonTrivialContract = decl.contract.nonEmpty
             if (hasNonTrivialContract && decl.inits.length > 1)
@@ -455,6 +475,8 @@ case class LangTypesToCol[Pre <: Generation](platformContext: PlatformContext)
           cStructFieldsSuccessor(declaration) = newMember
           cStructMemberDeclarators.declare(newMember)
         })
+      case declaration: CEnumMemberDeclarator[Pre] =>
+        cEnumMemberDeclarators.declare(declaration.rewriteDefault())
       case declaration: CFunctionDefinition[Pre] =>
         implicit val o: Origin = declaration.o
         val (specs, decl) = normalizeCDeclaration(

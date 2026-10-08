@@ -3010,9 +3010,11 @@ final case class CStructSpecifier[G](name: String)(implicit val o: Origin)
     extends CTypeSpecifier[G] with CStructSpecifierImpl[G] {
   var ref: Option[RefCStruct[G]] = None
 }
-final case class CEnumDeclaration[G](name: Option[String])(
-    implicit val o: Origin
-) extends CTypeSpecifier[G] with CEnumDeclarationImpl[G]
+final case class CEnumDeclaration[G](
+    name: Option[String],
+    decl: Seq[CEnumMemberDeclarator[G]],
+)(implicit val o: Origin)
+    extends CTypeSpecifier[G] with CEnumDeclarationImpl[G]
 final case class CEnumSpecifier[G](name: String)(implicit val o: Origin)
     extends CTypeSpecifier[G] with CEnumSpecifierImpl[G] {
   var ref: Option[RefCEnum[G]] = None
@@ -3023,6 +3025,10 @@ final case class CStructMemberDeclarator[G](
     decls: Seq[CDeclarator[G]],
 )(implicit val o: Origin)
     extends Declaration[G] with CStructMemberDeclaratorImpl[G]
+@family
+final case class CEnumMemberDeclarator[G](name: String, value: Option[Expr[G]])(
+    implicit val o: Origin
+) extends Declaration[G] with CEnumMemberDeclaratorImpl[G]
 
 final case class CTypeQualifierDeclarationSpecifier[G](
     typeQual: CTypeQualifier[G]

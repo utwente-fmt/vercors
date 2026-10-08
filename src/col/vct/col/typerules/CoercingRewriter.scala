@@ -2691,6 +2691,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case definition: CFunctionDefinition[Pre] => definition
       case declaration: CGlobalDeclaration[Pre] => declaration
       case declaration: CStructMemberDeclarator[Pre] => declaration
+      case declaration: CEnumMemberDeclarator[Pre] => declaration
       case cons: Constructor[Pre] => cons
       case definition: CPPFunctionDefinition[Pre] => definition
       case declaration: CPPGlobalDeclaration[Pre] => declaration
@@ -3073,7 +3074,9 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case specifier: CFunctionSpecifier[Pre] => specifier
       case specifier: CAlignmentSpecifier[Pre] => specifier
       case specifier: CStructDeclaration[Pre] => specifier
+      case specifier: CEnumDeclaration[Pre] => specifier
       case specifier: CStructSpecifier[Pre] => specifier
+      case specifier: CEnumSpecifier[Pre] => specifier
       case ck @ CUDAKernel() => CUDAKernel()(ck.blame)
       case ok @ OpenCLKernel() => OpenCLKernel()(ok.blame)
       case specifier: CExtractGPUKernelBody[Pre] => specifier

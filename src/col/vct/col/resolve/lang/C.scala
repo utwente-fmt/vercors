@@ -322,7 +322,7 @@ case object C {
     val t =
       specs match {
         case CStructDeclaration(_, _) +: Seq() => CTStruct[G](gdecl.ref)
-        case CEnumDeclaration(_) +: Seq() => CTEnum[G](gdecl.ref)
+        case CEnumDeclaration(_, _) +: Seq() => CTEnum[G](gdecl.ref)
         case _ => getPrimitiveType(specs, platformContext, context)
       }
 

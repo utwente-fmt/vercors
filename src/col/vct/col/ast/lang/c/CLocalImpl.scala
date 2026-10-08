@@ -30,6 +30,8 @@ trait CLocalImpl[G] extends CLocalOps[G] {
         ptr.decl = Some(ref);
         CTPointer(ptr)
       case ref: RefCStruct[G] => Types.notAValue(ref)
+      case ref: RefCEnum[G] => Types.notAValue(ref)
+      case RefCEnumMember(e, _) => CTEnum(e.ref)
       case ref @ RefCGlobalDeclaration(decls, initIdx) =>
         val declInfo = C.getDeclaratorInfo(decls.decl.inits(initIdx).decl)
         declInfo.params match {
