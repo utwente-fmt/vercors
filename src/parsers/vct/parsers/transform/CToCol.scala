@@ -224,7 +224,7 @@ case class CToCol[G](
       case TypeSpecifier1(valType) => CSpecificationType(convert(valType))
       case TypeSpecifier2(_) => ??(typeSpec)
       case TypeSpecifier3(struct) => convert(struct)
-      case TypeSpecifier4(_) => ??(typeSpec)
+      case TypeSpecifier4(enum) => convert(enum)
       case TypeSpecifier5(name) =>
         name match { case TypedefName0(name) => CTypedefName(name) }
       case TypeSpecifier6(_, _, _, _) => ??(typeSpec)
@@ -249,6 +249,15 @@ case class CToCol[G](
       case StructOrUnionSpecifier1(StructOrUnion0(_), name) =>
         CStructSpecifier(convert(name))
       case StructOrUnionSpecifier1(union @ StructOrUnion1(_), _) => ??(union)
+    }
+
+  def convert(implicit enum: EnumSpecifierContext): CTypeSpecifier[G] =
+    enum match {
+      case EnumSpecifier0(_, name, _, _, _) =>
+        CEnumDeclaration(name.map(convert))
+      case EnumSpecifier1(_, name, _, _, _, _) =>
+        CEnumDeclaration(name.map(convert))
+      case EnumSpecifier2(_, name) => CEnumSpecifier(convert(name))
     }
 
   def convert(
@@ -1015,7 +1024,16 @@ case class CToCol[G](
       } else if (lower.endsWith("l")) {
         (i.substring(0, i.length - 1), Seq(CLong()))
       } else { (i, Seq(CInt())) }
-    try { Some(CIntegerValue(BigInt(s), CPrimitiveType(t))) }
+    val (s2, radix) =
+      if (s.startsWith("0x"))
+        (s.substring(2), 16)
+      else if (s.startsWith("0b"))
+        (s.substring(2), 2)
+      else if (s.startsWith("0"))
+        (s.substring(1), 8)
+      else
+        (s, 10)
+    try { Some(CIntegerValue(BigInt(s2, radix), CPrimitiveType(t))) }
     catch { case e: NumberFormatException => None }
   }
 

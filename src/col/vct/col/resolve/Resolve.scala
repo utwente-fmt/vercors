@@ -247,6 +247,11 @@ case object ResolveTypes {
           C.findCStruct(name, ctx)
             .getOrElse(throw NoSuchNameError("struct", name, t))
         )
+      case t @ CEnumSpecifier(name) =>
+        t.ref = Some(
+          C.findCEnum(name, ctx)
+            .getOrElse(throw NoSuchNameError("enum", name, t))
+        )
       case d: CParam[G] => addUniquePointerFieldRef(d.specifiers, ctx, d)
       case d: CStructMemberDeclarator[G] =>
         addUniquePointerFieldRef(d.specs, ctx, d)

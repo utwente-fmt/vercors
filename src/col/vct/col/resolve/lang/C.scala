@@ -322,6 +322,7 @@ case object C {
     val t =
       specs match {
         case CStructDeclaration(_, _) +: Seq() => CTStruct[G](gdecl.ref)
+        case CEnumDeclaration(_) +: Seq() => CTEnum[G](gdecl.ref)
         case _ => getPrimitiveType(specs, platformContext, context)
       }
 
@@ -371,6 +372,7 @@ case object C {
           }
         case Seq(CSpecificationType(typ)) => typ
         case Seq(defn @ CStructSpecifier(_)) => CTStruct(defn.ref.get.decl.ref)
+        case Seq(defn @ CEnumSpecifier(_)) => CTEnum(defn.ref.get.decl.ref)
         case spec +: _ => throw CTypeNotSupported(context.orElse(Some(spec)))
         case _ => throw CTypeNotSupported(context)
       }
@@ -421,6 +423,14 @@ case object C {
   ): Option[RefCStruct[G]] =
     ctx.stack.flatten.collectFirst {
       case target: RefCStruct[G] if target.name == name => target
+    }
+
+  def findCEnum[G](
+      name: String,
+      ctx: TypeResolutionContext[G],
+  ): Option[RefCEnum[G]] =
+    ctx.stack.flatten.collectFirst {
+      case target: RefCEnum[G] if target.name == name => target
     }
 
   def findCName[G](

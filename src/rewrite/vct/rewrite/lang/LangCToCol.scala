@@ -113,6 +113,13 @@ case object LangCToCol {
       decl.o.messageInContext(s"This has a struct type that is not supported.")
   }
 
+  private case class WrongEnumType(decl: Node[_]) extends UserError {
+    override def code: String = "wrongEnumType"
+
+    override def text: String =
+      decl.o.messageInContext(s"This has an enum type that is not supported.")
+  }
+
   private case class WrongUniqueFieldStruct(decl: Node[_]) extends UserError {
     override def code: String = "wrongUniqueFieldStruct"
 
@@ -321,6 +328,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       : SuccessionMap[CNameTarget[Pre], HeapVariable[Post]] = SuccessionMap()
   private val cStructSuccessor
       : SuccessionMap[CGlobalDeclaration[Pre], Class[Post]] = SuccessionMap()
+  private val cEnumSuccessor
+      : SuccessionMap[CGlobalDeclaration[Pre], Class[Post]] = SuccessionMap()
   private val cStructFieldsSuccessor: SuccessionMap[
     (CGlobalDeclaration[Pre], CStructMemberDeclarator[Pre]),
     InstanceField[Post],
@@ -358,6 +367,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
 
   private def CStructOrigin(sdecl: CStructDeclaration[_]): Origin =
     sdecl.o.sourceName(sdecl.name.get).withContent(TypeName("struct"))
+
+  private def CEnumOrigin(edecl: CEnumDeclaration[_]): Origin =
+    edecl.o.sourceName(edecl.name.get).withContent(TypeName("enum"))
 
   private def CStructFieldOrigin(cdecl: CDeclarator[_]): Origin =
     cdecl.o.sourceName(nameFromDeclarator(cdecl))
@@ -1692,12 +1704,35 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     cStructSuccessor(decl) = newStruct
   }
 
+  def rewriteEnum(decl: CGlobalDeclaration[Pre]): Unit = {
+    val edecl =
+      decl.decl match {
+        case CDeclaration(_, Seq(edecl @ CEnumDeclaration(_)), Seq()) => edecl
+        case _ => throw WrongEnumType(decl)
+      }
+
+    val newStruct =
+      new ByValueClass[Post](
+        Nil,
+        Nil,
+        false,
+        sizeOf(CTEnum(decl.ref), decl.o),
+        Nil,
+      )(CEnumOrigin(edecl))
+    rw.globalDeclarations.declare(newStruct)
+    cEnumSuccessor(decl) = newStruct
+  }
+
   // TODO: This seems to make a heap variable for every typedef which should not be needed
   def rewriteGlobalDecl(decl: CGlobalDeclaration[Pre]): Unit = {
     val isStruct =
       decl.decl.specs.collectFirst { case t: CStructDeclaration[Pre] => () }
         .isDefined
     if (isStruct) { rewriteStruct(decl); return }
+    val isEnum =
+      decl.decl.specs.collectFirst { case t: CEnumDeclaration[Pre] => () }
+        .isDefined
+    if (isEnum) { rewriteEnum(decl); return }
     val pure = decl.decl.specs.collectFirst { case CPure() => () }.isDefined
     val inline = decl.decl.specs.collectFirst { case CInline() => () }.isDefined
     val opaque = decl.decl.specs.collectFirst { case COpaque() => () }.isDefined
