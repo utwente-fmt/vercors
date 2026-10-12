@@ -63,7 +63,9 @@ nestedNameSpecifier:
 	| nestedNameSpecifier Template? simpleTemplateId Doublecolon;
 
 lambdaExpression:
+	startSpec 'extract' valDecreases? endSpec valEmbedContract? lambdaIntroducer lambdaDeclarator? compoundStatement |
 	valEmbedContract? lambdaIntroducer lambdaDeclarator? compoundStatement;
+
 
 lambdaIntroducer: LeftBracket lambdaCapture? RightBracket;
 
@@ -89,7 +91,8 @@ postfixExpression:
 	annotatedPrimaryExpression
 	| postfixExpression LeftBracket oneOrMoreExpressions RightBracket
 	| postfixExpression LeftBracket bracedInitList RightBracket
-	| postfixExpression LeftParen expressionList? RightParen valEmbedGiven? valEmbedYields?
+	| postfixExpression LeftParen expressionList? RightParen valEmbedGiven? valEmbedYields? valEmbedSubGroupInv?
+	| valEmbedReveal postfixExpression LeftParen expressionList? RightParen valEmbedGiven? valEmbedYields? valEmbedSubGroupInv?
 	| postfixExpression Dot Template? idExpression
 	| postfixExpression Dot pseudoDestructorName
 	| postfixExpression Arrow Template? idExpression
@@ -516,7 +519,9 @@ linkageSpecification:
 		| declaration
 	);
 
-attributeSpecifierSeq: attributeSpecifier+;
+attributeSpecifierSeq:
+    attributeSpecifier
+    | attributeSpecifierSeq attributeSpecifier;
 
 attributeSpecifier:
 	LeftBracket LeftBracket attributeList? RightBracket RightBracket
@@ -525,28 +530,41 @@ attributeSpecifier:
 alignmentspecifier:
 	Alignas LeftParen (theTypeId | constantExpression) Ellipsis? RightParen;
 
-attributeList: attribute (Comma attribute)* Ellipsis?;
+attributeList:
+    attribute
+    | attribute Ellipsis
+    | attribute Comma attributeList
+    | attribute Comma attributeList Ellipsis;
 
-attribute: (attributeNamespace Doublecolon)? clangppIdentifier attributeArgumentClause?;
+attribute:
+    clangppIdentifier attributeArgumentClause?
+    | attributeNamespace Doublecolon clangppIdentifier attributeArgumentClause?;
 
 attributeNamespace: clangppIdentifier;
 
 attributeArgumentClause: LeftParen balancedTokenSeq? RightParen;
 
-balancedTokenSeq: balancedtoken+;
+balancedTokenSeq:
+    balancedtoken
+    | balancedtoken balancedTokenSeq;
 
 balancedtoken:
 	LeftParen balancedTokenSeq RightParen
 	| LeftBracket balancedTokenSeq RightBracket
 	| LeftBrace balancedTokenSeq RightBrace
-	| ~(
-		LeftParen
-		| RightParen
-		| LeftBrace
-		| RightBrace
-		| LeftBracket
-		| RightBracket
-	)+;
+	| primaryExpression
+	| primaryExpression Comma balancedTokenSeq
+//	Commenting out these lines to match easier on the arguments.
+//	If these are included, the arguments cannot be parsed, since the generation does not work anymore.
+//	| ~(
+//		LeftParen
+//		| RightParen
+//		| LeftBrace
+//		| RightBrace
+//		| LeftBracket
+//		| RightBracket
+//	)+
+	;
 
 // Declarators
 initDeclaratorList:

@@ -1,8 +1,6 @@
 #ifndef OPENCL_H
 #define OPENCL_H
 
-#include <stdbool.h>
-
 #define __kernel __opencl_kernel__
 
 #define CLK_GLOBAL_MEM_FENCE __vercors_global_mem_fence__
