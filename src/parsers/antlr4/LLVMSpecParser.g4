@@ -9,7 +9,7 @@ import LangLLVMSpecParser, SpecParser;
 
 langExpr: expression;
 langId: Identifier;
-langConstInt: Constant;
+langConstInt: IntegerConstant;
 langType: type;
 langStatement: EOF EOF;
 langStatic: EOF EOF;
