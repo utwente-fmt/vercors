@@ -4,6 +4,7 @@
 
 #include "Origin/OriginProvider.h"
 #include "Passes/Module/RootContainer.h"
+#include "Passes/Module/TransitiveAssumeAnalysis.h"
 #include "Transform/Transform.h"
 #include "Util/Exceptions.h"
 #include "Util/PallasDIMapping.h"
@@ -57,6 +58,11 @@ col::Variable &FDResult::getFuncArgMapEntry(Argument &arg) {
 
 int64_t &FDResult::getFunctionId() { return functionId; }
 
+bool FDResult::hasBody() const {
+    return associatedScopedColFuncBody.scope != nullptr &&
+           associatedScopedColFuncBody.block != nullptr;
+}
+
 /*
  * Function Declarer (Analysis)
  */
@@ -78,7 +84,9 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
     // set origin
     llvmFuncDef->set_allocated_origin(llvm2col::generateFuncDefOrigin(F));
     ColScopedFuncBody funcScopedBody{};
-    if (!F.isDeclaration()) {
+
+    // Do not transform body of declarations and transitively assumed functions
+    if (shouldTransformBody(F, FAM)) {
         funcScopedBody.scope =
             llvmFuncDef->mutable_function_body()->mutable_scope();
         funcScopedBody.scope->set_allocated_origin(
@@ -246,6 +254,23 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         F.hasFnAttribute(llvm::Attribute::NoReturn));
 
     return result;
+}
+
+bool FunctionDeclarer::shouldTransformBody(llvm::Function &F,
+                                           FunctionAnalysisManager &FAM) const {
+    if (F.isDeclaration()) {
+        return false;
+    }
+
+    auto &MAMProxy = FAM.getResult<ModuleAnalysisManagerFunctionProxy>(F);
+    auto *TAARes =
+        MAMProxy.getCachedResult<TransitiveAssumeAnalysis>(*F.getParent());
+    if (TAARes == nullptr) {
+        pallas::ErrorReporter::addError(
+            SOURCE_LOC, "Failed to get result of TransitiveAssumeAnalysis!", F);
+        return true;
+    }
+    return !TAARes->isAssumed(F);
 }
 
 /*
