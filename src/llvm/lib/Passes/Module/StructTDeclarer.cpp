@@ -51,11 +51,11 @@ int64_t SDResult::getId(StructTyID &typeID) {
         return internalIDMap.at(typeID);
     }
 
-    // Generate a new, unique ID for this typeID. 
-    // In other places we use the value of pointers as the id. In this case this 
-    // does not work because the id must depend on both, the llvm-type and the 
-    // debug-type. 
-    // We keep the last bit of the generated id at 1 avoid conflicts with other 
+    // Generate a new, unique ID for this typeID.
+    // In other places we use the value of pointers as the id. In this case this
+    // does not work because the id must depend on both, the llvm-type and the
+    // debug-type.
+    // We keep the last bit of the generated id at 1 avoid conflicts with other
     // ids (because those pointers are typically aligned, so the last bit is 0)
 
     int64_t new_id = nextID;
@@ -135,17 +135,7 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
     if (llvmType == nullptr) {
         std::vector<llvm::DIDerivedType *> elements;
         elements.reserve(compositeDiType.getElements().size());
-        for (auto *element : compositeDiType.getElements()) {
-            if (llvm::isa<DISubprogram>(element)) {
-                // Skip class methods 
-                continue;
-            }
-            assert(llvm::isa<llvm::DIDerivedType>(element));
-            if (element->getTag() == llvm::dwarf::DW_TAG_member) {
-                elements.push_back(cast<llvm::DIDerivedType>(element));
-            }
-        }
-
+        collectElements(compositeDiType, elements);
         llvm::sort(elements,
                    [&](llvm::DIDerivedType *a, llvm::DIDerivedType *b) {
                        return a->getOffsetInBits() <= b->getOffsetInBits();
@@ -228,6 +218,32 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
             *fieldDef->mutable_t(), *this);
     }
     return true;
+}
+
+void SDResult::collectElements(llvm::DICompositeType &cType,
+                               std::vector<llvm::DIDerivedType *> &elements) {
+
+    for (auto *element : cType.getElements()) {
+        if (llvm::isa<DISubprogram>(element)) {
+            // Skip methods
+            continue;
+        }
+        assert(llvm::isa<llvm::DIDerivedType>(element));
+        auto *dType = llvm::cast<llvm::DIDerivedType>(element);
+        if (dType->getTag() == llvm::dwarf::DW_TAG_member) {
+            // Plain member
+            elements.push_back(dType);
+        }
+        if (dType->getTag() == llvm::dwarf::DW_TAG_inheritance &&
+            dType->getVBPtrOffset() == 0 && dType->getOffsetInBits() == 0) {
+            // Collect elements from parent.
+            // If the offset is not 0, we would have to track the offsets
+            auto *parentT = dType->getBaseType();
+            assert(llvm::isa<llvm::DICompositeType>(parentT));
+            collectElements(*llvm::cast<llvm::DICompositeType>(parentT),
+                            elements);
+        }
+    }
 }
 
 /*

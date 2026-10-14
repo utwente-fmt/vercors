@@ -15,6 +15,7 @@
 #include <map>
 #include <optional>
 #include <utility>
+#include <vector>
 
 /**
  * Pass that creates declares the LLVMStructDeclarations
@@ -73,6 +74,9 @@ class SDResult {
                                   llvm::Type *llvmType, llvm::DIType &diType);
 
     int64_t getId(StructTyID &typeID);
+
+    void collectElements(llvm::DICompositeType &cType,
+                        std::vector<llvm::DIDerivedType *> &members);
 };
 
 class StructTDeclarer : public AnalysisInfoMixin<StructTDeclarer> {
