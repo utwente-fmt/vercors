@@ -391,7 +391,8 @@ bool llvm2col::transformAndSetDerivedTypeWithDebugInfo(
     pallas::SDResult &sdRes) {
     switch (derivedType.getTag()) {
     case llvm::dwarf::DW_TAG_pointer_type:
-    case llvm::dwarf::DW_TAG_reference_type: {
+    case llvm::dwarf::DW_TAG_reference_type:
+    case llvm::dwarf::DW_TAG_rvalue_reference_type: {
         if (llvmType != nullptr &&
             llvmType->getTypeID() != llvm::Type::PointerTyID) {
             WARN_DI_TYPE_MISMATCH("pointer != pointer",

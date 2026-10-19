@@ -76,23 +76,23 @@ class SDResult {
     int64_t getId(StructTyID &typeID);
 
     /**
-     * Collect the elements of the given composite-type and filter out 
+     * Collect the elements of the given composite-type and filter out
      * member-functions.
      */
     void collectElements(llvm::DICompositeType &cType,
                          std::vector<llvm::DIDerivedType *> &members) const;
 
     /**
-     * Check if the struct only contains empty elements and member functions. 
+     * Check if the struct only contains empty elements and member functions.
      */
     bool isEmptyStructT(llvm::DIType &t) const;
 
     /**
-     * Get the elements from the debug-type and filter out empty elements that 
-     * overlap with another non-empty element. 
+     * Get the elements from the debug-type and filter out empty elements that
+     * overlap with another non-empty element.
      * This is required to account for e.g. EBO and [[no_unique_address]] in C++
      * as such members are optimized out.
-     * 
+     *
      * The result is sorted by offset.
      */
     std::vector<llvm::DIDerivedType *>
