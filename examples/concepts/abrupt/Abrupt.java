@@ -28,6 +28,7 @@ final class MyClass {
             myLoop2: myLoop3: myLoop4: while(pp) {
                 switch(3) {
                     default:
+                        //@ assert false;
                         x = 4;
                         break myLoop3;
                     case 3:
@@ -43,6 +44,7 @@ final class MyClass {
             }
 
             if (x == 41) {
+                //@ assert false;
                 return 30;
             }
 

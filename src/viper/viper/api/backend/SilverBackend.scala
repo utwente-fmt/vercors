@@ -15,7 +15,7 @@ import viper.api.transform.{
   NopViperReporter,
   SilverParserDummyFrontend,
 }
-import viper.silver.ast.Infoed
+import viper.silver.ast.{Infoed, SeqIndex}
 import viper.silver.plugin.SilverPluginManager
 import viper.silver.plugin.standard.termination.{
   FunctionTerminationError,
@@ -437,10 +437,18 @@ trait SilverBackend
         val old = get[col.Old[_]](expr)
         blame.NotWellDefined(old, blame.LabelNotReached(old))
       case reasons.SeqIndexNegative(_, idx) =>
-        val subscript = info(idx).seqIndexSubscriptNode.get
+        val subscript =
+          info(idx).seqIndexSubscriptNode.orElse(idx match {
+            case i: SeqIndex => info(i).seqIndexSubscriptNode
+            case _ => None
+          }).get
         blame.NotWellDefined(subscript, blame.SeqBoundNegative(subscript))
       case reasons.SeqIndexExceedsLength(_, idx) =>
-        val subscript = info(idx).seqIndexSubscriptNode.get
+        val subscript =
+          info(idx).seqIndexSubscriptNode.orElse(idx match {
+            case i: SeqIndex => info(i).seqIndexSubscriptNode
+            case _ => None
+          }).get
         blame.NotWellDefined(subscript, blame.SeqBoundExceedsLength(subscript))
       case reasons.MapKeyNotContained(_, key) =>
         val get = info(key).mapGet.get
@@ -519,10 +527,18 @@ trait SilverBackend
         val old = get[col.Old[_]](expr)
         old.blame.blame(blame.LabelNotReached(old))
       case reasons.SeqIndexNegative(_, idx) =>
-        val subscript = info(idx).seqIndexSubscriptNode.get
+        val subscript =
+          info(idx).seqIndexSubscriptNode.orElse(idx match {
+            case i: SeqIndex => info(i).seqIndexSubscriptNode
+            case _ => None
+          }).get
         subscript.blame.blame(blame.SeqBoundNegative(subscript))
       case reasons.SeqIndexExceedsLength(_, idx) =>
-        val subscript = info(idx).seqIndexSubscriptNode.get
+        val subscript =
+          info(idx).seqIndexSubscriptNode.orElse(idx match {
+            case i: SeqIndex => info(i.idx).seqIndexSubscriptNode
+            case _ => None
+          }).get
         subscript.blame.blame(blame.SeqBoundExceedsLength(subscript))
       case reasons.MapKeyNotContained(_, key) =>
         val get = info(key).mapGet.get

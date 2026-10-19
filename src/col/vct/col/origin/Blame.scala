@@ -1442,7 +1442,7 @@ case class DeadBranch(node: Node[_], branchKind: String)
     extends NodeVerificationFailure with ContractedFailure {
   override def code: String = "deadBranch"
   override def descInContext: String =
-    s"The $branchKind is dead — the verifier proved this code path cannot be reached under the current specification (preconditions, assumptions, and invariants)."
+    s"The $branchKind is dead — the verifier proved this code path cannot be reached under the current specification (preconditions, assumptions, and invariants). This may be a false-positive if there are other verification errors."
   override def inlineDescWithSource(source: String): String =
     s"$branchKind is dead: `$source` cannot be reached under the current specification."
 }

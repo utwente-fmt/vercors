@@ -1,27 +1,19 @@
 package vct.rewrite
 
+import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
-import vct.col.origin.{
-  Blame,
-  ContractedFailure,
-  DeadBranch,
-  ExtractTerminationMeasureFailed,
-  LoopInvariantFailure,
-  LoopInvariantNotEstablished,
-  LoopInvariantNotMaintained,
-  NamePrefix,
-  Origin,
-  RefuteFailed,
-  TerminationMeasureFailed,
-}
+import vct.col.origin.{Blame, ContractedFailure, DeadBranch, ExtractTerminationMeasureFailed, LoopInvariantFailure, LoopInvariantNotEstablished, LoopInvariantNotMaintained, NamePrefix, Origin, RefuteFailed, TerminationMeasureFailed, VerificationFailure}
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.util.AstBuildHelpers._
+
+import java.util.concurrent.atomic.AtomicInteger
+import scala.annotation.tailrec
 
 // Instruments branches, loop bodies, switch cases, and code after state-narrowing
 // statements with Refute(false). If the prover state is unreachable at that point,
 // refute fires and deadBranch is reported. Ancestor suppression prevents cascading errors.
-case object DetectDeadCode extends RewriterBuilderArg[Boolean] {
+case object DetectDeadCode extends RewriterBuilderArg[Boolean] with LazyLogging {
   override def key: String = "detectDeadCode"
   override def desc: String =
     "Check that branches, loop bodies, switch cases, and code after state-narrowing statements are reachable under the method preconditions and assumptions."
@@ -31,16 +23,33 @@ case object DetectDeadCode extends RewriterBuilderArg[Boolean] {
       branchKind: String,
       methodBlame: Blame[ContractedFailure],
       ancestorFired: () => Boolean,
+      suppressionCounter: Int,
+      suppressor: AtomicInteger,
   ) extends Blame[RefuteFailed] {
     private var firedOrSuppressed: Boolean = false
 
     def didFire: Boolean = firedOrSuppressed
 
     override def blame(error: RefuteFailed): Unit = {
-      firedOrSuppressed = true
-      // only report if no enclosing dead region already fired
-      if (!ancestorFired())
+      var current = suppressor.get()
+      if (current > suppressionCounter && !ancestorFired())
         methodBlame.blame(DeadBranch(branchNode, branchKind))
+
+      firedOrSuppressed = true
+      while (current > suppressionCounter + 1 && suppressor.compareAndExchange(current, suppressionCounter + 1) != suppressionCounter + 1) {
+        current = suppressor.get()
+      }
+    }
+  }
+
+  case class SuppressingBlame[T <: VerificationFailure](blame: Blame[T], suppressionCounter: Int, suppressor: AtomicInteger) extends Blame[T] {
+
+    override def blame(error: T): Unit = {
+      var current = suppressor.get()
+      while (current > suppressionCounter && suppressor.compareAndExchange(current, suppressionCounter) != suppressionCounter) {
+        current = suppressor.get()
+      }
+      blame.blame(error)
     }
   }
 }
@@ -53,13 +62,28 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
   val methodBlame: ScopedStack[Blame[ContractedFailure]] = ScopedStack()
   val currentBlame: ScopedStack[DeadCodeBlame] = ScopedStack()
   val afterAssertFalse: ScopedStack[Unit] = ScopedStack()
+  val justBeforeAssertFalse: ScopedStack[Boolean] = ScopedStack()
+
+  private var suppressionCounter: Int = 1
+  private val suppressor: ScopedStack[AtomicInteger] = ScopedStack()
 
   override def dispatch(decl: Declaration[Pre]): Unit =
     decl match {
       case ca: ContractApplicable[Pre] =>
-        methodBlame.having(ca.blame) { super.dispatch(ca) }
+        suppressor.having(new AtomicInteger(Int.MaxValue)) {
+          methodBlame.having(ca.blame) {
+            super.dispatch(ca)
+          }
+        }
       case _ => super.dispatch(decl)
     }
+
+  override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] = {
+    suppressor.topOption match {
+      case Some(value) => SuppressingBlame(super.dispatch[T](blame), suppressionCounter, value)
+      case None => super.dispatch[T](blame)
+    }
+  }
 
   private def condText(expr: Expr[Pre]): String = {
     val text = expr.o.inlineContextText
@@ -81,16 +105,20 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
       () => base() || extraSuppressor()
     }
     val blame =
-      new DeadCodeBlame(node, branchKind, methodBlame.top, ancestorFiredFn)
+      new DeadCodeBlame(node, branchKind, methodBlame.top, ancestorFiredFn, suppressionCounter, suppressor.top)
+
+    suppressionCounter += 1
     (blame, Refute(ff)(blame))
   }
 
+  @tailrec
   private def startsWithAssertFalse(stat: Statement[Pre]): Boolean =
     stat match {
       case Scope(_, body) => startsWithAssertFalse(body)
       case Block(Nil) => false
       case Block(stats) => startsWithAssertFalse(stats.head)
       case Assert(BooleanValue(false)) => true
+      case Refute(BooleanValue(false)) => true
       case _ => false
     }
 
@@ -173,12 +201,7 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
         extraSuppressor = bodySuppress,
       ),
     )
-    val (afterBlame, afterCheck) = makeCheck(
-      loop,
-      s"code after loop (condition: `${condText(cond)}`$invInfo)",
-      extraSuppressor = postLoopSuppress,
-    )
-    Block(Seq(
+    val newLoop =
       if (extracted.isDefined) {
         extracted.get.rewrite(
           contractedStatement = instrumentedLoop,
@@ -188,9 +211,23 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
               extracted.get.blame.blame(error)
             },
         )
-      } else { instrumentedLoop },
-      currentBlame.having(afterBlame) { afterCheck },
-    ))
+      } else { instrumentedLoop }
+
+    if (justBeforeAssertFalse.topOption.contains(true)) {
+      val (afterBlame, afterCheck) = makeCheck(
+        loop,
+        s"code after loop (condition: `${condText(cond)}`$invInfo)",
+        extraSuppressor = postLoopSuppress,
+      )
+      Block(Seq(
+        newLoop,
+        currentBlame.having(afterBlame) {
+          afterCheck
+        },
+      ))
+    } else {
+      newLoop
+    }
   }
 
   override def dispatch(stat: Statement[Pre]): Statement[Post] =
@@ -260,12 +297,31 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
             case Assert(BooleanValue(false)) => true
             case _ => false
           }
-          if (cutoffIdx < 0) { Block(stmts.map(dispatch)) }
+          if (cutoffIdx < 0) {
+            if (stmts.size > 1 && justBeforeAssertFalse.topOption.contains(true)) {
+              val (pre, last) = stmts.splitAt(stmts.size - 1)
+              Block(
+                justBeforeAssertFalse.having(false) { pre.map(dispatch) } ++ last.map(dispatch)
+              )
+            } else {
+              Block(stmts.map(dispatch))
+            }
+          }
           else {
-            val (before, rest) = stmts.splitAt(cutoffIdx + 1)
-            Block(before.map(dispatch) ++ afterAssertFalse.having(()) {
-              rest.map(dispatch)
-            })
+            // After assert false (rest) includes the assert false itself
+            val (before, rest) = stmts.splitAt(cutoffIdx)
+            if (before.size > 1) {
+              val (pre, last) = before.splitAt(before.size - 1)
+              Block(
+                pre.map(dispatch) ++ justBeforeAssertFalse.having(true) { last.map(dispatch) } ++ afterAssertFalse.having(()) {
+                  rest.map(dispatch)
+                }
+              )
+            } else {
+              Block(justBeforeAssertFalse.having(true) { before.map(dispatch) } ++ afterAssertFalse.having(()) {
+                rest.map(dispatch)
+              })
+            }
           }
 
         // skip inhales/assumes generated by lock encoding passes as they have their own Refute nodes
@@ -302,11 +358,16 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
                 s"switch case (pattern: `${condText(pattern)}`)"
               case DefaultCase() => "switch default case"
             }
-          val (caseBlame, caseCheck) = makeCheck(c, label)
-          Block(Seq(
-            c.rewriteDefault(),
-            currentBlame.having(caseBlame) { caseCheck },
-          ))
+          val caseBody = c.rewriteDefault()
+          if (justBeforeAssertFalse.contains(true)) { caseBody } else {
+            val (caseBlame, caseCheck) = makeCheck(c, label)
+            Block(Seq(
+              caseBody,
+              currentBlame.having(caseBlame) {
+                caseCheck
+              },
+            ))
+          }
 
         // atomic(inv) inhales inv's invariant the same way lock obj does; treat it
         // the same way so re-entrant/nested atomic on an already-held invariant

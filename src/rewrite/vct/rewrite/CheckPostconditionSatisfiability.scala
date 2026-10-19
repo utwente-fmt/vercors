@@ -97,8 +97,13 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
   ): Unit = {
     implicit val origin: Origin = applicable.o.where(prefix = "checkPostSat")
 
-    val ensuresPred = unfoldPredicate(contract.ensures)
-      .reduce((e1, e2) => Star(e1, e2)(e1.o))
+    val ensuresPred = unfoldPredicate(contract.ensures).reduce[Expr[Pre]] {
+      case (e1 @ BooleanValue(false), _) => e1
+      case (_, e2 @ BooleanValue(false)) => e2
+      case (BooleanValue(true), e2) => e2
+      case (e1, BooleanValue(true)) => e1
+      case (e1, e2) => Star(e1, e2)(e1.o)
+    }
     ensuresPred match {
       case BooleanValue(
             false

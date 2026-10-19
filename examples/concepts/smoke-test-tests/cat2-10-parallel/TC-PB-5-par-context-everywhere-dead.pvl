@@ -10,7 +10,7 @@ void f(int n) {
         context_everywhere n > 100;
     {
         if (n < 0) {
-            assert false; // dead: context_everywhere guarantees n > 100
+            assert true; // dead: context_everywhere guarantees n > 100
         }
     }
 }

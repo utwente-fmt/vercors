@@ -2,7 +2,7 @@ requires (\forall int i; i in xs; {: i in ys :});
 ensures |xs| <= |ys|;
 ensures \result;
 opaque pure boolean pigeon(set<int> xs, set<int> ys) =
-    |xs| > 0 
+    |xs| > 0
         ? pigeon(xs - {\choose(xs)}, ys - {\choose(xs)})
         : true;
 

@@ -16,7 +16,7 @@ final class WandDemo {
     resource readonly() = Perm(x,1\4);
     resource writeonly() = Perm(x,write);
     @*/
-  
+
     /*@
     requires readonly();
     pure int get() = \unfolding readonly() \in x;
@@ -54,6 +54,7 @@ final class WandDemo {
             i = d.get() + d.get();
             //@ apply d.readonly()-*d.writeonly();
         }
+        //@ assert false;
     }
 
 }

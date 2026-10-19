@@ -84,28 +84,25 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
 
     variables.scope {
       localHeapVariables.scope {
-        globalDeclarations.declare(procedure(
-          blame = AbstractApplicable,
-          contractBlame = TrueSatisfiable,
-          requires = UnitAccountedPredicate(dispatch(preExtract)),
-          typeArgs = variables.dispatch(ts.keys),
-          args = variables.dispatch(in.keys ++ inForOut.keys.map(_._1).toSeq),
-          body = Some(Scope[Post](
-            Nil,
-            Block(Seq(
-              Exhale(dispatch(preExtract))(PanicBlame(
-                "Exhaling just inhaled precondition should not fail"
+        wellFormednessBlame.having(IgnoreWellformednessInInvSat(blame)) {
+          globalDeclarations.declare(procedure(
+            blame = AbstractApplicable,
+            contractBlame = TrueSatisfiable,
+            requires = UnitAccountedPredicate(dispatch(preExtract)),
+            typeArgs = variables.dispatch(ts.keys),
+            args = variables.dispatch(in.keys ++ inForOut.keys.map(_._1).toSeq),
+            body = Some(Scope[Post](
+              Nil,
+              Block(Seq(
+                Exhale(dispatch(preExtract))(PanicBlame(
+                  "Exhaling just inhaled precondition should not fail"
+                )),
+                Inhale(dispatch(invExtract)),
+                Refute(ff)(blame),
               )),
-              Inhale(
-                wellFormednessBlame
-                  .having(IgnoreWellformednessInInvSat(blame)) {
-                    dispatch(invExtract)
-                  }
-              ),
-              Refute(ff)(blame),
             )),
-          )),
-        ))
+          ))
+        }
       }
     }
   }

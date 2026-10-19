@@ -18,7 +18,7 @@ import scala.util.control.NonFatal
 
 object external extends Module {
   object z3 extends Module {
-    def url = T { "https://www.sosy-lab.org/ivy/org.sosy_lab/javasmt-solver-z3/com.microsoft.z3-4.8.7.jar" }
+    def url = T { "https://www.sosy-lab.org/ivy/org.sosy_lab/javasmt-solver-z3/com.microsoft.z3-4.16.0.jar" }
 
     def classPath = T {
       os.write(T.dest / "z3.jar", requests.get.stream(url()))
@@ -41,7 +41,7 @@ object external extends Module {
 object viper extends ScalaModule {
   object silverGit extends GitModule {
     def url = T { "https://github.com/viperproject/silver.git" }
-    def commitish = T { "e7ce7757caff264b17e54f5c4fecedc77862c9ad" }
+    def commitish = T { "c4f54b84703a04434b03e97bfea87dbd09870fd2" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -51,7 +51,7 @@ object viper extends ScalaModule {
 
   object siliconGit extends GitModule {
     def url = T { "https://github.com/viperproject/silicon.git" }
-    def commitish = T { "2af1a000401a30ddc80eb482111df6662c4e49d3" }
+    def commitish = T { "9e3e1d92232f8080ecbca20f8e294ccf5044eeae" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")
@@ -62,7 +62,7 @@ object viper extends ScalaModule {
 
   object carbonGit extends GitModule {
     def url = T { "https://github.com/viperproject/carbon.git" }
-    def commitish = T { "7c5c1df49844ce2cd27d42d4d95859bbc3ad0142" }
+    def commitish = T { "8a45d56d91fae0412ab2f4628cd744aeb5e9710d" }
     def filteredRepo = T {
       val workspace = repo()
       os.remove.all(workspace / "src" / "test")

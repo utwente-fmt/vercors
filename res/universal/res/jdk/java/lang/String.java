@@ -20,7 +20,7 @@ public class String {
     decreases;
     ensures data() == str;
     String(string str) {
-        //@ assume false;
+        //@ assume data() == str;
     }
     @*/
 

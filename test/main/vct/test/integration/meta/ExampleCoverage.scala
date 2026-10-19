@@ -49,6 +49,7 @@ class ExampleCoverage extends AnyFlatSpec {
       new SequencesSpec(),
       new SetsSpec(),
       new SilverDomainSpec(),
+      new SmokeTestSpec(),
       new SmtSpec(),
       new SummationSpec(),
       new SYCLSpec(),

@@ -13,7 +13,8 @@ class SmokeTestSpec extends VercorsSpec {
   // Atomic block dead code
   vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-9-atomic/TC-AT-3-atomic-dead-branch.pvl"
   vercors should verify using silicon example "concepts/smoke-test-tests/cat2-9-atomic/TC-AT-4-atomic-body-live.pvl"
-  vercors should fail withCode "deadBranch" using silicon example "concepts/smoke-test-tests/cat2-9-atomic/TC-AT-5-atomic-complex-invariant-dead.pvl"
+  // should succeed because the dead branch starts with assert false
+  vercors should verify using silicon example "concepts/smoke-test-tests/cat2-9-atomic/TC-AT-5-atomic-complex-invariant-dead.pvl"
 
   // Atomic entry-level dead code (atomic treated as state-narrowing, like lock obj).
   // Not precondition-driven: root cause is permission duplication from re-entering

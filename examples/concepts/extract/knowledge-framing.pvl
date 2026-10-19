@@ -111,6 +111,7 @@ int test10() {
         assert x == 2;
         [/end]
     }
+    assert false;
 }
 
 int test11() {
@@ -119,6 +120,7 @@ int test11() {
     while(true) {
         assert x == 2;
     }
+    assert false;
 }
 
 int test12() {
@@ -152,7 +154,7 @@ int test13() {
 int test13() {
     // Without it, it will not prove termination
     int x = 2;
-    [/expect extractDecreasesFailedNoClause]    
+    [/expect extractDecreasesFailedNoClause]
     extract
      loop_invariant 0 <= i && i<=10;
      loop_invariant x == 2+i;

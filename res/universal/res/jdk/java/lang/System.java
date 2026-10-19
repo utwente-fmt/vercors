@@ -13,25 +13,25 @@ class System {
     ghost
     ensures out != null ** err != null;
     public static void staticInvariant() {
-        assume false;
+        assume out != null ** err != null;
     }
     @*/
 
     //@ requires in != null;
     public static void setIn(InputStream in) {
-        //@ assume false;
+
     }
 
     //@ requires out != null;
     public static void setOut(PrintStream out) {
-        //@ assume false;
+
     }
 
     //@ requires err != null;
     public static void setErr(PrintStream err) {
-        //@ assume false;
+
     }
-    
+
     /*@
         context_everywhere src != null ** dest != null;
         context_everywhere length >= 0;
@@ -64,13 +64,13 @@ class System {
     // {
     //     if (dest == null || src == null) throw new NullPointerException();
     //     // left out type checks for src and dest arrays
-    //     if (srcPos < 0 || srcPos + length > src.length || 
+    //     if (srcPos < 0 || srcPos + length > src.length ||
     //         destPos < 0 || destPos + length > dest.length ||
-    //         length < 0) { 
+    //         length < 0) {
     //         throw new IndexOutOfBoundsException();
     //     }
     //     // left out conversion checks for individual array elements
-        
+
     //     if (srcPos >= destPos) {
     //         /*@
     //         loop_invariant 0 <= i && i <= length;
