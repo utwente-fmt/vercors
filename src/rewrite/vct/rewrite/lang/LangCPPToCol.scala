@@ -107,6 +107,8 @@ case object LangCPPToCol {
           kernelLambda.blame.blame(SYCLKernelLambdaFailure(
             KernelPostconditionFailed(failure, Right(kernelLambda))
           ))
+        case error: DeadBranch =>
+          kernelLambda.blame.blame(SYCLKernelLambdaFailure(error))
         case error: TerminationMeasureFailed =>
           PanicBlame("Kernel lambdas do not have a termination measure yet")
             .blame(error)

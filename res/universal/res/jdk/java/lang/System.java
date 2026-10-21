@@ -13,7 +13,7 @@ class System {
     ghost
     ensures out != null ** err != null;
     public static void staticInvariant() {
-        assume out != null ** err != null;
+        assume out != null && err != null;
     }
     @*/
 

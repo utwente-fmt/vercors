@@ -451,7 +451,7 @@ case class SilverTransformation(
           .withArg(
             checkLockInvSat
           ), // before EncodeIntrinsicLock so intrinsicLockInvariant still exists on the class
-        EncodeIntrinsicLock,
+        EncodeIntrinsicLock.withArg(detectDead),
         EncodeForkJoin,
         // PureMethodsToFunctions should be before InlineApplicables since InlineApplicables treats functions and methods differently
         PureMethodsToFunctions,

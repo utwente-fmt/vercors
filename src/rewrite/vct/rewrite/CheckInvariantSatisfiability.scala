@@ -3,10 +3,16 @@ package vct.rewrite
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin._
-import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
+import vct.col.rewrite.{
+  Generation,
+  NonLatchingRewriter,
+  Rewriter,
+  RewriterBuilderArg,
+}
 import vct.col.rewrite.util.WellDefinednessConditions
 import vct.col.rewrite.util.{Extract => ExtractObj}
 import vct.col.util.AstBuildHelpers._
+import vct.col.util.IdentitySuccessorsProvider
 
 // Checks loop/par invariants are satisfiable: inhale into an isolated FramedProof
 // and refute false; a fired refute means unsatisfiable. WD conditions are inhaled
@@ -46,6 +52,25 @@ case object CheckInvariantSatisfiability extends RewriterBuilderArg[Boolean] {
   ) extends Blame[T] {
     override def blame(error: T): Unit = blame.shouldSkip = true
   }
+
+  case class RemoveScaleByPar[G]() extends NonLatchingRewriter[G, G] {
+    case class SuccOrIdentity()
+        extends SuccessorsProviderTrafo[G, G](allScopes) {
+      override def postTransform[T <: Declaration[G]](
+          pre: Declaration[G],
+          post: Option[T],
+      ): Option[T] = Some(post.getOrElse(pre.asInstanceOf[T]))
+    }
+
+    override def succProvider: SuccessorsProvider[G, G] = SuccOrIdentity()
+
+    override def dispatch(expr: Expr[G]): Expr[G] =
+      expr match {
+        case ScaleByParBlock(_, inner) => dispatch(inner)
+        case other => super.dispatch(other)
+      }
+  }
+
 }
 
 case class CheckInvariantSatisfiability[Pre <: Generation](
@@ -77,9 +102,11 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
       foldStar(unfoldPredicate(ca.contract.requires))
     })
 
+    val filtered = RemoveScaleByPar[Pre]().dispatch(inv)
+
     val extractObj = ExtractObj[Pre]()
     val preExtract = extractObj.extract(pre)
-    val invExtract = extractObj.extract(inv)
+    val invExtract = extractObj.extract(filtered)
     val extractObj.Data(ts, in, inForOut, _, _, _) = extractObj.finish()
 
     variables.scope {

@@ -186,6 +186,7 @@ object AstBuildHelpers {
         contract: => ApplicableContract[Post] = rewriter
           .dispatch(contracted.contract),
         inline: => Boolean = contracted.inline,
+        blame: => Blame[ContractedFailure] = contracted.blame,
     ): ContractApplicable[Post] =
       contracted match {
         case function: Function[Pre] =>
@@ -195,6 +196,7 @@ object AstBuildHelpers {
             typeArgs = typeArgs,
             inline = Some(inline),
             contract = contract,
+            blame = blame,
           )
         case function: InstanceFunction[Pre] =>
           function.rewrite(
@@ -203,6 +205,7 @@ object AstBuildHelpers {
             typeArgs = typeArgs,
             inline = Some(inline),
             contract = contract,
+            blame = blame,
           )
         case function: InstanceOperatorFunction[Pre] =>
           function.rewrite(
@@ -210,6 +213,7 @@ object AstBuildHelpers {
             returnType = returnType,
             inline = Some(inline),
             contract = contract,
+            blame = blame,
           )
         case function: LLVMSpecFunction[Pre] =>
           function.rewrite(
@@ -218,6 +222,7 @@ object AstBuildHelpers {
             typeArgs = typeArgs,
             inline = Some(inline),
             contract = contract,
+            blame = blame,
           )
         case method: AbstractMethod[Pre] =>
           new MethodBuildHelpers(method).rewrite(
@@ -226,6 +231,7 @@ object AstBuildHelpers {
             typeArgs = typeArgs,
             inline = inline,
             contract = contract,
+            blame = { blame.asInstanceOf[Blame[CallableFailure]] },
           )
       }
   }

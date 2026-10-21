@@ -128,6 +128,9 @@ case class EncodePermissionStratification[Pre <: Generation](
   // not a literal endpointname expression.
   val specializing = ScopedStack[Expr[Post]]()
 
+  private val specializingContractApplicable
+      : ScopedStack[ContractApplicable[Pre]] = ScopedStack()
+
   // Even though type could be inferred from instancefield (since an instancefield belongs to exactly one class),
   // we keep the type key there in case we want to support generics
   case class MarkerPredicateKey(obj: TClass[Pre], f: InstanceField[Pre])
@@ -333,7 +336,7 @@ case class EncodePermissionStratification[Pre <: Generation](
 
       // Make sure plain perms are rewritten into wrapped perms
       specializing.having(endpointCtxVar.get(app.o)) {
-        val newF: Applicable[Post] =
+        lazy val newF: Applicable[Post] =
           app match {
             case f: InstanceFunction[Pre] =>
               val newF = f.rewrite(
@@ -373,7 +376,13 @@ case class EncodePermissionStratification[Pre <: Generation](
               )
               newP.declare()
           }
-        specializedApplicableSucc(app) = newF
+        app match {
+          case ca: ContractApplicable[Pre] =>
+            specializingContractApplicable.having(ca) {
+              specializedApplicableSucc(app) = newF
+            }
+          case _ => specializedApplicableSucc(app) = newF
+        }
       }
     }
   }
@@ -523,6 +532,13 @@ case class EncodePermissionStratification[Pre <: Generation](
 
       case Value(loc: PredicateLocation[Pre]) if specializing.nonEmpty =>
         markedPredicate(loc, ReadPerm()(expr.o))(expr.o)
+
+      case r @ Result(Ref(app))
+          if specializingContractApplicable.topOption.contains(app) =>
+        r.rewrite(applicable =
+          specializedApplicableSucc.ref[Post, Applicable[Post]](app)
+            .asInstanceOf[Ref[Post, ContractApplicable[Post]]]
+        )
 
       case unfolding @ Unfolding(res: FoldTarget[Pre], inner)
           if specializing.nonEmpty =>

@@ -1439,7 +1439,7 @@ case class NontrivialPostconditionUnsatisfiable(node: ApplicableContract[_])
 
 // from DetectDeadCode
 case class DeadBranch(node: Node[_], branchKind: String)
-    extends NodeVerificationFailure with ContractedFailure {
+    extends NodeVerificationFailure with ContractedFailure with KernelFailure {
   override def code: String = "deadBranch"
   override def descInContext: String =
     s"The $branchKind is dead — the verifier proved this code path cannot be reached under the current specification (preconditions, assumptions, and invariants). This may be a false-positive if there are other verification errors."

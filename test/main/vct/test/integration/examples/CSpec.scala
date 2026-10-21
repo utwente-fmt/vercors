@@ -24,7 +24,7 @@ class CSpec extends VercorsSpec {
 int x = 4.0 % 1;
   }
   """
-  vercors should fail withCode "assignFieldFailed" using silicon in "cannot access field of struct after freeing" c
+  vercors should fail withCode "assignFieldFailed" using silicon flag "--dev-no-dead" in "cannot access field of struct after freeing" c
 """
 #include <stdlib.h>
 
@@ -631,7 +631,7 @@ void cannotCastToBoolean() {
   vercors should verify using silicon example "concepts/c/mismatched_provenance.c"
   vercors should verify using silicon example "concepts/c/ptr_comparisons.c"
   vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" flag "--dev-no-sat" example "concepts/c/pointer_tag.c"
-  vercors should verify using silicon flags("--target", "x86_64-linux-unknown", "--dev-no-sat", "--opaque-bitwise-operators") example "concepts/c/xor_linked_list.c"
+  vercors should verify using silicon flags("--target", "x86_64-linux-unknown", "--dev-no-sat", "--dev-no-dead", "--dev-no-post-sat", "--dev-no-loop-inv-sat", "--opaque-bitwise-operators") example "concepts/c/xor_linked_list.c"
   vercors should verify using silicon in "Pointer address correctly offset based on type size" c
 """
 #include <stdint.h>

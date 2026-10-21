@@ -92,7 +92,7 @@ choreography Main() {
       p2.turn := !p2.turn;
     }
 
-    assume !p1.gameFinished() && !p2.gameFinished(); // By informal deadlock freedom proof
+    assume p1.gameFinished() && p2.gameFinished(); // By informal deadlock freedom proof
 
     p1.finish();
     p2.finish();

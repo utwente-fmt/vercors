@@ -48,6 +48,7 @@ class TestArrayListObject {
     } else if (initialCapacity == 0) {
       this.list = EMPTY_ELEMENTDATA;
     } else {
+      //@ assert false;
       throw new Exception();
     }
   }
@@ -225,6 +226,7 @@ class TestArrayListObject {
   @*/
   public Object remove(int index) throws Exception {
     if (index < 0 || index >= size) {
+      //@ assert false;
       throw new Exception();
     }
     Object removed_value = list[index];

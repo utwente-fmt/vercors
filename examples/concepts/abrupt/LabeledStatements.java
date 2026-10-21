@@ -10,6 +10,7 @@ class MyClass {
         LABEL: try {
             // Some code.
         } catch(Exception e) {
+            //@ assert false;
             boolean pp = p();
             if(pp) {
                 break LABEL;

@@ -106,7 +106,6 @@ void noSelfLoop(int task) {
         : 0)
     ;
     if (subtask()[task][0] == task || subtask()[task][1] == task) {
-        assert height(subtask(), subtask()[task][0], pigeon(seen + {task}, n())) == -1;
         assert false;
     }
 }

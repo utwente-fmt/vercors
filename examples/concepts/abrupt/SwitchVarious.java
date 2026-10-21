@@ -13,14 +13,17 @@ class C {
                         x = 33;
                         break;
                     case 4:
+                        //@ assert false;
                         x = 44;
                         break;
                 }
                 break;
             case 2:
+                //@ assert false;
                 x = 22;
                 break;
             default:
+                //@ assert false;
                 x = 100;
         }
         //@ assert x == 33;
@@ -33,6 +36,7 @@ class C {
                 x = 11;
                 break;
             case 2:
+                //@ assert false;
                 x = 22;
                 break;
         }
@@ -60,9 +64,11 @@ class C {
         int x = -1;
         switch (3) {
             case 1:
+                //@ assert false;
                 x = 11;
                 break;
             case 2:
+                //@ assert false;
                 x = 22;
                 break;
             default:
@@ -79,6 +85,7 @@ class C {
         int x = -1;
         switch (pickBetween1And5()) {
             case 0:
+                //@ assert false;
                 x = 11;
                 break;
             case 1:
@@ -117,6 +124,7 @@ class C {
         int x = 0;
         switch (1) {
             case 0:
+                //@ assert false;
                 x += 5;
             case 1:
                 x += 20;

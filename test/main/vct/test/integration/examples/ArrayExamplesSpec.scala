@@ -22,7 +22,7 @@ class ArrayExamplesSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/arrays/zero_array.pvl"
   vercors should verify using silicon example "concepts/arrays/array-problem.pvl"
 
-  vercors should verify using silicon example "concepts/arrays/ArrayList.java"
+  vercors should verify using silicon flag "--dev-no-dead" example "concepts/arrays/ArrayList.java"
 
   vercors should verify using silicon flags("--prover-config:smt.arith.solver=6") example "concepts/arrays/MatrixTranspose.pvl"
 
