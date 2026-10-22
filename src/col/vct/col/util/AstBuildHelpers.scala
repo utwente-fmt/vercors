@@ -186,7 +186,7 @@ object AstBuildHelpers {
         contract: => ApplicableContract[Post] = rewriter
           .dispatch(contracted.contract),
         inline: => Boolean = contracted.inline,
-        blame: => Blame[ContractedFailure] = contracted.blame,
+        blame: Blame[ContractedFailure] = contracted.blame,
     ): ContractApplicable[Post] =
       contracted match {
         case function: Function[Pre] =>
@@ -268,7 +268,7 @@ object AstBuildHelpers {
           .dispatch(method.typeArgs),
         inline: => Boolean = method.inline,
         pure: => Boolean = method.pure,
-        blame: => Blame[CallableFailure] = method.blame,
+        blame: Blame[CallableFailure] = method.blame,
     ): AbstractMethod[Post] =
       method match {
         case procedure: Procedure[Pre] =>

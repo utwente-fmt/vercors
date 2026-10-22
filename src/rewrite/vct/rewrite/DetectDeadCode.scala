@@ -1,6 +1,5 @@
 package vct.rewrite
 
-import com.typesafe.scalalogging.LazyLogging
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin.{
@@ -14,7 +13,6 @@ import vct.col.origin.{
   NamePrefix,
   Origin,
   RefuteFailed,
-  TerminationMeasureFailed,
   VerificationFailure,
 }
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
@@ -92,21 +90,7 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
       case ca: ContractApplicable[Pre] =>
         suppressor.having(new AtomicInteger(Int.MaxValue)) {
           methodBlame.having(ca.blame) {
-            // Because the returnType is first in the list we can use this as a trick to rewrite the blame and the contract before the body
-            lazy val parts =
-              (
-                dispatch(ca.returnType),
-                dispatch(ca.blame),
-                dispatch(ca.contract),
-              )
-            allScopes.anySucceed(
-              ca,
-              ca.rewrite(
-                returnType = parts._1,
-                blame = parts._2,
-                contract = parts._3,
-              ),
-            )
+            allScopes.anySucceed(ca, ca.rewrite(blame = dispatch(ca.blame)))
           }
         }
       case _ => super.dispatch(decl)
@@ -407,13 +391,16 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
             Block(Seq(caseBody, currentBlame.having(caseBlame) { caseCheck }))
           }
 
+        case inv: ParInvariant[Pre] => inv.rewrite(blame = dispatch(inv.blame))
+
         // atomic(inv) inhales inv's invariant the same way lock obj does; treat it
         // the same way so re-entrant/nested atomic on an already-held invariant
         // (a permission duplication, same shape as a double lock) is caught.
         case atomic @ ParAtomic(_, body) =>
           implicit val o: Origin = atomic.o
-          atomic.rewrite(content =
-            instrumentBody(atomic, "atomic block body", body)
+          atomic.rewrite(
+            blame = dispatch(atomic.blame),
+            content = instrumentBody(atomic, "atomic block body", body),
           )
 
         case other => other.rewriteDefault()
@@ -427,17 +414,9 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
         case block @ ParBlock(_, _, _, _, _, content) =>
           implicit val o: Origin = block.o
           // par block creates a fresh scope with the range constraint
-          // Using lazy val to rewrite blame before body
-          lazy val blame_iters_content =
-            (
-              dispatch(block.blame),
-              block.iters.map(dispatch),
-              instrumentBody(block, "parallel block body", content),
-            )
           block.rewrite(
-            content = blame_iters_content._3,
-            iters = blame_iters_content._2,
-            blame = blame_iters_content._1,
+            blame = dispatch(block.blame),
+            content = instrumentBody(block, "parallel block body", content),
           )
         case other => other.rewriteDefault()
       }
