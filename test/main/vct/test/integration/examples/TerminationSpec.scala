@@ -15,6 +15,7 @@ public class MyClass {
     //@ decreases;
     private int f() {
         while (true) {}
+        //@ assert false;
         return 5;
     }
 
@@ -40,6 +41,7 @@ public class MyClass {
         //@ decreases;
         while (true) {
         }
+        //@ assert false;
         return 5;
     }
 }

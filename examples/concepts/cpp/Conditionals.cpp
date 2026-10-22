@@ -25,9 +25,10 @@ void matchElse() {
 	int num = 5;
 	int result = 0;
 	if (num < 5) {
-		result = 10;
-	} else {
-		result = 20;
-	}
-	//@ assert result == 20;
+            //@ assert false;
+            result = 10;
+        } else {
+            result = 20;
+        }
+        //@ assert result == 20;
 }

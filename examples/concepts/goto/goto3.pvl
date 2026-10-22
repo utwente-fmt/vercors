@@ -22,6 +22,7 @@ class D {
       r = 20;
       goto lbl2;
     }
+    assert false;
     assert r == 10;
     label lbl2;
     assert r == 20;

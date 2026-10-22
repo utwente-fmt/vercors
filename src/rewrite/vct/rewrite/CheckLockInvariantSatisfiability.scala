@@ -5,6 +5,7 @@ import vct.col.ast._
 import vct.col.origin._
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
 import vct.col.rewrite.util.Extract
+import vct.col.rewrite.util.Extract.GenericsNotSupported
 import vct.col.util.AstBuildHelpers._
 import vct.rewrite.CheckInvariantSatisfiability.SkippableBlame
 
@@ -74,8 +75,13 @@ case class CheckLockInvariantSatisfiability[Pre <: Generation](
       case None => // No declaration to anchor the report to: nothing to check.
       case Some(anchor) =>
         val extractObj = Extract[Pre]()
-        val extracted = extractObj.extract(cls.intrinsicLockInvariant)
-        val extractObj.Data(ts, in, inForOut, _, _, _) = extractObj.finish()
+        val (extracted, extractObj.Data(ts, in, inForOut, _, _, _)) =
+          try {
+            (
+              extractObj.extract(cls.intrinsicLockInvariant),
+              extractObj.finish(),
+            )
+          } catch { case _: GenericsNotSupported => return }
 
         variables.scope {
           localHeapVariables.scope {

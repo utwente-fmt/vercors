@@ -246,6 +246,8 @@ trait SilverBackend
                 case reasons.AssertionFalse(n) => n
                 case reasons.NegativePermission(n) => n
                 case reasons.QPAssertionNotInjective(n) => n
+                case reasons.SeqIndexExceedsLength(_, n) => n
+                case reasons.SeqIndexNegative(_, n) => n
               }
             val (bl, assert) = info(offNode).asserting.map(n => (n.blame, n))
               .getOrElse[(blame.Blame[blame.AssertFailed], Node[_])](

@@ -20,15 +20,15 @@ import vct.col.origin.{
   UnsafeDontCare,
   VerificationFailure,
 }
+import vct.col.rewrite.util.Extract.GenericsNotSupported
 import vct.col.rewrite.{Generation, Rewriter, RewriterBuilderArg}
-
 import vct.col.util.AstBuildHelpers.{
   ExprBuildHelpers,
   ff,
   foldStar,
-  unfoldPredicate,
   procedure,
   tt,
+  unfoldPredicate,
 }
 import vct.col.util.Substitute
 
@@ -82,6 +82,16 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
       case _ => None
     }
 
+  private def hasUnsupportedExpression(e: Expr[Pre]): Boolean =
+    e match {
+      case AutoValue(_) => true
+      case _ =>
+        e.subnodes.exists {
+          case inner: Expr[Pre] => hasUnsupportedExpression(inner)
+          case _ => false
+        }
+    }
+
   private def substituteResult(
       expr: Expr[Pre],
       applicable: ContractApplicable[Pre],
@@ -104,6 +114,8 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
       case (e1, BooleanValue(true)) => e1
       case (e1, e2) => Star(e1, e2)(e1.o)
     }
+    if (hasUnsupportedExpression(ensuresPred))
+      return
     ensuresPred match {
       case BooleanValue(
             false
@@ -118,6 +130,20 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
             case None => ensuresPred
           }
 
+        val combined = postPredAfterResult
+
+        val extractObj = Extract[Pre]()
+        val (extracted, precond, extractObj.Data(ts, in, inForOut, _, _, _)) =
+          try {
+            (
+              extractObj.extract(combined),
+              extractObj.extract(foldStar(unfoldPredicate(contract.requires))),
+              extractObj.finish(),
+            )
+          } catch { case _: GenericsNotSupported => return }
+        if (hasUnsupportedExpression(precond))
+          return
+
         val err = ExpectedError(
           "assertFailed:false",
           origin,
@@ -128,13 +154,6 @@ case class CheckPostconditionSatisfiability[Pre <: Generation](
           err,
         )
         expectedErrors.top += err
-        val combined = postPredAfterResult
-
-        val extractObj = Extract[Pre]()
-        val extracted = extractObj.extract(combined)
-        val precond = extractObj
-          .extract(foldStar(unfoldPredicate(contract.requires)))
-        val extractObj.Data(ts, in, inForOut, _, _, _) = extractObj.finish()
         variables.scope {
           localHeapVariables.scope {
             globalDeclarations.declare(procedure(

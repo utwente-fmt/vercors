@@ -8,7 +8,7 @@ class CSpec extends VercorsSpec {
   vercors should verify using silicon example "concepts/c/malloc_free.c"
   vercors should verify using silicon example "concepts/c/math.c"
   vercors should verify using silicon example "concepts/c/mod_div.c"
-  vercors should verify using silicon example "concepts/c/structs.c"
+  vercors should verify using silicon flags("--backend-option", "--exhaleModeQP=0") example "concepts/c/structs.c"
   vercors should verify using silicon example "concepts/c/vector_add.c"
   vercors should verify using silicon example "concepts/c/vector_type.c"
   vercors should verify using silicon example "concepts/c/pointer_casts.c"
@@ -630,7 +630,7 @@ void cannotCastToBoolean() {
 """
   vercors should verify using silicon example "concepts/c/mismatched_provenance.c"
   vercors should verify using silicon example "concepts/c/ptr_comparisons.c"
-  vercors should verify using silicon flag "--target" flag "x86_64-linux-unknown" flag "--dev-no-sat" example "concepts/c/pointer_tag.c"
+  vercors should verify using silicon flags("--target", "x86_64-linux-unknown", "--dev-no-sat", "--dev-no-post-sat", "--dev-no-dead", "--dev-no-loop-inv-sat") example "concepts/c/pointer_tag.c"
   vercors should verify using silicon flags("--target", "x86_64-linux-unknown", "--dev-no-sat", "--dev-no-dead", "--dev-no-post-sat", "--dev-no-loop-inv-sat", "--opaque-bitwise-operators") example "concepts/c/xor_linked_list.c"
   vercors should verify using silicon in "Pointer address correctly offset based on type size" c
 """

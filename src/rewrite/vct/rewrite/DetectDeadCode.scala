@@ -153,14 +153,22 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
     (blame, Refute(ff)(blame))
   }
 
+  private def isTriviallyFalse(e: Expr[Pre]): Boolean =
+    e match {
+      case BooleanValue(false) => true
+      case And(l, r) => isTriviallyFalse(l) || isTriviallyFalse(r)
+      case Star(l, r) => isTriviallyFalse(l) || isTriviallyFalse(r)
+      case _ => false
+    }
+
   @tailrec
   private def startsWithAssertFalse(stat: Statement[Pre]): Boolean =
     stat match {
       case Scope(_, body) => startsWithAssertFalse(body)
       case Block(Nil) => false
       case Block(stats) => startsWithAssertFalse(stats.head)
-      case Assert(BooleanValue(false)) => true
-      case Refute(BooleanValue(false)) => true
+      case Assert(e) => isTriviallyFalse(e)
+      case Refute(e) => isTriviallyFalse(e)
       case _ => false
     }
 
@@ -419,8 +427,17 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
         case block @ ParBlock(_, _, _, _, _, content) =>
           implicit val o: Origin = block.o
           // par block creates a fresh scope with the range constraint
-          block.rewrite(content =
-            instrumentBody(block, "parallel block body", content)
+          // Using lazy val to rewrite blame before body
+          lazy val blame_iters_content =
+            (
+              dispatch(block.blame),
+              block.iters.map(dispatch),
+              instrumentBody(block, "parallel block body", content),
+            )
+          block.rewrite(
+            content = blame_iters_content._3,
+            iters = blame_iters_content._2,
+            blame = blame_iters_content._1,
           )
         case other => other.rewriteDefault()
       }

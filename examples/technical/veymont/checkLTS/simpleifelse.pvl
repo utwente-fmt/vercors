@@ -1,7 +1,7 @@
 class Role {
 	int x;
 	int left;
-	
+
 	ensures x == v && left == v;
 	constructor(int v) {
 		x = v;
@@ -20,11 +20,13 @@ choreography Main() {
 	ensures (\chor a.x == b.x && b.x == c.x);
 	run {
 		if(a.left != a.x && b.left != b.x && c.left != c.x) {
+                        assert false;
 			a.x := a.x + 1;
 		}
 		if(a.left != 2 && b.left != 3 && c.left != 5) {
 			b.x := 5;
 		} else {
+                  assert false;
 		  c.x := 7;
 		}
 		communicate a.x -> b.x;

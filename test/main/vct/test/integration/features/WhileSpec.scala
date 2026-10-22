@@ -18,6 +18,7 @@ class WhileSpec extends VercorsSpec {
         while(fIsFive()) {
           assert f == 5;
         }
+        assert false;
       }
     }
   """

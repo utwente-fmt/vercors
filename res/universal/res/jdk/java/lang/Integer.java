@@ -15,12 +15,17 @@ class Integer {
     /*@
     ghost
     pure public int intValue();
+
+    ghost
+    ensures \result != null;
+    pure String nonNullString();
      */
+
 
     //@ ensures \result != null;
     public String toString() {
         String string;
-        //@ ghost string :| string != null;
-        return null;
+        //@ ghost `string` = nonNullString();
+        return string;
     }
 }

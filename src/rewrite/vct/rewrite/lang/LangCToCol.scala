@@ -1722,20 +1722,36 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     }
   }
 
-  def assignliteralArray(
+  private def assignConstArray(
       array: Variable[Post],
       exprs: Seq[Expr[Pre]],
       origin: Origin,
   ): Seq[Statement[Post]] = {
     implicit val o: Origin = origin
-    (exprs.zipWithIndex.map { case (value, index) =>
+    exprs.zipWithIndex.map { case (value, index) =>
       // Since we model const arrays with sequences internally, we cannot assign to them, so we assume their values
       Assume[Post](
         AmbiguousSubscript(array.get, c_const(index))(PanicBlame(
           "The explicit initialization of an array in C should never exceed the bounds of the array"
         )) === rw.dispatch(value)
       )
-    })
+    }
+  }
+
+  private def assignArray(
+      array: Variable[Post],
+      exprs: Seq[Expr[Pre]],
+      origin: Origin,
+  ): Seq[Statement[Post]] = {
+    implicit val o: Origin = origin
+    exprs.zipWithIndex.map { case (value, index) =>
+      Assign[Post](
+        AmbiguousSubscript(array.get, c_const(index))(PanicBlame(
+          "The explicit initialization of an array in C should never exceed the bounds of the array"
+        )),
+        rw.dispatch(value),
+      )(PanicBlame("Assignment to just-created array should not fail"))
+    }
   }
 
   def rewriteVectorDeclaration(
@@ -1780,6 +1796,14 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case inner => inner
     }
 
+  @tailrec
+  private def isConstArray(cta: CTArray[Pre]): Boolean =
+    cta.innerType match {
+      case inner: CTArray[Pre] => isConstArray(inner)
+      case TConst(_) => true
+      case _ => false
+    }
+
   def rewriteArrayDeclaration(
       decl: CLocalDeclaration[Pre],
       cta: CTArray[Pre],
@@ -1793,6 +1817,7 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     decl.decl.specs match {
       case Seq(CSpecificationType(cta @ CTArray(sizeOption, oldT))) =>
         val optDimensions = getDimensions(cta)
+        val isConst = isConstArray(cta)
         val innerMostType = rw.dispatch(getArrayType(cta))
         val v =
           new Variable[Post](
@@ -1823,7 +1848,8 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               )(cta.blame)
             Block(
               Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++
-                assignliteralArray(v, exprs, o)
+                (if (isConst) { assignConstArray(v, exprs, o) }
+                 else { assignArray(v, exprs, o) })
             )
           case (Some(size), Some(CLiteralArray(exprs))) =>
             oldT match {
@@ -1842,7 +1868,9 @@ case class LangCToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
               )(cta.blame)
             Block(
               Seq(LocalDecl(v), assignLocal(v.get, newArr)) ++
-                assignliteralArray(v, exprs.take(realSize.intValue), o)
+                (if (isConst) {
+                   assignConstArray(v, exprs.take(realSize.intValue), o)
+                 } else { assignArray(v, exprs.take(realSize.intValue), o) })
             )
           case _ => throw WrongCType(decl)
         }

@@ -3,6 +3,7 @@ package vct.rewrite
 import hre.util.ScopedStack
 import vct.col.ast._
 import vct.col.origin._
+import vct.col.rewrite.util.Extract.GenericsNotSupported
 import vct.col.rewrite.{
   Generation,
   NonLatchingRewriter,
@@ -97,7 +98,7 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
   private def isolatedSatCheck(
       inv: Expr[Pre],
       blame: Blame[RefuteFailed] with SkippableBlame,
-  )(implicit o: Origin) = {
+  )(implicit o: Origin): Unit = {
     val pre = foldStar(currentApplicable.topOption.toSeq.map { ca =>
       foldStar(unfoldPredicate(ca.contract.requires))
     })
@@ -105,9 +106,14 @@ case class CheckInvariantSatisfiability[Pre <: Generation](
     val filtered = RemoveScaleByPar[Pre]().dispatch(inv)
 
     val extractObj = ExtractObj[Pre]()
-    val preExtract = extractObj.extract(pre)
-    val invExtract = extractObj.extract(filtered)
-    val extractObj.Data(ts, in, inForOut, _, _, _) = extractObj.finish()
+    val (preExtract, invExtract, extractObj.Data(ts, in, inForOut, _, _, _)) =
+      try {
+        (
+          extractObj.extract(pre),
+          extractObj.extract(filtered),
+          extractObj.finish(),
+        )
+      } catch { case _: GenericsNotSupported => return }
 
     variables.scope {
       localHeapVariables.scope {

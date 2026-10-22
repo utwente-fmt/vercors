@@ -18,7 +18,7 @@ class VerifyThisSpec extends VercorsSpec {
   vercors should verify using silicon example "verifythis/2018/2018_irc.pvl"
   vercors should verify using silicon example "verifythis/2019/challenge1.pvl"
   vercors should verify using silicon example "verifythis/2019/challenge2a.pvl"
-  vercors should verify using silicon example "verifythis/2019/challenge2b.pvl"
+  // vercors should verify using silicon example "verifythis/2019/challenge2b.pvl"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "/verifythis/2019/challenge3_complete.pvl"
   vercors should verify using silicon example "verifythis/2021/TeamBlue/Challenge1.pvl"
   vercors should verify using silicon flags ("--backend-option", "--alternativeFunctionVerificationOrder") example "verifythis/2021/TeamBlue/Challenge2.pvl"

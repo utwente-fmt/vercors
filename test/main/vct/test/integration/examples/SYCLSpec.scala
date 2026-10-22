@@ -21,8 +21,8 @@ class SYCLSpec extends VercorsSpec {
 
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalId.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId1.cpp"
-  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId2.cpp"
-  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId3.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" flag "--dev-no-dead" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId2.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" flag "--dev-no-dead" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId3.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGroupLinearId1.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGroupLinearId2.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGroupLinearId3.cpp"
@@ -49,7 +49,7 @@ class SYCLSpec extends VercorsSpec {
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/buffers/WrongGenericArgumentForHostdataType.cpp"
   vercors should error withCode "unexpectedCPPTypeError" example "concepts/sycl/buffers/WrongGenericArgumentForRangeType.cpp"
 
-  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/dataAccessors/AccessorDeclarations.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" flag "--dev-no-dead" example "concepts/sycl/dataAccessors/AccessorDeclarations.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/dataAccessors/AccessorInNDRange.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/dataAccessors/GetKernelResult.cpp"
   vercors should error withCode "syclAccessorInsufficientReferencePermission" example "concepts/sycl/dataAccessors/GetRangeDimensionOutOfBounds1.cpp"

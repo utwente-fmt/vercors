@@ -21,6 +21,7 @@ import vct.col.origin.{
   UnsafeDontCare,
   VerificationFailure,
 }
+import vct.col.rewrite.util.Extract.GenericsNotSupported
 import vct.col.rewrite.{
   Generation,
   Rewriter,
@@ -63,6 +64,16 @@ case class CheckContractSatisfiability[Pre <: Generation](
   val wellFormednessBlame: ScopedStack[Blame[VerificationFailure]] =
     ScopedStack()
 
+  private def hasUnsupportedExpression(e: Expr[Pre]): Boolean =
+    e match {
+      case AutoValue(_) => true
+      case _ =>
+        e.subnodes.exists {
+          case inner: Expr[Pre] => hasUnsupportedExpression(inner)
+          case _ => false
+        }
+    }
+
   override def dispatch[T <: VerificationFailure](blame: Blame[T]): Blame[T] =
     wellFormednessBlame.topOption.getOrElse(blame)
 
@@ -83,6 +94,8 @@ case class CheckContractSatisfiability[Pre <: Generation](
       case BooleanValue(false) =>
       // Assume the contract is not intended to be satisfiable
       case pred =>
+        if (hasUnsupportedExpression(pred))
+          return
         val err = ExpectedError(
           "assertFailed:false",
           origin,
@@ -94,8 +107,9 @@ case class CheckContractSatisfiability[Pre <: Generation](
         )
         expectedErrors.top += err
         val extractObj = Extract[Pre]()
-        val result = extractObj.extract(pred)
-        val extractObj.Data(ts, in, inForOut, _, _, _) = extractObj.finish()
+        val (result, extractObj.Data(ts, in, inForOut, _, _, _)) =
+          try { (extractObj.extract(pred), extractObj.finish()) }
+          catch { case _: GenericsNotSupported => return }
         variables.scope {
           localHeapVariables.scope {
             globalDeclarations.declare(procedure(

@@ -539,7 +539,7 @@ class TechnicalVeyMontSpec extends VeyMontSpec {
 
   choreography(
     fail = "postFailed:false",
-    flag = "--generate-permissions",
+    flags = Seq("--generate-permissions", "--dev-no-dead"),
     desc = "Postcondition of run can fail",
     pvl = """
     class Storage {

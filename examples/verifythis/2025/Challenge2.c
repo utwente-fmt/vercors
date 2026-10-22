@@ -78,11 +78,14 @@ void removeBetter(List_t *l, Node_t *toremove) {
             }
         } @*/
     }
+    //@ assert l->head != NULL ==> (\forall* int i = 0 .. |l->ns| - 1, int j; j == i + 1; {: l->ns[i]->next :} == {: l->ns[j] :});
     //@ assume \pointer_block(*p) == \pointer_block(toremove);
 
     //@ label pre;
     struct Node **oldP = p;
     //@ ghost Nodes oldNs = l->ns;
+    //@ assert toremove == l->ns[k];
+    //@ assert k + 1 < |l->ns| ==> l->ns[k+1] == toremove->next;
     *p = toremove->next;
     //@ ghost l->ns = l->ns[0 .. k] + l->ns[k + 1 ..];
 
@@ -91,9 +94,6 @@ void removeBetter(List_t *l, Node_t *toremove) {
             assert oldP == &(l->head);
             assert \old[pre](toremove->next == NULL);
             assert \old[pre](toremove->next == NULL);
-            if (|oldNs| > 1) {
-                assert oldNs[1] == toremove->next;
-            }
             assert |oldNs| == 1;
             assert |l->ns| == 0;
         }

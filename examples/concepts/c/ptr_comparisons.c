@@ -20,6 +20,7 @@ void foo() {
         } else {
             //@ assert end > p;
         }
+        p++;
     }
 }
 
