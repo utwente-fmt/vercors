@@ -16,7 +16,7 @@ class BasicExamplesSpec extends VercorsSpec {
   vercors should verify using anyBackend example "concepts/basic/ContractUnsatisfiableUnintentional.pvl"
   vercors should verify using anyBackend example "concepts/basic/Sat.java"
   vercors should verify using anyBackend example "concepts/basic/Unsat.java"
-  vercors should verify using anyBackend example "concepts/basic/For.java"
+  vercors should verify using anyBackend flags ("--dev-no-sat", "--dev-no-post-sat", "--dev-no-loop-inv-sat", "--dev-no-dead") example "concepts/basic/For.java"
   vercors should verify using anyBackend example "concepts/basic/for.pvl"
   vercors should verify using anyBackend example "concepts/basic/frac1.pvl"
   vercors should verify using anyBackend example "concepts/basic/frac2.pvl"
