@@ -10,9 +10,9 @@ void test(int* a, int* b) {
       sycl::accessor<int, 1> a_accessor = sycl::accessor(aBuffer, cgh, sycl::read_write);
       cgh.parallel_for(sycl::nd_range<2>(sycl::range<2>(100, 10), sycl::range<2>(10,5)),
         /*@
-          context it.get_global_linear_id() < a_accessor.get_range().get(0);
-          context Perm(a_accessor[it.get_global_linear_id()], write);
-          ensures a_accessor[it.get_global_linear_id()] == 10;
+          context {:it.get_global_linear_id():} < a_accessor.get_range().get(0);
+          context Perm({:a_accessor[it.get_global_linear_id()]:}, write);
+          ensures {:a_accessor[it.get_global_linear_id()]:} == 10;
         */
         [=] (sycl::nd_item<2> it) {
           a_accessor[it.get_global_linear_id()] = 10;

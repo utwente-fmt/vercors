@@ -21,7 +21,7 @@ class SYCLSpec extends VercorsSpec {
 
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalId.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId1.cpp"
-  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" flag "--dev-no-dead" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId2.cpp"
+  vercors should verify using silicon flag "--no-infer-heap-context-into-frame" flags("--dev-no-sat", "--dev-no-dead", "--dev-no-post-sat", "--dev-no-lock-inv-sat", "--dev-no-loop-inv-sat", "--prover-config:smt.arith.solver=6") example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId2.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" flags("--dev-no-sat", "--dev-no-dead", "--dev-no-post-sat", "--dev-no-lock-inv-sat", "--dev-no-loop-inv-sat", "--prover-config:smt.arith.solver=6") example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGlobalLinearId3.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGroupLinearId1.cpp"
   vercors should verify using silicon flag "--no-infer-heap-context-into-frame" example "concepts/sycl/kernels/itemMethodsInjective/injectiveGetGroupLinearId2.cpp"

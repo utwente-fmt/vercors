@@ -37,17 +37,17 @@ class Kahn
     {
         topResult = seq<int> { };
         seq<int> queue = seq<int> { };
-        
+
         loop_invariant 0 <= toIx && toIx <= N;
-        loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < |indegree[j]|; {:indegree[j][i]:} >= 0 && {:indegree[j][i]:} < N)); 
+        loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < |indegree[j]|; {:indegree[j][i]:} >= 0 && {:indegree[j][i]:} < N));
         loop_invariant (\forall int j; 0 <= j && j < N; distinct({:indegree[j]:}));
-        loop_invariant (\forall int j; 0 <= j && j < toIx; (\forall int i; 0 <= i && i < |indegree[j]|; graph[{:indegree[j][i]:}][j])); 
-        loop_invariant (\forall int i; 0 <= i && i < toIx; (\forall int j; 0 <= j && j < N; {:graph[j][i]:} ==> indegree[i].contains(j))); 
+        loop_invariant (\forall int j; 0 <= j && j < toIx; (\forall int i; 0 <= i && i < |indegree[j]|; graph[{:indegree[j][i]:}][j]));
+        loop_invariant (\forall int i; 0 <= i && i < toIx; (\forall int j; 0 <= j && j < N; {:graph[j][i]:} ==> indegree[i].contains(j)));
         loop_invariant (\forall int j; toIx <= j && j < N; {:indegree[j]:} == seq<int> { });
         for (int toIx = 0; toIx < N; toIx++)
         {
             seq<seq<int>> temp = \values(indegree, 0, N);
-            
+
             loop_invariant 0 <= fromIx && fromIx <= N;
             loop_invariant 0 <= toIx && toIx < N;
             loop_invariant (\forall int j; 0 <= j && j < toIx; {:indegree[j]:} == temp[j]);
@@ -60,7 +60,7 @@ class Kahn
             for (int fromIx = 0; fromIx < N; fromIx++)
             {
                 if (graph[fromIx][toIx] == true)
-                { 
+                {
                     indegree[toIx] = indegree[toIx] + seq<int> {fromIx};
                 }
             }
@@ -69,11 +69,11 @@ class Kahn
         loop_invariant 0 <= toIndex && toIndex <= N;
         loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < |indegree[j]|; {:indegree[j][i]:} >= 0 && {:indegree[j][i]:} < N));
         loop_invariant (\forall int j; 0 <= j && j < N; distinct({:indegree[j]:}));
-        loop_invariant (\forall int j; 0 <= j && j < |queue|; {:queue[j]:} >= 0 && {:queue[j]:} < N); 
-        loop_invariant (\forall int j; 0 <= j && j < |queue|; |indegree[{:queue[j]:}]| == 0); 
-        loop_invariant (\forall int j; 0 <= j && j < toIndex; {:|indegree[j]|:} == 0 ==> queue.contains(j)); 
+        loop_invariant (\forall int j; 0 <= j && j < |queue|; {:queue[j]:} >= 0 && {:queue[j]:} < N);
+        loop_invariant (\forall int j; 0 <= j && j < |queue|; |indegree[{:queue[j]:}]| == 0);
+        loop_invariant (\forall int j; 0 <= j && j < toIndex; |{:indegree[j]:}| == 0 ==> queue.contains(j));
         loop_invariant (\forall int j; 0 <= j && j < |queue|; {:queue[j]:} < toIndex);
-        loop_invariant (distinct(queue)); 
+        loop_invariant (distinct(queue));
         loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < |indegree[j]|; {:graph[indegree[j][i]][j]:}));
         loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < N; {:graph[i][j]:} ==> indegree[j].contains(i)));
         for (int toIndex = 0; toIndex < N; toIndex++)
@@ -86,20 +86,20 @@ class Kahn
 
         loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < |indegree[j]|; {:indegree[j][i]:} >= 0 && indegree[j][i] < N));
         loop_invariant (\forall int j; 0 <= j && j < N; distinct({:indegree[j]:}));
-        loop_invariant (\forall int j; 0 <= j && j < |queue|; {:queue[j]:} >= 0 && {:queue[j]:} < N); 
-        loop_invariant (\forall int j; 0 <= j && j < |topResult|; {:topResult[j]:} >= 0 && {:topResult[j]:} < N); 
-        loop_invariant (\forall int j; 0 <= j && j < |queue|;  {:|indegree[queue[j]]|:} == 0); 
+        loop_invariant (\forall int j; 0 <= j && j < |queue|; {:queue[j]:} >= 0 && {:queue[j]:} < N);
+        loop_invariant (\forall int j; 0 <= j && j < |topResult|; {:topResult[j]:} >= 0 && {:topResult[j]:} < N);
+        loop_invariant (\forall int j; 0 <= j && j < |queue|;  {:|indegree[queue[j]]|:} == 0);
         loop_invariant (\forall int j; 0 <= j && j < |topResult|; {:|indegree[topResult[j]]|:} == 0);
         loop_invariant distinct(topResult);
         loop_invariant distinct(queue);
         loop_invariant distinct(topResult + queue);
-        loop_invariant (\forall int j; 0 <= j && j < |topResult|; !{:queue.contains(topResult[j]):}); 
-        loop_invariant (\forall int j; 0 <= j && j < N; {:|indegree[j]|:} > 0 ==> !topResult.contains(j) && !queue.contains(j)); 
+        loop_invariant (\forall int j; 0 <= j && j < |topResult|; !{:queue.contains(topResult[j]):});
+        loop_invariant (\forall int j; 0 <= j && j < N; {:|indegree[j]|:} > 0 ==> !topResult.contains(j) && !queue.contains(j));
         loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < |indegree[j]|; {:graph[indegree[j][i]][j]:}));
         loop_invariant (\forall int j; 0 <= j && j < |queue|; (\forall int i; 0 <= i && i < N; graph[i][queue[j]] ==> topResult.contains(i)));
         loop_invariant (\forall int j; 0 <= j && j < N; (|indegree[j]| == 0 ==> (\forall int i; 0 <= i && i < N; (graph[i][j] ==> topResult.contains(i)))));
-        loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < N; (graph[i][j] && !indegree[j].contains(i)) ==> topResult.contains(i)));  
-        loop_invariant (\forall int j; 0 <= j && j < |topResult|; (\forall int i; 0 <= i && i < N; graph[i][topResult[j]] ==> topResult[..j].contains(i)));      
+        loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < N; (graph[i][j] && !indegree[j].contains(i)) ==> topResult.contains(i)));
+        loop_invariant (\forall int j; 0 <= j && j < |topResult|; (\forall int i; 0 <= i && i < N; graph[i][topResult[j]] ==> topResult[..j].contains(i)));
         while (|queue| > 0)
         {
             seq<seq<int>> temp2 = \values(indegree, 0, N);
@@ -115,21 +115,21 @@ class Kahn
 
             loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < |indegree[j]|; {:indegree[j][i]:} >= 0 && indegree[j][i] < N));
             loop_invariant (\forall int j; 0 <= j && j < N; distinct({:indegree[j]:}));
-            loop_invariant (\forall int j; toIndex <= j && j < N; temp2[j] == {:indegree[j]:}); 
-            loop_invariant (\forall int j; 0 <= j && j < |topResult|; {:topResult[j]:} >= 0 && {:topResult[j]:} < N); 
+            loop_invariant (\forall int j; toIndex <= j && j < N; temp2[j] == {:indegree[j]:});
+            loop_invariant (\forall int j; 0 <= j && j < |topResult|; {:topResult[j]:} >= 0 && {:topResult[j]:} < N);
             loop_invariant (\forall int j; 0 <= j && j < |queue|; {:queue[j]:} >= 0 && {:queue[j]:} < N);
             loop_invariant (\forall int j; 0 <= j && j < |topResult|; {:|indegree[topResult[j]]|:} == 0);
             loop_invariant (\forall int j; 0 <= j && j < |queue|; {:|indegree[queue[j]]|:} == 0);
             loop_invariant distinct(topResult);
-            loop_invariant distinct(queue); 
-            loop_invariant distinct(topResult + queue); 
-            loop_invariant (\forall int j; 0 <= j && j < |queue|; !topResult.contains({:queue[j]:})); 
-            loop_invariant (\forall int j; 0 <= j && j < N; {:|indegree[j]|:} > 0 ==> (!topResult.contains(j) && !queue.contains(j))); 
+            loop_invariant distinct(queue);
+            loop_invariant distinct(topResult + queue);
+            loop_invariant (\forall int j; 0 <= j && j < |queue|; !topResult.contains({:queue[j]:}));
+            loop_invariant (\forall int j; 0 <= j && j < N; {:|indegree[j]|:} > 0 ==> (!topResult.contains(j) && !queue.contains(j)));
             loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < |indegree[j]|; {:graph[indegree[j][i]][j]:}));
             loop_invariant (\forall int j; 0 <= j && j < |queue|; (\forall int i; 0 <= i && i < N; graph[i][queue[j]] ==> topResult.contains(i)));
             loop_invariant (\forall int j; 0 <= j && j < N; (|indegree[j]| == 0 ==> (\forall int i; 0 <= i && i < N; (graph[i][j] ==> topResult.contains(i)))));
-            loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < N; (graph[i][j] && !indegree[j].contains(i)) ==> topResult.contains(i)));  
-            loop_invariant (\forall int j; 0 <= j && j < |topResult|; (\forall int i; 0 <= i && i < N; graph[i][topResult[j]] ==> topResult[..j].contains(i))); 
+            loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < N; (graph[i][j] && !indegree[j].contains(i)) ==> topResult.contains(i)));
+            loop_invariant (\forall int j; 0 <= j && j < |topResult|; (\forall int i; 0 <= i && i < N; graph[i][topResult[j]] ==> topResult[..j].contains(i)));
             for (int toIndex = 0; toIndex < N; toIndex++)
             {
                 if (graph[currentNode][toIndex] == true){
