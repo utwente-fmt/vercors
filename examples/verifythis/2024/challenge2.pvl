@@ -301,6 +301,7 @@ class Main {
                 execute(i, t);
             }
         }
+        assert false;
     }
 
     requires committed(this);

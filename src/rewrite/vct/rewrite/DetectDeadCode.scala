@@ -6,10 +6,12 @@ import vct.col.origin.{
   Blame,
   ContractedFailure,
   DeadBranch,
+  DecreaseTerminationMeasureFailedDueToWhile,
   ExtractTerminationMeasureFailed,
   LoopInvariantFailure,
   LoopInvariantNotEstablished,
   LoopInvariantNotMaintained,
+  LoopTerminationMeasureFailed,
   NamePrefix,
   Origin,
   RefuteFailed,
@@ -90,7 +92,21 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
       case ca: ContractApplicable[Pre] =>
         suppressor.having(new AtomicInteger(Int.MaxValue)) {
           methodBlame.having(ca.blame) {
-            allScopes.anySucceed(ca, ca.rewrite(blame = dispatch(ca.blame)))
+            val suppCounter = suppressionCounter
+            allScopes.anySucceed(
+              ca,
+              ca.rewrite(
+                contract = {
+                  // Temporarily reset the suppression counter while rewriting the contract such that well-definedness issues can suppress dead code check inside the function
+                  val oldSuppCounter = suppressionCounter
+                  suppressionCounter = suppCounter
+                  val contract = dispatch(ca.contract)
+                  suppressionCounter = oldSuppCounter
+                  contract
+                },
+                blame = dispatch(ca.blame),
+              ),
+            )
           }
         }
       case _ => super.dispatch(decl)
@@ -192,13 +208,12 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
     implicit val o: Origin = loop.o
     val Loop(init, cond, update, contract, body) = loop
     // suppress body/post-loop dead reports if the invariant itself failed
-    var invNotEstablishedFired = false
-    var invNotMaintainedFired = false
+    var preLoopCheckFailed = false
+    var postLoopCheckFailed = false
     var extractContractFired = false
-    val bodySuppress: () => Boolean = () => invNotEstablishedFired
+    val bodySuppress: () => Boolean = () => preLoopCheckFailed
     val postLoopSuppress: () => Boolean =
-      () =>
-        invNotEstablishedFired || invNotMaintainedFired || extractContractFired
+      () => preLoopCheckFailed || postLoopCheckFailed || extractContractFired
 
     val (invInfo, dispatchedContract) =
       contract match {
@@ -208,9 +223,13 @@ case class DetectDeadCode[Pre <: Generation](doCheck: Boolean = true)
               override def blame(error: LoopInvariantFailure): Unit = {
                 error match {
                   case _: LoopInvariantNotEstablished =>
-                    invNotEstablishedFired = true
+                    preLoopCheckFailed = true
                   case _: LoopInvariantNotMaintained =>
-                    invNotMaintainedFired = true
+                    postLoopCheckFailed = true
+                  case _: DecreaseTerminationMeasureFailedDueToWhile =>
+                    preLoopCheckFailed = true
+                  case _: LoopTerminationMeasureFailed =>
+                    postLoopCheckFailed = true
                   case _ =>
                 }
                 li.blame.blame(error)
