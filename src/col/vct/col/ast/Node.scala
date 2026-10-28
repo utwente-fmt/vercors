@@ -4243,6 +4243,10 @@ final class LLVMGlobalSpecification[G](val value: String)(
 final case class LLVMResult[G](func: Ref[G, LLVMFunctionDefinition[G]])(
     implicit val o: Origin
 ) extends LLVMExpr[G] with LLVMResultImpl[G]
+// Variant of LLVMResult that represent a ptr to the return value
+final case class LLVMResultRef[G](func: Ref[G, LLVMFunctionDefinition[G]])(
+    implicit val o: Origin
+) extends LLVMExpr[G] with LLVMResultRefImpl[G]
 final case class LLVMIntermediaryResult[G](
     applicable: Ref[G, Procedure[G]],
     sretArg: Option[Ref[G, Variable[G]]],

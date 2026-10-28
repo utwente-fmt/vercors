@@ -3,7 +3,7 @@ package vct.col.ast.lang.llvm
 import vct.col.ast.node.NodeFamilyImpl
 import vct.col.ast.ops.LLVMResultOps
 import vct.col.ast.{LLVMResult, LLVMTPointer, Type}
-import vct.col.print.Precedence
+import vct.col.print.{Ctx, Doc, Precedence, Text}
 
 trait LLVMResultImpl[G] extends NodeFamilyImpl[G] with LLVMResultOps[G] {
   this: LLVMResult[G] =>
@@ -16,4 +16,7 @@ trait LLVMResultImpl[G] extends NodeFamilyImpl[G] with LLVMResultOps[G] {
   }
 
   override def precedence: Int = Precedence.ATOMIC
+
+  override def layout(implicit ctx: Ctx): Doc = Text("\\resultRef")
+
 }
