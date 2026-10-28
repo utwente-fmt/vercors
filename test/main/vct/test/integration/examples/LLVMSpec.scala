@@ -70,6 +70,7 @@ class LLVMSpec extends VercorsSpec {
   vercors should fail withCode "preFailed:false" using silicon example "concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/extContracts/pallas_cpp_genContr.ll"
   vercors should verify using silicon example "concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.ll"
+  vercors should verify using silicon example "concepts/llvm/pallas/pallas_cpp_resultRef.ll"
 
   // Swift
   vercors should verify using silicon flags("--pallas-sroa") example "concepts/llvm/pallas/pallas_swift_fib.ll"
