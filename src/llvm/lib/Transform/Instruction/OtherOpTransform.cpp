@@ -493,6 +493,8 @@ void llvm2col::transformPallasSpecLibCall(llvm::CallInst &callInstruction,
 
     if (specLibType == pallas::constants::PALLAS_SPEC_RESULT) {
         transformPallasSpecResult(callInstruction, colBlock, funcCursor);
+    } else if (specLibType == pallas::constants::PALLAS_SPEC_RESULT_REF) {
+        transformPallasSpecResultRef(callInstruction, colBlock, funcCursor);
     } else if (specLibType == pallas::constants::PALLAS_SPEC_FRAC_OF) {
         transformPallasFracOf(callInstruction, colBlock, funcCursor);
     } else if (specLibType == pallas::constants::PALLAS_SPEC_PERM) {
@@ -674,6 +676,51 @@ void llvm2col::transformPallasSpecResult(llvm::CallInst &callInstruction,
         memOrder->set_allocated_origin(
             llvm2col::generateFunctionCallOrigin(callInstruction));
     }
+}
+
+void llvm2col::transformPallasSpecResultRef(llvm::CallInst &callInstruction,
+                                         col::LlvmBasicBlock &colBlock,
+                                         pallas::FunctionCursor &funcCursor) {
+    auto *llvmSpecFunc = callInstruction.getCalledFunction();
+
+    // Get the function to whose contract this call instuction belongs to.
+    auto *llvmWrapper = callInstruction.getFunction();
+    auto *llvmParent = funcCursor.getFunctionAnalysisManager()
+                           .getResult<pallas::ExprWrapperMapper>(*llvmWrapper)
+                           .getParentFunc();
+    if (llvmParent == nullptr) {
+        pallas::ErrorReporter::addError(
+            SOURCE_LOC,
+            "Encountered call to resultRef that cannot be associated "
+            "with a function",
+            callInstruction);
+        return;
+    }
+
+    // Check that the function signature is wellformed
+    if (!llvmSpecFunc->arg_empty()) {
+        pallas::ErrorReporter::addError(
+            SOURCE_LOC, "Malformed resultRef-function. Expected no arguments.",
+            callInstruction);
+        return;
+    }
+    if (!llvmSpecFunc->getReturnType()->isPointerTy()) {
+        pallas::ErrorReporter::addError(
+            SOURCE_LOC,
+            "Malformed resultRef-function. Return-type must be ptr.",
+            callInstruction);
+        return;
+    }
+
+    // Build the assignment
+    auto &colAssign =
+        funcCursor.createAssignmentAndDeclaration(callInstruction, colBlock);
+    auto *colResultRef = colAssign.mutable_value()->mutable_llvm_result_ref();
+    colResultRef->set_allocated_origin(
+        llvm2col::generateFunctionCallOrigin(callInstruction));
+    // Set ref to the function to which this contract is attached to
+    auto &colParent = funcCursor.getFDResult(*llvmParent);
+    colResultRef->mutable_func()->set_id(colParent.getFunctionId());
 }
 
 void llvm2col::transformPallasFracOf(llvm::CallInst &callInstruction,

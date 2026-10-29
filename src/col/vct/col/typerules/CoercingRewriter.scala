@@ -2305,6 +2305,7 @@ abstract class CoercingRewriter[Pre <: Generation]()
       case LLVMRawVectorValue(_, _) => e
       case LLVMZeroedAggregateValue(_) => e
       case LLVMResult(_) => e
+      case LLVMResultRef(_) => e
       case LLVMIntermediaryResult(_, _) => e
       case LLVMPerm(_, _) => e
       case LLVMPtrBlockLength(_) => e

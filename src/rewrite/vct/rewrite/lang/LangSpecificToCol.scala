@@ -484,6 +484,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case cast: LLVMIntegerPointerCast[Pre] =>
         llvm.rewriteIntegerPointerCast(cast)
       case result: LLVMResult[Pre] => llvm.rewriteResult(result)
+      case resultRef: LLVMResultRef[Pre] => llvm.rewriteResultRef(resultRef)
       case llvmPerm: LLVMPerm[Pre] => llvm.rewritePerm(llvmPerm)
       case llvmPBL: LLVMPtrBlockLength[Pre] =>
         llvm.rewritePtrBlockLength(llvmPBL)

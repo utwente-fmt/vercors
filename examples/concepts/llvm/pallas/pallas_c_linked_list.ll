@@ -9,7 +9,7 @@ target triple = "x86_64-unknown-linux-gnu"
 @llvm.used = appending global [14 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_3, ptr @PALLAS_SPEC_4, ptr @PALLAS_SPEC_5, ptr @PALLAS_SPEC_6, ptr @PALLAS_SPEC_7, ptr @PALLAS_SPEC_8, ptr @PALLAS_SPEC_9, ptr @PALLAS_SPEC_10, ptr @PALLAS_SPEC_11, ptr @PALLAS_SPEC_12, ptr @list_write], section "llvm.metadata"
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local ptr @malloc_list() #0 !dbg !33 !pallas.extContract !36 {
+define dso_local ptr @malloc_list() #0 !dbg !33 !pallas.fcontract !36 {
   %1 = call noalias ptr @malloc(i64 noundef 16) #3, !dbg !46
   ret ptr %1, !dbg !47
 }

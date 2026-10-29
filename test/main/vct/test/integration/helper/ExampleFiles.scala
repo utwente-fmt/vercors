@@ -71,7 +71,8 @@ case object ExampleFiles {
     "examples/concepts/llvm/pointer_casts.c",
     "examples/concepts/llvm/structs.c",
     "examples/concepts/llvm/pallas/ghost/c_byval_ghost.c",
-    "examples/concepts/llvm/pallas/pallas_c_seq.c"
+    "examples/concepts/llvm/pallas/pallas_c_seq.c",
+    "examples/concepts/llvm/pallas/pallas_cpp_resultRef.cpp"
   ).map(_.replaceAll("/", File.separator))
 
   val EXCLUSIONS: Seq[Path => Boolean] = Seq(

@@ -31,6 +31,7 @@ const std::string PALLAS_YIELDS_BINDING = "pallas.yieldsBinding";
 
 const std::string PALLAS_SPEC_LIB_MARKER = "pallas.specLib";
 const std::string PALLAS_SPEC_RESULT = "pallas.result";
+const std::string PALLAS_SPEC_RESULT_REF = "pallas.resultRef";
 const std::string PALLAS_SPEC_FRAC_OF = "pallas.fracOf";
 const std::string PALLAS_SPEC_PERM = "pallas.perm";
 const std::string PALLAS_SPEC_PTR_BLOCK_LENGTH = "pallas.ptrBlockLength";

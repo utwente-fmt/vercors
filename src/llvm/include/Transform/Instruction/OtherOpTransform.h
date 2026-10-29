@@ -70,6 +70,14 @@ void transformPallasSpecResult(llvm::CallInst &callInstruction,
                                pallas::FunctionCursor &funcCursor);
 
 /**
+ * Transform the given call-instruction to the resultRef-function of the pallas
+ * specification library.
+ */
+void transformPallasSpecResultRef(llvm::CallInst &callInstruction,
+                                  col::LlvmBasicBlock &colBlock,
+                                  pallas::FunctionCursor &funcCursor);
+
+/**
  * Transform call-instruction to the fracOf-function of the pallas
  * specification library.
  */

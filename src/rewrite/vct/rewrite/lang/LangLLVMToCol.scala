@@ -532,6 +532,21 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       }
     }
 
+    def findResultRefUses(expr: Expr[Pre], target: Expr[Pre]): Set[Object] = {
+      expr match {
+        case LLVMResultRef(Ref(pFunc)) =>
+          pFunc.contract.collect { case LLVMWrapperInvocation(Ref(wF), _) =>
+            val vars = wF.functionBody.get.collect {
+              case Assign(t @ Local(Ref(tVar)), LLVMResultRef(_))
+                  if t != target =>
+                tVar
+            }
+            vars
+          }.flatten.toSet
+        case _ => Set.empty
+      }
+    }
+
     // TODO: We could extend this so that a LLVMResult requires the same type for all uses in the contract of a function!?
     def findDependencies(expr: Expr[Pre]): Set[Object] = {
       expr.collect {
@@ -611,7 +626,9 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
             value.t.isInstanceOf[LLVMTPointer[Pre]] =>
         getVariable(target).foreach(v => {
           val rUses = findResultUses(value, target)
+          val rRefUses = findResultRefUses(value, target)
           val dependencies = findDependencies(value).union(rUses)
+            .union(rRefUses)
           addTypeGuess(
             v,
             dependencies,
@@ -621,6 +638,8 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
                 // sure that the type is consistent with the inferred type of
                 // other uses of LLVMResult in other contract clauses
                 rUses.filter(typeGuesses.contains)
+                  .map(v => typeGuesses.get(v).get.currentType).toSeq ++
+                rRefUses.filter(typeGuesses.contains)
                   .map(v => typeGuesses.get(v).get.currentType).toSeq,
           )
         })
@@ -833,9 +852,13 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
       case f: LLVMFunctionDefinition[Pre]
           if f.functionBody.isEmpty && f.returnType.asPointer.isDefined =>
         val infTypes = program.collect {
-          case Assign(Local(Ref(tVar)), LLVMResult(Ref(f)))
-              if localVariableInferredType.contains(tVar) =>
+          case Assign(Local(Ref(tVar)), LLVMResult(Ref(rF)))
+              if f == rF && localVariableInferredType.contains(tVar) =>
             localVariableInferredType(tVar)
+          case Assign(Local(Ref(tVar)), LLVMResultRef(Ref(rF)))
+              if f == rF && localVariableInferredType.contains(tVar) =>
+            if (f.sretArg.isDefined) { localVariableInferredType(tVar) }
+            else { localVariableInferredType(tVar).asPointer.get.element }
         }
         // This might be too strict in some cases
         if (infTypes.nonEmpty) {
@@ -1874,6 +1897,7 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         globalVariableInferredType.get(v.asInstanceOf[LLVMGlobalVariable[Pre]])
           .map(t => LLVMTPointer[Pre](Some(t))).getOrElse(e.t)
       case res: LLVMResult[Pre] => res.t
+      case res: LLVMResultRef[Pre] => res.t
       case DerefPointer(inner) =>
         val innerT = getInferredType(inner)
         innerT match {
@@ -2259,6 +2283,27 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         new LazyRef[Post, Procedure[Post]](llvmFunctionMap(res.func.decl)),
       sretArg = res.func.decl.sretArg.flatMap(rArg => Some(rw.succ(rArg.v))),
     )
+  }
+
+  def rewriteResultRef(res: LLVMResultRef[Pre]): Expr[Post] = {
+    requireInWrapper(res)
+    implicit val o: Origin = res.o
+    if (res.func.decl.isPredicate) { throw UnexpectedLLVMNode(res) }
+    if (res.func.decl.sretArg.isDefined) {
+      // If the function returns as sret, the result is already returned as a ptr
+      LLVMIntermediaryResult(
+        applicable =
+          new LazyRef[Post, Procedure[Post]](llvmFunctionMap(res.func.decl)),
+        sretArg = res.func.decl.sretArg.flatMap(rArg => Some(rw.succ(rArg.v))),
+      )
+    } else {
+      // Regular return
+      AddrOf(LLVMIntermediaryResult(
+        applicable =
+          new LazyRef[Post, Procedure[Post]](llvmFunctionMap(res.func.decl)),
+        sretArg = None,
+      ))
+    }
   }
 
   def rewriteFracOf(fracOf: LLVMFracOf[Pre]): Statement[Post] = {

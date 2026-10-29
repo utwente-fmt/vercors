@@ -78,6 +78,7 @@ translate_cpp_file examples/concepts/llvm/pallas/extContracts/pallas_cpp_extCont
 translate_cpp_file examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.cpp examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.ll "--cLib=examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.h"
 translate_cpp_file examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.cpp examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.ll
 translate_cpp_file examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.cpp examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.ll ""
+translate_cpp_file examples/concepts/llvm/pallas/pallas_cpp_resultRef.cpp examples/concepts/llvm/pallas/pallas_cpp_resultRef.ll ""
 
 # Swift Tests
 echo "=============================================="
