@@ -19,14 +19,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
       - name: Cache dependencies and compilation
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: out
           key: vercors-ci-ubuntu-${{ hashFiles('build.sc') }}-${{ hashFiles('src') }}
@@ -38,12 +38,12 @@ jobs:
       - name: Compile
         run: ./mill -j 0 vercors.allTests.assembly + vercors.pallas.cMakeBuild
       - name: Upload VerCors
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: allTests
           path: out/vercors/allTests/assembly.dest/out.jar
       - name: Upload Pallas
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: libPallas.so
           path: out/vercors/pallas/cMakeSetupBuild.dest/lib/libPallas.so
@@ -63,14 +63,14 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
       - name: Download VerCors
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: allTests
           path: '.'
@@ -80,7 +80,7 @@ jobs:
         run: java -Xss128m -cp "out.jar;res/universal/deps;res/universal/res" org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-report-windows-latest
           path: 'report/**/TEST-*.xml'
@@ -90,14 +90,14 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
       - name: Download VerCors
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: allTests
           path: '.'
@@ -107,7 +107,7 @@ jobs:
         run: java -Xss128m -cp out.jar:res/universal/deps:res/universal/res org.scalatest.tools.Runner -o -u report -s vct.test.integration.examples.BasicExamplesSpec
       - name: Upload test reports
         if: success() || failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-report-macos-latest
           path: 'report/**/TEST-*.xml'
@@ -122,29 +122,29 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
       - name: Download VerCors
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: allTests
           path: '.'
       - name: Download Pallas
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: libPallas.so
           path: '.'
       - name: ls
         run: ls -lasFhR
       - name: Run scalatest
-        run: java -Xss128m -Xmx4G -cp out.jar:res/universal/deps:res/universal/res:. org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
+        run: java -Xss128m -Xmx8G -cp out.jar:res/universal/deps:res/universal/res:. org.scalatest.tools.Runner -R out.jar -o -u report -w vct ${{matrix.batch}}
       - name: Upload test reports
         if: success() || failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-report-ubuntu-latest-${{ matrix.batch }}
           path: 'report/**/TEST-*.xml'

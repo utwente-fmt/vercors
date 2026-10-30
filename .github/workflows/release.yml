@@ -12,14 +12,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout VerCors
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set Pre-release Tag
         if: github.ref_name == 'dev'
         run: |
           git tag -f dev-prerelease
           git push origin --tags --force
       - name: Install Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -46,7 +46,7 @@ jobs:
           tag_name: ${{ steps.props.outputs.TAG_NAME }}
           body: ${{ steps.props.outputs.BODY }}
           draft: false
-          prerelease: ${{ steps.props.output.PRERELEASE }}
+          prerelease: ${{ steps.props.outputs.PRERELEASE }}
           files: |
             out/vercors/main/unixTar.dest/*.tar.xz
             out/vercors/main/macosTar.dest/*.tar.xz

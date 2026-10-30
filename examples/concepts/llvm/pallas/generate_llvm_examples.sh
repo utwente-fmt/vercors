@@ -2,7 +2,7 @@
 
 # Run from the root of the VerCors dir.
 # Put path to the spec2ir-repo here
-SPEC2IR_ROOT=/home/rme/repos/pallas_spec2ir
+SPEC2IR_ROOT=/home/rme/repos/spectral
 SPEC2IR="${SPEC2IR_ROOT}/build/bin/pallasSpec2ir"
 C_LIB_PATH=$SPEC2IR_ROOT/res/spec_libs/c
 CPP_LIB_PATH=$SPEC2IR_ROOT/res/spec_libs/cpp
@@ -64,6 +64,11 @@ translate_c_file examples/concepts/llvm/structs.c examples/concepts/llvm/structs
 translate_c_file examples/concepts/llvm/pallas/ghost/pallas_ghost_func.c examples/concepts/llvm/pallas/ghost/pallas_ghost_func.ll ""
 translate_c_file examples/concepts/llvm/pallas/ghost/pallas_c_ghost_arg.c examples/concepts/llvm/pallas/ghost/pallas_c_ghost_arg.ll ""
 translate_c_file examples/concepts/llvm/pallas/pallas_c_linked_list.c examples/concepts/llvm/pallas/pallas_c_linked_list.ll ""
+translate_c_file examples/concepts/llvm/pallas/pallas_byval.c examples/concepts/llvm/pallas/pallas_byval.ll ""
+translate_c_file examples/concepts/llvm/pallas/ghost/c_byval_ghost.c examples/concepts/llvm/pallas/ghost/c_byval_ghost.ll ""
+translate_c_file examples/concepts/llvm/pallas/pallas_c_seq.c examples/concepts/llvm/pallas/pallas_c_seq.ll ""
+
+
 
 # C++ Tests
 echo "=============================================="
@@ -73,6 +78,7 @@ translate_cpp_file examples/concepts/llvm/pallas/extContracts/pallas_cpp_extCont
 translate_cpp_file examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.cpp examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.ll "--cLib=examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.h"
 translate_cpp_file examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.cpp examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.ll
 translate_cpp_file examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.cpp examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.ll ""
+translate_cpp_file examples/concepts/llvm/pallas/pallas_cpp_resultRef.cpp examples/concepts/llvm/pallas/pallas_cpp_resultRef.ll ""
 
 # Swift Tests
 echo "=============================================="

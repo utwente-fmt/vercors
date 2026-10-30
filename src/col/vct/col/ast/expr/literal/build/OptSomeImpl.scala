@@ -9,5 +9,11 @@ trait OptSomeImpl[G] extends OptSomeOps[G] {
   override def t: Type[G] = TOption(e.t)
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc = Text("Some(") <> e <> ")"
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Text("(Some") <+> e <> ")"
+      case _ => Text("Some(") <> e <> ")"
+    }
+
+  }
 }

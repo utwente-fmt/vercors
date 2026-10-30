@@ -226,6 +226,7 @@ case class LangSpecificToCol[Pre <: Generation](
     llvm.gatherTypeHints(program)
     llvm.gatherPallasTypeSubst(program)
     llvm.gatherHeapVariables(program)
+    llvm.gatherByValArgs(program)
     super.dispatch(program)
   }
 
@@ -353,6 +354,10 @@ case class LangSpecificToCol[Pre <: Generation](
       case add: LLVMAddWithOverflow[Pre] => llvm.rewriteAddWithOverflow(add)
       case sub: LLVMSubWithOverflow[Pre] => llvm.rewriteSubWithOverflow(sub)
       case mult: LLVMMultWithOverflow[Pre] => llvm.rewriteMultWithOverflow(mult)
+      case seqNew: LLVMSeqNew[Pre] => llvm.rewriteSeqNew(seqNew)
+      case ret: LLVMReturn[Pre] => llvm.rewriteReturn(ret)
+      case gAssign: LLVMGhostAssign[Pre] => llvm.rewriteGhostAssign(gAssign);
+      case llvmEval: LLVMEval[Pre] => llvm.rewriteLLVMEval(llvmEval);
       case other => other.rewriteDefault()
     }
 
@@ -460,6 +465,7 @@ case class LangSpecificToCol[Pre <: Generation](
         llvm.rewriteAmbiguousFunctionInvocation(inv)
       case inv: LLVMFunctionInvocation[Pre] =>
         llvm.rewriteFunctionInvocation(inv)
+      case inv: LLVMWrapperInvocation[Pre] => llvm.rewriteWrapperInvocation(inv)
       case local: LLVMLocal[Pre] => llvm.rewriteNamedLocal(local)
       // TODO: This is not great, we will run this even if we're using a language that is not LLVM-IR
       case local: Local[Pre] => llvm.rewriteLocal(local)
@@ -478,6 +484,7 @@ case class LangSpecificToCol[Pre <: Generation](
       case cast: LLVMIntegerPointerCast[Pre] =>
         llvm.rewriteIntegerPointerCast(cast)
       case result: LLVMResult[Pre] => llvm.rewriteResult(result)
+      case resultRef: LLVMResultRef[Pre] => llvm.rewriteResultRef(resultRef)
       case llvmPerm: LLVMPerm[Pre] => llvm.rewritePerm(llvmPerm)
       case llvmPBL: LLVMPtrBlockLength[Pre] =>
         llvm.rewritePtrBlockLength(llvmPBL)
@@ -489,6 +496,14 @@ case class LangSpecificToCol[Pre <: Generation](
       case llvmOr: LLVMOr[Pre] => llvm.rewriteOr(llvmOr)
       case llvmStar: LLVMStar[Pre] => llvm.rewriteStar(llvmStar)
       case llvmOld: LLVMOld[Pre] => llvm.rewriteOld(llvmOld)
+      case llvmSeqSize: LLVMSeqSize[Pre] => llvm.rewriteSeqSize(llvmSeqSize)
+      case llvmSeqEq: LLVMSeqEq[Pre] => llvm.rewriteSeqEq(llvmSeqEq)
+      case llvmSeqGet: LLVMSeqGet[Pre] => llvm.rewriteSeqGet(llvmSeqGet)
+      case llvmSeqSlice: LLVMSeqSlice[Pre] => llvm.rewriteSeqSlice(llvmSeqSlice)
+      case llvmSeqPrepend: LLVMSeqPrepend[Pre] =>
+        llvm.rewriteSeqPrepend(llvmSeqPrepend)
+      case llvmSeqUpdate: LLVMSeqUpdate[Pre] =>
+        llvm.rewriteSeqUpdate(llvmSeqUpdate)
       case eq: AmbiguousEq[Pre] =>
         llvm.correctPointerComparison(
           eq.left,

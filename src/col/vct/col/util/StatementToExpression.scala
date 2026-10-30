@@ -64,6 +64,13 @@ case class StatementToExpression[Pre <: Generation, Post <: Generation](
           case None =>
             throw errorBuilder("Assert may not be the last statement")
         }
+      case a @ Assume(e) =>
+        alt match {
+          case Some(exprAlt) =>
+            Some(Assuming[Post](rw.dispatch(e), exprAlt)(a.o))
+          case None =>
+            throw errorBuilder("Assume may not be the last statement")
+        }
       case _ => None
     }
   }
@@ -99,6 +106,7 @@ case class StatementToExpression[Pre <: Generation, Post <: Generation](
             0
         )
       case Assert(_) => Some(0)
+      case Assume(_) => Some(0)
       case _ => None
     }
 

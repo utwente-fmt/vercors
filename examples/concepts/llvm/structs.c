@@ -67,7 +67,6 @@ void alter_struct_1(point *p){
 }
 
 /*@
-  requires &*&p != NULL;
   requires _Perm(&p.x, _fracOf(1, 1));
   requires _Perm(&p.y, _fracOf(1, 1));
   ensures _Perm(&p.x, _fracOf(1, 1));
@@ -79,8 +78,7 @@ void alter_copy_struct(point p){
 }
 
 /*@
-  requires &*&p != NULL;
-  requires _Perm(&p, _fracOf(1, 1));
+  requires _Perm(&p, _write);
 @*/
 void alter_copy_struct_2(point p){
     p.x = 0;

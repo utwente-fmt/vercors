@@ -41,7 +41,7 @@ class LLVMSpec extends VercorsSpec {
   vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_c_perm.ll"
   vercors should fail withCode "postFailed:perm" using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_c_perm_fail_1.ll"
   vercors should fail withCode "ptrPerm" using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_c_perm_fail_2.ll"
-  vercors should fail withCode "postFailed:perm" using silicon flags ("--dev-no-sat", "--dev-no-post-sat", "--dev-no-dead") example "concepts/llvm/pallas/pallas_c_perm_fail_3.ll"
+  vercors should fail withCode "postFailed:perm" using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_c_perm_fail_3.ll"
   vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_c_pred.ll"
   vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_c_old.ll"
   vercors should fail withCode "postFailed:false" using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_c_old_fail.ll"
@@ -61,12 +61,16 @@ class LLVMSpec extends VercorsSpec {
   vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/ghost/pallas_ghost_func.ll"
   vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/ghost/pallas_c_ghost_arg.ll"
   vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_c_linked_list.ll"
+  vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_byval.ll"
+  vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/ghost/c_byval_ghost.ll"
+  vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_c_seq.ll"
 
   // C++
   vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/extContracts/pallas_cpp_extContr.ll"
   vercors should fail withCode "preFailed:false" using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/extContracts/pallas_cpp_extContr_fail.ll"
   vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/extContracts/pallas_cpp_genContr.ll"
   vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.ll"
+  vercors should verify using silicon flag "--dev-no-dead" example "concepts/llvm/pallas/pallas_cpp_resultRef.ll"
 
   // Swift
   vercors should verify using silicon flags("--dev-no-dead", "--pallas-sroa") example "concepts/llvm/pallas/pallas_swift_fib.ll"

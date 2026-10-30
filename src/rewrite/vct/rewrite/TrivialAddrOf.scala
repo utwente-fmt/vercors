@@ -26,7 +26,7 @@ case class TrivialAddrOf[Pre <: Generation]() extends Rewriter[Pre] {
             offset.asInstanceOf[ConstantInt[Pre]].value.signum == 0 =>
         dispatch(pointer)
       case AddrOf(DerefPointer(p)) => dispatch(p)
-
+      case DerefPointer(AddrOf(v)) => dispatch(v)
       case AddrOf(sub @ PointerSubscript(p, i)) =>
         PointerAdd(dispatch(p), dispatch(i))(PointerSubscriptToAddBlame(
           sub.blame

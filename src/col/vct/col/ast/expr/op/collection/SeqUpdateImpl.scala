@@ -14,6 +14,10 @@ trait SeqUpdateImpl[G] extends SeqUpdateOps[G] {
   )
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(xs) <> ".update(" <> Doc.args(Seq(i, x)) <> ")")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Group(assoc(xs) <> "[" <> i <> ":=" <> x <> "]")
+      case _ => Group(assoc(xs) <> ".update(" <> Doc.args(Seq(i, x)) <> ")")
+    }
+  }
 }

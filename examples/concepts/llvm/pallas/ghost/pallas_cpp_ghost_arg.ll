@@ -137,8 +137,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_0PiS_i(ptr noundef %0, ptr 
   ret i1 %8, !dbg !454
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1PiS_i(ptr noundef %0, ptr noundef %1, i32 noundef %2) #2 !dbg !149 !pallas.exprWrapper !453 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1PiS_i(ptr noundef %0, ptr noundef %1, i32 noundef %2) #0 !dbg !149 !pallas.exprWrapper !453 {
   %4 = alloca %pallas.fracT, align 8
   %5 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !152, metadata !DIExpression()), !dbg !458
@@ -152,8 +152,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1PiS_i(ptr noundef %0, ptr 
   ret i1 %8, !dbg !458
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_2PiS_ibi(ptr noundef %0, ptr noundef %1, i32 noundef %2, i1 noundef zeroext %3, i32 noundef %4) #2 !dbg !160 !pallas.exprWrapper !453 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_2PiS_ibi(ptr noundef %0, ptr noundef %1, i32 noundef %2, i1 noundef zeroext %3, i32 noundef %4) #0 !dbg !160 !pallas.exprWrapper !453 {
   %6 = alloca %pallas.fracT, align 8
   %7 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !170, metadata !DIExpression()), !dbg !464
@@ -170,8 +170,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_2PiS_ibi(ptr noundef %0, pt
   ret i1 %11, !dbg !464
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_3PiS_ibi(ptr noundef %0, ptr noundef %1, i32 noundef %2, i1 noundef zeroext %3, i32 noundef %4) #2 !dbg !178 !pallas.exprWrapper !453 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_3PiS_ibi(ptr noundef %0, ptr noundef %1, i32 noundef %2, i1 noundef zeroext %3, i32 noundef %4) #0 !dbg !178 !pallas.exprWrapper !453 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !186, metadata !DIExpression()), !dbg !470
   call void @llvm.dbg.value(metadata ptr %1, metadata !188, metadata !DIExpression()), !dbg !470
   call void @llvm.dbg.value(metadata i32 %2, metadata !177, metadata !DIExpression()), !dbg !470
@@ -396,7 +396,6 @@ declare !pallas.specLib !525 noundef i32 @"pallas.result noundef i32"()
 
 attributes #0 = { mustprogress noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
-attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 
 !llvm.dbg.cu = !{!0, !2, !101, !103}
 !llvm.module.flags = !{!104, !105, !106, !107, !108, !109, !110}
@@ -405,7 +404,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1, producer: "Ubuntu clang version 17.0.6 (9ubuntu1)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
 !1 = !DIFile(filename: "examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.cpp", directory: "/home/rme/repos/vercors", checksumkind: CSK_MD5, checksum: "816b5bc3f60d1e56695acca49c4bf85b")
 !2 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !3, producer: "Ubuntu clang version 17.0.6 (9ubuntu1)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, imports: !4, splitDebugInlining: false, nameTableKind: None)
-!3 = !DIFile(filename: "tmp/source_wrappers.cpp", directory: "/home/rme/repos/vercors", checksumkind: CSK_MD5, checksum: "8f67aae1e7d397e8a4dfcc012da31eca")
+!3 = !DIFile(filename: "tmp/source_wrappers.cpp", directory: "/home/rme/repos/vercors", checksumkind: CSK_MD5, checksum: "d42b6653a02d6f36fcade27b2176449e")
 !4 = !{!5, !13, !17, !21, !25, !28, !30, !32, !34, !38, !41, !44, !47, !50, !52, !57, !61, !65, !69, !71, !73, !75, !77, !80, !83, !86, !89, !92, !94, !99}
 !5 = !DIImportedEntity(tag: DW_TAG_imported_declaration, scope: !6, entity: !7, file: !12, line: 51)
 !6 = !DINamespace(name: "std", scope: null)
@@ -519,7 +518,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !114 = !{!20, !115, !115}
 !115 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !20, size: 64)
 !116 = !{}
-!117 = !{!118, i1 false, i1 false, !120, !123, !128, !144, !155, !173, !189, !205}
+!117 = !{!118, i1 false, i8 0, !120, !123, !128, !144, !155, !173, !189, !205}
 !118 = !{!"pallas.srcLoc", i64 17, i64 1, i64 29, i64 1, !119}
 !119 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.cpp", directory: "", checksumkind: CSK_MD5, checksum: "816b5bc3f60d1e56695acca49c4bf85b")
 !120 = !{!121}
@@ -680,7 +679,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !275 = distinct !DISubprogram(name: "run", linkageName: "_Z3runv", scope: !1, file: !1, line: 53, type: !276, scopeLine: 53, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !116)
 !276 = !DISubroutineType(types: !277)
 !277 = !{null}
-!278 = !{!279, i1 false, i1 false, !116, !280, !285, !295}
+!278 = !{!279, i1 false, i8 0, !116, !280, !285, !295}
 !279 = !{!"pallas.srcLoc", i64 47, i64 1, i64 52, i64 1, !119}
 !280 = !{!281, !283}
 !281 = !{!282, !"min"}

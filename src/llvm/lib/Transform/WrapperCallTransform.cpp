@@ -32,7 +32,7 @@ void printError(const llvm::Metadata &md, std::string msg) {
 }
 
 void addArgFromGhostVar(const llvm::MDNode &gVarDef,
-                        col::LlvmFunctionInvocation &colWrapperCall,
+                        col::LlvmWrapperInvocation &colWrapperInv,
                         const pallas::irspec::WrappedSpecElement &specElem,
                         llvm::Function &pFunc,
                         llvm::FunctionAnalysisManager &fam) {
@@ -44,40 +44,40 @@ void addArgFromGhostVar(const llvm::MDNode &gVarDef,
     }
     // TODO: Perhaps this needs to be a deref if the ghost-var is a
     // struct?!
-    auto *argExpr = colWrapperCall.add_args()->mutable_local();
+    auto *argExpr = colWrapperInv.add_call_args()->mutable_local();
     argExpr->set_allocated_origin(
         llvm2col::generatePallasWrapperCallOrigin(specElem));
     argExpr->mutable_ref()->set_id(gVar->id());
 }
 
 /**
- * Initialize called function of origin of the given wrapper-call
+ * Initialize called function of origin of the given wrapper-invocation
  */
-void initWrapperCallBase(col::LlvmFunctionInvocation &colWrapperCall,
-                         const pallas::irspec::WrappedSpecElement &specElem,
-                         llvm::FunctionAnalysisManager &fam) {
+void initWrapperInvBase(col::LlvmWrapperInvocation &colWrapperInv,
+                        const pallas::irspec::WrappedSpecElement &specElem,
+                        llvm::FunctionAnalysisManager &fam) {
     auto &colWrapper =
         fam.getResult<pallas::FunctionDeclarer>(specElem.getWrapper())
             .getAssociatedColFuncDef();
 
     // Initialize call
-    colWrapperCall.set_allocated_origin(
+    colWrapperInv.set_allocated_origin(
         llvm2col::generatePallasWrapperCallOrigin(specElem));
-    colWrapperCall.set_allocated_blame(new col::Blame());
-    colWrapperCall.mutable_ref()->set_id(colWrapper.id());
+    colWrapperInv.set_allocated_blame(new col::Blame());
+    colWrapperInv.mutable_ref()->set_id(colWrapper.id());
 }
 
 } // namespace
 
-void buildWrapperCall(const pallas::irspec::WrappedSpecElement &specElem,
-                      llvm::Value &matchedValue, llvm::Function &pFunc,
-                      col::LlvmFunctionInvocation &colWrapperCall,
-                      pallas::FunctionCursor &functionCursor,
-                      varToIntrMapping diVarMapper) {
+void buildWrapperInv(const pallas::irspec::WrappedSpecElement &specElem,
+                     llvm::Value &matchedValue, llvm::Function &pFunc,
+                     col::LlvmWrapperInvocation &colWrapperInv,
+                     pallas::FunctionCursor &functionCursor,
+                     varToIntrMapping diVarMapper) {
     auto &fam = functionCursor.getFunctionAnalysisManager();
 
     // Init called function & origin
-    initWrapperCallBase(colWrapperCall, specElem, fam);
+    initWrapperInvBase(colWrapperInv, specElem, fam);
 
     // Map args of wrapper to DIVars
     auto wArgMapping = pallas::utils::mapArgsToDIVars(specElem.getWrapper());
@@ -89,6 +89,12 @@ void buildWrapperCall(const pallas::irspec::WrappedSpecElement &specElem,
 
     // Build call-args
     for (const auto &wArg : specElem.getWrapper().args()) {
+        // Skip sret-args. The wrapper is rewritten in LangLLVMToCol
+        // to use a 'regular' return.
+        if (wArg.hasStructRetAttr()) {
+            continue;
+        }
+
         // Get DIVar for wrapper-arg
         if (!wArgMapping->contains(&wArg)) {
             printError(specElem.getWrapper(),
@@ -100,14 +106,14 @@ void buildWrapperCall(const pallas::irspec::WrappedSpecElement &specElem,
         // Find corresponding source from spec-encoding:
         if (auto *pDiVar = specElem.getParentVar(wDiVar)) {
             // Build arg from regular variable
-            bool argOk = buildArgForDIVar(*pDiVar, matchedValue, specElem,
-                                          colWrapperCall, wArg.getArgNo(),
-                                          functionCursor, diVarMapper);
+            bool argOk =
+                buildArgForDIVar(*pDiVar, matchedValue, specElem, colWrapperInv,
+                                 wArg.getArgNo(), functionCursor, diVarMapper);
             if (!argOk)
                 return;
         } else if (auto *gDef = specElem.getGhostDef(wDiVar)) {
             // Build arg from definition of ghost variable
-            addArgFromGhostVar(*gDef, colWrapperCall, specElem, pFunc, fam);
+            addArgFromGhostVar(*gDef, colWrapperInv, specElem, pFunc, fam);
         } else {
             // Error, no mapping for DIVaraible
             std::stringstream s;
@@ -120,18 +126,18 @@ void buildWrapperCall(const pallas::irspec::WrappedSpecElement &specElem,
     }
 }
 
-void buildContractWrapperCall(const pallas::irspec::ContractClause &clause,
-                              llvm::Function &pFunc,
-                              col::LlvmFunctionInvocation &colWrapperCall,
-                              llvm::FunctionAnalysisManager &fam,
-                              bool isExternal) {
+void buildContractWrapperInv(const pallas::irspec::ContractClause &clause,
+                             llvm::Function &pFunc,
+                             col::LlvmWrapperInvocation &colWrapperInv,
+                             llvm::FunctionAnalysisManager &fam,
+                             bool isExternal) {
     if (isExternal) {
-        buildExternalWrapperCall(clause, pFunc, colWrapperCall, fam);
+        buildExternalWrapperInv(clause, pFunc, colWrapperInv, fam);
         return;
     }
 
     // Init called function & origin
-    initWrapperCallBase(colWrapperCall, clause, fam);
+    initWrapperInvBase(colWrapperInv, clause, fam);
 
     // Map args of wrapper to DIVars
     auto wArgMapping = pallas::utils::mapArgsToDIVars(clause.getWrapper());
@@ -143,6 +149,14 @@ void buildContractWrapperCall(const pallas::irspec::ContractClause &clause,
 
     // Build call-args
     for (const auto &wArg : clause.getWrapper().args()) {
+
+        // We do not support sret here!
+        if (wArg.hasStructRetAttr()) {
+            printError(clause.getWrapper(), "Wrappers with a sret-attribute "
+                                            "are not supported in contracts!");
+            return;
+        }
+
         // Get DIVar for wrapper-arg
         if (!wArgMapping->contains(&wArg)) {
             printError(clause.getWrapper(),
@@ -161,13 +175,13 @@ void buildContractWrapperCall(const pallas::irspec::ContractClause &clause,
             auto &colArg = fam.getResult<pallas::FunctionDeclarer>(pFunc)
                                .getFuncArgMapEntry(*pArg);
             // Construct Local-node that references the variable
-            auto *argExpr = colWrapperCall.add_args()->mutable_local();
+            auto *argExpr = colWrapperInv.add_call_args()->mutable_local();
             argExpr->set_allocated_origin(
                 llvm2col::generatePallasWrapperCallOrigin(clause));
             argExpr->mutable_ref()->set_id(colArg.id());
         } else if (auto *gDef = clause.getGhostDef(wDiVar)) {
             // Build arg from definition of ghost variable
-            addArgFromGhostVar(*gDef, colWrapperCall, clause, pFunc, fam);
+            addArgFromGhostVar(*gDef, colWrapperInv, clause, pFunc, fam);
         } else {
             // Error, no mapping for DIVaraible
             std::stringstream s;
@@ -180,10 +194,10 @@ void buildContractWrapperCall(const pallas::irspec::ContractClause &clause,
     }
 }
 
-void buildExternalWrapperCall(
-    const pallas::irspec::WrappedSpecElement &specElem, llvm::Function &pFunc,
-    col::LlvmFunctionInvocation &colWrapperCall,
-    llvm::FunctionAnalysisManager &fam) {
+void buildExternalWrapperInv(const pallas::irspec::WrappedSpecElement &specElem,
+                             llvm::Function &pFunc,
+                             col::LlvmWrapperInvocation &colWrapperInv,
+                             llvm::FunctionAnalysisManager &fam) {
 
     if (specElem.getWrapper().arg_size() != pFunc.arg_size()) {
         printError(
@@ -194,11 +208,18 @@ void buildExternalWrapperCall(
     }
 
     // Init called function & origin
-    initWrapperCallBase(colWrapperCall, specElem, fam);
+    initWrapperInvBase(colWrapperInv, specElem, fam);
 
     // Assume that wrapper-args are the same as those of the external function
     for (auto [wArg, pArg] :
          llvm::zip_equal(specElem.getWrapper().args(), pFunc.args())) {
+
+        if (wArg.hasStructRetAttr()) {
+            printError(specElem.getWrapper(),
+                       "Wrappers with a sret-attribute "
+                       "are not supported in external contracts!");
+            return;
+        }
 
         if (wArg.getType() != pArg.getType()) {
             printError(
@@ -213,7 +234,7 @@ void buildExternalWrapperCall(
 
         // Construct Local-node that references the variable and add it to
         // the list of arguments
-        auto *argExpr = colWrapperCall.add_args()->mutable_local();
+        auto *argExpr = colWrapperInv.add_call_args()->mutable_local();
         // TODO: Currently this just points to the full clause.
         //       Could be extended to point to the specific variable instead.
         argExpr->set_allocated_origin(
@@ -232,7 +253,7 @@ void buildExternalWrapperCall(
 
 bool buildArgForDIVar(llvm::DIVariable &diVar, llvm::Value &matchedValue,
                       const pallas::irspec::WrappedSpecElement &specElem,
-                      col::LlvmFunctionInvocation &wrapperCall,
+                      col::LlvmWrapperInvocation &wrapperInv,
                       unsigned int argIdx,
                       pallas::FunctionCursor &functionCursor,
                       varToIntrMapping diVarMapper) {
@@ -257,11 +278,11 @@ bool buildArgForDIVar(llvm::DIVariable &diVar, llvm::Value &matchedValue,
                                  "as a target for dbg.declare.");
             return false;
         }
-        utils::buildArgExprFromAlloca(wrapperCall, specElem, argIdx, *alloca,
+        utils::buildArgExprFromAlloca(wrapperInv, specElem, argIdx, *alloca,
                                       functionCursor);
     } else if (auto *dbgValue = llvm::dyn_cast<llvm::DbgValueInst>(intr)) {
         // Mapped to DbgValue
-        bool ok = utils::buildArgExprFromDbgValue(wrapperCall, specElem, argIdx,
+        bool ok = utils::buildArgExprFromDbgValue(wrapperInv, specElem, argIdx,
                                                   *dbgValue, functionCursor);
         if (!ok) {
             printError(*dbgValue,

@@ -272,6 +272,19 @@ col::Origin *llvm2col::generatePallasFunctionContractOrigin(
 }
 
 col::Origin *
+llvm2col::generateIndirectlyAssumedContractOrigin(const llvm::Function &f) {
+    auto prefName =
+        "Implicitly assumed contract of " + deriveOperandPreferredName(f);
+    auto *origin = new col::Origin();
+    // Preferred name
+    auto *preferredNameContent = origin->add_content();
+    auto *preferredNameNode = new col::PreferredName();
+    preferredNameNode->add_preferred_name(prefName);
+    preferredNameContent->set_allocated_preferred_name(preferredNameNode);
+    return origin;
+}
+
+col::Origin *
 llvm2col::generatePallasLoopContractOrigin(const llvm::Loop &loop,
                                            const pallas::irspec::SrcLoc &loc) {
     auto prefName = "Loop contract (" + loop.getName().str() + ")";

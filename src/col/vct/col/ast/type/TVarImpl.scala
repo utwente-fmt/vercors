@@ -14,5 +14,10 @@ trait TVarImpl[G] extends TVarOps[G] {
        else
          Seq(GenericTypeError(this, TType(TAnyValue()))))
 
-  override def layout(implicit ctx: Ctx): Doc = Text(ctx.name(ref))
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Text("'" + ctx.name(ref))
+      case _ => Text(ctx.name(ref))
+    }
+  }
 }

@@ -33,7 +33,7 @@ bool hasDiExpression(const llvm::DbgVariableIntrinsic &intr);
  * Given an alloca-Instruction, this function adds an argument to the given
  * call of a wrapper function that dereferences the alloca.
  */
-void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
+void buildArgExprFromAlloca(col::LlvmWrapperInvocation &wrapperInv,
                             const pallas::irspec::WrappedSpecElement &specElem,
                             unsigned int argIdx, llvm::AllocaInst &llvmAlloca,
                             pallas::FunctionCursor &functionCursor);
@@ -45,7 +45,7 @@ void buildArgExprFromAlloca(col::LlvmFunctionInvocation &wrapperCall,
  * Returns true on success and false otherwise.
  */
 bool buildArgExprFromDbgValue(
-    col::LlvmFunctionInvocation &wrapperCall,
+    col::LlvmWrapperInvocation &wrapperInv,
     const pallas::irspec::WrappedSpecElement &specElem, unsigned int argIdx,
     llvm::DbgValueInst &dbgVal, pallas::FunctionCursor &functionCursor);
 

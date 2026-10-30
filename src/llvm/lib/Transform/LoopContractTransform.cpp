@@ -171,9 +171,9 @@ bool llvm2col::addInvariantToContract(
     //     fam.getResult<pallas::FunctionDeclarer>(*llvmParentFunc);
 
     // Build Call to wrapper-function:
-    auto *wCall = new col::LlvmFunctionInvocation();
-    llvm2col::buildWrapperCall(inv, *llvmLoop.getHeader(), *llvmParentF, *wCall,
-                               functionCursor, loopInvVarMapper);
+    auto *wInv = new col::LlvmWrapperInvocation();
+    llvm2col::buildWrapperInv(inv, *llvmLoop.getHeader(), *llvmParentF, *wInv,
+                              functionCursor, loopInvVarMapper);
 
     // Append wrapper-call to loop-contract
     if (colContract.has_invariant()) {
@@ -182,10 +182,10 @@ bool llvm2col::addInvariantToContract(
         newInv->set_allocated_origin(
             generatePallasLoopContractOrigin(llvmLoop, contractLoc));
         newInv->set_allocated_left(oldInv);
-        newInv->mutable_right()->set_allocated_llvm_function_invocation(wCall);
+        newInv->mutable_right()->set_allocated_llvm_wrapper_invocation(wInv);
     } else {
-        colContract.mutable_invariant()->set_allocated_llvm_function_invocation(
-            wCall);
+        colContract.mutable_invariant()->set_allocated_llvm_wrapper_invocation(
+            wInv);
     }
     return true;
 }

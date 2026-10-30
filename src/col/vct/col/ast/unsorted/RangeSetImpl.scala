@@ -9,6 +9,11 @@ trait RangeSetImpl[G] extends RangeSetOps[G] {
   override def t: Type[G] = TSet(TInt())
 
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc =
-    Text("{") <> from <+> ".." <+> to <> "}"
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar =>
+        Group(Text("(fset_of_list [") <+> from <+> "..<" <+> to <+> Text("])"))
+      case _ => Text("{") <> from <+> ".." <+> to <> "}"
+    }
+  }
 }

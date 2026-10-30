@@ -135,18 +135,24 @@ struct GhostArgDef {
 };
 
 /**
+ * Values of a contract's assumed-flag.
+ */
+enum ContractAssumeType { NO_ASSUME, NORMAL_ASSUME, TRANSITIVE_ASSUME };
+
+/**
  * Representation of a function contract in the specification format of
  * Pallas.
  */
 struct FunctionContract {
     SrcLoc loc;
     bool pure;
-    bool assumed;
+    ContractAssumeType assumed;
     llvm::SmallVector<llvm::MDNode *, 4> givenArgs;
     llvm::SmallVector<llvm::MDNode *, 4> yieldsArgs;
     llvm::SmallVector<ContractClause, 4> clauses;
 
-    FunctionContract(const SrcLoc &loc, const bool pure, const bool assumed)
+    FunctionContract(const SrcLoc &loc, const bool pure,
+                     const ContractAssumeType assumed)
         : loc(loc), pure(pure), assumed(assumed) {}
 
     void addClause(ContractClause clause) { clauses.push_back(clause); }

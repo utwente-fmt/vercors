@@ -7,5 +7,10 @@ import vct.col.ast.ops.SubBagEqOps
 trait SubBagEqImpl[G] extends SubBagEqOps[G] {
   this: SubBagEq[G] =>
   override def precedence: Int = Precedence.RELATIONAL
-  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "<=", right)
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => lassoc(left, "⊆#", right)
+      case _ => lassoc(left, "<=", right)
+    }
+  }
 }

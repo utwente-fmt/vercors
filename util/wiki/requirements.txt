@@ -1,1 +1,1 @@
-pypandoc_binary==1.12
+pypandoc_binary==1.17

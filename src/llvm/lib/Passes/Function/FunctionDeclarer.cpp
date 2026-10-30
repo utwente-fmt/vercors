@@ -101,11 +101,34 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
     assert(sdRes != nullptr);
     // set args (if present)
     for (llvm::Argument &llvmArg : F.args()) {
+
+        // Argument
+        auto *arg = llvmFuncDef->add_llvm_args();
+        arg->set_allocated_origin(llvm2col::generateArgumentOrigin(llvmArg));
+
+        // Add 'byval'-attribute
+        if (llvmArg.hasByValAttr()) {
+            auto *colByVal = arg->add_attributes()->mutable_llvm_by_val_arg();
+            colByVal->set_allocated_origin(
+                llvm2col::generateArgumentOrigin(llvmArg));
+            llvm2col::transformAndSetType(*llvmArg.getParamByValType(),
+                                          *colByVal->mutable_t(), *sdRes);
+        }
+        // Add sret attribute
+        if (llvmArg.hasStructRetAttr()) {
+            auto *colSret = arg->add_attributes()->mutable_llvm_sret_arg();
+            colSret->set_allocated_origin(
+                llvm2col::generateArgumentOrigin(llvmArg));
+            llvm2col::transformAndSetType(*llvmArg.getParamStructRetType(),
+                                          *colSret->mutable_t(), *sdRes);
+        }
+
+        // Variable
         // set in buffer
-        col::Variable *colArg = llvmFuncDef->add_args();
+        auto *colVar = arg->mutable_v();
         // set origin
-        colArg->set_allocated_origin(llvm2col::generateArgumentOrigin(llvmArg));
-        llvm2col::setColNodeId(colArg);
+        colVar->set_allocated_origin(llvm2col::generateArgumentOrigin(llvmArg));
+        llvm2col::setColNodeId(colVar);
         llvm::Type *pointerType = llvmArg.getParamStructRetType();
         if (pointerType == nullptr)
             pointerType = llvmArg.getParamByRefType();
@@ -119,14 +142,14 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
                               .getValueAsType();
         try {
             llvm2col::transformAndSetValueType(llvmArg, pointerType,
-                                               *colArg->mutable_t(), *sdRes);
+                                               *colVar->mutable_t(), *sdRes);
         } catch (pallas::UnsupportedTypeException &e) {
             std::stringstream errorStream;
             errorStream << e.what() << " in argument #" << llvmArg.getArgNo();
             pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
         }
         // add args mapping to result
-        result.addFuncArgMapEntry(llvmArg, *colArg);
+        result.addFuncArgMapEntry(llvmArg, *colVar);
     }
     llvmFuncDef->set_allocated_blame(new col::Blame());
     // complete the function declaration in proto buffer
@@ -175,6 +198,9 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
             pallas::ErrorReporter::addError(SOURCE_LOC,
                                             "Invalid predicate definition!", F);
         }
+    } else if (irspec::isPallasGhostFunc(F)) {
+        fType->mutable_ghost_function()->set_allocated_origin(
+            llvm2col::generateFuncDefOrigin(F));
     } else {
         fType->mutable_normal_function()->set_allocated_origin(
             llvm2col::generateFuncDefOrigin(F));
@@ -189,27 +215,11 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         }
     }
 
-    try {
-        if (F.getParamStructRetType(0) != nullptr) {
-            auto retIdxT = llvmFuncDef->mutable_return_in_param();
-            retIdxT->set_v1(0);
-            llvm2col::transformAndSetPointerType(
-                *F.getParamStructRetType(0), *retIdxT->mutable_v2(), *sdRes);
-        } else if (F.getParamStructRetType(1) != nullptr) {
-            auto retIdxT = llvmFuncDef->mutable_return_in_param();
-            retIdxT->set_v1(1);
-            llvm2col::transformAndSetPointerType(
-                *F.getParamStructRetType(1), *retIdxT->mutable_v2(), *sdRes);
-        }
-    } catch (pallas::UnsupportedTypeException &e) {
-        std::stringstream errorStream;
-        errorStream << e.what() << " in sret argument ";
-        pallas::ErrorReporter::addError(SOURCE_LOC, errorStream.str(), F);
-    }
-
     if (F.isDeclaration()) {
         // Defined outside of this module so we don't know if it's pure or what
         // its contract is
+        // If it has an external contract, this will be overwritten by the
+        // ContractDeclarer
         col::VcllvmFunctionContract *colContract =
             llvmFuncDef->mutable_contract()->mutable_vcllvm_function_contract();
         colContract->set_allocated_blame(new col::Blame());
@@ -217,8 +227,24 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
         colContract->set_name(F.getName());
         colContract->set_allocated_origin(new col::Origin());
 
-        llvmFuncDef->set_pure(false);
+        // In the case of an external contract pure needs to be set here,
+        // because the PureAssigner is not invoked.
+        if (irspec::hasExternalPallasContract(F)) {
+            auto pureRes = irspec::getContractPure(*irspec::getContractMD(F));
+            if (!pureRes) {
+                pallas::ErrorReporter::addError(
+                    SOURCE_LOC, "Ill formed external contract on function", F);
+            }
+            llvmFuncDef->set_pure(pureRes.value_or(false));
+        } else {
+            llvmFuncDef->set_pure(false);
+        }
     }
+
+    // Function Attributes
+    llvmFuncDef->set_has_noreturn_attr(
+        F.hasFnAttribute(llvm::Attribute::NoReturn));
+
     return result;
 }
 

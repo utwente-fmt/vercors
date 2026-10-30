@@ -9,5 +9,11 @@ trait AndImpl[G] extends AndOps[G] {
   override def t: Type[G] = TBool()
 
   override def precedence: Int = Precedence.AND - 5
-  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "&&", right)
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => lassoc(left, "∧", right)
+      case _ => lassoc(left, "&&", right)
+    }
+
+  }
 }

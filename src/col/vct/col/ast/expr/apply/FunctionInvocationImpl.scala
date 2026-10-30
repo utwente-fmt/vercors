@@ -20,10 +20,17 @@ trait FunctionInvocationImpl[G] extends FunctionInvocationOps[G] {
       ) <> Doc.args(args) <> ")" <> DocUtil.givenYields(givenMap, yields)
     )
 
+  def layoutIsar(implicit ctx: Ctx): Doc =
+    Group((if (args.nonEmpty)
+             Text("(") <> Text(ctx.name(ref)) <+> Doc.spread(args) <> ")"
+           else
+             Text(ctx.name(ref))))
+
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc =
     ctx.syntax match {
       case Ctx.Silver => layoutSilver
+      case Ctx.Isar => layoutIsar
       case _ => layoutSpec
     }
 

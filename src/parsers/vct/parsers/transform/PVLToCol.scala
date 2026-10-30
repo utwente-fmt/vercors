@@ -746,11 +746,18 @@ case class PVLToCol[G](
     decls match {
       case DeclList0(name, None) =>
         Seq(LocalDecl(new Variable(t)(origin(name).sourceName(convert(name)))))
-      case DeclList0(name, Some(DeclInit0(_, init))) =>
+      case DeclList0(name, Some(init)) =>
         val v = new Variable(t)(origin(name).sourceName(convert(name)))
         Seq(
           LocalDecl(v),
-          Assign(Local(v.ref[Variable[G]]), convert(init))(AssignLocalOk),
+          init match {
+            case DeclInit0(_, init) =>
+              Assign(Local(v.ref[Variable[G]]), convert(init))(AssignLocalOk)
+            case PvlInitSuchThat(_, init) =>
+              AssignSuchThat(Local(v.ref[Variable[G]]), convert(init))(blame(
+                init
+              ))
+          },
         )
       case DeclList1(name, None, _, more) =>
         LocalDecl(new Variable(t)(origin(name).sourceName(convert(name)))) +:
@@ -1330,6 +1337,8 @@ case class PVLToCol[G](
       case ValAssume(_, assn, _) => Assume(convert(assn))
       case ValInhale(_, resource, _) => Inhale(convert(resource))
       case ValExhale(_, resource, _) => Exhale(convert(resource))(blame(stat))
+      case ValSuchThat(target, _, constraint, _) =>
+        AssignSuchThat(convert(target), convert(constraint))(blame(stat))
       case ValLabel(contract, _, label, _) =>
         withContract(
           contract,
@@ -1897,6 +1906,12 @@ case class PVLToCol[G](
           convert(v),
           convert(body),
         )
+      case ValLetSuchThat(_, _, t, id, _, v, _, body, _) =>
+        LetSuchThat(
+          new Variable(convert(t))(origin(id).sourceName(convert(id))),
+          convert(v),
+          convert(body),
+        )(blame(e))
       case ValForPerm(_, _, bindings, _, loc, _, body, _) =>
         ForPerm(
           convert(bindings),
@@ -2021,6 +2036,10 @@ case class PVLToCol[G](
     e match {
       case ValExpr0(inner) => convert(inner)
       case ValExpr1(inner) => convert(inner)
+      case ValUnfoldingInPrimary(_, _, predExpr, _, _, body) =>
+        Unfolding(AmbiguousFoldTarget(convert(predExpr)), convert(body))(blame(
+          e
+        ))
     }
 
   def convert(implicit id: ValIdentifierContext): String =
