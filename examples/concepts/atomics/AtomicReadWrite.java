@@ -51,6 +51,7 @@ class AtomicReadWrite {
                 //@ ghost last=2;
             }
         }
+        //@ assert false;
     }
 
     /*@ requires lastseen(2,-1);  @*/
@@ -72,6 +73,7 @@ class AtomicReadWrite {
                 //@ ghost last=1;
             }
         }
+        //@ assert false;
     }
 }
 
