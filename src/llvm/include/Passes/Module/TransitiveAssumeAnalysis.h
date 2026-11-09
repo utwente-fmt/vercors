@@ -22,6 +22,11 @@
  * For debugging, add the 'pallas-run-taa'-pass to the opt-pipeline and
  * enable the analysis-remarks with
  * -pass-remarks-analysis='transitive-assume-analysis'
+ *
+ * NOTE: This pass does not get invalidated automatically.
+ *       I.e. it must be invalidated manually if a changes the structure of the
+ *       LLVM module! In this use-case this is not an issue, as the LLVM-Module
+ *       is not modified by the passes that perform the COL-transformation!
  */
 namespace pallas {
 
@@ -33,6 +38,9 @@ class TAAResult {
 
   public:
     explicit TAAResult(const llvm::SmallSet<llvm::Function *, 8> &Assumed);
+
+    bool invalidate(llvm::Module &M, const llvm::PreservedAnalyses &PA,
+                    llvm::ModuleAnalysisManager::Invalidator &);
 
     bool isAssumed(llvm::Function &F);
 };

@@ -61,7 +61,7 @@ llvm::PassPluginLibraryInfo getPallasPluginInfo() {
                         MPM.addPass(pallas::StructConsolidatorPass());
                         return true;
                     } else if (Name == "pallas-run-taa") {
-                        // Run the TransitiveAssumeAnalysis for debugging
+                        // Run the TransitiveAssumeAnalysis
                         MPM.addPass(
                             RequireAnalysisPass<
                                 pallas::TransitiveAssumeAnalysis, Module>());

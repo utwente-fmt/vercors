@@ -16,6 +16,14 @@ TAAResult::TAAResult(const llvm::SmallSet<llvm::Function *, 8> &Assumed)
 
 bool TAAResult::isAssumed(Function &F) { return Assumed.contains(&F); }
 
+bool TAAResult::invalidate(Module &M, const PreservedAnalyses &PA,
+                           ModuleAnalysisManager::Invalidator &) {
+    // Required so that the analysis result can be accessed through a proxy from
+    // an FAM. This does mean thet the analysis must be invalidated manually if
+    // any passes modify the IR.
+    return false;
+}
+
 /*
  *  TransitiveAssumeAnalysis
  */
