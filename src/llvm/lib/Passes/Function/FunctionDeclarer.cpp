@@ -190,10 +190,12 @@ FDResult FunctionDeclarer::run(Function &F, FunctionAnalysisManager &FAM) {
             llvm2col::generateFuncDefOrigin(F));
     } else if (irspec::isPallasPredDef(F)) {
         auto isInline = irspec::isPallasPredInline(F);
-        if (isInline.has_value()) {
+        auto isAbstract = irspec::isPallasPredAbstract(F);
+        if (isInline.has_value() && isAbstract.has_value()) {
             auto *predTy = fType->mutable_predicate_definition();
             predTy->set_allocated_origin(llvm2col::generateFuncDefOrigin(F));
             predTy->set_inlined(*isInline);
+            predTy->set_is_abstract(*isAbstract);
         } else {
             pallas::ErrorReporter::addError(SOURCE_LOC,
                                             "Invalid predicate definition!", F);

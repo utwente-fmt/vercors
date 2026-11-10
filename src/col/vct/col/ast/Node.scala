@@ -3958,7 +3958,7 @@ final case class WrapperFunction[G]()(implicit val o: Origin)
 final case class GhostWrapperFunction[G]()(implicit val o: Origin)
     extends LLVMFunctionType[G] with GhostWrapperFunctionImpl[G]
 // Function that encodes the definition of a predicate
-final case class PredicateDefinition[G](val inlined: Boolean)(
+final case class PredicateDefinition[G](inlined: Boolean, isAbstract: Boolean)(
     implicit val o: Origin
 ) extends LLVMFunctionType[G] with PredicateDefinitionImpl[G]
 // Ghost function from Pallas.

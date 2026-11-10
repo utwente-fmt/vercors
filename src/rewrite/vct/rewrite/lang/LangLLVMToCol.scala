@@ -1155,6 +1155,10 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
     implicit val o: Origin = pred.o
     val isInlinePred =
       pred.functionType match { case t: PredicateDefinition[Pre] => t.inlined }
+    val isAbstract =
+      pred.functionType match {
+        case t: PredicateDefinition[Pre] => t.isAbstract
+      }
     // Turn LLVMFunctionDefinitions that encode predicate definitions into
     // LLVMPredicateDefinitions. These are turned into a ´real´ predicate
     // in a separate pass
@@ -1163,25 +1167,34 @@ case class LangLLVMToCol[Pre <: Generation](rw: LangSpecificToCol[Pre])
         val newArgs = rewriteArgList(pred.llvmArgs)
 
         rw.globalDeclarations.declare {
-          new LLVMPredicateDefinition[Post](
-            args = newArgs,
-            body =
-              inSpecDefFunction.having(true) {
-                inPureFunction.having(true) {
-                  allocaVars.having(mutable.Set[Variable[Pre]]()) {
-                    pred.body match {
-                      case None => None
-                      case Some(fBody) =>
-                        Some(GotoEliminator(fBody match {
-                          case scope: Scope[Pre] => scope;
-                          case other => throw UnexpectedLLVMNode(other)
-                        }).eliminate())
+          if (isAbstract) {
+            // Drop body of abstract predicates
+            new LLVMPredicateDefinition[Post](
+              args = newArgs,
+              body = None,
+              inline = isInlinePred,
+            )
+          } else {
+            new LLVMPredicateDefinition[Post](
+              args = newArgs,
+              body =
+                inSpecDefFunction.having(true) {
+                  inPureFunction.having(true) {
+                    allocaVars.having(mutable.Set[Variable[Pre]]()) {
+                      pred.body match {
+                        case None => None
+                        case Some(fBody) =>
+                          Some(GotoEliminator(fBody match {
+                            case scope: Scope[Pre] => scope;
+                            case other => throw UnexpectedLLVMNode(other)
+                          }).eliminate())
+                      }
                     }
                   }
-                }
-              },
-            inline = isInlinePred,
-          )
+                },
+              inline = isInlinePred,
+            )
+          }
         }
       }
     }

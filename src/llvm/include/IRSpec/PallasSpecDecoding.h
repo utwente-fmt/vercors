@@ -246,6 +246,13 @@ bool isPallasGhostFunc(const llvm::Function &f);
  */
 std::optional<bool> isPallasPredInline(const llvm::Function &f);
 
+/**
+ * Checks if the given function that represents a pallas predicate definition
+ * is marked as abstract or not.
+ * Returns a nullopt of the metadata is malformed. 
+ */
+std::optional<bool> isPallasPredAbstract(const llvm::Function &f);
+
 } // namespace pallas::irspec
 
 #endif // PALLAS_SPEC_DECODING_H
