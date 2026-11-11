@@ -3,7 +3,7 @@ source_filename = "examples/concepts/llvm/pallas/pallas_c_assert.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
-@llvm.used = appending global [13 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_3, ptr @PALLAS_SPEC_5, ptr @PALLAS_SPEC_4, ptr @PALLAS_SPEC_6, ptr @PALLAS_SPEC_7, ptr @PALLAS_SPEC_8, ptr @PALLAS_SPEC_9, ptr @PALLAS_SPEC_10, ptr @PALLAS_SPEC_11, ptr @PALLAS_SPEC_12], section "llvm.metadata"
+@llvm.used = appending global [13 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_3, ptr @PALLAS_SPEC_4, ptr @PALLAS_SPEC_5, ptr @PALLAS_SPEC_6, ptr @PALLAS_SPEC_7, ptr @PALLAS_SPEC_8, ptr @PALLAS_SPEC_9, ptr @PALLAS_SPEC_10, ptr @PALLAS_SPEC_11, ptr @PALLAS_SPEC_12], section "llvm.metadata"
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local i32 @bar(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !12 !pallas.fcontract !17 {
@@ -173,34 +173,34 @@ define dso_local zeroext i1 @PALLAS_SPEC_3(i32 noundef %0, i32 noundef %1) #0 !d
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_5(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !87 !pallas.exprWrapper !254 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !86, metadata !DIExpression()), !dbg !273
-  call void @llvm.dbg.value(metadata i32 %1, metadata !89, metadata !DIExpression()), !dbg !273
-  call void @llvm.dbg.value(metadata i32 %2, metadata !91, metadata !DIExpression()), !dbg !273
-  call void @llvm.dbg.value(metadata i32 %3, metadata !93, metadata !DIExpression()), !dbg !273
-  call void @llvm.dbg.value(metadata i32 %4, metadata !95, metadata !DIExpression()), !dbg !273
-  %6 = mul nsw i32 %4, %0, !dbg !274
-  %7 = icmp eq i32 %3, %6, !dbg !275
-  ret i1 %7, !dbg !273
-}
-
-; Function Attrs: noinline nounwind uwtable
 define dso_local zeroext i1 @PALLAS_SPEC_4(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !71 !pallas.exprWrapper !254 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !70, metadata !DIExpression()), !dbg !276
-  call void @llvm.dbg.value(metadata i32 %1, metadata !75, metadata !DIExpression()), !dbg !276
-  call void @llvm.dbg.value(metadata i32 %2, metadata !77, metadata !DIExpression()), !dbg !276
-  call void @llvm.dbg.value(metadata i32 %3, metadata !79, metadata !DIExpression()), !dbg !276
-  call void @llvm.dbg.value(metadata i32 %4, metadata !81, metadata !DIExpression()), !dbg !276
-  %6 = icmp sle i32 0, %4, !dbg !277
-  br i1 %6, label %7, label %9, !dbg !278
+  call void @llvm.dbg.value(metadata i32 %0, metadata !70, metadata !DIExpression()), !dbg !273
+  call void @llvm.dbg.value(metadata i32 %1, metadata !75, metadata !DIExpression()), !dbg !273
+  call void @llvm.dbg.value(metadata i32 %2, metadata !77, metadata !DIExpression()), !dbg !273
+  call void @llvm.dbg.value(metadata i32 %3, metadata !79, metadata !DIExpression()), !dbg !273
+  call void @llvm.dbg.value(metadata i32 %4, metadata !81, metadata !DIExpression()), !dbg !273
+  %6 = icmp sle i32 0, %4, !dbg !274
+  br i1 %6, label %7, label %9, !dbg !275
 
 7:                                                ; preds = %5
-  %8 = icmp sle i32 %4, %1, !dbg !279
+  %8 = icmp sle i32 %4, %1, !dbg !276
   br label %9
 
 9:                                                ; preds = %7, %5
-  %10 = phi i1 [ false, %5 ], [ %8, %7 ], !dbg !276
-  ret i1 %10, !dbg !276
+  %10 = phi i1 [ false, %5 ], [ %8, %7 ], !dbg !273
+  ret i1 %10, !dbg !273
+}
+
+; Function Attrs: noinline nounwind uwtable
+define dso_local zeroext i1 @PALLAS_SPEC_5(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !87 !pallas.exprWrapper !254 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !86, metadata !DIExpression()), !dbg !277
+  call void @llvm.dbg.value(metadata i32 %1, metadata !89, metadata !DIExpression()), !dbg !277
+  call void @llvm.dbg.value(metadata i32 %2, metadata !91, metadata !DIExpression()), !dbg !277
+  call void @llvm.dbg.value(metadata i32 %3, metadata !93, metadata !DIExpression()), !dbg !277
+  call void @llvm.dbg.value(metadata i32 %4, metadata !95, metadata !DIExpression()), !dbg !277
+  %6 = mul nsw i32 %4, %0, !dbg !278
+  %7 = icmp eq i32 %3, %6, !dbg !279
+  ret i1 %7, !dbg !277
 }
 
 ; Function Attrs: noinline nounwind uwtable
@@ -290,7 +290,7 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
 !1 = !DIFile(filename: "examples/concepts/llvm/pallas/pallas_c_assert.c", directory: ".", checksumkind: CSK_MD5, checksum: "75228d18208f31bd8d07e4ab62411fd6")
 !2 = distinct !DICompileUnit(language: DW_LANG_C11, file: !3, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
-!3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "92db1ea9a9355183e842a378325294c8")
+!3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "208e2f454f250a5f95893f489a3913b8")
 !4 = !{i32 7, !"Dwarf Version", i32 5}
 !5 = !{i32 2, !"Debug Info Version", i32 3}
 !6 = !{i32 1, !"wchar_size", i32 4}
@@ -560,13 +560,13 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !270 = !DILocation(line: 0, scope: !153)
 !271 = !DILocation(line: 36, column: 10, scope: !153)
 !272 = !DILocation(line: 36, column: 23, scope: !153)
-!273 = !DILocation(line: 0, scope: !87)
-!274 = !DILocation(line: 18, column: 29, scope: !87)
-!275 = !DILocation(line: 18, column: 24, scope: !87)
-!276 = !DILocation(line: 0, scope: !71)
-!277 = !DILocation(line: 17, column: 22, scope: !71)
-!278 = !DILocation(line: 17, column: 27, scope: !71)
-!279 = !DILocation(line: 17, column: 32, scope: !71)
+!273 = !DILocation(line: 0, scope: !71)
+!274 = !DILocation(line: 17, column: 22, scope: !71)
+!275 = !DILocation(line: 17, column: 27, scope: !71)
+!276 = !DILocation(line: 17, column: 32, scope: !71)
+!277 = !DILocation(line: 0, scope: !87)
+!278 = !DILocation(line: 18, column: 29, scope: !87)
+!279 = !DILocation(line: 18, column: 24, scope: !87)
 !280 = !DILocation(line: 0, scope: !104)
 !281 = !DILocation(line: 24, column: 21, scope: !104)
 !282 = !DILocation(line: 24, column: 16, scope: !104)

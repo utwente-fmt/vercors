@@ -3,8 +3,8 @@ source_filename = "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extCont
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
-@llvm.compiler.used = appending global [7 x ptr] [ptr @_Z13PALLAS_SPEC_0i, ptr @_Z13PALLAS_SPEC_1i, ptr @_Z13PALLAS_SPEC_5iiii, ptr @_Z13PALLAS_SPEC_4iiii, ptr @_Z13PALLAS_SPEC_6iii, ptr @_Z13PALLAS_SPEC_2ii, ptr @_Z13PALLAS_SPEC_3ii], section "llvm.metadata"
-@llvm.used = appending global [7 x ptr] [ptr @_Z13PALLAS_SPEC_0i, ptr @_Z13PALLAS_SPEC_1i, ptr @_Z13PALLAS_SPEC_2ii, ptr @_Z13PALLAS_SPEC_3ii, ptr @_Z13PALLAS_SPEC_5iiii, ptr @_Z13PALLAS_SPEC_4iiii, ptr @_Z13PALLAS_SPEC_6iii], section "llvm.metadata"
+@llvm.compiler.used = appending global [7 x ptr] [ptr @_Z13PALLAS_SPEC_0i, ptr @_Z13PALLAS_SPEC_1i, ptr @_Z13PALLAS_SPEC_4iiii, ptr @_Z13PALLAS_SPEC_5iiii, ptr @_Z13PALLAS_SPEC_6iii, ptr @_Z13PALLAS_SPEC_2ii, ptr @_Z13PALLAS_SPEC_3ii], section "llvm.metadata"
+@llvm.used = appending global [7 x ptr] [ptr @_Z13PALLAS_SPEC_0i, ptr @_Z13PALLAS_SPEC_1i, ptr @_Z13PALLAS_SPEC_2ii, ptr @_Z13PALLAS_SPEC_3ii, ptr @_Z13PALLAS_SPEC_4iiii, ptr @_Z13PALLAS_SPEC_5iiii, ptr @_Z13PALLAS_SPEC_6iii], section "llvm.metadata"
 
 ; Function Attrs: mustprogress noinline nounwind uwtable
 define dso_local noundef i32 @_Z3fooi(i32 noundef %0) #0 !dbg !111 !pallas.fcontract !115 {
@@ -95,32 +95,32 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1i(i32 noundef %0) #0 !dbg 
 }
 
 ; Function Attrs: mustprogress noinline nounwind uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_5iiii(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !188 !pallas.exprWrapper !222 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !187, metadata !DIExpression()), !dbg !228
-  call void @llvm.dbg.value(metadata i32 %1, metadata !190, metadata !DIExpression()), !dbg !228
-  call void @llvm.dbg.value(metadata i32 %2, metadata !192, metadata !DIExpression()), !dbg !228
-  call void @llvm.dbg.value(metadata i32 %3, metadata !194, metadata !DIExpression()), !dbg !228
-  %5 = icmp sge i32 %2, 0, !dbg !229
-  ret i1 %5, !dbg !228
-}
-
-; Function Attrs: mustprogress noinline nounwind uwtable
 define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_4iiii(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !174 !pallas.exprWrapper !222 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !173, metadata !DIExpression()), !dbg !230
-  call void @llvm.dbg.value(metadata i32 %1, metadata !178, metadata !DIExpression()), !dbg !230
-  call void @llvm.dbg.value(metadata i32 %2, metadata !180, metadata !DIExpression()), !dbg !230
-  call void @llvm.dbg.value(metadata i32 %3, metadata !182, metadata !DIExpression()), !dbg !230
-  %5 = icmp sle i32 0, %3, !dbg !231
-  br i1 %5, label %6, label %9, !dbg !232
+  call void @llvm.dbg.value(metadata i32 %0, metadata !173, metadata !DIExpression()), !dbg !228
+  call void @llvm.dbg.value(metadata i32 %1, metadata !178, metadata !DIExpression()), !dbg !228
+  call void @llvm.dbg.value(metadata i32 %2, metadata !180, metadata !DIExpression()), !dbg !228
+  call void @llvm.dbg.value(metadata i32 %3, metadata !182, metadata !DIExpression()), !dbg !228
+  %5 = icmp sle i32 0, %3, !dbg !229
+  br i1 %5, label %6, label %9, !dbg !230
 
 6:                                                ; preds = %4
-  %7 = add nsw i32 %0, 1, !dbg !233
-  %8 = icmp sle i32 %3, %7, !dbg !234
+  %7 = add nsw i32 %0, 1, !dbg !231
+  %8 = icmp sle i32 %3, %7, !dbg !232
   br label %9
 
 9:                                                ; preds = %6, %4
-  %10 = phi i1 [ false, %4 ], [ %8, %6 ], !dbg !230
-  ret i1 %10, !dbg !230
+  %10 = phi i1 [ false, %4 ], [ %8, %6 ], !dbg !228
+  ret i1 %10, !dbg !228
+}
+
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_5iiii(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !188 !pallas.exprWrapper !222 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !187, metadata !DIExpression()), !dbg !233
+  call void @llvm.dbg.value(metadata i32 %1, metadata !190, metadata !DIExpression()), !dbg !233
+  call void @llvm.dbg.value(metadata i32 %2, metadata !192, metadata !DIExpression()), !dbg !233
+  call void @llvm.dbg.value(metadata i32 %3, metadata !194, metadata !DIExpression()), !dbg !233
+  %5 = icmp sge i32 %2, 0, !dbg !234
+  ret i1 %5, !dbg !233
 }
 
 ; Function Attrs: mustprogress noinline nounwind uwtable
@@ -173,7 +173,7 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !1, producer: "Ubuntu clang version 17.0.6 (9ubuntu1)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
 !1 = !DIFile(filename: "examples/concepts/llvm/pallas/extContracts/pallas_cpp_extContr.cpp", directory: "/home/rme/repos/vercors", checksumkind: CSK_MD5, checksum: "3ce0804a8eb5623727f4076ae2ae8562")
 !2 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !3, producer: "Ubuntu clang version 17.0.6 (9ubuntu1)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, imports: !4, splitDebugInlining: false, nameTableKind: None)
-!3 = !DIFile(filename: "tmp/source_wrappers.cpp", directory: "/home/rme/repos/vercors", checksumkind: CSK_MD5, checksum: "173b156f9a2d15643306176e8a0d7eec")
+!3 = !DIFile(filename: "tmp/source_wrappers.cpp", directory: "/home/rme/repos/vercors", checksumkind: CSK_MD5, checksum: "2436937b9e8fd5173ad9bb583e5dd0b9")
 !4 = !{!5, !13, !17, !21, !25, !28, !30, !32, !34, !38, !41, !44, !47, !50, !52, !57, !61, !65, !69, !71, !73, !75, !77, !80, !83, !86, !89, !92, !94, !99}
 !5 = !DIImportedEntity(tag: DW_TAG_imported_declaration, scope: !6, entity: !7, file: !12, line: 51)
 !6 = !DINamespace(name: "std", scope: null)
@@ -398,13 +398,13 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !225 = !DILocation(line: 0, scope: !133)
 !226 = !DILocation(line: 13, column: 9, scope: !133)
 !227 = !DILocation(line: 13, column: 24, scope: !133)
-!228 = !DILocation(line: 0, scope: !188)
-!229 = !DILocation(line: 25, column: 24, scope: !188)
-!230 = !DILocation(line: 0, scope: !174)
-!231 = !DILocation(line: 24, column: 22, scope: !174)
-!232 = !DILocation(line: 24, column: 27, scope: !174)
-!233 = !DILocation(line: 24, column: 37, scope: !174)
-!234 = !DILocation(line: 24, column: 32, scope: !174)
+!228 = !DILocation(line: 0, scope: !174)
+!229 = !DILocation(line: 24, column: 22, scope: !174)
+!230 = !DILocation(line: 24, column: 27, scope: !174)
+!231 = !DILocation(line: 24, column: 37, scope: !174)
+!232 = !DILocation(line: 24, column: 32, scope: !174)
+!233 = !DILocation(line: 0, scope: !188)
+!234 = !DILocation(line: 25, column: 24, scope: !188)
 !235 = !DILocation(line: 0, scope: !203)
 !236 = !DILocation(line: 32, column: 17, scope: !203)
 !237 = distinct !DISubprogram(name: "PALLAS_SPEC_2", linkageName: "_Z13PALLAS_SPEC_2ii", scope: !102, file: !102, line: 6, type: !238, scopeLine: 6, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !101, retainedNodes: !114)

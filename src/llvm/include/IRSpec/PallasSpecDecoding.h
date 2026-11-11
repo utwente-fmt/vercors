@@ -249,7 +249,7 @@ std::optional<bool> isPallasPredInline(const llvm::Function &f);
 /**
  * Checks if the given function that represents a pallas predicate definition
  * is marked as abstract or not.
- * Returns a nullopt of the metadata is malformed. 
+ * Returns a nullopt of the metadata is malformed.
  */
 std::optional<bool> isPallasPredAbstract(const llvm::Function &f);
 
