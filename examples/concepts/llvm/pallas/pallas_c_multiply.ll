@@ -3,7 +3,7 @@ source_filename = "examples/concepts/llvm/pallas/pallas_c_multiply.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
-@llvm.used = appending global [5 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_4, ptr @PALLAS_SPEC_3], section "llvm.metadata"
+@llvm.used = appending global [5 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_3, ptr @PALLAS_SPEC_4], section "llvm.metadata"
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local i32 @mult(i32 noundef %0, i32 noundef %1) #0 !dbg !12 !pallas.fcontract !17 {
@@ -75,26 +75,26 @@ define dso_local zeroext i1 @PALLAS_SPEC_2(i32 noundef %0, i32 noundef %1) #0 !d
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_4(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !92 !pallas.exprWrapper !101 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !91, metadata !DIExpression()), !dbg !110
-  call void @llvm.dbg.value(metadata i32 %1, metadata !94, metadata !DIExpression()), !dbg !110
-  call void @llvm.dbg.value(metadata i32 %2, metadata !96, metadata !DIExpression()), !dbg !110
-  call void @llvm.dbg.value(metadata i32 %3, metadata !98, metadata !DIExpression()), !dbg !110
-  %5 = mul nsw i32 %3, %0, !dbg !111
-  %6 = icmp eq i32 %2, %5, !dbg !112
-  ret i1 %6, !dbg !110
+define dso_local zeroext i1 @PALLAS_SPEC_3(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !78 !pallas.exprWrapper !101 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !77, metadata !DIExpression()), !dbg !110
+  call void @llvm.dbg.value(metadata i32 %1, metadata !82, metadata !DIExpression()), !dbg !110
+  call void @llvm.dbg.value(metadata i32 %2, metadata !84, metadata !DIExpression()), !dbg !110
+  call void @llvm.dbg.value(metadata i32 %3, metadata !86, metadata !DIExpression()), !dbg !110
+  %5 = icmp sle i32 0, %3, !dbg !111
+  %6 = icmp sle i32 %3, %1, !dbg !112
+  %7 = call i1 @pallas.scAnd(i1 %5, i1 %6), !dbg !113
+  ret i1 %7, !dbg !110
 }
 
 ; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_3(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !78 !pallas.exprWrapper !101 {
-  call void @llvm.dbg.value(metadata i32 %0, metadata !77, metadata !DIExpression()), !dbg !113
-  call void @llvm.dbg.value(metadata i32 %1, metadata !82, metadata !DIExpression()), !dbg !113
-  call void @llvm.dbg.value(metadata i32 %2, metadata !84, metadata !DIExpression()), !dbg !113
-  call void @llvm.dbg.value(metadata i32 %3, metadata !86, metadata !DIExpression()), !dbg !113
-  %5 = icmp sle i32 0, %3, !dbg !114
-  %6 = icmp sle i32 %3, %1, !dbg !115
-  %7 = call i1 @pallas.scAnd(i1 %5, i1 %6), !dbg !116
-  ret i1 %7, !dbg !113
+define dso_local zeroext i1 @PALLAS_SPEC_4(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !92 !pallas.exprWrapper !101 {
+  call void @llvm.dbg.value(metadata i32 %0, metadata !91, metadata !DIExpression()), !dbg !114
+  call void @llvm.dbg.value(metadata i32 %1, metadata !94, metadata !DIExpression()), !dbg !114
+  call void @llvm.dbg.value(metadata i32 %2, metadata !96, metadata !DIExpression()), !dbg !114
+  call void @llvm.dbg.value(metadata i32 %3, metadata !98, metadata !DIExpression()), !dbg !114
+  %5 = mul nsw i32 %3, %0, !dbg !115
+  %6 = icmp eq i32 %2, %5, !dbg !116
+  ret i1 %6, !dbg !114
 }
 
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
@@ -114,7 +114,7 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
 !1 = !DIFile(filename: "examples/concepts/llvm/pallas/pallas_c_multiply.c", directory: ".", checksumkind: CSK_MD5, checksum: "61f5e88430c114818b97faa59f80d4ba")
 !2 = distinct !DICompileUnit(language: DW_LANG_C11, file: !3, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
-!3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "d62e1e7539bb70cbdc67b8e6afa36958")
+!3 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "627ea6c4b4681fb665bbd491befac468")
 !4 = !{i32 7, !"Dwarf Version", i32 5}
 !5 = !{i32 2, !"Debug Info Version", i32 3}
 !6 = !{i32 1, !"wchar_size", i32 4}
@@ -221,12 +221,12 @@ attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !107 = !DILocation(line: 11, column: 9, scope: !46)
 !108 = !DILocation(line: 11, column: 27, scope: !46)
 !109 = !DILocation(line: 11, column: 22, scope: !46)
-!110 = !DILocation(line: 0, scope: !92)
-!111 = !DILocation(line: 18, column: 29, scope: !92)
-!112 = !DILocation(line: 18, column: 24, scope: !92)
-!113 = !DILocation(line: 0, scope: !78)
-!114 = !DILocation(line: 17, column: 27, scope: !78)
-!115 = !DILocation(line: 17, column: 35, scope: !78)
-!116 = !DILocation(line: 17, column: 20, scope: !78)
+!110 = !DILocation(line: 0, scope: !78)
+!111 = !DILocation(line: 17, column: 27, scope: !78)
+!112 = !DILocation(line: 17, column: 35, scope: !78)
+!113 = !DILocation(line: 17, column: 20, scope: !78)
+!114 = !DILocation(line: 0, scope: !92)
+!115 = !DILocation(line: 18, column: 29, scope: !92)
+!116 = !DILocation(line: 18, column: 24, scope: !92)
 !117 = !{!"pallas.result"}
 !118 = !{!"pallas.scAnd"}

@@ -34,8 +34,9 @@ trait LLVMFunctionDefinitionImpl[G]
       else { Empty },
       if (isWrapper) { Text("@Wrapper") }
       else if (isGhostWrapper) { Text("@GhostWrapper") }
-      else if (isPredicate) { Text("@Predicate") }
-      else if (isGhostFunc) { Text("@Ghost") }
+      else if (isPredicate) {
+        getPredAnnot(functionType.asInstanceOf[PredicateDefinition[G]])
+      } else if (isGhostFunc) { Text("@Ghost") }
       else { contract },
       Group(
         (if (pure)
@@ -45,6 +46,13 @@ trait LLVMFunctionDefinitionImpl[G]
           ")"
       ) <+> body.map(_.layoutAsBlock).getOrElse(Text("")),
     ))
+
+  private def getPredAnnot(
+      pType: PredicateDefinition[G]
+  )(implicit ctx: Ctx): Doc = {
+    Text("@Predicate(") <> Text("inline:") <+> pType.inlined.toString <>
+      Text(", abstract:") <+> pType.isAbstract.toString <> Text(")")
+  }
 
   val args: Seq[Variable[G]] = llvmArgs.map(_.v)
 
