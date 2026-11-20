@@ -100,6 +100,9 @@ class IFM2024VeyMontPermissionsSpec extends VeyMontSpec {
         "--backend-option",
         "2",
         "--veymont-no-branch-unanimity",
+        "--dev-no-sat",
+        "--dev-no-dead",
+        "--dev-no-post-sat",
       ),
     )
 
