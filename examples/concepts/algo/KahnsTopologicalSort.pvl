@@ -67,11 +67,11 @@ class Kahn
         }
 
         loop_invariant 0 <= toIndex && toIndex <= N;
-        loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < |indegree[j]|; {:indegree[j][i]:} >= 0 && {:indegree[j][i]:} < N));
+        loop_invariant (\forall int j = 0..N, int i = 0..|indegree[j]|; {:indegree[j][i]:} >= 0 && {:indegree[j][i]:} < N);
         loop_invariant (\forall int j; 0 <= j && j < N; distinct({:indegree[j]:}));
         loop_invariant (\forall int j; 0 <= j && j < |queue|; {:queue[j]:} >= 0 && {:queue[j]:} < N);
         loop_invariant (\forall int j; 0 <= j && j < |queue|; |indegree[{:queue[j]:}]| == 0);
-        loop_invariant (\forall int j; 0 <= j && j < toIndex; |{:indegree[j]:}| == 0 ==> queue.contains(j));
+        loop_invariant (\forall int j; 0 <= j && j < toIndex; |{:1:indegree[j]:}| == 0 ==> {:2:queue.contains(j):});
         loop_invariant (\forall int j; 0 <= j && j < |queue|; {:queue[j]:} < toIndex);
         loop_invariant (distinct(queue));
         loop_invariant (\forall int j; 0 <= j && j < N; (\forall int i; 0 <= i && i < |indegree[j]|; {:graph[indegree[j][i]][j]:}));
