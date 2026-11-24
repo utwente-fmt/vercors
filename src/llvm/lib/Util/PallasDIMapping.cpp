@@ -29,11 +29,6 @@ mapArgsToDIVars(llvm::Function &f) {
         auto *intr = llvm::dyn_cast<llvm::DbgVariableIntrinsic>(&*i);
         if (intr == nullptr)
             continue;
-        if (pallas::utils::hasDiExpression(*intr)) {
-            pallas::ErrorReporter::addError(
-                SOURCE_LOC, "DIExpressions are not yet supported.", f);
-            return std::nullopt;
-        }
         auto *var = intr->getVariable();
         if (var->getArg() != 0)
             diVars.insert(var);
@@ -75,7 +70,8 @@ llvm::Argument *mapDIVarToArg(llvm::Function &f, llvm::DIVariable &diVar) {
     llvm::SmallVector<llvm::DbgVariableIntrinsic *, 8> intrinsics;
     for (auto i = inst_begin(&f), end = inst_end(&f); i != end; ++i) {
         auto *asIntr = llvm::dyn_cast<llvm::DbgVariableIntrinsic>(&*i);
-        if (asIntr != nullptr && pallas::utils::hasDiExpression(*asIntr)) {
+        if (asIntr != nullptr && pallas::utils::hasDiExpression(*asIntr) && 
+            !asIntr->getExpression()->isDeref()) {
             pallas::ErrorReporter::addError(
                 SOURCE_LOC, "DIExpressions are not yet supported.", f);
             return nullptr;
