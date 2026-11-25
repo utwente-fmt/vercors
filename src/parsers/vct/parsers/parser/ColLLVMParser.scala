@@ -71,26 +71,33 @@ case class ColLLVMParser(
       "[VerCors] opt stdout writer",
     ).start()
 
+    // Read stderr in a separate thread. Otherwise, a deadlock happens if the
+    // stderr-pipe fills up
+    var stderrRaw: Array[Byte] = Array.emptyByteArray
+    val errReader =
+      new Thread(
+        () => { stderrRaw = process.getErrorStream.readAllBytes() },
+        "[VerCors] opt stderr reader",
+      )
+    errReader.start()
+
     val protoProgram =
       Using(process.getInputStream) { is => Program.parseFrom(is) }
         .recoverWith { case _: IOException =>
+          val eCode = process.waitFor()
+          errReader.join()
           Failure(LLVMParseError(
-            process.exitValue(),
-            new String(
-              process.getErrorStream.readAllBytes(),
-              StandardCharsets.UTF_8,
-            ).indent(8),
+            eCode,
+            new String(stderrRaw, StandardCharsets.UTF_8).indent(8),
           ))
         }.get
 
     process.waitFor()
+    errReader.join()
     if (process.exitValue() != 0) {
       throw LLVMParseError(
         process.exitValue(),
-        new String(
-          process.getErrorStream.readAllBytes(),
-          StandardCharsets.UTF_8,
-        ).indent(8),
+        new String(stderrRaw, StandardCharsets.UTF_8).indent(8),
       )
     }
 
