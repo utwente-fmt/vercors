@@ -152,7 +152,7 @@ object AstBuildHelpers {
         case function: ADTFunction[Pre] => function.rewrite(args = args)
         case process: ModelProcess[Pre] => process.rewrite(args = args)
         case action: ModelAction[Pre] => action.rewrite(args = args)
-        case llvm: LLVMFunctionDefinition[Pre] => llvm.rewrite(args = args)
+        // case llvm: LLVMFunctionDefinition[Pre] => llvm.rewrite(args = args)
         case prover: ProverFunction[Pre] => prover.rewrite(args = args)
       }
   }

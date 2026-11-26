@@ -14,6 +14,7 @@ object Ctx {
   case object CPP extends Syntax
   case object Cuda extends Syntax
   case object OpenCL extends Syntax
+  case object Isar extends Syntax
 }
 
 case class Ctx(
@@ -22,6 +23,8 @@ case class Ctx(
     tabWidth: Int = 4,
     names: Map[Declaration[_], String] = Map.empty,
     inSpec: Boolean = false,
+    theoryName: String = "PVL.thy",
+    translateTriggers: Boolean = false,
 ) {
   def namesIn[G](node: Node[G]): Ctx =
     copy(names = {

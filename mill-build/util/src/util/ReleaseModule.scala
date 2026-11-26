@@ -34,14 +34,26 @@ trait ReleaseModule extends JavaModule with SeparatePackedResourcesModule {
     to
   }
 
-  def release() = T.command {
-    Map(
-      "unix" -> unixTar().path,
-      "macos" -> macosTar().path,
-      "win" -> winZip().path,
-      "deb" -> deb().path,
-      "docker" -> dockerBuild()._2.path,
+  def release(modes: String*) = T.command {
+    val builders: Map[String, () => os.Path] = Map(
+      "unix" -> (() => unixTar().path),
+      "macos" -> (() => macosTar().path),
+      "win" -> (() => winZip().path),
+      "deb" -> (() => deb().path),
+      "docker" -> (() => dockerBuild()._2.path),
     )
+
+    val requested =
+      if (modes.isEmpty || modes.contains("all")) builders.keys.toSeq
+      else modes
+
+    val unknown = requested.filterNot(builders.contains)
+    if (unknown.nonEmpty) {
+      throw new IllegalArgumentException(
+        s"Unsupported release targets: ${unknown.mkString(", ")}. Expected one or more of: all, ${builders.keys.toSeq.sorted.mkString(", ")}" )
+    }
+
+    requested.distinct.map(target => target -> builders(target)()).toMap
   }
 
   def dockerExtra: T[String] = ""

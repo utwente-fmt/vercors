@@ -27,7 +27,7 @@ trait BooleanValueImpl[G] extends BooleanValueOps[G] {
       SharedLayoutElement('e'),
     )
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc =
+  def layoutDefault(implicit ctx: Ctx) =
     Text(
       orderedLayoutFixture.collect {
         case e @ SharedLayoutElement(_) => e;
@@ -35,4 +35,18 @@ trait BooleanValueImpl[G] extends BooleanValueOps[G] {
           e
       }.map(_.textualData).mkString("")
     )
+
+  def layoutIsar(implicit ctx: Ctx) =
+    if (value)
+      Text("True")
+    else
+      Text("False")
+
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => layoutIsar
+      case _ => layoutDefault
+    }
+
+  }
 }

@@ -67,8 +67,13 @@ case object ExampleFiles {
     "examples/concepts/llvm/pallas/ghost/pallas_c_ghost_arg.c",
     "examples/concepts/llvm/pallas/ghost/pallas_cpp_ghost_arg.cpp",
     "examples/concepts/llvm/pallas/ghost/pallas_swift_ghost.swift",
+    "examples/concepts/llvm/pallas/pallas_byval.c",
     "examples/concepts/llvm/pointer_casts.c",
     "examples/concepts/llvm/structs.c",
+    "examples/concepts/llvm/pallas/ghost/c_byval_ghost.c",
+    "examples/concepts/llvm/pallas/pallas_c_seq.c",
+    "examples/concepts/llvm/pallas/pallas_cpp_resultRef.cpp",
+    "examples/concepts/llvm/pallas/pallas_cpp_abs_pred.cpp",
     "examples/publications/2026/ATVA2026Spectral/translate_spectral_examples.sh",
     "examples/publications/2026/ATVA2026Spectral/C/cantor.c",
     "examples/publications/2026/ATVA2026Spectral/C/date.c",
@@ -84,7 +89,7 @@ case object ExampleFiles {
     "examples/publications/2026/ATVA2026Spectral/Cpp/vstte10_sum_max.cpp",
     "examples/publications/2026/ATVA2026Spectral/Swift/cantor.swift",
     "examples/publications/2026/ATVA2026Spectral/Swift/date.swift",
-    "examples/publications/2026/ATVA2026Spectral/Swift/fibonacci.swift",
+    "examples/publications/2026/ATVA2026Spectral/Swift/fibonacci.swift"
   ).map(_.replaceAll("/", File.separator))
 
   val EXCLUSIONS: Seq[Path => Boolean] = Seq(

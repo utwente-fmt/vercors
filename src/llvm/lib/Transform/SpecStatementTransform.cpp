@@ -88,9 +88,9 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
                                   pallas::FunctionCursor &functionCursor) {
 
     // Build call to wrapper-function
-    auto *wCall = new col::LlvmFunctionInvocation();
-    llvm2col::buildWrapperCall(stmnt, llvmInstr, *llvmInstr.getFunction(),
-                               *wCall, functionCursor, stmntVarMapper);
+    auto *wInv = new col::LlvmWrapperInvocation();
+    llvm2col::buildWrapperInv(stmnt, llvmInstr, *llvmInstr.getFunction(), *wInv,
+                              functionCursor, stmntVarMapper);
 
     // COL-node for the statement
     col::Block &body = pallas::bodyAsBlock(colBlock);
@@ -101,13 +101,13 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
         // TODO: Fix the origin
         assert->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
             llvmInstr, stmnt.getLoc(), "assert"));
-        assert->mutable_res()->set_allocated_llvm_function_invocation(wCall);
+        assert->mutable_res()->set_allocated_llvm_wrapper_invocation(wInv);
     } else if (stmnt.getType() == pallas::irspec::SpecStatementType::ASSUME) {
         // Build Assume
         col::Assume *assume = body.add_statements()->mutable_assume();
         assume->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
             llvmInstr, stmnt.getLoc(), "assume"));
-        assume->mutable_assn()->set_allocated_llvm_function_invocation(wCall);
+        assume->mutable_assn()->set_allocated_llvm_wrapper_invocation(wInv);
     } else if (stmnt.getType() == pallas::irspec::SpecStatementType::FOLD) {
         // Build Fold
         col::Fold *fold = body.add_statements()->mutable_fold();
@@ -118,7 +118,7 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
             fold->mutable_res()->mutable_ambiguous_fold_target();
         target->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
             llvmInstr, stmnt.getLoc(), "fold"));
-        target->mutable_target()->set_allocated_llvm_function_invocation(wCall);
+        target->mutable_target()->set_allocated_llvm_wrapper_invocation(wInv);
     } else if (stmnt.getType() == pallas::irspec::SpecStatementType::UNFOLD) {
         // Build Unfold
         col::Unfold *unfold = body.add_statements()->mutable_unfold();
@@ -129,7 +129,7 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
             unfold->mutable_res()->mutable_ambiguous_fold_target();
         target->set_allocated_origin(llvm2col::generatePallasSpecStmntOrigin(
             llvmInstr, stmnt.getLoc(), "unfold"));
-        target->mutable_target()->set_allocated_llvm_function_invocation(wCall);
+        target->mutable_target()->set_allocated_llvm_wrapper_invocation(wInv);
     } else if (stmnt.getType() ==
                pallas::irspec::SpecStatementType::GHOST_ASSIGN) {
         // Get ghost-var from contract of parent:
@@ -151,7 +151,7 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
         }
         // Build assignment
         col::Block &body = pallas::bodyAsBlock(colBlock);
-        auto *assign = body.add_statements()->mutable_assign();
+        auto *assign = body.add_statements()->mutable_llvm_ghost_assign();
         assign->set_allocated_blame(new col::Blame());
         assign->set_allocated_origin(llvm2col::generatePallasSpecOrigin(
             stmnt.getLoc(), "Assignment to" + targetDef->name));
@@ -161,7 +161,7 @@ void llvm2col::transformSpecStmnt(const pallas::irspec::SpecStatement &stmnt,
             stmnt.getLoc(), "Ghost assign to " + targetDef->name));
         target->mutable_ref()->set_id(gVar->id());
         // Call
-        assign->mutable_value()->set_allocated_llvm_function_invocation(wCall);
+        assign->mutable_value()->set_allocated_llvm_wrapper_invocation(wInv);
     } else {
         printError(llvmInstr, "Unknown statement-type");
     }

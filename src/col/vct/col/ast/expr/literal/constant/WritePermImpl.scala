@@ -9,5 +9,9 @@ trait WritePermImpl[G] extends WritePermOps[G] {
   override def t: Type[G] = TBoundedInt(1, 2)
 
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc = Text("write")
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Isar => Text("1")
+      case _ => Text("write")
+    }
 }

@@ -109,9 +109,14 @@ case class VariableToPointer[Pre <: Generation]() extends Rewriter[Pre] {
     }
 
   override def dispatch(program: Program[Pre]): Program[Rewritten[Pre]] = {
-    addressedSet.addAll(program.flatCollect { case AddrOf(e) =>
-      getAddresses(e)
-    })
+    val gArgs = program.flatCollect { case c: ApplicableContract[Pre] =>
+      c.givenArgs ++ c.yieldsArgs
+    }.toSet[Node[Pre]]
+    // Filter out variables of ghost arguments
+    addressedSet.addAll(
+      program.flatCollect { case AddrOf(e) => getAddresses(e) }
+        .filter(a => !gArgs.contains(a._1))
+    )
     super.dispatch(program)
   }
 

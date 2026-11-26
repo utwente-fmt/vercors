@@ -77,10 +77,24 @@ case class ResolveScale[Pre <: Generation]()
   }
 
   def scaleValue(e: Scale[Pre]): Scaling[Post] = {
-    val isNonNegative = equalityChecker.lessThenEq(const(0)(e.o), e.scale)
-      .getOrElse(false)
-    val isPositive = equalityChecker.lessThenEq(const(1)(e.o), e.scale)
-      .getOrElse(false)
+    var isNonNegative: Boolean = false
+    var isPositive: Boolean = false
+
+    e.scale match {
+      case RatDiv(IntegerValue(i), x) if i >= 1 =>
+        if (equalityChecker.lessThenEq(const(1)(e.o), x).getOrElse(false)) {
+          isNonNegative = true
+          isPositive = true
+        }
+      case WritePerm() =>
+        isNonNegative = true
+        isPositive = true
+      case e =>
+        isNonNegative = equalityChecker.lessThenEq(const(0)(e.o), e)
+          .getOrElse(false)
+        isPositive = equalityChecker.lessThenEq(const(1)(e.o), e)
+          .getOrElse(false)
+    }
     var newScale = dispatch(e.scale)
     // When we do not know if it can be negative, we should check
     if (!isNonNegative) {

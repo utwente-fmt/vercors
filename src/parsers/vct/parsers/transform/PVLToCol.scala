@@ -2036,6 +2036,10 @@ case class PVLToCol[G](
     e match {
       case ValExpr0(inner) => convert(inner)
       case ValExpr1(inner) => convert(inner)
+      case ValUnfoldingInPrimary(_, _, predExpr, _, _, body) =>
+        Unfolding(AmbiguousFoldTarget(convert(predExpr)), convert(body))(blame(
+          e
+        ))
     }
 
   def convert(implicit id: ValIdentifierContext): String =

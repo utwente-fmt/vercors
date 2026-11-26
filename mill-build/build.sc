@@ -62,3 +62,4 @@ object millbuild extends MillBuildRootModule {
     def resources = T { Seq.empty[PathRef] }
   }
 }
+

@@ -9,6 +9,13 @@ trait LiteralSetImpl[G] extends LiteralSetOps[G] {
   override def t: Type[G] = TSet(element)
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("set<") <> element <> ">{" <> Doc.args(values) <> "}")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar =>
+        if (values.isEmpty) { Group(Text("{||}")) }
+        else { Group(Text("{|") <> Doc.args(values) <> "|}") }
+      case _ =>
+        Group(Text("set<") <> element <> ">{" <> Doc.args(values) <> "}")
+    }
+  }
 }

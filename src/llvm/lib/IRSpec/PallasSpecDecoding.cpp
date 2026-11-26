@@ -323,22 +323,29 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md) {
     }
 
     // Pure
-    auto *pureConst = asConstantInt(md->getOperand(1).get());
-    if (pureConst == nullptr || (pureConst->getBitWidth() != 1)) {
+    auto pureRes = getContractPure(*md);
+    if (!pureRes) {
         addError("Second operand operand of contract must be boolean constant.",
                  md);
         return std::nullopt;
     }
-    bool pure = pureConst->isOne();
+    bool pure = pureRes.value();
 
     // Assumed
     auto *assumedConst = asConstantInt(md->getOperand(2).get());
-    if (assumedConst == nullptr || (assumedConst->getBitWidth() != 1)) {
-        addError("Third operand operand of contract must be boolean constant.",
+    if (assumedConst == nullptr || (assumedConst->getBitWidth() != 8) ||
+        assumedConst->getZExtValue() > 2) {
+        addError("Third operand operand of contract must be an i8 constant "
+                 "that has either value '0', '1' or '2'.",
                  md);
         return std::nullopt;
     }
-    bool assumed = assumedConst->isOne();
+    ContractAssumeType assumed = NO_ASSUME;
+    if (assumedConst->getZExtValue() == 1) {
+        assumed = NORMAL_ASSUME;
+    } else if (assumedConst->getZExtValue() == 2) {
+        assumed = TRANSITIVE_ASSUME;
+    }
 
     FunctionContract contract(loc.value(), pure, assumed);
 
@@ -410,6 +417,17 @@ std::optional<FunctionContract> getContract(const llvm::MDNode *md) {
     }
 
     return std::make_optional(contract);
+}
+
+std::optional<bool> getContractPure(const llvm::MDNode &md) {
+    if (md.getNumOperands() < 2)
+        return std::nullopt;
+
+    auto *pureConst = asConstantInt(md.getOperand(1).get());
+    if (pureConst == nullptr || (pureConst->getBitWidth() != 1))
+        return std::nullopt;
+
+    return pureConst->isOne();
 }
 
 std::optional<LoopInvariantClause> getLoopInvariantClause(llvm::MDNode *md) {
@@ -920,14 +938,33 @@ bool isPallasPredDef(const llvm::Function &f) {
     return f.hasMetadata(pallas::constants::PALLAS_PRED_DEF);
 }
 
+bool isPallasGhostFunc(const llvm::Function &f) {
+    return f.hasMetadata(pallas::constants::PALLAS_GHOST_FUNC);
+}
+
 std::optional<bool> isPallasPredInline(const llvm::Function &f) {
     if (!isPallasPredDef(f))
         return std::nullopt;
     auto *predDefMD = f.getMetadata(pallas::constants::PALLAS_PRED_DEF);
-    if (predDefMD->getNumOperands() != 1)
+    if (predDefMD->getNumOperands() != 2)
         return std::nullopt;
     auto *inlineConst = llvm::dyn_cast<llvm::ConstantAsMetadata>(
         predDefMD->getOperand(0).get());
+    auto *inlineVal =
+        llvm::dyn_cast_if_present<llvm::ConstantInt>(inlineConst->getValue());
+    if (inlineVal == nullptr || (inlineVal->getBitWidth() != 1))
+        return std::nullopt;
+    return std::make_optional(inlineVal->isOne());
+}
+
+std::optional<bool> isPallasPredAbstract(const llvm::Function &f) {
+    if (!isPallasPredDef(f))
+        return std::nullopt;
+    auto *predDefMD = f.getMetadata(pallas::constants::PALLAS_PRED_DEF);
+    if (predDefMD->getNumOperands() != 2)
+        return std::nullopt;
+    auto *inlineConst = llvm::dyn_cast<llvm::ConstantAsMetadata>(
+        predDefMD->getOperand(1).get());
     auto *inlineVal =
         llvm::dyn_cast_if_present<llvm::ConstantInt>(inlineConst->getValue());
     if (inlineVal == nullptr || (inlineVal->getBitWidth() != 1))

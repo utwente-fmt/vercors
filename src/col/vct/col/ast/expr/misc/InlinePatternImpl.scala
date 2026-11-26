@@ -9,7 +9,7 @@ trait InlinePatternImpl[G] extends InlinePatternOps[G] {
   override def t: Type[G] = inner.t
 
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc =
+  def layoutDefault(implicit ctx: Ctx) =
     (parent, group) match {
       case (0, 0) => Text("{:") <+> inner <+> ":}"
       case (parent, 0) =>
@@ -17,5 +17,16 @@ trait InlinePatternImpl[G] extends InlinePatternOps[G] {
       case (parent, group) =>
         Text("{:") <> "<".repeat(parent) <> group.toString <> ":" <+> inner <+>
           ":}"
+    }
+
+  // layout
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Isar =>
+        if (ctx.translateTriggers)
+          layoutDefault
+        else
+          inner.show
+      case _ => layoutDefault
     }
 }

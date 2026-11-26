@@ -15,6 +15,12 @@ trait LiteralTupleImpl[G] extends ExprImpl[G] with LiteralTupleOps[G] {
     else { Seq(TupleTypeCount(this)) }
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("tuple<") <> Doc.args(ts) <> ">{" <> Doc.args(values) <> "}")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Group(Text("(") <> Doc.args(values) <> Text(")"))
+      case _ =>
+        Group(Text("tuple<") <> Doc.args(ts) <> ">{" <> Doc.args(values) <> "}")
+    }
+
+  }
 }

@@ -9,5 +9,9 @@ trait OrImpl[G] extends OrOps[G] {
   override def t: Type[G] = TBool()
 
   override def precedence: Int = Precedence.OR
-  override def layout(implicit ctx: Ctx): Doc = lassoc(left, "||", right)
+  override def layout(implicit ctx: Ctx): Doc =
+    ctx.syntax match {
+      case Ctx.Isar => lassoc(left, "∨", right)
+      case _ => lassoc(left, "||", right)
+    }
 }

@@ -52,6 +52,7 @@ col::Origin *generateLoopOrigin(llvm::Loop &llvmLoop);
 col::Origin *
 generatePallasFunctionContractOrigin(const llvm::Function &f,
                                      const pallas::irspec::SrcLoc &loc);
+col::Origin *generateIndirectlyAssumedContractOrigin(const llvm::Function &f);
 
 col::Origin *
 generatePallasLoopContractOrigin(const llvm::Loop &loop,

@@ -11,6 +11,10 @@ trait UntypedLiteralBagImpl[G] extends UntypedLiteralBagOps[G] {
   override def t: Type[G] = TBag(elementType)
 
   override def precedence: Int = Precedence.ATOMIC
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("b{") <> Doc.args(values) <> "}")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar => Group(Text("{#") <+> Doc.args(values) <+> Text("#}"))
+      case _ => Group(Text("b{") <> Doc.args(values) <> "}")
+    }
+  }
 }

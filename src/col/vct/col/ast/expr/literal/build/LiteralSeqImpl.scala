@@ -9,6 +9,13 @@ trait LiteralSeqImpl[G] extends LiteralSeqOps[G] {
   override def t: Type[G] = TSeq(element)
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(Text("seq<") <> element <> ">{" <> Doc.args(values) <> "}")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case Ctx.Isar =>
+        if (values.isEmpty) { Group(Text("[]")) }
+        else { Group(Text("[") <> Doc.args(values) <> Text(")")) }
+      case _ =>
+        Group(Text("seq<") <> element <> ">{" <> Doc.args(values) <> "}")
+    }
+  }
 }

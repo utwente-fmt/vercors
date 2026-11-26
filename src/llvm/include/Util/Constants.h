@@ -14,6 +14,7 @@ const std::string PALLAS_ENSURES = "pallas.ensures";
 const std::string PALLAS_WRAPPER_FUNC = "pallas.exprWrapper";
 const std::string PALLAS_GHOST_WRAPPER_FUNC = "pallas.ghostWrapper";
 const std::string PALLAS_PRED_DEF = "pallas.predDef";
+const std::string PALLAS_GHOST_FUNC = "pallas.ghost";
 const std::string PALLAS_SRC_LOC_ID = "pallas.srcLoc";
 const std::string PALLAS_LOOP_CONTR_ID = "pallas.loopInvBlock";
 const std::string PALLAS_LOOP_INV_ID = "pallas.loopInv";
@@ -30,6 +31,7 @@ const std::string PALLAS_YIELDS_BINDING = "pallas.yieldsBinding";
 
 const std::string PALLAS_SPEC_LIB_MARKER = "pallas.specLib";
 const std::string PALLAS_SPEC_RESULT = "pallas.result";
+const std::string PALLAS_SPEC_RESULT_REF = "pallas.resultRef";
 const std::string PALLAS_SPEC_FRAC_OF = "pallas.fracOf";
 const std::string PALLAS_SPEC_PERM = "pallas.perm";
 const std::string PALLAS_SPEC_PTR_BLOCK_LENGTH = "pallas.ptrBlockLength";
@@ -45,6 +47,16 @@ const std::string PALLAS_SPEC_FORALL = "pallas.forall";
 const std::string PALLAS_SPEC_SEPFORALL = "pallas.forallSep";
 const std::string PALLAS_SPEC_EXISTS = "pallas.exists";
 const std::string PALLAS_SPEC_UNFOLDING = "pallas.unfolding";
+
+const std::string PALLAS_SPEC_SEQ_NEW = "pallas.seq.new";
+const std::string PALLAS_SPEC_SEQ_SIZE = "pallas.seq.size";
+const std::string PALLAS_SPEC_SEQ_GET = "pallas.seq.get";
+const std::string PALLAS_SPEC_SEQ_PREPEND = "pallas.seq.prepend";
+const std::string PALLAS_SPEC_SEQ_EQUALS = "pallas.seq.equals";
+const std::string PALLAS_SPEC_SEQ_SLICE = "pallas.seq.slice";
+const std::string PALLAS_SPEC_SEQ_SET = "pallas.seq.set";
+
+const std::string PALLAS_SPEC_SEQ_TYPE_PREFIX = "pallas.seq.";
 
 // Legacy VCLLVM constants
 const std::string VC_PREFIX = "VC.";

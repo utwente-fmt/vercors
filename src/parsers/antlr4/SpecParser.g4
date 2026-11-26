@@ -264,6 +264,7 @@ valExpr
  : {specLevel>0}? valPrimary
  | {specLevel>0}? valKeywordExpr
  | startSpec '\\replacing' '(' langExpr ')' endSpec langExpr startSpec '\\replacing_done' endSpec
+ | startSpec ('\\unfolding'|'\\Unfolding') langExpr '\\in' endSpec langExpr #valUnfoldingInPrimary
  ;
 
 valIdentifier

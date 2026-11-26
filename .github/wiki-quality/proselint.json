@@ -1,0 +1,9 @@
+{
+    "max_errors": 100,
+    "checks": {
+        "typography.symbols.curly_quotes": false,
+        "typography.symbols.ellipsis": false,
+        "typography.punctuation.exclamation": false
+    },
+    "per_file_checks": {}
+}

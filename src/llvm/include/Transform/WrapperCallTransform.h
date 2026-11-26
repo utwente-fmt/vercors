@@ -34,34 +34,34 @@ typedef std::function<llvm::DbgVariableIntrinsic *(
  * Initializes a call to a wrapper function based on the given
  * WrappedSpecElement.
  */
-void buildWrapperCall(const pallas::irspec::WrappedSpecElement &specElem,
-                      llvm::Value &matchedValue, llvm::Function &pFunc,
-                      col::LlvmFunctionInvocation &colWrapperCall,
-                      pallas::FunctionCursor &functionCursor,
-                      varToIntrMapping diVarMapper);
+void buildWrapperInv(const pallas::irspec::WrappedSpecElement &specElem,
+                     llvm::Value &matchedValue, llvm::Function &pFunc,
+                     col::LlvmWrapperInvocation &colWrapperInv,
+                     pallas::FunctionCursor &functionCursor,
+                     varToIntrMapping diVarMapper);
 
 /**
  * Initializes a call to a wrapper function for use in s function contract based
  * on the given WrappedSpecElement.
  */
-void buildContractWrapperCall(const pallas::irspec::ContractClause &clause,
-                              llvm::Function &pFunc,
-                              col::LlvmFunctionInvocation &colWrapperCall,
-                              llvm::FunctionAnalysisManager &fam, 
-                              bool isExternal);
+void buildContractWrapperInv(const pallas::irspec::ContractClause &clause,
+                             llvm::Function &pFunc,
+                             col::LlvmWrapperInvocation &colWrapperInv,
+                             llvm::FunctionAnalysisManager &fam,
+                             bool isExternal);
 
 /**
  * Initializes a call to a wrapper function belongs to an external contract
  * which does not have an explicit mapping of wrapper-args to values.
  */
-void buildExternalWrapperCall(
-    const pallas::irspec::WrappedSpecElement &specElem, llvm::Function &pFunc,
-    col::LlvmFunctionInvocation &colWrapperCall,
-    llvm::FunctionAnalysisManager &fam);
+void buildExternalWrapperInv(const pallas::irspec::WrappedSpecElement &specElem,
+                             llvm::Function &pFunc,
+                             col::LlvmWrapperInvocation &colWrapperInv,
+                             llvm::FunctionAnalysisManager &fam);
 
 bool buildArgForDIVar(llvm::DIVariable &diVar, llvm::Value &matchedValue,
                       const pallas::irspec::WrappedSpecElement &specElem,
-                      col::LlvmFunctionInvocation &wrapperCall,
+                      col::LlvmWrapperInvocation &wrapperInv,
                       unsigned int argIdx,
                       pallas::FunctionCursor &functionCursor,
                       varToIntrMapping diVarMapper);

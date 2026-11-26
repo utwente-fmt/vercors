@@ -1,8 +1,8 @@
 package vct.col.ast.lang.llvm
 
-import vct.col.ast.declaration.category.ApplicableImpl
 import vct.col.ast._
 import vct.col.ast.ops.LLVMStructDeclarationOps
+import vct.col.print.Line.<+>
 import vct.col.print._
 
 trait LLVMStructDeclarationImpl[G] extends LLVMStructDeclarationOps[G] {
@@ -19,6 +19,12 @@ trait LLVMStructDeclarationImpl[G] extends LLVMStructDeclarationOps[G] {
     else { inner }
 
   override def layout(implicit ctx: Ctx): Doc = {
+    val body = layoutPacked(Text("{") <> Doc.args(elements) <> "}")
+    if (name.nonEmpty) { Text(name.head) <+> body }
+    else { body }
+  }
+
+  def layoutCompact(implicit ctx: Ctx): Doc = {
     if (name.nonEmpty)
       Text(name.head)
     else

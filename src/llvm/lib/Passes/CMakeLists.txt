@@ -13,6 +13,7 @@ add_library(Passes STATIC
     Module/RootContainer.cpp
     Module/StructConsolidator.cpp
     Module/StructTDeclarer.cpp
+    Module/TransitiveAssumeAnalysis.cpp
 )
 
 target_link_libraries(Passes COL IRSpec)

@@ -70,6 +70,14 @@ void transformPallasSpecResult(llvm::CallInst &callInstruction,
                                pallas::FunctionCursor &funcCursor);
 
 /**
+ * Transform the given call-instruction to the resultRef-function of the pallas
+ * specification library.
+ */
+void transformPallasSpecResultRef(llvm::CallInst &callInstruction,
+                                  col::LlvmBasicBlock &colBlock,
+                                  pallas::FunctionCursor &funcCursor);
+
+/**
  * Transform call-instruction to the fracOf-function of the pallas
  * specification library.
  */
@@ -134,6 +142,34 @@ void transformPallasExists(llvm::CallInst &callInstruction,
                            pallas::FunctionCursor &funcCursor);
 
 void transformPallasUnfolding(llvm::CallInst &callInstruction,
+                              col::LlvmBasicBlock &colBlock,
+                              pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqNew(llvm::CallInst &callInstruction,
+                           col::LlvmBasicBlock &colBlock,
+                           pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqSize(llvm::CallInst &callInstruction,
+                            col::LlvmBasicBlock &colBlock,
+                            pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqEq(llvm::CallInst &callInstruction,
+                          col::LlvmBasicBlock &colBlock,
+                          pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqGet(llvm::CallInst &callInstruction,
+                           col::LlvmBasicBlock &colBlock,
+                           pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqSlice(llvm::CallInst &callInstruction,
+                             col::LlvmBasicBlock &colBlock,
+                             pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqPrepend(llvm::CallInst &callInstruction,
+                               col::LlvmBasicBlock &colBlock,
+                               pallas::FunctionCursor &funcCursor);
+
+void transformPallasSeqUpdate(llvm::CallInst &callInstruction,
                               col::LlvmBasicBlock &colBlock,
                               pallas::FunctionCursor &funcCursor);
 

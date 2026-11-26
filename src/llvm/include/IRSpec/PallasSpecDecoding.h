@@ -78,10 +78,18 @@ std::optional<GhostArgDef> getGhostArgDef(const llvm::MDNode *md);
 
 /**
  * If the given metadata node encodes a contract in the specification
- * format of Pallas, returns it as a SrcLoc.
+ * format of Pallas, returns it as a FunctionContract.
  * Otherwise, an empty optional is returned and errors are added.
  */
 std::optional<FunctionContract> getContract(const llvm::MDNode *md);
+
+/**
+ * If the given metadata node encodes a contract in the specification
+ * format of Pallas, returns its pure-field.
+ * If the encoding is invalid, an empty optional is returned.
+ * In the case of an invalid decoding, no errors are added.
+ */
+std::optional<bool> getContractPure(const llvm::MDNode &md);
 
 /**
  * Decode a loop invariant clause from the specification format of Pallas.
@@ -226,12 +234,24 @@ bool isPallasGhostWrapper(const llvm::Function &f);
 bool isPallasPredDef(const llvm::Function &f);
 
 /**
+ * Checks if the given function is marked as a ghost function.
+ */
+bool isPallasGhostFunc(const llvm::Function &f);
+
+/**
  * Checks if the given function that represents a pallas predicate definition
  * is marked as inline or not.
  * If the function is not a valid predicate or if the metadata is malformed,
  * a nullopt is returned.
  */
 std::optional<bool> isPallasPredInline(const llvm::Function &f);
+
+/**
+ * Checks if the given function that represents a pallas predicate definition
+ * is marked as abstract or not.
+ * Returns a nullopt of the metadata is malformed.
+ */
+std::optional<bool> isPallasPredAbstract(const llvm::Function &f);
 
 } // namespace pallas::irspec
 

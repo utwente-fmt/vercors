@@ -26,6 +26,7 @@ case object Compile extends LazyLogging {
         options.compileOutput.orElse(Some(Paths.get("a.java"))),
         Ctx.Java,
         false,
+        false, // options.isarTriggers
       )).run(options.inputs)
 
     result match {

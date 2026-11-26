@@ -24,8 +24,10 @@ case object Check {
 }
 
 sealed trait CheckError {
-  def message(context: Node[_] => HasContext): String =
-    Message.messagesInContext((this match {
+  def originsWithMessages[C <: HasContext](
+      context: Node[_] => C
+  ): Seq[(C, String)] =
+    this match {
       case TypeError(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
         Seq(context(expr) -> s"This expression is not a value.")
       case TypeErrorText(expr, _) if expr.t.isInstanceOf[TNotAValue[_]] =>
@@ -196,8 +198,8 @@ sealed trait CheckError {
             s"This invocation has the wrong number of arguments, got: $gotCount expected: $expectedCount"
         )
       case InvalidTriggerVars(triggers, missing) =>
-        triggers.map(err => err.o -> s"... these triggers.") ++
-          missing.map(v => (v.o, ".. do not mention this var."))
+        triggers.map(err => context(err) -> s"... these triggers.") ++
+          missing.map(v => (context(v), ".. do not mention this var."))
       case DisallowedTriggerExpression(expr) =>
         Seq(context(expr) -> "This expression is not a valid trigger")
       case TriggerWithoutDependentVars(expr) =>
@@ -210,7 +212,15 @@ sealed trait CheckError {
           context(expr) ->
             "This construct must be in a \\polarity_dependent expression since it must be evaluated in a specific heap"
         )
-    }): _*)
+      case LLVMInvalidGhostAssign(node) =>
+        Seq(
+          context(node) ->
+            "LLVMGhostAssignments must always assign the value of a LLVMWrapperInvocation."
+        )
+    }
+
+  def message(context: Node[_] => HasContext): String =
+    Message.messagesInContext(originsWithMessages(context): _*)
 
   def subcode: String
 }
@@ -365,6 +375,12 @@ case class TriggerWithoutDependentVars(node: Node[_]) extends CheckError {
 }
 case class MustBeInPolarityDependent(node: Node[_]) extends CheckError {
   val subcode: String = "polarityDependent"
+}
+case class LLVMReturnOutsideFunction(ret: LLVMReturn[_]) extends CheckError {
+  val subcode = "llvmResultOutsideFunction"
+}
+case class LLVMInvalidGhostAssign(value: Node[_]) extends CheckError {
+  val subcode = "llvmInvalidGhostAssign"
 }
 
 case object CheckContext {

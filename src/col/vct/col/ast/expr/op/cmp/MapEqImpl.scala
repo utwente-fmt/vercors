@@ -9,6 +9,10 @@ trait MapEqImpl[G] extends MapEqOps[G] {
   override def t: Type[G] = TBool()
 
   override def precedence: Int = Precedence.POSTFIX
-  override def layout(implicit ctx: Ctx): Doc =
-    Group(assoc(left) <> ".equals(" <> Doc.arg(right) <> ")")
+  override def layout(implicit ctx: Ctx): Doc = {
+    ctx.syntax match {
+      case _ => lassoc(left, "=", right)
+      case _ => Group(assoc(left) <> ".equals(" <> Doc.arg(right) <> ")")
+    }
+  }
 }

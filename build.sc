@@ -570,6 +570,7 @@ object vercors extends Module {
 
     def deps = Agg(
       ivy"com.github.scopt::scopt:4.0.1",
+      ivy"org.eclipse.lsp4j:org.eclipse.lsp4j:1.0.0",
     )
     override def moduleDeps = Seq(hre, col, rewrite, parsers, viperApi, buildInfo)
     override def mainClass = Some("vct.main.Main")

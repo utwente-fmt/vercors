@@ -87,6 +87,29 @@ class TechnicalSpec extends VercorsSpec {
     pure int f() = \Unfolding p() \in 0;
   """
 
+  vercors should verify using silicon in
+    "Unfolding in source language" java s"""
+    class Test {
+      //@ resource wrapX(int val) = Perm(x, write) ** x == val;
+      int x;
+
+
+      //@ requires wrapX(5);
+      void m() {
+        //@ ghost int i = 5;
+
+        //@ loop_invariant wrapX(i);
+        //@ loop_invariant \\unfolding wrapX(i) \\in 5 <= x && x <= 10;
+        while (/*@ \\unfolding wrapX(i) \\in @*/ x < 10) {
+          //@ unfold wrapX(i);
+          x++;
+          //@ ghost i++;
+          //@ fold wrapX(i);
+        }
+      }
+    }
+  """
+
   vercors should verify using anyBackend in
     "example with incorrect boolean logic" pvl """
     /*[/expect postFailed:false]*/

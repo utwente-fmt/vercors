@@ -26,7 +26,7 @@ define dso_local noundef i32 @_Z3foov() #0 !dbg !128 !pallas.fcontract !132 {
   %1 = alloca %class.ClassyClass, align 4
   %2 = alloca i32, align 4
   call void @llvm.dbg.declare(metadata ptr %1, metadata !137, metadata !DIExpression()), !dbg !138
-  call void @_ZN11ClassyClassC2Ev(ptr noundef nonnull align 4 dereferenceable(8) %1) #4, !dbg !138
+  call void @_ZN11ClassyClassC2Ev(ptr noundef nonnull align 4 dereferenceable(8) %1) #3, !dbg !138
   call void @llvm.dbg.declare(metadata ptr %2, metadata !139, metadata !DIExpression()), !dbg !140
   %3 = getelementptr inbounds %class.ClassyClass, ptr %1, i32 0, i32 0, !dbg !141
   %4 = load i32, ptr %3, align 4, !dbg !141
@@ -61,8 +61,8 @@ define linkonce_odr dso_local noundef zeroext i1 @_ZN11ClassyClass13PALLAS_SPEC_
   ret i1 %2, !dbg !191
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define linkonce_odr dso_local noundef zeroext i1 @_ZN11ClassyClass13PALLAS_SPEC_1Ev(ptr noundef nonnull align 4 dereferenceable(8) %0) #3 comdat align 2 !dbg !167 !pallas.exprWrapper !190 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define linkonce_odr dso_local noundef zeroext i1 @_ZN11ClassyClass13PALLAS_SPEC_1Ev(ptr noundef nonnull align 4 dereferenceable(8) %0) #0 comdat align 2 !dbg !167 !pallas.exprWrapper !190 {
   %2 = alloca %pallas.fracT, align 8
   %3 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !166, metadata !DIExpression()), !dbg !193
@@ -76,8 +76,8 @@ define linkonce_odr dso_local noundef zeroext i1 @_ZN11ClassyClass13PALLAS_SPEC_
   ret i1 %8, !dbg !193
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define linkonce_odr dso_local noundef zeroext i1 @_ZN11ClassyClass13PALLAS_SPEC_2Ev(ptr noundef nonnull align 4 dereferenceable(8) %0) #3 comdat align 2 !dbg !173 !pallas.exprWrapper !190 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define linkonce_odr dso_local noundef zeroext i1 @_ZN11ClassyClass13PALLAS_SPEC_2Ev(ptr noundef nonnull align 4 dereferenceable(8) %0) #0 comdat align 2 !dbg !173 !pallas.exprWrapper !190 {
   %2 = alloca %pallas.fracT, align 8
   %3 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !172, metadata !DIExpression()), !dbg !201
@@ -109,8 +109,8 @@ define linkonce_odr dso_local noundef zeroext i1 @_ZN11ClassyClass13PALLAS_SPEC_
   ret i1 %4, !dbg !212
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_5v() #3 !dbg !215 !pallas.exprWrapper !190 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_5v() #0 !dbg !215 !pallas.exprWrapper !190 {
   %1 = call noundef i32 @"pallas.result noundef i32"(), !dbg !218
   %2 = icmp eq i32 %1, 3, !dbg !219
   ret i1 %2, !dbg !220
@@ -130,8 +130,7 @@ declare !pallas.specLib !224 noundef i32 @"pallas.result noundef i32"()
 attributes #0 = { mustprogress noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
 attributes #2 = { noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #3 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #4 = { nounwind }
+attributes #3 = { nounwind }
 
 !llvm.dbg.cu = !{!0, !8}
 !llvm.module.flags = !{!120, !121, !122, !123, !124, !125, !126}
@@ -269,7 +268,7 @@ attributes #4 = { nounwind }
 !129 = !DISubroutineType(types: !130)
 !130 = !{!6}
 !131 = !{}
-!132 = !{!133, i1 false, i1 false, !131, !131, !135}
+!132 = !{!133, i1 false, i8 0, !131, !131, !135}
 !133 = !{!"pallas.srcLoc", i64 23, i64 1, i64 25, i64 1, !134}
 !134 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/extContracts/pallas_cpp_genContr.cpp", directory: "", checksumkind: CSK_MD5, checksum: "a4fc16def7ba67032488ab6234166f1f")
 !135 = !{!"pallas.ensures", !136, ptr @_Z13PALLAS_SPEC_5v, !131, !131, !131}
@@ -288,7 +287,7 @@ attributes #4 = { nounwind }
 !148 = !{null, !149}
 !149 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !3, size: 64, flags: DIFlagArtificial | DIFlagObjectPointer)
 !150 = !DISubprogram(name: "ClassyClass", scope: !3, type: !147, flags: DIFlagPublic | DIFlagArtificial | DIFlagPrototyped, spFlags: 0)
-!151 = !{!152, i1 false, i1 false, !131, !131, !153, !162, !168, !174, !180}
+!151 = !{!152, i1 false, i8 0, !131, !131, !153, !162, !168, !174, !180}
 !152 = !{!"pallas.srcLoc", i64 13, i64 5, i64 20, i64 5, !134}
 !153 = !{!"pallas.requires", !154, ptr @_ZN11ClassyClass13PALLAS_SPEC_0Ev, !131, !131, !155}
 !154 = !{!"pallas.srcLoc", i64 15, i64 5, i64 15, i64 31, !134}

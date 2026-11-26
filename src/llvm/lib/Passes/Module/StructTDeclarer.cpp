@@ -5,6 +5,7 @@
 #include "Util/Exceptions.h"
 #include "Util/PallasDIMapping.h"
 
+#include <llvm/ADT/SmallSet.h>
 #include <llvm/BinaryFormat/Dwarf.h>
 
 namespace pallas {
@@ -51,11 +52,11 @@ int64_t SDResult::getId(StructTyID &typeID) {
         return internalIDMap.at(typeID);
     }
 
-    // Generate a new, unique ID for this typeID. 
-    // In other places we use the value of pointers as the id. In this case this 
-    // does not work because the id must depend on both, the llvm-type and the 
-    // debug-type. 
-    // We keep the last bit of the generated id at 1 avoid conflicts with other 
+    // Generate a new, unique ID for this typeID.
+    // In other places we use the value of pointers as the id. In this case this
+    // does not work because the id must depend on both, the llvm-type and the
+    // debug-type.
+    // We keep the last bit of the generated id at 1 avoid conflicts with other
     // ids (because those pointers are typically aligned, so the last bit is 0)
 
     int64_t new_id = nextID;
@@ -124,7 +125,6 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
     auto &dataLayout = m.getDataLayout();
     auto &compositeDiType = llvm::cast<llvm::DICompositeType>(diType);
 
-    // col::LlvmtStruct *colStruct = colType.mutable_llvmt_struct();
     decl.set_allocated_origin(llvm2col::generateDITypeOrigin(compositeDiType));
     decl.add_name(compositeDiType.getName().str());
     decl.set_size_in_bits(compositeDiType.getSizeInBits());
@@ -132,22 +132,14 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
     // TODO: Fix packed vs unpacked, try to detect based on size or get rid
     // of packed as a thing entirely!
     decl.set_packed(false);
+
+    // Collect the elements of the dbg-type that contribute to the in-memory
+    // representation of the type.
+    auto diElements = getDIElements(compositeDiType);
+
     if (llvmType == nullptr) {
-        std::vector<llvm::DIDerivedType *> elements;
-        elements.reserve(compositeDiType.getElements().size());
-        for (auto *element : compositeDiType.getElements()) {
-            assert(llvm::isa<llvm::DIDerivedType>(element));
-            if (element->getTag() == llvm::dwarf::DW_TAG_member) {
-                elements.push_back(cast<llvm::DIDerivedType>(element));
-            }
-        }
-
-        llvm::sort(elements,
-                   [&](llvm::DIDerivedType *a, llvm::DIDerivedType *b) {
-                       return a->getOffsetInBits() <= b->getOffsetInBits();
-                   });
-
-        for (auto *member : elements) {
+        // Construct type purely from debug info.
+        for (auto *member : diElements) {
             auto *fieldDef = decl.add_elements();
             fieldDef->set_offset(member->getOffsetInBits());
             fieldDef->set_size(
@@ -158,7 +150,6 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
             llvm2col::transformAndSetTypeWithDebugInfo(
                 nullptr, member->getBaseType(), *fieldDef->mutable_t(), *this);
         }
-
         return true;
     }
 
@@ -175,7 +166,6 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
     std::vector<std::tuple<uint64_t, llvm::DIDerivedType *, llvm::Type *>>
         elements;
     elements.reserve(structType->getNumElements());
-
     const llvm::StructLayout *structLayout =
         dataLayout.getStructLayout(structType);
     for (size_t i = 0, end = structType->getNumElements(); i < end; ++i) {
@@ -183,25 +173,21 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
                             structType->getElementType(i)});
     }
 
-    for (auto *element : compositeDiType.getElements()) {
-        assert(llvm::isa<llvm::DIDerivedType>(element));
-        if (element->getTag() == llvm::dwarf::DW_TAG_member) {
-            auto *member = cast<llvm::DIDerivedType>(element);
-            size_t i = 0;
-            for (size_t end = elements.size(); i < end; ++i) {
-                auto &[offset, diMember, _llvmMember] = elements[i];
-                assert(member->getOffsetInBits() >= offset &&
-                       "DIStruct member type at offset not in original "
-                       "struct!");
-                if (member->getOffsetInBits() == offset) {
-                    assert(diMember == nullptr);
-                    diMember = member;
-                    break;
-                }
+    // Match members of DI-Struct to members of LLVM-Struct
+    for (auto *member : diElements) {
+        size_t i = 0;
+        for (size_t end = elements.size(); i < end; ++i) {
+            auto &[offset, diMember, _llvmMember] = elements[i];
+            assert(member->getOffsetInBits() >= offset &&
+                   "DIStruct member type at offset not in original "
+                   "struct!");
+            if (member->getOffsetInBits() == offset) {
+                assert(diMember == nullptr);
+                diMember = member;
+                break;
             }
-            assert(i != elements.size() ||
-                   member->getOffsetInBits() == std::get<0>(elements[i]));
         }
+        assert(i != elements.size());
     }
 
     for (auto &[offset, diMember, llvmMember] : elements) {
@@ -218,6 +204,94 @@ bool SDResult::transformSDeclWithDiType(col::LlvmStructDeclaration &decl,
         llvm2col::transformAndSetTypeWithDebugInfo(
             llvmMember, diMember == nullptr ? nullptr : diMember->getBaseType(),
             *fieldDef->mutable_t(), *this);
+    }
+    return true;
+}
+
+namespace {
+bool overlapsNonEmpty(llvm::DIDerivedType &elem,
+                      std::vector<llvm::DIDerivedType *> &allElements,
+                      llvm::SmallSet<llvm::DIDerivedType *, 8> &emptyElements) {
+    auto elemStart = elem.getOffsetInBits();
+    for (auto *neElem : allElements) {
+        if (emptyElements.contains(neElem)) {
+            continue;
+        }
+        auto neStart = neElem->getOffsetInBits();
+        auto neEnd =
+            neStart +
+            pallas::utils::stripIgnored(neElem->getBaseType())->getSizeInBits();
+        if (neStart <= elemStart && elemStart < neEnd) {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace
+
+std::vector<llvm::DIDerivedType *>
+SDResult::getDIElements(llvm::DICompositeType &cType) const {
+    std::vector<llvm::DIDerivedType *> allElements;
+    collectElements(cType, allElements);
+
+    llvm::SmallSet<llvm::DIDerivedType *, 8> emptyElements;
+    for (auto *e : allElements) {
+        if (isEmptyStructT(*e->getBaseType())) {
+            emptyElements.insert(e);
+        }
+    }
+
+    // Filter out empty elements that overlap with a non-empty element.
+    // Required to account for EBO or [[no_unique_addr]] in C++.
+    std::vector<llvm::DIDerivedType *> elements;
+    for (auto *e : allElements) {
+        // Skip empty elements that overlap with another non-empty element
+        if (emptyElements.contains(e) &&
+            overlapsNonEmpty(*e, allElements, emptyElements)) {
+            continue;
+        }
+        elements.push_back(e);
+    }
+    llvm::stable_sort(elements,
+                      [&](llvm::DIDerivedType *a, llvm::DIDerivedType *b) {
+                          return a->getOffsetInBits() < b->getOffsetInBits();
+                      });
+    return elements;
+}
+
+void SDResult::collectElements(
+    llvm::DICompositeType &cType,
+    std::vector<llvm::DIDerivedType *> &elements) const {
+    for (auto *element : cType.getElements()) {
+        auto *dType = llvm::dyn_cast<llvm::DIDerivedType>(element);
+        if (dType == nullptr ||
+            (dType->getTag() != llvm::dwarf::DW_TAG_member &&
+             dType->getTag() != llvm::dwarf::DW_TAG_inheritance)) {
+            // Skip methods etc.
+            continue;
+        }
+
+        elements.push_back(dType);
+    }
+}
+
+bool SDResult::isEmptyStructT(llvm::DIType &t) const {
+    auto *plainT = pallas::utils::stripIgnored(&t);
+    auto *structT = llvm::dyn_cast<llvm::DICompositeType>(plainT);
+    if (structT == nullptr || structT->isForwardDecl() ||
+        (structT->getTag() != llvm::dwarf::DW_TAG_structure_type &&
+         structT->getTag() != llvm::dwarf::DW_TAG_class_type)) {
+        // Not a structure-type
+        return false;
+    }
+
+    // Check if there are non-empty elements
+    std::vector<llvm::DIDerivedType *> elements;
+    collectElements(*structT, elements);
+    for (auto *elem : elements) {
+        if (!isEmptyStructT(*elem->getBaseType())) {
+            return false;
+        }
     }
     return true;
 }
