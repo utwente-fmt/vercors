@@ -5,8 +5,7 @@ import vct.col.check.{CheckContext, CheckError, SeqProgEndpointAssign}
 import vct.col.print._
 import vct.col.origin.{Blame, AssignFailed}
 
-trait AssignStmtImpl[G]
-    extends NormallyCompletingStatementImpl[G] {
+trait AssignStmtImpl[G] extends NormallyCompletingStatementImpl[G] {
   this: AssignStmt[G] =>
 
   val target: Expr[G]

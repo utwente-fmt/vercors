@@ -34,6 +34,9 @@ NEVER: EOF '=';
 // Must be able to contain identifiers from any frontend, so it's fine to over-approximate valid identifiers a bit.
 LANG_ID_ESCAPE: '`' ~[`]+ '`';
 
+VAL_PrependOp : '+:';
+VAL_AppendOp : ':+';
+
 VAL_RESOURCE: 'resource';
 VAL_PROCESS: 'process';
 VAL_FRAC: 'frac';
@@ -66,6 +69,7 @@ VAL_WITH: 'with';
 VAL_THEN: 'then';
 VAL_GIVEN: 'given';
 VAL_YIELDS: 'yields';
+VAL_SUB_GROUP_INV: 'sub_group_inv';
 VAL_REVEAL: 'reveal';
 
 VAL_AXIOM: 'axiom';
@@ -173,6 +177,8 @@ MREP: '\\mrep';
 RESULT: '\\result';
 LTID: '\\ltid';
 GTID: '\\gtid';
+SG_VAL: '\\sg_val';
+LANE_ID: '\\sgtid';
 VAL_INDEX: '\\nd_index';
 VAL_LENGTH: '\\nd_length';
 VAL_PARTIAL_INDEX: '\\nd_partial_index';
