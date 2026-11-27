@@ -127,7 +127,7 @@ case object Main extends LazyLogging {
         logger.info("Starting control flow graph transformation")
         CFG.runOptions(options)
       case Mode.Compile => Compile.runOptions(options)
-      case Mode.Isar => Isar.runOptions(options)
+      case Mode.Isar    => Isar.runOptions(options) 
       case Mode.Patcher => Patcher.runOptions(options)
       case Mode.LSP => LSP.runOptions(options)
     }

@@ -9,7 +9,7 @@ trait LessEqImpl[G] extends LessEqOps[G] {
   override def precedence: Int = Precedence.RELATIONAL
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar => lassoc(left, "≤", right)
+      case Ctx.Isar => lassoc(left, "≤" , right)
       case _ => lassoc(left, "<=", right)
     }
 

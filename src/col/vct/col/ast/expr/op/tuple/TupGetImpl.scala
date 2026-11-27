@@ -28,11 +28,10 @@ trait TupGetImpl[G] extends ExprImpl[G] with TupGetOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar =>
-        index match {
-          case 0 => Text("fst") <+> assoc(tup)
-          case 1 => Text("snd") <+> assoc(tup)
-        }
+      case Ctx.Isar => index match {
+        case 0 => Text("fst") <+> assoc(tup)
+        case 1 => Text("snd") <+> assoc(tup)
+      }
       case _ =>
         index match {
           case 0 => assoc(tup) <> ".fst"

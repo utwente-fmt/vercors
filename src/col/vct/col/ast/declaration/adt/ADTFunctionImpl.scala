@@ -12,10 +12,9 @@ trait ADTFunctionImpl[G]
   this: ADTFunction[G] =>
   override def body: Option[Node[G]] = None
 
-  def layoutIsar(implicit ctx: Ctx): Doc = {
+  def layoutIsar(implicit ctx: Ctx) : Doc = {
     Group(
-      Text("fixes") <+> Text(ctx.name(this)) <+> Text("::") <+> Text("\"") <>
-        Doc.foldr(args.map(_.t) :+ returnType)(_ <+> "⇒" <+> _) <> Text("\"")
+       Text("fixes") <+> Text(ctx.name(this)) <+> Text("::") <+> Text("\"") <> Doc.foldr(args.map(_.t) :+ returnType)(_ <+> "⇒" <+> _) <> Text("\"")
     )
   }
   override def layout(implicit ctx: Ctx): Doc =

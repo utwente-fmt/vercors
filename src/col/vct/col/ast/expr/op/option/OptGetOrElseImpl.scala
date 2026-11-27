@@ -15,10 +15,7 @@ trait OptGetOrElseImpl[G] extends OptGetOrElseOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar =>
-        Group(
-          Text("combine_options") <+> assoc(opt) <+> "(Some" <+> alt <+> ")"
-        )
+      case Ctx.Isar => Group(Text("combine_options") <+> assoc(opt) <+> "(Some" <+> alt <+> ")")
       case _ => Group(assoc(opt) <> ".getOrElse(" <> Doc.arg(alt) <> ")")
     }
 

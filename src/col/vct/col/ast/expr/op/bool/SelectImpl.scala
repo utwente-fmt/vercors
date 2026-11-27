@@ -13,16 +13,10 @@ trait SelectImpl[G] extends SelectOps[G] {
   override def precedence: Int = Precedence.SELECT
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar =>
-        Group(
-          Text("(if") <+> nassoc(condition) <+> Text("then") <+>
-            nassoc(whenTrue) <+> Text("else") <+> nassoc(whenFalse) <+>
-            Text(")")
-        )
-      case _ =>
-        Group(nassoc(condition) <>> { Text("?") <+> nassoc(whenTrue) } <>> {
-          Text(":") <+> assoc(whenFalse)
-        })
+      case Ctx.Isar => Group(Text("(if") <+> nassoc(condition) <+> Text("then") <+> nassoc(whenTrue) <+> Text("else") <+> nassoc(whenFalse) <+> Text(")"))
+      case _ => Group(nassoc(condition) <>> { Text("?") <+> nassoc(whenTrue) } <>> {
+        Text(":") <+> assoc(whenFalse)
+      })
     }
   }
 }

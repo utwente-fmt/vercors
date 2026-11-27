@@ -11,11 +11,7 @@ trait MapDisjointImpl[G] extends MapDisjointOps[G] {
   override def precedence: Int = Precedence.POSTFIX
   override def layout(implicit ctx: Ctx): Doc = {
     ctx.syntax match {
-      case Ctx.Isar =>
-        Group(
-          Text("dom") <+> assoc(left) <+> Text("∩") <+> Text("dom") <+>
-            assoc(right) <+> Text("= {}")
-        )
+      case Ctx.Isar => Group(Text("dom") <+> assoc(left) <+> Text("∩") <+> Text("dom") <+> assoc(right) <+> Text("= {}") )
       case _ => Group(assoc(left) <> ".disjoint(" <> Doc.arg(right) <> ")")
     }
   }

@@ -96,16 +96,20 @@ trait TypeImpl[G] extends TypeFamilyOps[G] {
     (show, vct.col.print.Empty)
 
   protected def open(implicit ctx: Ctx): Doc =
-    Text(ctx.syntax match {
-      case Ctx.Silver => "["
-      case Ctx.Isar => "("
-      case _ => "<"
-    })
+    Text(
+      ctx.syntax match {
+        case Ctx.Silver => "["
+        case Ctx.Isar => "("
+        case _ => "<"
+      }
+    )
 
   protected def close(implicit ctx: Ctx): Doc =
-    Text(ctx.syntax match {
-      case Ctx.Silver => "]"
-      case Ctx.Isar => ")"
-      case _ => ">"
-    })
+    Text(
+      ctx.syntax match {
+        case Ctx.Silver => "]"
+        case Ctx.Isar => ")"
+        case _ => ">"
+      }
+    )
 }

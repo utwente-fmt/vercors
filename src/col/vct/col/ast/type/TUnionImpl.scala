@@ -7,8 +7,10 @@ import vct.col.ast.ops.TUnionOps
 trait TUnionImpl[G] extends TUnionOps[G] {
   this: TUnion[G] =>
   override def layout(implicit ctx: Ctx): Doc =
-    Group(ctx.syntax match {
-      case Ctx.Isar => Doc.fold(types)(_ <+> "+" <+> _)
-      case _ => Doc.fold(types)(_ <+> "|" <+> _)
-    })
+    Group(
+      ctx.syntax match {
+        case Ctx.Isar => Doc.fold(types) (_ <+> "+" <+> _)
+        case _ => Doc.fold(types)(_ <+> "|" <+> _)
+      }
+    )
 }
