@@ -773,7 +773,7 @@ case object CoercionUtils {
           firstElementIsType(field.t, innerType)
         }.getOrElse(false)
       case TArray(element) => firstElementIsType(element, innerType)
-      case sType: LLVMTStruct[G] =>
+      case sType: LLVMTStruct[G] if sType.ref.decl.elements.nonEmpty => 
         firstElementIsType(sType.ref.decl.elements.head.t, innerType)
       case LLVMTArray(numElements, elementType) =>
         numElements > 0 && firstElementIsType(elementType, innerType)

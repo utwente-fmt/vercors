@@ -33,8 +33,8 @@ namespace col = vct::col::ast;
 /// wrapper struct for a COL scope and block. Intended use is the block to be
 /// declared in the scope.
 struct ColScopedFuncBody {
-    col::Scope *scope;
-    col::Block *block;
+    col::Scope *scope = nullptr;
+    col::Block *block = nullptr;
 };
 
 class FDResult {
@@ -62,6 +62,8 @@ class FDResult {
     col::Variable &getFuncArgMapEntry(llvm::Argument &arg);
 
     int64_t &getFunctionId();
+
+    bool hasBody() const;
 };
 
 class FunctionDeclarer : public AnalysisInfoMixin<FunctionDeclarer> {
@@ -85,6 +87,20 @@ class FunctionDeclarer : public AnalysisInfoMixin<FunctionDeclarer> {
      * @return
      */
     Result run(Function &F, FunctionAnalysisManager &FAM);
+
+    private:
+
+    /**
+     * Determines if the body of the given function should be transformed to COL.
+     * The body is skipped if: 
+     * - The function is a declaration
+     * - The function is marked as indirectly assumed by the TransitiveAssumeAnalysis.
+     *   In this case, the function  gets an assumed, trivial contract anyway, so 
+     *   there is no need to transform the body. 
+     * We do transform the body of functions that are directly annotated with an 
+     * assumed contract as the implementation of the body is needed for type-inference.
+     */
+    bool shouldTransformBody(llvm::Function &F, FunctionAnalysisManager &FAM) const;
 };
 
 class FunctionDeclarerPass : public AnalysisInfoMixin<FunctionDeclarerPass> {

@@ -203,8 +203,13 @@ llvm::FunctionAnalysisManager &FunctionCursor::getFunctionAnalysisManager() {
 
 PreservedAnalyses
 FunctionBodyTransformerPass::run(Function &F, FunctionAnalysisManager &FAM) {
-    ColScopedFuncBody scopedFuncBody =
-        FAM.getResult<FunctionDeclarer>(F).getAssociatedScopedColFuncBody();
+    auto &fdRes = FAM.getResult<FunctionDeclarer>(F);
+    if (!fdRes.hasBody()) {
+        return PreservedAnalyses::all();
+    }
+
+    ColScopedFuncBody scopedFuncBody = fdRes.getAssociatedScopedColFuncBody();
+
     FunctionCursor funcCursor =
         FunctionCursor(*scopedFuncBody.scope, *scopedFuncBody.block, F, FAM);
     // add function arguments to the variableMap
