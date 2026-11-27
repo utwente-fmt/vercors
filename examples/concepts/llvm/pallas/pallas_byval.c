@@ -18,10 +18,10 @@ struct {
 } typedef BigStruct;
 
 /*@
-requires _Perm(&s.a, _write);
-requires _Perm(&s.b, _write);
-requires _Perm(&s.c, _write);
-requires _Perm(&s.d, _write);
+requires _Perm(&s.a, _writePerm);
+requires _Perm(&s.b, _writePerm);
+requires _Perm(&s.c, _writePerm);
+requires _Perm(&s.d, _writePerm);
 @*/
 void do_a_thing(BigStruct s) {
     s.a = 0;

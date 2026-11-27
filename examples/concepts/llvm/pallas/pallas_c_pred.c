@@ -11,11 +11,11 @@ declare DEF_UNFOLDING(bool);
 predicate arrWrite(int *a, int n) := a != NULL &&
                                      _ptr_length(a) >= n &&
                                      _forallS(_inRange(0, _bv(int, i), n),
-                                              _Perm(&a[_bv(int, i)], _write));
+                                              _Perm(&a[_bv(int, i)], _writePerm));
 predicate arrZero(int *a, int n) := a != NULL &&
                                     _ptr_length(a) >= n &&
                                     _sep(_forallS(_inRange(0, _bv(int, i), n),
-                                                  _Perm(&a[_bv(int, i)], _write)),
+                                                  _Perm(&a[_bv(int, i)], _writePerm)),
                                          _forall(_inRange(0, _bv(int, i), n),
                                                  a[_bv(int, i)] == 0));
 @*/

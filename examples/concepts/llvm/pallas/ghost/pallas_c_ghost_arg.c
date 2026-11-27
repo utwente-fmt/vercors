@@ -11,9 +11,9 @@ yields bool all_gt_x;
 requires n >= 0;
 requires arr != NULL && _ptr_length(arr) >= n;
 requires _forallS(_inRange(0, _bv(int, i), n), 
-                  _Perm(&arr[_bv(int, i)], _write));
+                  _Perm(&arr[_bv(int, i)], _writePerm));
 ensures  _forallS(_inRange(0, _bv(int, i), n), 
-                  _Perm(&arr[_bv(int, i)], _write));
+                  _Perm(&arr[_bv(int, i)], _writePerm));
 ensures  _forall (_inRange(0, _bv(int, i), n),
                   arr[_bv(int, i)] == 0);
 ensures all_gt_x == _forall(_inRange(0, _bv(int, i), n),
@@ -28,7 +28,7 @@ void clear_arr(int *arr, int n) {
     /*@
     loop_invariant 0 <= i && i <= n;
     loop_invariant _forallS(_inRange(0, _bv(int, j), n), 
-                            _Perm(&arr[_bv(int, j)], _write));
+                            _Perm(&arr[_bv(int, j)], _writePerm));
     loop_invariant _forall (_inRange(0, _bv(int, j), i),
                             arr[_bv(int, j)] == 0);
     loop_invariant _forall (_inRange(i, _bv(int, j), n),
@@ -49,7 +49,7 @@ yields bool res;
 requires n > 0;
 requires arr != NULL && _ptr_length(arr) >= n;
 requires _forallS(_inRange(0, _bv(int, i), n),
-                  _Perm(&arr[_bv(int, i)], _write));
+                  _Perm(&arr[_bv(int, i)], _writePerm));
 requires _forall (_inRange(0, _bv(int, i), n),
                   arr[_bv(int, i)] == n+1);
 ensures res == true;

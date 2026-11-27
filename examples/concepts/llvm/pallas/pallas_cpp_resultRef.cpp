@@ -14,7 +14,7 @@ class AClass {
     /*@
     contract for generated src \~AClass;
     requires _sep(&*this != nullptr,
-                  _Perm(this, _write));
+                  _Perm(this, _writePerm));
     @*/
     ~AClass()
      {

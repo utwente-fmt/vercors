@@ -15,8 +15,8 @@ typedef struct S {
 
 /*@
 requires s != NULL;
-requires _sep(_Perm(&s->a, _write), _Perm(&s->b, _write));
-ensures _sep(_Perm(&s->a, _write), _Perm(&s->b, _write));
+requires _sep(_Perm(&s->a, _writePerm), _Perm(&s->b, _writePerm));
+ensures _sep(_Perm(&s->a, _writePerm), _Perm(&s->b, _writePerm));
 ensures s->a == 0 && s->b == 0;
 @*/
 void bar(BigStruct *s) {
