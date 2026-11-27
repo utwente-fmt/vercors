@@ -522,6 +522,40 @@ object vercors extends Module {
     }
   }
 
+  object textMateGenerator extends VercorsModule {
+
+    def base = T {
+      settings.src / "parsers" / "antlr4"
+    }
+
+    override def key: String = "textMateGenerator"
+
+    override def deps: T[Agg[Dep]] = Agg(ivy"org.antlr:antlr4-runtime:4.8", ivy"com.lihaoyi::upickle:3.1.3")
+
+    override def bareResources =
+      T.sources(
+        base() / "SpecLexer.g4",
+        base() / "LangPVLLexer.g4",
+        base() / "LexerAdaptor.java",
+      )
+
+    override def moduleDeps = Seq(hre)
+
+    object antlrGrammarParser extends parsers.GenModule {
+      override def base = T {
+        settings.src / "textMateGenerator" / "antlr4"
+      }
+
+      override def lexer: String = "ANTLRv4Lexer.g4"
+
+      override def parser: String = "ANTLRv4Parser.g4"
+
+      override def deps: Seq[String] = Seq("LexBasic.g4")
+    }
+
+    override def generatedSources = T { Seq(antlrGrammarParser.generate()) }
+  }
+
   object rewrite extends VercorsModule {
     def key = "rewrite"
     def deps = Agg(

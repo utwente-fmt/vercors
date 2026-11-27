@@ -1,0 +1,252 @@
+/*
+ * [The "BSD license"]
+ *  Copyright (c) 2012-2014 Terence Parr
+ *  Copyright (c) 2012-2014 Sam Harwell
+ *  Copyright (c) 2015 Gerald Rosenberg
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *  1. Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *  2. Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *  3. The name of the author may not be used to endorse or promote products
+ *     derived from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ *  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ *  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ *  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ *  NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+parser grammar ANTLRv4Parser;
+
+options {
+    tokenVocab = ANTLRv4Lexer;
+}
+
+// The main entry point for parsing a v4 grammar.
+grammarSpec
+    : grammarDecl prequelConstruct* rules modeSpec* EOF
+    ;
+
+grammarDecl
+    : grammarType identifier SEMI
+    ;
+
+grammarType
+    : LEXER GRAMMAR
+    ;
+
+prequelConstruct
+    : optionsSpec
+    | delegateGrammars
+    | tokensSpec
+    | channelsSpec
+    | action_
+    ;
+
+// ------------
+// Options - things that affect analysis and/or code generation
+
+optionsSpec
+    : OPTIONS (option SEMI)* RBRACE
+    ;
+
+option
+    : identifier ASSIGN optionValue
+    ;
+
+optionValue
+    : identifier (DOT identifier)*
+    | STRING_LITERAL
+    | actionBlock
+    | INT
+    ;
+
+// ------------
+// Delegates
+
+delegateGrammars
+    : IMPORT delegateGrammar (COMMA delegateGrammar)* SEMI
+    ;
+
+delegateGrammar
+    : identifier ASSIGN identifier
+    | identifier
+    ;
+
+// ------------
+// Tokens & Channels
+
+tokensSpec
+    : TOKENS idList? RBRACE
+    ;
+
+channelsSpec
+    : CHANNELS idList? RBRACE
+    ;
+
+idList
+    : identifier (COMMA identifier)* COMMA?
+    ;
+
+// Match stuff like @parser::members {int i;}
+
+action_
+    : AT (actionScopeName COLONCOLON)? identifier actionBlock
+    ;
+
+// Scope names could collide with keywords; allow them as ids for action scopes
+
+actionScopeName
+    : identifier
+    | LEXER
+    ;
+
+actionBlock
+    : BEGIN_ACTION ACTION_CONTENT* END_ACTION
+    ;
+
+modeSpec
+    : MODE identifier SEMI lexerRuleSpec*
+    ;
+
+rules
+    : ruleSpec*
+    ;
+
+ruleSpec
+    : lexerRuleSpec
+    ;
+
+// --------------------
+// Lexer rules
+
+lexerRuleSpec
+    : FRAGMENT? TOKEN_REF optionsSpec? COLON lexerRuleBlock SEMI
+    ;
+
+lexerRuleBlock
+    : lexerAltList
+    ;
+
+lexerAltList
+    : lexerAlt (OR lexerAlt)*
+    ;
+
+lexerAlt
+    : lexerElements lexerCommands?
+    |
+    // explicitly allow empty alts
+    ;
+
+lexerElements
+    : lexerElement+
+    |
+    ;
+
+lexerElement
+    : lexerAtom ebnfSuffix?
+    | lexerBlock ebnfSuffix?
+    | actionBlock QUESTION?
+    ;
+
+// but preds can be anywhere
+
+lexerBlock
+    : LPAREN lexerAltList RPAREN
+    ;
+
+// E.g., channel(HIDDEN), skip, more, mode(INSIDE), push(INSIDE), pop
+
+lexerCommands
+    : RARROW lexerCommand (COMMA lexerCommand)*
+    ;
+
+lexerCommand
+    : lexerCommandName LPAREN lexerCommandExpr RPAREN
+    | lexerCommandName
+    ;
+
+lexerCommandName
+    : identifier
+    | MODE
+    ;
+
+lexerCommandExpr
+    : identifier
+    | INT
+    ;
+
+// --------------------
+// EBNF and blocks
+
+ebnfSuffix
+    : QUESTION QUESTION?
+    | STAR QUESTION?
+    | PLUS QUESTION?
+    ;
+
+lexerAtom
+    : characterRange
+    | terminalDef
+    | notSet
+    | LEXER_CHAR_SET
+    | DOT elementOptions?
+    ;
+
+// --------------------
+// Inverted element set
+notSet
+    : NOT setElement
+    | NOT blockSet
+    ;
+
+blockSet
+    : LPAREN setElement (OR setElement)* RPAREN
+    ;
+
+setElement
+    : TOKEN_REF elementOptions?
+    | STRING_LITERAL elementOptions?
+    | characterRange
+    | LEXER_CHAR_SET
+    ;
+
+// ---------------
+// Character Range
+characterRange
+    : STRING_LITERAL RANGE STRING_LITERAL
+    ;
+
+terminalDef
+    : TOKEN_REF elementOptions?
+    | STRING_LITERAL elementOptions?
+    ;
+
+// Terminals may be adorned with certain options when
+// reference in the grammar: TOK<,,,>
+elementOptions
+    : LT elementOption (COMMA elementOption)* GT
+    ;
+
+elementOption
+    : identifier
+    | identifier ASSIGN (identifier | STRING_LITERAL)
+    ;
+
+identifier
+    : RULE_REF
+    | TOKEN_REF
+    ;
