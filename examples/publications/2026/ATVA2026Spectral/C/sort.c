@@ -39,10 +39,10 @@ requires arr != NULL;
 requires _inRange(0, idx1, _ptr_length(arr));
 requires _inRange(0, idx2, _ptr_length(arr));
 requires idx1 != idx2;
-requires _sep(_Perm(&arr[idx1], _write),
-              _Perm(&arr[idx2], _write));
-ensures  _sep(_Perm(&arr[idx1], _write),
-              _Perm(&arr[idx2], _write));
+requires _sep(_Perm(&arr[idx1], _writePerm),
+              _Perm(&arr[idx2], _writePerm));
+ensures  _sep(_Perm(&arr[idx1], _writePerm),
+              _Perm(&arr[idx2], _writePerm));
 ensures arr[idx1] == _old(int)(arr[idx2]);
 ensures arr[idx2] == _old(int)(arr[idx1]);
 @*/
@@ -56,8 +56,8 @@ void swap(int *arr, int idx1, int idx2) {
 requires arr != NULL;
 requires n > 0;
 requires _ptr_length(arr) == n;
-requires _forallS(_inRange(0, _bv(int, i), n), _Perm(&arr[_bv(int, i)], _write));
-ensures  _forallS(_inRange(0, _bv(int, i), n), _Perm(&arr[_bv(int, i)], _write));
+requires _forallS(_inRange(0, _bv(int, i), n), _Perm(&arr[_bv(int, i)], _writePerm));
+ensures  _forallS(_inRange(0, _bv(int, i), n), _Perm(&arr[_bv(int, i)], _writePerm));
 ensures  _forall (_and(_inRange(0, _bv(int, i), _bv(int, j)), _bv(int, j) < n),
                   arr[_bv(int, i)] <= arr[_bv(int, j)]);
 @*/
@@ -66,7 +66,7 @@ void selectSort(int *arr, int n) {
     int first = arr[0];
     /*@
     loop_invariant 0 <= idx && idx < n;
-    loop_invariant _forallS(_inRange(0, _bv(int, i), n), _Perm(&arr[_bv(int, i)], _write));
+    loop_invariant _forallS(_inRange(0, _bv(int, i), n), _Perm(&arr[_bv(int, i)], _writePerm));
     loop_invariant _forall(_and(_inRange(0,   _bv(int, i), idx),
                                 _inRange(idx, _bv(int, j), n)),
                            arr[_bv(int, i)] <= arr[_bv(int, j)]);

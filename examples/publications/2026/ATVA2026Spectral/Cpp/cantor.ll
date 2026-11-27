@@ -47,8 +47,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_0i(i32 noundef %0) #0 !dbg 
   ret i1 true, !dbg !170
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1i(i32 noundef %0) #2 !dbg !140 !pallas.exprWrapper !169 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1i(i32 noundef %0) #0 !dbg !140 !pallas.exprWrapper !169 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !139, metadata !DIExpression()), !dbg !171
   %2 = call noundef i32 @"pallas.result noundef i32"(), !dbg !172
   %3 = mul nsw i32 %0, %0, !dbg !173
@@ -56,8 +56,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1i(i32 noundef %0) #2 !dbg 
   ret i1 %4, !dbg !171
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_2ii(i32 noundef %0, i32 noundef %1) #2 !dbg !155 !pallas.exprWrapper !169 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_2ii(i32 noundef %0, i32 noundef %1) #0 !dbg !155 !pallas.exprWrapper !169 {
   call void @llvm.dbg.value(metadata i32 %0, metadata !154, metadata !DIExpression()), !dbg !175
   call void @llvm.dbg.value(metadata i32 %1, metadata !160, metadata !DIExpression()), !dbg !175
   %3 = icmp eq i32 %1, 0, !dbg !176
@@ -74,7 +74,6 @@ declare !pallas.specLib !182 noundef i32 @"pallas.result noundef i32"()
 
 attributes #0 = { mustprogress noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
-attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 
 !llvm.dbg.cu = !{!0, !2}
 !llvm.module.flags = !{!101, !102, !103, !104, !105, !106, !107}
@@ -193,7 +192,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !110 = !DISubroutineType(types: !111)
 !111 = !{!20, !20}
 !112 = !{}
-!113 = !{!114, i1 true, i1 false, !112, !112, !116}
+!113 = !{!114, i1 true, i8 0, !112, !112, !116}
 !114 = !{!"pallas.srcLoc", i64 7, i64 1, i64 10, i64 1, !115}
 !115 = !DIFile(filename: "/home/rme/repos/vercors/examples/publications/2026/ATVA2026Spectral/Cpp/cantor.cpp", directory: "", checksumkind: CSK_MD5, checksum: "1dde5542d25ea760a73ca7fc13a1fe00")
 !116 = !{!"pallas.requires", !117, ptr @_Z13PALLAS_SPEC_0i, !112, !112, !118}
@@ -212,7 +211,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !129 = !DILocation(line: 12, column: 26, scope: !109)
 !130 = !DILocation(line: 12, column: 5, scope: !109)
 !131 = distinct !DISubprogram(name: "square", linkageName: "_Z6squarei", scope: !1, file: !1, line: 19, type: !110, scopeLine: 19, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !112)
-!132 = !{!133, i1 true, i1 false, !112, !112, !134}
+!132 = !{!133, i1 true, i8 0, !112, !112, !134}
 !133 = !{!"pallas.srcLoc", i64 15, i64 1, i64 18, i64 1, !115}
 !134 = !{!"pallas.ensures", !135, ptr @_Z13PALLAS_SPEC_1i, !112, !112, !136}
 !135 = !{!"pallas.srcLoc", i64 17, i64 1, i64 17, i64 32, !115}
@@ -227,7 +226,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !144 = distinct !DISubprogram(name: "cantorPair", linkageName: "_Z10cantorPairii", scope: !1, file: !1, line: 28, type: !145, scopeLine: 28, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !0, retainedNodes: !112)
 !145 = !DISubroutineType(types: !146)
 !146 = !{!20, !20, !20}
-!147 = !{!148, i1 true, i1 false, !112, !112, !149}
+!147 = !{!148, i1 true, i8 0, !112, !112, !149}
 !148 = !{!"pallas.srcLoc", i64 23, i64 1, i64 27, i64 1, !115}
 !149 = !{!"pallas.ensures", !150, ptr @_Z13PALLAS_SPEC_2ii, !112, !112, !151}
 !150 = !{!"pallas.srcLoc", i64 25, i64 1, i64 26, i64 48, !115}

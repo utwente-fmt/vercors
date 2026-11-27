@@ -7,7 +7,7 @@ target triple = "x86_64-unknown-linux-gnu"
 %pallas.seq.i32 = type { i32, i64, i64, i64 }
 %pallas.fracT = type { i64, i64, i64, i64 }
 
-@llvm.used = appending global [25 x ptr] [ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_3, ptr @PALLAS_SPEC_4, ptr @PALLAS_SPEC_5, ptr @PALLAS_SPEC_6, ptr @PALLAS_SPEC_7, ptr @PALLAS_SPEC_8, ptr @PALLAS_SPEC_9, ptr @PALLAS_SPEC_10, ptr @PALLAS_SPEC_11, ptr @PALLAS_SPEC_12, ptr @PALLAS_SPEC_13, ptr @PALLAS_SPEC_14, ptr @PALLAS_SPEC_15, ptr @PALLAS_SPEC_16, ptr @PALLAS_SPEC_17, ptr @PALLAS_SPEC_18, ptr @PALLAS_SPEC_19, ptr @PALLAS_SPEC_20, ptr @PALLAS_SPEC_21, ptr @PALLAS_SPEC_22, ptr @PALLAS_SPEC_23, ptr @listWrite], section "llvm.metadata"
+@llvm.used = appending global [25 x ptr] [ptr @PALLAS_SPEC_3, ptr @PALLAS_SPEC_0, ptr @PALLAS_SPEC_1, ptr @PALLAS_SPEC_2, ptr @PALLAS_SPEC_4, ptr @PALLAS_SPEC_5, ptr @PALLAS_SPEC_6, ptr @PALLAS_SPEC_7, ptr @PALLAS_SPEC_8, ptr @PALLAS_SPEC_9, ptr @PALLAS_SPEC_10, ptr @PALLAS_SPEC_11, ptr @PALLAS_SPEC_12, ptr @PALLAS_SPEC_13, ptr @PALLAS_SPEC_14, ptr @PALLAS_SPEC_15, ptr @PALLAS_SPEC_16, ptr @PALLAS_SPEC_17, ptr @PALLAS_SPEC_18, ptr @PALLAS_SPEC_19, ptr @PALLAS_SPEC_20, ptr @PALLAS_SPEC_21, ptr @PALLAS_SPEC_22, ptr @PALLAS_SPEC_23, ptr @listWrite], section "llvm.metadata"
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local i32 @list_size(ptr noundef %0) #0 !dbg !17 !pallas.fcontract !29 {
@@ -86,39 +86,39 @@ define dso_local ptr @prepend(ptr noundef %0, i32 noundef %1) #0 !dbg !232 !pall
 declare !pallas.extContract !367 ptr @allocIntList(...) #2
 
 ; Function Attrs: noinline nounwind uwtable
+define dso_local zeroext i1 @PALLAS_SPEC_3(ptr noundef %0, ptr noundef byval(%pallas.seq.i32) align 8 %1) #0 !dbg !167 !pallas.exprWrapper !377 {
+  call void @llvm.dbg.value(metadata ptr %0, metadata !171, metadata !DIExpression()), !dbg !378
+  call void @llvm.dbg.declare(metadata ptr %1, metadata !166, metadata !DIExpression()), !dbg !378
+  %3 = call i64 @"pallas.seq.size i32"(ptr noundef byval(%pallas.seq.i32) %1), !dbg !379
+  %4 = icmp ugt i64 %3, 0, !dbg !380
+  ret i1 %4, !dbg !378
+}
+
+; Function Attrs: noinline nounwind uwtable
 define dso_local zeroext i1 @PALLAS_SPEC_0(ptr noundef %0, ptr noundef byval(%pallas.seq.i32) align 8 %1) #0 !dbg !40 !pallas.exprWrapper !377 {
-  call void @llvm.dbg.value(metadata ptr %0, metadata !66, metadata !DIExpression()), !dbg !378
-  call void @llvm.dbg.declare(metadata ptr %1, metadata !39, metadata !DIExpression()), !dbg !378
-  %3 = call zeroext i1 @listWrite(ptr noundef %0, ptr noundef byval(%pallas.seq.i32) align 8 %1), !dbg !379
-  ret i1 %3, !dbg !378
+  call void @llvm.dbg.value(metadata ptr %0, metadata !66, metadata !DIExpression()), !dbg !381
+  call void @llvm.dbg.declare(metadata ptr %1, metadata !39, metadata !DIExpression()), !dbg !381
+  %3 = call zeroext i1 @listWrite(ptr noundef %0, ptr noundef byval(%pallas.seq.i32) align 8 %1), !dbg !382
+  ret i1 %3, !dbg !381
 }
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local zeroext i1 @PALLAS_SPEC_1(ptr noundef %0, ptr noundef byval(%pallas.seq.i32) align 8 %1) #0 !dbg !72 !pallas.exprWrapper !377 {
-  call void @llvm.dbg.value(metadata ptr %0, metadata !75, metadata !DIExpression()), !dbg !380
-  call void @llvm.dbg.declare(metadata ptr %1, metadata !71, metadata !DIExpression()), !dbg !380
-  %3 = call zeroext i1 @listWrite(ptr noundef %0, ptr noundef byval(%pallas.seq.i32) align 8 %1), !dbg !381
-  ret i1 %3, !dbg !380
+  call void @llvm.dbg.value(metadata ptr %0, metadata !75, metadata !DIExpression()), !dbg !383
+  call void @llvm.dbg.declare(metadata ptr %1, metadata !71, metadata !DIExpression()), !dbg !383
+  %3 = call zeroext i1 @listWrite(ptr noundef %0, ptr noundef byval(%pallas.seq.i32) align 8 %1), !dbg !384
+  ret i1 %3, !dbg !383
 }
 
 ; Function Attrs: noinline nounwind uwtable
 define dso_local zeroext i1 @PALLAS_SPEC_2(ptr noundef %0, ptr noundef byval(%pallas.seq.i32) align 8 %1) #0 !dbg !81 !pallas.exprWrapper !377 {
-  call void @llvm.dbg.value(metadata ptr %0, metadata !84, metadata !DIExpression()), !dbg !382
-  call void @llvm.dbg.declare(metadata ptr %1, metadata !80, metadata !DIExpression()), !dbg !382
-  %3 = call i32 @"pallas.result i32"(), !dbg !383
-  %4 = sext i32 %3 to i64, !dbg !383
-  %5 = call i64 @"pallas.seq.size i32"(ptr noundef byval(%pallas.seq.i32) %1), !dbg !384
-  %6 = icmp eq i64 %4, %5, !dbg !385
-  ret i1 %6, !dbg !382
-}
-
-; Function Attrs: noinline nounwind uwtable
-define dso_local zeroext i1 @PALLAS_SPEC_3(ptr noundef %0, ptr noundef byval(%pallas.seq.i32) align 8 %1) #0 !dbg !167 !pallas.exprWrapper !377 {
-  call void @llvm.dbg.value(metadata ptr %0, metadata !171, metadata !DIExpression()), !dbg !386
-  call void @llvm.dbg.declare(metadata ptr %1, metadata !166, metadata !DIExpression()), !dbg !386
-  %3 = call i64 @"pallas.seq.size i32"(ptr noundef byval(%pallas.seq.i32) %1), !dbg !387
-  %4 = icmp ugt i64 %3, 0, !dbg !388
-  ret i1 %4, !dbg !386
+  call void @llvm.dbg.value(metadata ptr %0, metadata !84, metadata !DIExpression()), !dbg !385
+  call void @llvm.dbg.declare(metadata ptr %1, metadata !80, metadata !DIExpression()), !dbg !385
+  %3 = call i32 @"pallas.result i32"(), !dbg !386
+  %4 = sext i32 %3 to i64, !dbg !386
+  %5 = call i64 @"pallas.seq.size i32"(ptr noundef byval(%pallas.seq.i32) %1), !dbg !387
+  %6 = icmp eq i64 %4, %5, !dbg !388
+  ret i1 %6, !dbg !385
 }
 
 ; Function Attrs: noinline nounwind uwtable
@@ -385,11 +385,11 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !llvm.ident = !{!16, !16}
 
 !0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, retainedTypes: !2, splitDebugInlining: false, nameTableKind: None)
-!1 = !DIFile(filename: "examples/concepts/llvm/pallas/pallas_c_seq.c", directory: ".", checksumkind: CSK_MD5, checksum: "9bd78d33fbffbfdd99d713bfcb8ce7db")
+!1 = !DIFile(filename: "examples/concepts/llvm/pallas/pallas_c_seq.c", directory: ".", checksumkind: CSK_MD5, checksum: "b5b3e1cd7a3ddb980781690283ef97f9")
 !2 = !{!3}
 !3 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: null, size: 64)
 !4 = distinct !DICompileUnit(language: DW_LANG_C11, file: !5, producer: "clang version 17.0.0 (https://github.com/swiftlang/llvm-project.git 73500bf55acff5fa97b56dcdeb013f288efd084f)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, retainedTypes: !2, splitDebugInlining: false, nameTableKind: None)
-!5 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "04266fd7365ff0ace5afbca638e39d66")
+!5 = !DIFile(filename: "tmp/source_wrappers.c", directory: ".", checksumkind: CSK_MD5, checksum: "3365a436a8c1c185216f81a7fb97f624")
 !6 = distinct !DICompileUnit(language: DW_LANG_C, file: !7, producer: "spectral", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug)
 !7 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_seq.c", directory: "")
 !8 = distinct !DICompileUnit(language: DW_LANG_C, file: !7, producer: "spectral", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug)
@@ -415,7 +415,7 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !28 = !{}
 !29 = !{!30, i1 false, i8 0, !32, !28, !35, !67, !76}
 !30 = !{!"pallas.srcLoc", i64 33, i64 1, i64 38, i64 1, !31}
-!31 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_seq.c", directory: "", checksumkind: CSK_MD5, checksum: "9bd78d33fbffbfdd99d713bfcb8ce7db")
+!31 = !DIFile(filename: "/home/rme/repos/vercors/examples/concepts/llvm/pallas/pallas_c_seq.c", directory: "", checksumkind: CSK_MD5, checksum: "b5b3e1cd7a3ddb980781690283ef97f9")
 !32 = !{!33}
 !33 = !{!34, !"s"}
 !34 = !{!"pallas.srcLoc", i64 34, i64 1, i64 34, i64 17, !31}
@@ -756,23 +756,23 @@ attributes #2 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protect
 !369 = !{!"pallas.ensures", !370, ptr @PALLAS_SPEC_7, !28, !28, !28}
 !370 = !{!"pallas.srcLoc", i64 79, i64 1, i64 79, i64 33, !31}
 !371 = !{!"pallas.ensures", !372, ptr @PALLAS_SPEC_8, !28, !28, !28}
-!372 = !{!"pallas.srcLoc", i64 80, i64 1, i64 80, i64 40, !31}
+!372 = !{!"pallas.srcLoc", i64 80, i64 1, i64 80, i64 44, !31}
 !373 = !{!"pallas.ensures", !374, ptr @PALLAS_SPEC_9, !28, !28, !28}
 !374 = !{!"pallas.srcLoc", i64 81, i64 1, i64 81, i64 39, !31}
 !375 = !{!"pallas.ensures", !376, ptr @PALLAS_SPEC_10, !28, !28, !28}
 !376 = !{!"pallas.srcLoc", i64 82, i64 1, i64 82, i64 37, !31}
 !377 = !{!""}
-!378 = !DILocation(line: 0, scope: !40)
-!379 = !DILocation(line: 35, column: 10, scope: !40)
-!380 = !DILocation(line: 0, scope: !72)
-!381 = !DILocation(line: 36, column: 10, scope: !72)
-!382 = !DILocation(line: 0, scope: !81)
-!383 = !DILocation(line: 37, column: 10, scope: !81)
-!384 = !DILocation(line: 37, column: 26, scope: !81)
-!385 = !DILocation(line: 37, column: 23, scope: !81)
-!386 = !DILocation(line: 0, scope: !167)
-!387 = !DILocation(line: 61, column: 10, scope: !167)
-!388 = !DILocation(line: 61, column: 27, scope: !167)
+!378 = !DILocation(line: 0, scope: !167)
+!379 = !DILocation(line: 61, column: 10, scope: !167)
+!380 = !DILocation(line: 61, column: 27, scope: !167)
+!381 = !DILocation(line: 0, scope: !40)
+!382 = !DILocation(line: 35, column: 10, scope: !40)
+!383 = !DILocation(line: 0, scope: !72)
+!384 = !DILocation(line: 36, column: 10, scope: !72)
+!385 = !DILocation(line: 0, scope: !81)
+!386 = !DILocation(line: 37, column: 10, scope: !81)
+!387 = !DILocation(line: 37, column: 26, scope: !81)
+!388 = !DILocation(line: 37, column: 23, scope: !81)
 !389 = !DILocation(line: 0, scope: !177)
 !390 = !DILocation(line: 62, column: 10, scope: !177)
 !391 = !DILocation(line: 0, scope: !186)

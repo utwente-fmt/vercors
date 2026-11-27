@@ -5,8 +5,8 @@ target triple = "x86_64-pc-linux-gnu"
 
 %pallas.fracT = type { i64, i64, i64, i64 }
 
-@llvm.compiler.used = appending global [28 x ptr] [ptr @_Z13PALLAS_SPEC_0Piii, ptr @_Z13PALLAS_SPEC_1Piii, ptr @_Z13PALLAS_SPEC_2Piii, ptr @_Z13PALLAS_SPEC_3Piii, ptr @_Z13PALLAS_SPEC_4Piii, ptr @_Z13PALLAS_SPEC_5Piii, ptr @_Z14PALLAS_SPEC_21Piiiii, ptr @_Z14PALLAS_SPEC_20Piiiii, ptr @_Z14PALLAS_SPEC_23Piiiii, ptr @_Z14PALLAS_SPEC_22Piiiii, ptr @_Z13PALLAS_SPEC_6Piii, ptr @_Z13PALLAS_SPEC_7Piii, ptr @_Z13PALLAS_SPEC_8Piii, ptr @_Z13PALLAS_SPEC_9Piii, ptr @_Z14PALLAS_SPEC_10Piii, ptr @_Z14PALLAS_SPEC_11Piii, ptr @_Z14PALLAS_SPEC_12Piii, ptr @_Z14PALLAS_SPEC_13Piii, ptr @_Z14PALLAS_SPEC_14Pii, ptr @_Z14PALLAS_SPEC_15Pii, ptr @_Z14PALLAS_SPEC_16Pii, ptr @_Z14PALLAS_SPEC_17Pii, ptr @_Z14PALLAS_SPEC_18Pii, ptr @_Z14PALLAS_SPEC_19Pii, ptr @_Z14PALLAS_SPEC_24Piiii, ptr @_Z14PALLAS_SPEC_25Piiii, ptr @_Z14PALLAS_SPEC_26Piiii, ptr @_Z14PALLAS_SPEC_27Piiii], section "llvm.metadata"
-@llvm.used = appending global [28 x ptr] [ptr @_Z13PALLAS_SPEC_0Piii, ptr @_Z13PALLAS_SPEC_1Piii, ptr @_Z13PALLAS_SPEC_2Piii, ptr @_Z13PALLAS_SPEC_3Piii, ptr @_Z13PALLAS_SPEC_4Piii, ptr @_Z13PALLAS_SPEC_5Piii, ptr @_Z13PALLAS_SPEC_6Piii, ptr @_Z13PALLAS_SPEC_7Piii, ptr @_Z13PALLAS_SPEC_8Piii, ptr @_Z13PALLAS_SPEC_9Piii, ptr @_Z14PALLAS_SPEC_10Piii, ptr @_Z14PALLAS_SPEC_11Piii, ptr @_Z14PALLAS_SPEC_12Piii, ptr @_Z14PALLAS_SPEC_13Piii, ptr @_Z14PALLAS_SPEC_14Pii, ptr @_Z14PALLAS_SPEC_15Pii, ptr @_Z14PALLAS_SPEC_16Pii, ptr @_Z14PALLAS_SPEC_17Pii, ptr @_Z14PALLAS_SPEC_18Pii, ptr @_Z14PALLAS_SPEC_19Pii, ptr @_Z14PALLAS_SPEC_21Piiiii, ptr @_Z14PALLAS_SPEC_20Piiiii, ptr @_Z14PALLAS_SPEC_23Piiiii, ptr @_Z14PALLAS_SPEC_24Piiii, ptr @_Z14PALLAS_SPEC_25Piiii, ptr @_Z14PALLAS_SPEC_26Piiii, ptr @_Z14PALLAS_SPEC_22Piiiii, ptr @_Z14PALLAS_SPEC_27Piiii], section "llvm.metadata"
+@llvm.compiler.used = appending global [28 x ptr] [ptr @_Z13PALLAS_SPEC_0Piii, ptr @_Z13PALLAS_SPEC_1Piii, ptr @_Z13PALLAS_SPEC_2Piii, ptr @_Z13PALLAS_SPEC_3Piii, ptr @_Z13PALLAS_SPEC_4Piii, ptr @_Z13PALLAS_SPEC_5Piii, ptr @_Z14PALLAS_SPEC_20Piiiii, ptr @_Z14PALLAS_SPEC_21Piiiii, ptr @_Z14PALLAS_SPEC_22Piiiii, ptr @_Z14PALLAS_SPEC_23Piiiii, ptr @_Z13PALLAS_SPEC_6Piii, ptr @_Z13PALLAS_SPEC_7Piii, ptr @_Z13PALLAS_SPEC_8Piii, ptr @_Z13PALLAS_SPEC_9Piii, ptr @_Z14PALLAS_SPEC_10Piii, ptr @_Z14PALLAS_SPEC_11Piii, ptr @_Z14PALLAS_SPEC_12Piii, ptr @_Z14PALLAS_SPEC_13Piii, ptr @_Z14PALLAS_SPEC_14Pii, ptr @_Z14PALLAS_SPEC_15Pii, ptr @_Z14PALLAS_SPEC_16Pii, ptr @_Z14PALLAS_SPEC_17Pii, ptr @_Z14PALLAS_SPEC_18Pii, ptr @_Z14PALLAS_SPEC_19Pii, ptr @_Z14PALLAS_SPEC_24Piiii, ptr @_Z14PALLAS_SPEC_25Piiii, ptr @_Z14PALLAS_SPEC_26Piiii, ptr @_Z14PALLAS_SPEC_27Piiii], section "llvm.metadata"
+@llvm.used = appending global [28 x ptr] [ptr @_Z13PALLAS_SPEC_0Piii, ptr @_Z13PALLAS_SPEC_1Piii, ptr @_Z13PALLAS_SPEC_2Piii, ptr @_Z13PALLAS_SPEC_3Piii, ptr @_Z13PALLAS_SPEC_4Piii, ptr @_Z13PALLAS_SPEC_5Piii, ptr @_Z13PALLAS_SPEC_6Piii, ptr @_Z13PALLAS_SPEC_7Piii, ptr @_Z13PALLAS_SPEC_8Piii, ptr @_Z13PALLAS_SPEC_9Piii, ptr @_Z14PALLAS_SPEC_10Piii, ptr @_Z14PALLAS_SPEC_11Piii, ptr @_Z14PALLAS_SPEC_12Piii, ptr @_Z14PALLAS_SPEC_13Piii, ptr @_Z14PALLAS_SPEC_14Pii, ptr @_Z14PALLAS_SPEC_15Pii, ptr @_Z14PALLAS_SPEC_16Pii, ptr @_Z14PALLAS_SPEC_17Pii, ptr @_Z14PALLAS_SPEC_18Pii, ptr @_Z14PALLAS_SPEC_19Pii, ptr @_Z14PALLAS_SPEC_20Piiiii, ptr @_Z14PALLAS_SPEC_21Piiiii, ptr @_Z14PALLAS_SPEC_22Piiiii, ptr @_Z14PALLAS_SPEC_23Piiiii, ptr @_Z14PALLAS_SPEC_24Piiii, ptr @_Z14PALLAS_SPEC_25Piiii, ptr @_Z14PALLAS_SPEC_26Piiii, ptr @_Z14PALLAS_SPEC_27Piiii], section "llvm.metadata"
 @.str = private unnamed_addr constant [2 x i8] c"i\00", align 1, !dbg !0
 @.str.1 = private unnamed_addr constant [2 x i8] c"j\00", align 1, !dbg !8
 
@@ -131,8 +131,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_0Piii(ptr noundef %0, i32 n
   ret i1 %4, !dbg !514
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !148 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !148 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !147, metadata !DIExpression()), !dbg !516
   call void @llvm.dbg.value(metadata i32 %1, metadata !150, metadata !DIExpression()), !dbg !516
   call void @llvm.dbg.value(metadata i32 %2, metadata !152, metadata !DIExpression()), !dbg !516
@@ -154,8 +154,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_1Piii(ptr noundef %0, i32 n
   ret i1 %12, !dbg !516
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_2Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !158 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_2Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !158 !pallas.exprWrapper !513 {
   %4 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !157, metadata !DIExpression()), !dbg !524
   call void @llvm.dbg.value(metadata i32 %1, metadata !160, metadata !DIExpression()), !dbg !524
@@ -174,8 +174,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_2Piii(ptr noundef %0, i32 n
   ret i1 %14, !dbg !524
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_3Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !168 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_3Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !168 !pallas.exprWrapper !513 {
   %4 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !167, metadata !DIExpression()), !dbg !531
   call void @llvm.dbg.value(metadata i32 %1, metadata !170, metadata !DIExpression()), !dbg !531
@@ -194,8 +194,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_3Piii(ptr noundef %0, i32 n
   ret i1 %14, !dbg !531
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_4Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !178 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_4Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !178 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !177, metadata !DIExpression()), !dbg !538
   call void @llvm.dbg.value(metadata i32 %1, metadata !180, metadata !DIExpression()), !dbg !538
   call void @llvm.dbg.value(metadata i32 %2, metadata !182, metadata !DIExpression()), !dbg !538
@@ -207,8 +207,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_4Piii(ptr noundef %0, i32 n
   ret i1 %8, !dbg !538
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_5Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !188 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_5Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !188 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !187, metadata !DIExpression()), !dbg !540
   call void @llvm.dbg.value(metadata i32 %1, metadata !190, metadata !DIExpression()), !dbg !540
   call void @llvm.dbg.value(metadata i32 %2, metadata !192, metadata !DIExpression()), !dbg !540
@@ -230,77 +230,77 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_5Piii(ptr noundef %0, i32 n
   ret i1 %18, !dbg !540
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_21Piiiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #2 !dbg !241 !pallas.exprWrapper !513 {
-  call void @llvm.dbg.value(metadata ptr %0, metadata !240, metadata !DIExpression()), !dbg !548
-  call void @llvm.dbg.value(metadata i32 %1, metadata !243, metadata !DIExpression()), !dbg !548
-  call void @llvm.dbg.value(metadata i32 %2, metadata !245, metadata !DIExpression()), !dbg !548
-  call void @llvm.dbg.value(metadata i32 %3, metadata !247, metadata !DIExpression()), !dbg !548
-  call void @llvm.dbg.value(metadata i32 %4, metadata !249, metadata !DIExpression()), !dbg !548
-  %6 = icmp sle i32 %1, %3, !dbg !549
-  %7 = icmp slt i32 %3, %2, !dbg !549
-  %8 = call i1 @pallas.scAnd(i1 %6, i1 %7), !dbg !549
-  ret i1 %8, !dbg !548
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_20Piiiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !225 !pallas.exprWrapper !513 {
+  call void @llvm.dbg.value(metadata ptr %0, metadata !224, metadata !DIExpression()), !dbg !548
+  call void @llvm.dbg.value(metadata i32 %1, metadata !229, metadata !DIExpression()), !dbg !548
+  call void @llvm.dbg.value(metadata i32 %2, metadata !231, metadata !DIExpression()), !dbg !548
+  call void @llvm.dbg.value(metadata i32 %3, metadata !233, metadata !DIExpression()), !dbg !548
+  call void @llvm.dbg.value(metadata i32 %4, metadata !235, metadata !DIExpression()), !dbg !548
+  %6 = icmp sle i32 %1, %4, !dbg !549
+  %7 = add nsw i32 %2, 1, !dbg !549
+  %8 = icmp slt i32 %4, %7, !dbg !549
+  %9 = call i1 @pallas.scAnd(i1 %6, i1 %8), !dbg !549
+  ret i1 %9, !dbg !548
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_20Piiiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #2 !dbg !225 !pallas.exprWrapper !513 {
-  call void @llvm.dbg.value(metadata ptr %0, metadata !224, metadata !DIExpression()), !dbg !550
-  call void @llvm.dbg.value(metadata i32 %1, metadata !229, metadata !DIExpression()), !dbg !550
-  call void @llvm.dbg.value(metadata i32 %2, metadata !231, metadata !DIExpression()), !dbg !550
-  call void @llvm.dbg.value(metadata i32 %3, metadata !233, metadata !DIExpression()), !dbg !550
-  call void @llvm.dbg.value(metadata i32 %4, metadata !235, metadata !DIExpression()), !dbg !550
-  %6 = icmp sle i32 %1, %4, !dbg !551
-  %7 = add nsw i32 %2, 1, !dbg !551
-  %8 = icmp slt i32 %4, %7, !dbg !551
-  %9 = call i1 @pallas.scAnd(i1 %6, i1 %8), !dbg !551
-  ret i1 %9, !dbg !550
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_21Piiiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !241 !pallas.exprWrapper !513 {
+  call void @llvm.dbg.value(metadata ptr %0, metadata !240, metadata !DIExpression()), !dbg !550
+  call void @llvm.dbg.value(metadata i32 %1, metadata !243, metadata !DIExpression()), !dbg !550
+  call void @llvm.dbg.value(metadata i32 %2, metadata !245, metadata !DIExpression()), !dbg !550
+  call void @llvm.dbg.value(metadata i32 %3, metadata !247, metadata !DIExpression()), !dbg !550
+  call void @llvm.dbg.value(metadata i32 %4, metadata !249, metadata !DIExpression()), !dbg !550
+  %6 = icmp sle i32 %1, %3, !dbg !551
+  %7 = icmp slt i32 %3, %2, !dbg !551
+  %8 = call i1 @pallas.scAnd(i1 %6, i1 %7), !dbg !551
+  ret i1 %8, !dbg !550
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_23Piiiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #2 !dbg !269 !pallas.exprWrapper !513 {
-  call void @llvm.dbg.value(metadata ptr %0, metadata !268, metadata !DIExpression()), !dbg !552
-  call void @llvm.dbg.value(metadata i32 %1, metadata !271, metadata !DIExpression()), !dbg !552
-  call void @llvm.dbg.value(metadata i32 %2, metadata !273, metadata !DIExpression()), !dbg !552
-  call void @llvm.dbg.value(metadata i32 %3, metadata !275, metadata !DIExpression()), !dbg !552
-  call void @llvm.dbg.value(metadata i32 %4, metadata !277, metadata !DIExpression()), !dbg !552
-  %6 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !553
-  %7 = icmp sle i32 %1, %6, !dbg !553
-  %8 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !553
-  %9 = icmp slt i32 %8, %4, !dbg !553
-  %10 = call i1 @pallas.scAnd(i1 %7, i1 %9), !dbg !553
-  %11 = sext i32 %3 to i64, !dbg !554
-  %12 = getelementptr inbounds i32, ptr %0, i64 %11, !dbg !554
-  %13 = load i32, ptr %12, align 4, !dbg !554
-  %14 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !555
-  %15 = sext i32 %14 to i64, !dbg !556
-  %16 = getelementptr inbounds i32, ptr %0, i64 %15, !dbg !556
-  %17 = load i32, ptr %16, align 4, !dbg !556
-  %18 = icmp sle i32 %13, %17, !dbg !557
-  %19 = call i1 @pallas.forall(i1 %10, i1 %18), !dbg !558
-  ret i1 %19, !dbg !552
-}
-
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_22Piiiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #2 !dbg !255 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_22Piiiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !255 !pallas.exprWrapper !513 {
   %6 = alloca %pallas.fracT, align 8
-  call void @llvm.dbg.value(metadata ptr %0, metadata !254, metadata !DIExpression()), !dbg !559
-  call void @llvm.dbg.value(metadata i32 %1, metadata !257, metadata !DIExpression()), !dbg !559
-  call void @llvm.dbg.value(metadata i32 %2, metadata !259, metadata !DIExpression()), !dbg !559
-  call void @llvm.dbg.value(metadata i32 %3, metadata !261, metadata !DIExpression()), !dbg !559
-  call void @llvm.dbg.value(metadata i32 %4, metadata !263, metadata !DIExpression()), !dbg !559
-  %7 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !560
-  %8 = icmp sle i32 %1, %7, !dbg !560
-  %9 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !560
-  %10 = icmp slt i32 %9, %2, !dbg !560
-  %11 = call i1 @pallas.scAnd(i1 %8, i1 %10), !dbg !560
-  %12 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !561
-  %13 = sext i32 %12 to i64, !dbg !562
-  %14 = getelementptr inbounds i32, ptr %0, i64 %13, !dbg !562
-  call void @pallas.fracOf(ptr sret(%pallas.fracT) %6, i32 noundef 1, i32 noundef 2), !dbg !563
-  %15 = call i1 @pallas.perm(ptr noundef %14, ptr noundef byval(%pallas.fracT) %6), !dbg !564
-  %16 = call i1 @pallas.forallSep(i1 %11, i1 %15), !dbg !565
-  ret i1 %16, !dbg !559
+  call void @llvm.dbg.value(metadata ptr %0, metadata !254, metadata !DIExpression()), !dbg !552
+  call void @llvm.dbg.value(metadata i32 %1, metadata !257, metadata !DIExpression()), !dbg !552
+  call void @llvm.dbg.value(metadata i32 %2, metadata !259, metadata !DIExpression()), !dbg !552
+  call void @llvm.dbg.value(metadata i32 %3, metadata !261, metadata !DIExpression()), !dbg !552
+  call void @llvm.dbg.value(metadata i32 %4, metadata !263, metadata !DIExpression()), !dbg !552
+  %7 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !553
+  %8 = icmp sle i32 %1, %7, !dbg !553
+  %9 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !553
+  %10 = icmp slt i32 %9, %2, !dbg !553
+  %11 = call i1 @pallas.scAnd(i1 %8, i1 %10), !dbg !553
+  %12 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !554
+  %13 = sext i32 %12 to i64, !dbg !555
+  %14 = getelementptr inbounds i32, ptr %0, i64 %13, !dbg !555
+  call void @pallas.fracOf(ptr sret(%pallas.fracT) %6, i32 noundef 1, i32 noundef 2), !dbg !556
+  %15 = call i1 @pallas.perm(ptr noundef %14, ptr noundef byval(%pallas.fracT) %6), !dbg !557
+  %16 = call i1 @pallas.forallSep(i1 %11, i1 %15), !dbg !558
+  ret i1 %16, !dbg !552
+}
+
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_23Piiiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3, i32 noundef %4) #0 !dbg !269 !pallas.exprWrapper !513 {
+  call void @llvm.dbg.value(metadata ptr %0, metadata !268, metadata !DIExpression()), !dbg !559
+  call void @llvm.dbg.value(metadata i32 %1, metadata !271, metadata !DIExpression()), !dbg !559
+  call void @llvm.dbg.value(metadata i32 %2, metadata !273, metadata !DIExpression()), !dbg !559
+  call void @llvm.dbg.value(metadata i32 %3, metadata !275, metadata !DIExpression()), !dbg !559
+  call void @llvm.dbg.value(metadata i32 %4, metadata !277, metadata !DIExpression()), !dbg !559
+  %6 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !560
+  %7 = icmp sle i32 %1, %6, !dbg !560
+  %8 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !560
+  %9 = icmp slt i32 %8, %4, !dbg !560
+  %10 = call i1 @pallas.scAnd(i1 %7, i1 %9), !dbg !560
+  %11 = sext i32 %3 to i64, !dbg !561
+  %12 = getelementptr inbounds i32, ptr %0, i64 %11, !dbg !561
+  %13 = load i32, ptr %12, align 4, !dbg !561
+  %14 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !562
+  %15 = sext i32 %14 to i64, !dbg !563
+  %16 = getelementptr inbounds i32, ptr %0, i64 %15, !dbg !563
+  %17 = load i32, ptr %16, align 4, !dbg !563
+  %18 = icmp sle i32 %13, %17, !dbg !564
+  %19 = call i1 @pallas.forall(i1 %10, i1 %18), !dbg !565
+  ret i1 %19, !dbg !559
 }
 
 ; Function Attrs: mustprogress noinline nounwind uwtable
@@ -312,8 +312,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_6Piii(ptr noundef %0, i32 n
   ret i1 %4, !dbg !566
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_7Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !302 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_7Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !302 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !301, metadata !DIExpression()), !dbg !568
   call void @llvm.dbg.value(metadata i32 %1, metadata !304, metadata !DIExpression()), !dbg !568
   call void @llvm.dbg.value(metadata i32 %2, metadata !306, metadata !DIExpression()), !dbg !568
@@ -325,8 +325,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_7Piii(ptr noundef %0, i32 n
   ret i1 %8, !dbg !568
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_8Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !312 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_8Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !312 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !311, metadata !DIExpression()), !dbg !570
   call void @llvm.dbg.value(metadata i32 %1, metadata !314, metadata !DIExpression()), !dbg !570
   call void @llvm.dbg.value(metadata i32 %2, metadata !316, metadata !DIExpression()), !dbg !570
@@ -347,8 +347,8 @@ define dso_local noundef zeroext i1 @_Z13PALLAS_SPEC_9Piii(ptr noundef %0, i32 n
   ret i1 %4, !dbg !572
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_10Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !332 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_10Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !332 !pallas.exprWrapper !513 {
   %4 = alloca %pallas.fracT, align 8
   %5 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !331, metadata !DIExpression()), !dbg !574
@@ -366,8 +366,8 @@ define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_10Piii(ptr noundef %0, i32 
   ret i1 %12, !dbg !574
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_11Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !342 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_11Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !342 !pallas.exprWrapper !513 {
   %4 = alloca %pallas.fracT, align 8
   %5 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !341, metadata !DIExpression()), !dbg !582
@@ -385,8 +385,8 @@ define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_11Piii(ptr noundef %0, i32 
   ret i1 %12, !dbg !582
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_12Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !352 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_12Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !352 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !351, metadata !DIExpression()), !dbg !590
   call void @llvm.dbg.value(metadata i32 %1, metadata !354, metadata !DIExpression()), !dbg !590
   call void @llvm.dbg.value(metadata i32 %2, metadata !356, metadata !DIExpression()), !dbg !590
@@ -401,8 +401,8 @@ define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_12Piii(ptr noundef %0, i32 
   ret i1 %11, !dbg !590
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_13Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #2 !dbg !362 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_13Piii(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 !dbg !362 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !361, metadata !DIExpression()), !dbg !595
   call void @llvm.dbg.value(metadata i32 %1, metadata !364, metadata !DIExpression()), !dbg !595
   call void @llvm.dbg.value(metadata i32 %2, metadata !366, metadata !DIExpression()), !dbg !595
@@ -433,8 +433,8 @@ define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_15Pii(ptr noundef %0, i32 n
   ret i1 %3, !dbg !602
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_16Pii(ptr noundef %0, i32 noundef %1) #2 !dbg !406 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_16Pii(ptr noundef %0, i32 noundef %1) #0 !dbg !406 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !405, metadata !DIExpression()), !dbg !604
   call void @llvm.dbg.value(metadata i32 %1, metadata !408, metadata !DIExpression()), !dbg !604
   %3 = call i64 @pallas.ptrLength(ptr noundef %0), !dbg !605
@@ -443,8 +443,8 @@ define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_16Pii(ptr noundef %0, i32 n
   ret i1 %5, !dbg !604
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_17Pii(ptr noundef %0, i32 noundef %1) #2 !dbg !414 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_17Pii(ptr noundef %0, i32 noundef %1) #0 !dbg !414 !pallas.exprWrapper !513 {
   %3 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !413, metadata !DIExpression()), !dbg !608
   call void @llvm.dbg.value(metadata i32 %1, metadata !416, metadata !DIExpression()), !dbg !608
@@ -462,8 +462,8 @@ define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_17Pii(ptr noundef %0, i32 n
   ret i1 %13, !dbg !608
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_18Pii(ptr noundef %0, i32 noundef %1) #2 !dbg !422 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_18Pii(ptr noundef %0, i32 noundef %1) #0 !dbg !422 !pallas.exprWrapper !513 {
   %3 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !421, metadata !DIExpression()), !dbg !615
   call void @llvm.dbg.value(metadata i32 %1, metadata !424, metadata !DIExpression()), !dbg !615
@@ -481,8 +481,8 @@ define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_18Pii(ptr noundef %0, i32 n
   ret i1 %13, !dbg !615
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_19Pii(ptr noundef %0, i32 noundef %1) #2 !dbg !430 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_19Pii(ptr noundef %0, i32 noundef %1) #0 !dbg !430 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !429, metadata !DIExpression()), !dbg !622
   call void @llvm.dbg.value(metadata i32 %1, metadata !432, metadata !DIExpression()), !dbg !622
   %3 = call noundef i32 @"pallas.boundVar noundef i32"(ptr @.str), !dbg !623
@@ -525,8 +525,8 @@ define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_24Piiii(ptr noundef %0, i32
   ret i1 %9, !dbg !633
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_25Piiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #2 !dbg !481 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_25Piiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !481 !pallas.exprWrapper !513 {
   %5 = alloca %pallas.fracT, align 8
   call void @llvm.dbg.value(metadata ptr %0, metadata !480, metadata !DIExpression()), !dbg !637
   call void @llvm.dbg.value(metadata i32 %1, metadata !483, metadata !DIExpression()), !dbg !637
@@ -546,8 +546,8 @@ define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_25Piiii(ptr noundef %0, i32
   ret i1 %15, !dbg !637
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_26Piiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #2 !dbg !493 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_26Piiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !493 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !492, metadata !DIExpression()), !dbg !644
   call void @llvm.dbg.value(metadata i32 %1, metadata !495, metadata !DIExpression()), !dbg !644
   call void @llvm.dbg.value(metadata i32 %2, metadata !497, metadata !DIExpression()), !dbg !644
@@ -576,8 +576,8 @@ define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_26Piiii(ptr noundef %0, i32
   ret i1 %25, !dbg !644
 }
 
-; Function Attrs: mustprogress noinline uwtable
-define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_27Piiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #2 !dbg !505 !pallas.exprWrapper !513 {
+; Function Attrs: mustprogress noinline nounwind uwtable
+define dso_local noundef zeroext i1 @_Z14PALLAS_SPEC_27Piiii(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 !dbg !505 !pallas.exprWrapper !513 {
   call void @llvm.dbg.value(metadata ptr %0, metadata !504, metadata !DIExpression()), !dbg !654
   call void @llvm.dbg.value(metadata i32 %1, metadata !507, metadata !DIExpression()), !dbg !654
   call void @llvm.dbg.value(metadata i32 %2, metadata !509, metadata !DIExpression()), !dbg !654
@@ -626,7 +626,6 @@ declare !pallas.specLib !674 noundef i32 @"pallas.boundVar noundef i32"(ptr)
 
 attributes #0 = { mustprogress noinline nounwind uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
-attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 
 !llvm.dbg.cu = !{!10, !12}
 !llvm.module.flags = !{!111, !112, !113, !114, !115, !116, !117}
@@ -634,7 +633,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 
 !0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
 !1 = distinct !DIGlobalVariable(scope: null, file: !2, line: 35, type: !3, isLocal: true, isDefinition: true)
-!2 = !DIFile(filename: "tmp_spectral/source_wrappers.cpp", directory: "/home/rme/repos/vercors", checksumkind: CSK_MD5, checksum: "d4267eb5310262633d16248ebb5bf653")
+!2 = !DIFile(filename: "tmp_spectral/source_wrappers.cpp", directory: "/home/rme/repos/vercors", checksumkind: CSK_MD5, checksum: "aedf8ddc0fe8beeba65fb6aac9436c43")
 !3 = !DICompositeType(tag: DW_TAG_array_type, baseType: !4, size: 16, elements: !6)
 !4 = !DIDerivedType(tag: DW_TAG_const_type, baseType: !5)
 !5 = !DIBasicType(name: "char", size: 8, encoding: DW_ATE_signed_char)
@@ -643,7 +642,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !8 = !DIGlobalVariableExpression(var: !9, expr: !DIExpression())
 !9 = distinct !DIGlobalVariable(scope: null, file: !2, line: 299, type: !3, isLocal: true, isDefinition: true)
 !10 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !11, producer: "Ubuntu clang version 17.0.6 (9ubuntu1)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, splitDebugInlining: false, nameTableKind: None)
-!11 = !DIFile(filename: "examples/publications/2026/ATVA2026Spectral/Cpp/sort.cpp", directory: "/home/rme/repos/vercors", checksumkind: CSK_MD5, checksum: "efd4a36f7b804299538d8c615aa2f73c")
+!11 = !DIFile(filename: "examples/publications/2026/ATVA2026Spectral/Cpp/sort.cpp", directory: "/home/rme/repos/vercors", checksumkind: CSK_MD5, checksum: "04356d51f9188f9a0f6dc00e131c920d")
 !12 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !2, producer: "Ubuntu clang version 17.0.6 (9ubuntu1)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, globals: !13, imports: !14, splitDebugInlining: false, nameTableKind: None)
 !13 = !{!0, !8}
 !14 = !{!15, !23, !27, !31, !35, !38, !40, !42, !44, !48, !51, !54, !57, !60, !62, !67, !71, !75, !79, !81, !83, !85, !87, !90, !93, !96, !99, !102, !104, !109}
@@ -756,9 +755,9 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !121 = !{!30, !122, !30, !30}
 !122 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !30, size: 64)
 !123 = !{}
-!124 = !{!125, i1 false, i1 false, !123, !123, !127, !143, !153, !163, !173, !183}
+!124 = !{!125, i1 false, i8 0, !123, !123, !127, !143, !153, !163, !173, !183}
 !125 = !{!"pallas.srcLoc", i64 6, i64 1, i64 16, i64 1, !126}
-!126 = !DIFile(filename: "/home/rme/repos/vercors/examples/publications/2026/ATVA2026Spectral/Cpp/sort.cpp", directory: "", checksumkind: CSK_MD5, checksum: "efd4a36f7b804299538d8c615aa2f73c")
+!126 = !DIFile(filename: "/home/rme/repos/vercors/examples/publications/2026/ATVA2026Spectral/Cpp/sort.cpp", directory: "", checksumkind: CSK_MD5, checksum: "04356d51f9188f9a0f6dc00e131c920d")
 !127 = !{!"pallas.requires", !128, ptr @_Z13PALLAS_SPEC_0Piii, !123, !123, !129}
 !128 = !{!"pallas.srcLoc", i64 7, i64 1, i64 7, i64 24, !126}
 !129 = !{!130, !137, !140}
@@ -914,7 +913,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !279 = distinct !DISubprogram(name: "swap", linkageName: "_Z4swapPiii", scope: !11, file: !11, line: 47, type: !280, scopeLine: 47, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !10, retainedNodes: !123)
 !280 = !DISubroutineType(types: !281)
 !281 = !{null, !122, !30, !30}
-!282 = !{!283, i1 false, i1 false, !123, !123, !284, !297, !307, !317, !327, !337, !347, !357}
+!282 = !{!283, i1 false, i8 0, !123, !123, !284, !297, !307, !317, !327, !337, !347, !357}
 !283 = !{!"pallas.srcLoc", i64 35, i64 1, i64 46, i64 1, !126}
 !284 = !{!"pallas.requires", !285, ptr @_Z13PALLAS_SPEC_6Piii, !123, !123, !286}
 !285 = !{!"pallas.srcLoc", i64 36, i64 1, i64 36, i64 21, !126}
@@ -960,7 +959,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !325 = !{!295, !326}
 !326 = !DILocalVariable(name: "idx2", arg: 3, scope: !322, file: !11, line: 39, type: !30)
 !327 = !{!"pallas.requires", !328, ptr @_Z14PALLAS_SPEC_10Piii, !123, !123, !329}
-!328 = !{!"pallas.srcLoc", i64 40, i64 1, i64 41, i64 41, !126}
+!328 = !{!"pallas.srcLoc", i64 40, i64 1, i64 41, i64 45, !126}
 !329 = !{!330, !333, !335}
 !330 = !{!288, !331}
 !331 = !DILocalVariable(name: "arr", arg: 1, scope: !332, file: !11, line: 40, type: !122)
@@ -970,7 +969,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !335 = !{!295, !336}
 !336 = !DILocalVariable(name: "idx2", arg: 3, scope: !332, file: !11, line: 40, type: !30)
 !337 = !{!"pallas.ensures", !338, ptr @_Z14PALLAS_SPEC_11Piii, !123, !123, !339}
-!338 = !{!"pallas.srcLoc", i64 42, i64 1, i64 43, i64 41, !126}
+!338 = !{!"pallas.srcLoc", i64 42, i64 1, i64 43, i64 45, !126}
 !339 = !{!340, !343, !345}
 !340 = !{!288, !341}
 !341 = !DILocalVariable(name: "arr", arg: 1, scope: !342, file: !11, line: 42, type: !122)
@@ -1011,7 +1010,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !376 = distinct !DISubprogram(name: "selectSort", linkageName: "_Z10selectSortPii", scope: !11, file: !11, line: 62, type: !377, scopeLine: 62, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !10, retainedNodes: !123)
 !377 = !DISubroutineType(types: !378)
 !378 = !{null, !122, !30}
-!379 = !{!380, i1 false, i1 false, !123, !123, !381, !393, !401, !409, !417, !425}
+!379 = !{!380, i1 false, i8 0, !123, !123, !381, !393, !401, !409, !417, !425}
 !380 = !{!"pallas.srcLoc", i64 53, i64 1, i64 61, i64 1, !126}
 !381 = !{!"pallas.requires", !382, ptr @_Z14PALLAS_SPEC_14Pii, !123, !123, !383}
 !382 = !{!"pallas.srcLoc", i64 54, i64 1, i64 54, i64 21, !126}
@@ -1042,7 +1041,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !407 = !{!391, !408}
 !408 = !DILocalVariable(name: "n", arg: 2, scope: !406, file: !11, line: 56, type: !30)
 !409 = !{!"pallas.requires", !410, ptr @_Z14PALLAS_SPEC_17Pii, !123, !123, !411}
-!410 = !{!"pallas.srcLoc", i64 57, i64 1, i64 57, i64 85, !126}
+!410 = !{!"pallas.srcLoc", i64 57, i64 1, i64 57, i64 89, !126}
 !411 = !{!412, !415}
 !412 = !{!385, !413}
 !413 = !DILocalVariable(name: "arr", arg: 1, scope: !414, file: !11, line: 57, type: !122)
@@ -1050,7 +1049,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !415 = !{!391, !416}
 !416 = !DILocalVariable(name: "n", arg: 2, scope: !414, file: !11, line: 57, type: !30)
 !417 = !{!"pallas.ensures", !418, ptr @_Z14PALLAS_SPEC_18Pii, !123, !123, !419}
-!418 = !{!"pallas.srcLoc", i64 58, i64 1, i64 58, i64 85, !126}
+!418 = !{!"pallas.srcLoc", i64 58, i64 1, i64 58, i64 89, !126}
 !419 = !{!420, !423}
 !420 = !{!385, !421}
 !421 = !DILocalVariable(name: "arr", arg: 1, scope: !422, file: !11, line: 58, type: !122)
@@ -1109,7 +1108,7 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !474 = !{!436, !475}
 !475 = !DILocalVariable(name: "idx", arg: 4, scope: !467, file: !11, line: 66, type: !30)
 !476 = !{!"pallas.loopInv", !477, ptr @_Z14PALLAS_SPEC_25Piiii, !123, !123, !478}
-!477 = !{!"pallas.srcLoc", i64 67, i64 5, i64 67, i64 95, !126}
+!477 = !{!"pallas.srcLoc", i64 67, i64 5, i64 67, i64 99, !126}
 !478 = !{!479, !482, !484, !486}
 !479 = !{!385, !480}
 !480 = !DILocalVariable(name: "arr", arg: 1, scope: !481, file: !11, line: 67, type: !122)
@@ -1180,24 +1179,24 @@ attributes #2 = { mustprogress noinline uwtable "frame-pointer"="all" "min-legal
 !545 = !DILocation(line: 15, column: 40, scope: !188)
 !546 = !DILocation(line: 15, column: 37, scope: !188)
 !547 = !DILocation(line: 14, column: 9, scope: !188)
-!548 = !DILocation(line: 0, scope: !241)
-!549 = !DILocation(line: 21, column: 20, scope: !241)
-!550 = !DILocation(line: 0, scope: !225)
-!551 = !DILocation(line: 20, column: 20, scope: !225)
-!552 = !DILocation(line: 0, scope: !269)
-!553 = !DILocation(line: 24, column: 28, scope: !269)
-!554 = !DILocation(line: 25, column: 28, scope: !269)
-!555 = !DILocation(line: 25, column: 47, scope: !269)
-!556 = !DILocation(line: 25, column: 43, scope: !269)
-!557 = !DILocation(line: 25, column: 40, scope: !269)
-!558 = !DILocation(line: 24, column: 20, scope: !269)
-!559 = !DILocation(line: 0, scope: !255)
-!560 = !DILocation(line: 22, column: 29, scope: !255)
-!561 = !DILocation(line: 23, column: 40, scope: !255)
-!562 = !DILocation(line: 23, column: 36, scope: !255)
-!563 = !DILocation(line: 23, column: 56, scope: !255)
-!564 = !DILocation(line: 23, column: 29, scope: !255)
-!565 = !DILocation(line: 22, column: 20, scope: !255)
+!548 = !DILocation(line: 0, scope: !225)
+!549 = !DILocation(line: 20, column: 20, scope: !225)
+!550 = !DILocation(line: 0, scope: !241)
+!551 = !DILocation(line: 21, column: 20, scope: !241)
+!552 = !DILocation(line: 0, scope: !255)
+!553 = !DILocation(line: 22, column: 29, scope: !255)
+!554 = !DILocation(line: 23, column: 40, scope: !255)
+!555 = !DILocation(line: 23, column: 36, scope: !255)
+!556 = !DILocation(line: 23, column: 56, scope: !255)
+!557 = !DILocation(line: 23, column: 29, scope: !255)
+!558 = !DILocation(line: 22, column: 20, scope: !255)
+!559 = !DILocation(line: 0, scope: !269)
+!560 = !DILocation(line: 24, column: 28, scope: !269)
+!561 = !DILocation(line: 25, column: 28, scope: !269)
+!562 = !DILocation(line: 25, column: 47, scope: !269)
+!563 = !DILocation(line: 25, column: 43, scope: !269)
+!564 = !DILocation(line: 25, column: 40, scope: !269)
+!565 = !DILocation(line: 24, column: 20, scope: !269)
 !566 = !DILocation(line: 0, scope: !290)
 !567 = !DILocation(line: 36, column: 14, scope: !290)
 !568 = !DILocation(line: 0, scope: !302)

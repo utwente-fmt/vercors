@@ -78,7 +78,7 @@ void alter_copy_struct(point p){
 }
 
 /*@
-  requires _Perm(&p, _write);
+  requires _Perm(&p, _writePerm);
 @*/
 void alter_copy_struct_2(point p){
     p.x = 0;

@@ -13,8 +13,8 @@ class ClassyClass {
     /*@
     contract for generated src ClassyClass;
     requires &*this != nullptr;
-    requires _sep(_Perm(&this->i, _write), _Perm(&this->j, _write));
-    ensures  _sep(_Perm(&this->i, _write), _Perm(&this->j, _write));
+    requires _sep(_Perm(&this->i, _writePerm), _Perm(&this->j, _writePerm));
+    ensures  _sep(_Perm(&this->i, _writePerm), _Perm(&this->j, _writePerm));
     ensures this->i == 1;
     ensures this->j == 2;
     @*/

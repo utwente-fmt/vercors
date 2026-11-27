@@ -16,7 +16,7 @@ assumed contract for external ir malloc_list;
 args;
 returns List *;
 ensures _result(lPtr) != NULL;
-ensures _Perm(_result(lPtr), _write);
+ensures _Perm(_result(lPtr), _writePerm);
 ensures _result(lPtr)->next == NULL;
 @*/
 List *malloc_list() {
@@ -26,7 +26,7 @@ List *malloc_list() {
 /*@
 predicate list_write(List *from) := 
     _sep( from != NULL, 
-    _sep(_Perm(from, _write),  
+    _sep(_Perm(from, _writePerm),  
          _imply(from->next != NULL , list_write(from->next))
         )); 
 @*/

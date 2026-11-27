@@ -22,7 +22,7 @@ predicate listWrite(IntList *l, SEQ(int) s) :=
     _sep(
         _imply(l == NULL, _seqSize(int)(s) == 0),
         _imply(l != NULL, _sep(_seqSize(int)(s) > 0,
-                          _sep(_Perm(l, _write),
+                          _sep(_Perm(l, _writePerm),
                           _sep(l->value == _seqAt(int)(s, 0),
                           listWrite(l->next, _seqTail(int, s))
                           )))
@@ -77,7 +77,7 @@ assumed contract for external ir allocIntList;
 args ;
 returns IntList*;
 ensures _result(ListPtr) != NULL;
-ensures _Perm(_result(ListPtr), _write);
+ensures _Perm(_result(ListPtr), _writePerm);
 ensures _result(ListPtr)->next == NULL;
 ensures _result(ListPtr)->value == 0;
 @*/

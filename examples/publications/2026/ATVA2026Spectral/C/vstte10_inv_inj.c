@@ -31,14 +31,14 @@ requires N >= 0;
 requires A != NULL && B != NULL;
 requires _ptr_length(A) == N && _ptr_length(B) == N;
 requires _forallS(_inRange(0, _j, N), _Perm(&A[_j], _fracOf(1, 2)));
-requires _forallS(_inRange(0, _j, N), _Perm(&B[_j], _write));
+requires _forallS(_inRange(0, _j, N), _Perm(&B[_j], _writePerm));
 requires _forall (_inRange(0, _j, N), _inRange(0, A[_j], N));
 requires _forall (_and(_inRange(0, _j, N), _inRange(0, _k, N)),  // Injectivity of A
                   _imply(_j != _k, A[_j] != A[_k]));
 requires _forall (_inRange(0, _j, N), _imply(trig(_j),           // Surjectivity of A
                   _exists(_inRange(0, _k, N), A[_k] == _j)));
 ensures  _forallS(_inRange(0, _j, N), _Perm(&A[_j], _fracOf(1, 2)));
-ensures  _forallS(_inRange(0, _j, N), _Perm(&B[_j], _write));
+ensures  _forallS(_inRange(0, _j, N), _Perm(&B[_j], _writePerm));
 ensures  _forall (_inRange(0, _j, N), A[_j] == _old(int)(A[_j]));
 ensures  _forall (_inRange(0, _j, N), B[A[_j]] == _j);
 ensures  _forall (_and(_inRange(0, _j, N), _inRange(0, _k, N)),  // Injectivity of B
@@ -49,7 +49,7 @@ void invert(int *A, int *B, int N) {
     /*@
     loop_invariant 0 <= i && i <= N;
     loop_invariant _forallS(_inRange(0, _j, N), _Perm(&A[_j], _fracOf(1, 4)));
-    loop_invariant _forallS(_inRange(0, _j, N), _Perm(&B[_j], _write));
+    loop_invariant _forallS(_inRange(0, _j, N), _Perm(&B[_j], _writePerm));
     loop_invariant _forall (_inRange(0, _j, N), A[_j] == _old(int)(A[_j]));
     loop_invariant _forall (_inRange(0, _j, i), B[A[_j]] == _j);
     @*/
